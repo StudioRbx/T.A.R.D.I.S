@@ -146,6 +146,7 @@ local partage = {
 	occupe = false,           -- vrai pendant une animation (portes, demat, remat)
 	positionActuelle = nil,   -- Part de destination où le TARDIS se trouve
 	sauvegardeModifiee = false,
+	expressPret = 0,          -- os.clock() à partir duquel un nouvel Express est possible (recharge, V6.6.4)
 }
 local precedent = nil        -- { cf, nom } : là d'où le TARDIS est parti (bouton "Dernière destination")
 
@@ -153,13 +154,13 @@ local historique = {} -- { { nom, x, y, z }, ... } : les 10 derniers atterrissag
 local function publierHistorique()
 	local lignes = {}
 	for _, h in historique do
-		table.insert(lignes, string.format("%s\t%.1f\t%.1f\t%.1f", h[1], h[2], h[3], h[4]))
+		table.insert(lignes, string.format("%s\t%.1f\t%.1f\t%.1f\t%s", h[1], h[2], h[3], h[4], h[5] or "Normal"))
 	end
 	exterieur:SetAttribute("Historique", table.concat(lignes, "\n"))
 end
-local function ajouterHistorique(nom, cf)
+local function ajouterHistorique(nom, cf, mode)
 	local p = cf.Position
-	table.insert(historique, 1, { tostring(nom), p.X, p.Y, p.Z })
+	table.insert(historique, 1, { tostring(nom), p.X, p.Y, p.Z, Config.normaliserMode(mode) }) -- V6.6.4 : avec le mode
 	while #historique > 10 do table.remove(historique) end
 	publierHistorique()
 	partage.sauvegardeModifiee = true
@@ -376,6 +377,7 @@ end
 --------------------------------------------------------------------
 local dansInterieur -- définie plus bas (section des joueurs)
 local dansZoneRefusee -- définie plus bas (atterrissage)
+local dansZoneSansExpress -- définie plus bas (atterrissage)
 local clandestins = {} -- [joueur] = décalage par rapport au TARDIS
 local rotationCiel = nil
 local function reperer_clandestins()
@@ -432,6 +434,22 @@ local function deposer_clandestins()
 end
 Players.PlayerRemoving:Connect(function(joueur) clandestins[joueur] = nil end)
 
+-- Express (V6.6.4) : recharge entre deux voyages express, et zones où il est interdit (sous-dossier SANS_EXPRESS).
+-- Renvoie le mode à utiliser : un Express impossible devient un voyage normal, avec un message sur l'écran.
+local function modeAutorise(mode, position)
+	if mode ~= "Express" then return mode end
+	local reste = partage.expressPret - os.clock()
+	if reste > 0 then
+		alerter(string.format("EXPRESS EN RECHARGE (%d s) : VOYAGE NORMAL", math.ceil(reste)))
+		return "Normal"
+	end
+	if dansZoneSansExpress and dansZoneSansExpress(position) then
+		alerter("ZONE SANS EXPRESS : VOYAGE NORMAL")
+		return "Normal"
+	end
+	return mode
+end
+
 local function decoller(mode)
 	mode = Config.normaliserMode(mode)
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
@@ -441,6 +459,7 @@ local function decoller(mode)
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
 	-- Alerte générale : toujours en urgence
 	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
+	mode = modeAutorise(mode, exterieur:GetPivot().Position)
 
 	partage.occupe = true
 	exterieur:SetAttribute("Verrouille", true)
@@ -610,6 +629,7 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	-- Zone refusée (sous-dossier REFUSE des destinations) : la première tentative est repoussée à mi-chemin,
 	-- puis le TARDIS se matérialise en urgence, au même endroit
 	local zoneRefusee = mode ~= "Urgence" and dansZoneRefusee(cible.Position)
+	mode = modeAutorise(mode, cible.Position)
 
 	partage.occupe = true
 
@@ -652,15 +672,16 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes())
 	partage.occupe = false
 	verifierEau()
-	ajouterHistorique(nom, cible)
+	ajouterHistorique(nom, cible, mode)
+	if mode == "Express" then partage.expressPret = os.clock() + (Config.Modes.Express.Recharge or 0) end
 	-- Les portes restent fermées : elles s'ouvriront quand un joueur voudra sortir (voir plus bas)
 	return true, nil, urgenceForcee
 end
 
--- La position est-elle dans une zone refusée (Part du sous-dossier REFUSE de TARDIS_DESTINATIONS) ?
-dansZoneRefusee = function(position)
+-- La position est-elle dans une zone d'un sous-dossier de TARDIS_DESTINATIONS (REFUSE, SANS_EXPRESS…) ?
+local function dansZone(position, nomDossier)
 	local dossier = Config.dossierDestinations(false)
-	local zone = dossier and dossier:FindFirstChild(Config.ZoneRestreinte or "REFUSE")
+	local zone = dossier and dossier:FindFirstChild(nomDossier)
 	if not zone then return false end
 	for _, part in zone:GetDescendants() do
 		if part:IsA("BasePart") then
@@ -671,6 +692,9 @@ dansZoneRefusee = function(position)
 	end
 	return false
 end
+dansZoneRefusee = function(position) return dansZone(position, Config.ZoneRestreinte or "REFUSE") end
+-- Zone sans express (V6.6.4) : un voyage Express qui part de là ou y arrive devient un voyage normal
+dansZoneSansExpress = function(position) return dansZone(position, Config.ZoneSansExpress or "SANS_EXPRESS") end
 
 -- Rétréci : il ne peut atterrir que là où il a décollé
 local function cibleSurPlace()
@@ -742,9 +766,14 @@ local function basculerVerrou()
 	return true
 end
 
+-- Mode des voyages lancés par le levier de la console (Config.LevierEnExpress, V6.6.4)
+local function modeLevier()
+	return Config.LevierEnExpress == true and "Express" or nil
+end
+
 -- Voyage complet (levier de la console quand le TARDIS est posé)
 local function voyager(dest)
-	local ok, erreur = decoller()
+	local ok, erreur = decoller(modeLevier())
 	if not ok then
 		alerter(erreur)
 		return
@@ -752,9 +781,9 @@ local function voyager(dest)
 	task.wait(Config.DureeVol)
 	if exterieur:GetAttribute("Retreci") then
 		local cible, nom = cibleSurPlace()
-		ok, erreur = atterrir(cible, nom, false, partage.positionActuelle)
+		ok, erreur = atterrir(cible, nom, false, partage.positionActuelle, modeLevier())
 	else
-		ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest)
+		ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest, modeLevier())
 	end
 	if not ok and erreur ~= "PAS EN VOL" then -- "PAS EN VOL" : quelqu'un a déjà fait atterrir le TARDIS via le menu
 		alerter(erreur)
@@ -961,9 +990,9 @@ promptLevier.Triggered:Connect(function(joueur)
 			local ok, erreur
 			if retreci then
 				local cible, nom = cibleSurPlace()
-				ok, erreur = atterrir(cible, nom, false, partage.positionActuelle)
+				ok, erreur = atterrir(cible, nom, false, partage.positionActuelle, modeLevier())
 			else
-				ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest)
+				ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest, modeLevier())
 			end
 			if not ok then alerter(erreur) end
 		end)
@@ -1253,7 +1282,7 @@ end
 --------------------------------------------------------------------
 -- Vol libre (piloté depuis la tablette) : module VolLibre
 --------------------------------------------------------------------
-local VolLibre = require(script:WaitForChild("VolLibre"))({ Config = Config, E = E, Players = Players, chercherSol = chercherSol, dansInterieur = dansInterieur, echelleNormale = echelleNormale, emmenerALInterieur = emmenerALInterieur, etatActuel = etatActuel, exterieur = exterieur, fermerPortes = fermerPortes, hauteurNormale = hauteurNormale, interieur = interieur, jouer = jouer, majEcran = majEcran, majRamassage = majRamassage, memoriserDepart = memoriserDepart, partage = partage, setCollisionsExterieur = setCollisionsExterieur, tropPetitPourLesPortes = tropPetitPourLesPortes, verifierEau = verifierEau })
+local VolLibre = require(script:WaitForChild("VolLibre"))({ Config = Config, jouerVoyage = jouerVoyage, modeAutorise = modeAutorise, E = E, Players = Players, chercherSol = chercherSol, dansInterieur = dansInterieur, echelleNormale = echelleNormale, emmenerALInterieur = emmenerALInterieur, etatActuel = etatActuel, exterieur = exterieur, fermerPortes = fermerPortes, hauteurNormale = hauteurNormale, interieur = interieur, jouer = jouer, majEcran = majEcran, majRamassage = majRamassage, memoriserDepart = memoriserDepart, partage = partage, setCollisionsExterieur = setCollisionsExterieur, tropPetitPourLesPortes = tropPetitPourLesPortes, verifierEau = verifierEau })
 local basculerPortesEnVol, changerPhaseVol, demarrerVolLibre, lancerDescente, lancerGlisse, recevoirPositionVol = VolLibre.basculerPortesEnVol, VolLibre.changerPhaseVol, VolLibre.demarrerVolLibre, VolLibre.lancerDescente, VolLibre.lancerGlisse, VolLibre.recevoirPositionVol
 local reglagesVol, teleAtterrir, volLibre = VolLibre.reglagesVol, VolLibre.teleAtterrir, VolLibre.volLibre
 
@@ -1499,7 +1528,7 @@ end
 
 -- Joue un son sur le personnage d'un joueur (le TARDIS porté suit son porteur, pas sa position serveur)
 local function jouerSurPersonnage(joueurCible, nom)
-	local groupe = sons[nom] or sons[(string.gsub(nom, "_Urg", ""))]
+	local groupe = sons[nom] or sons[(string.gsub(string.gsub(nom, "_Urg", ""), "_Express", ""))]
 	local modele = groupe and (groupe.ext or groupe.int)
 	local racine = joueurCible.Character and joueurCible.Character:FindFirstChild("HumanoidRootPart")
 	if not (modele and racine) then return end
@@ -1511,12 +1540,15 @@ end
 
 -- Téléportation de poche : le TARDIS porté se dématérialise dans les mains (ou sur l'épaule) de son porteur,
 -- puis se rematérialise tout seul, toujours petit, à la destination choisie
-local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFiger)
+local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFiger, modeDemande)
 	if exterieur:GetAttribute("Porteur") ~= porteur.UserId then return false, "TARDIS PAS PORTÉ" end
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if not estAlimente() then return false, "HORS TENSION" end
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
-	local mode = exterieur:GetAttribute("Alerte") == true and "Urgence" or "Normal"
+	-- Mode : celui des protocoles (Urgence ou Express, V6.6.4), ou l'urgence imposée par l'alerte
+	local mode = Config.normaliserMode(modeDemande)
+	if exterieur:GetAttribute("Alerte") == true then mode = "Urgence" end
+	mode = modeAutorise(mode, exterieur:GetPivot().Position)
 
 	partage.occupe = true
 	majRamassage()
@@ -1525,7 +1557,7 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 	exterieur:SetAttribute("Mode", mode)
 	setEtat(E.Demat)
 	local son = Config.Son(E.Demat, mode)
-	jouer(son, false)                -- dans la salle de contrôle
+	jouerVoyage(E.Demat, mode, false) -- dans la salle de contrôle
 	jouerSurPersonnage(porteur, son) -- dehors : sur le porteur
 	local duree, decalage = Config.Timing(E.Demat, mode)
 	task.wait(decalage + duree)
@@ -1578,9 +1610,9 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	if action == "VolLibreDemat" or action == "VolLibreRemat" then
 		if exterieur:GetAttribute("VolLibre") == joueur.UserId then
 			if action == "VolLibreDemat" then
-				changerPhaseVol("Visible", "Demat", "Invisible", E.Demat, "Demat")
+				changerPhaseVol("Visible", "Demat", "Invisible", E.Demat, typeof(donnees) == "table" and donnees.mode)
 			else
-				changerPhaseVol("Invisible", "Remat", "Visible", E.Remat, "Remat")
+				changerPhaseVol("Invisible", "Remat", "Visible", E.Remat, typeof(donnees) == "table" and donnees.mode)
 			end
 		end
 		return
@@ -1762,7 +1794,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			return
 		end
 		task.spawn(function()
-			local ok, erreurPoche = teleporterEnPoche(joueur, cible, nom, partDestination, joueurAFiger)
+			local ok, erreurPoche = teleporterEnPoche(joueur, cible, nom, partDestination, joueurAFiger, donnees.mode)
 			repondre(ok, erreurPoche, "Rematérialisé (petit) : " .. nom .. ".")
 		end)
 
@@ -1875,7 +1907,7 @@ do
 		if type(donnees.historique) == "table" then
 			historique = {}
 			for _, h in donnees.historique do
-				if type(h) == "table" and #h == 4 then table.insert(historique, h) end
+				if type(h) == "table" and #h >= 4 then table.insert(historique, h) end -- 5e champ (mode) depuis la V6.6.4
 			end
 			publierHistorique()
 		end

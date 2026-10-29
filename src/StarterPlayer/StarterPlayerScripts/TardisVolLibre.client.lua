@@ -13,6 +13,8 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("TardisConfig"))
 local UI = require(ReplicatedStorage:WaitForChild("TardisUI"))
+-- Protocoles partagés avec le menu et la tablette : l'Express s'applique aussi à la démat / remat en vol (V6.6.4)
+local Commandes = require(ReplicatedStorage:WaitForChild("TardisCommandes"))
 local C = UI.C
 local creer, texte, animer = UI.creer, UI.texte, UI.animer
 
@@ -300,12 +302,12 @@ exterieur:GetAttributeChangedSignal("Tracteur"):Connect(function()
 end)
 H.boutonDemat.Activated:Connect(function()
 	if vol.pilote and not vol.descente and H.boutonDemat:GetAttribute("Disponible") ~= false then
-		remote:FireServer("VolLibreDemat")
+		remote:FireServer("VolLibreDemat", { mode = Commandes.mode() })
 	end
 end)
 H.boutonRemat.Activated:Connect(function()
 	if vol.pilote and not vol.descente and H.boutonRemat:GetAttribute("Disponible") ~= false then
-		remote:FireServer("VolLibreRemat")
+		remote:FireServer("VolLibreRemat", { mode = Commandes.mode() })
 	end
 end)
 H.boutonUrgence.Activated:Connect(function() if vol.pilote and not vol.descente then remote:FireServer("VolLibreUrgence") end end)
@@ -424,7 +426,7 @@ local function alphaVol()
 	if phase == "Invisible" or exterieur:GetAttribute("Camouflage") == true then return 1 end
 	if phase == "Demat" or phase == "Remat" then
 		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
-		return Config.Alpha(phase, ecoule, exterieur:GetAttribute("VolPhaseUrgence") == true)
+		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur))
 	end
 	return 0
 end
@@ -439,8 +441,8 @@ exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
 	local phase = exterieur:GetAttribute("VolPhase")
 	if phase ~= "Demat" and phase ~= "Remat" then return end
 	local base = exterieur.PrimaryPart
-	local urgence = exterieur:GetAttribute("VolPhaseUrgence") == true
-	local modele = (urgence and sonAsset(phase .. "_Urg")) or sonAsset(phase)
+	-- Son du mode (urgence, express ou normal), sinon le son normal
+	local modele = sonAsset(Config.Son(phase, Config.modeVolDe(exterieur))) or sonAsset(phase)
 	if base and modele then
 		local son = modele:Clone()
 		son.Parent = base -- le son suit le TARDIS en vol
@@ -869,9 +871,9 @@ UserInputService.InputBegan:Connect(function(input, traite)
 	elseif input.KeyCode == UI.touche("volDemat", Enum.KeyCode.X) then
 		local phase = exterieur:GetAttribute("VolPhase") or "Visible"
 		if phase == "Visible" then
-			remote:FireServer("VolLibreDemat")
+			remote:FireServer("VolLibreDemat", { mode = Commandes.mode() })
 		elseif phase == "Invisible" then
-			remote:FireServer("VolLibreRemat")
+			remote:FireServer("VolLibreRemat", { mode = Commandes.mode() })
 		end
 	elseif input.KeyCode == UI.touche("volUrgence", R.TOUCHE_URGENCE) then
 		remote:FireServer("VolLibreUrgence")
@@ -1169,7 +1171,7 @@ local function piloter(dt, t)
 			elseif t - a.dernierProgres > 2 and not a.teleEnvoyee then
 				a.teleEnvoyee = true
 				task.spawn(function()
-					remote:FireServer("VolLibreDemat")
+					remote:FireServer("VolLibreDemat", { mode = Commandes.mode() })
 					local attente = 0
 					while exterieur:GetAttribute("VolPhase") ~= "Invisible" and attente < 40 do task.wait(0.5) attente += 0.5 end
 					remote:FireServer("VolLibreTeleAtterrir", a.cible)

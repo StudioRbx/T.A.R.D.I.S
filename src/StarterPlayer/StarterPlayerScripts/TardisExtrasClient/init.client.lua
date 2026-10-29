@@ -50,7 +50,7 @@ local function progressionAnimation()
 	if etat == E.Demat or etat == E.Remat then
 		debut, mode, quoi = exterieur:GetAttribute("DebutEtat"), Config.modeDe(exterieur), etat
 	elseif phase == E.Demat or phase == E.Remat then
-		debut, mode, quoi = exterieur:GetAttribute("VolPhaseDebut"), exterieur:GetAttribute("VolPhaseUrgence") == true, phase
+		debut, mode, quoi = exterieur:GetAttribute("VolPhaseDebut"), Config.modeVolDe(exterieur), phase
 	else
 		return nil
 	end

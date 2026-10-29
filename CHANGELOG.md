@@ -70,4 +70,5 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | **V6.6** ⭐ | 29/10 | **Mode Express** : démat et remat en 2 s (l'inverse de l'urgence) ; crash de la rotation dans le ciel corrigé |
 | **V6.6.1** ⭐ | 29/10 | Fondations : `Config.Modes`, attribut `Mode`, module `TardisCommandes`, interrupteurs synchronisés, diagnostic, archive du kit |
 | **V6.6.2** ⭐ | 29/10 | Ajouts : rotor coloré selon le mode (bleu, orange, vert) et empreinte temporelle de 30 s après un départ |
-| **V6.6.3** ⭐🎮 | 29/10 | Gros scripts découpés : tablette (10 modules), effets (11 modules), vol libre du serveur ; aucun changement de jeu |
+| **V6.6.3** ⭐ | 29/10 | Gros scripts découpés : tablette (10 modules), effets (11 modules), vol libre du serveur ; aucun changement de jeu |
+| **V6.6.4** ⭐🎮 | 29/10 | Express en vol libre, en poche et au levier ; sons et éclair Express ; recharge de 5 s ; zones SANS_EXPRESS ; historique par mode |

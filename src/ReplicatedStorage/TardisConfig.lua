@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6.3"
+Config.Version = "6.6.4"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -15,6 +15,7 @@ Config.NomInterieur = "TARDIS_Interieur"           -- Model de l'intérieur
 Config.NomDestinations = "TARDIS_DESTINATIONS" -- dossier commun aux trois TARDIS
 Config.ZoneAccessible = "ACCORDE"   -- sous-dossier : atterrissage normal
 Config.ZoneRestreinte = "REFUSE"    -- sous-dossier : seule une matérialisation d'URGENCE y est possible     -- Folder contenant les Parts de destination
+Config.ZoneSansExpress = "SANS_EXPRESS" -- sous-dossier (V6.6.4) : un voyage Express y devient un voyage normal
 
 -- Noms des pièces
 Config.NomPortailExt = "Portail"     -- Part invisible dans l'encadrement de la porte extérieure
@@ -71,12 +72,14 @@ Config.Modes = {
 		Demat = { Duree = 2, Decalage = 0 },
 		Remat = { Duree = 2, Decalage = 0 },
 		Pulsations = 2,
+		Recharge = 5,          -- secondes après un voyage express avant d'en refaire un (sinon : voyage normal)
 		CouleurRotor = Color3.fromRGB(74, 222, 128),
 		-- Absents : le son normal est joué sans son silence de départ, puis coupé en fondu à la fin
 		Sons = { Demat = "Demat_Express", Remat = "Remat_Express" },
 	},
 }
 Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
+Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Express (V6.6.4)
 
 -- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
 -- à l'ancien emplacement, puis s'efface. Pas d'empreinte pour un départ camouflé, porté ou en vol libre.
@@ -449,6 +452,13 @@ function Config.normaliserMode(mode)
 end
 
 -- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)
+-- Mode de la démat / remat en vol libre (attribut "VolPhaseMode" ; avant la V6.6.4, seulement "VolPhaseUrgence")
+function Config.modeVolDe(exterieur)
+	local mode = exterieur:GetAttribute("VolPhaseMode")
+	if mode then return Config.normaliserMode(mode) end
+	return exterieur:GetAttribute("VolPhaseUrgence") == true and "Urgence" or "Normal"
+end
+
 function Config.modeDe(exterieur)
 	return Config.normaliserMode(exterieur:GetAttribute("Mode"))
 end

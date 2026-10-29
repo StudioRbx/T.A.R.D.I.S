@@ -107,12 +107,14 @@ return function(contexte)
 			end
 			local index = 0
 			for ligne in string.gmatch(exterieur:GetAttribute("Historique") or "", "[^\n]+") do
-				local nom, x, y, z = string.match(ligne, "^(.-)\t([%-%d%.]+)\t([%-%d%.]+)\t([%-%d%.]+)$")
+				local nom, x, y, z, modeVoyage = string.match(ligne, "^(.-)\t([%-%d%.]+)\t([%-%d%.]+)\t([%-%d%.]+)\t?(%a*)$")
 				if nom and garde(nom) then
 					index += 1
 					ordre += 1
 					ajouterElement(nom, { type = "historique", index = index, nom = nom, cframe = CFrame.new(tonumber(x), tonumber(y), tonumber(z)),
-						sous = string.format("Voyage n°%d  ·  %d, %d, %d", index, tonumber(x), tonumber(y), tonumber(z)) }, ordre)
+						sous = string.format("Voyage n°%d  ·  %s%d, %d, %d", index,
+							(modeVoyage == "Express" and "EXPRESS  ·  ") or (modeVoyage == "Urgence" and "URGENCE  ·  ") or "",
+							tonumber(x), tonumber(y), tonumber(z)) }, ordre)
 				end
 			end
 		end

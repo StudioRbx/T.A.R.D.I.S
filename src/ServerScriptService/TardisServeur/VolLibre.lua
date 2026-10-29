@@ -7,6 +7,7 @@ return function(contexte)
 	local emmenerALInterieur, etatActuel, exterieur, fermerPortes, hauteurNormale, interieur = contexte.emmenerALInterieur, contexte.etatActuel, contexte.exterieur, contexte.fermerPortes, contexte.hauteurNormale, contexte.interieur
 	local jouer, majEcran, majRamassage, memoriserDepart, partage, setCollisionsExterieur = contexte.jouer, contexte.majEcran, contexte.majRamassage, contexte.memoriserDepart, contexte.partage, contexte.setCollisionsExterieur
 	local tropPetitPourLesPortes, verifierEau = contexte.tropPetitPourLesPortes, contexte.verifierEau
+	local jouerVoyage, modeAutorise = contexte.jouerVoyage, contexte.modeAutorise -- V6.6.4 : Express en vol
 
 	--------------------------------------------------------------------
 	-- Vol libre (piloté depuis la tablette)
@@ -47,25 +48,34 @@ return function(contexte)
 
 	-- Démat / remat EN VOL : le TARDIS devient invisible (ou réapparaît) sans arrêter le vol libre.
 	-- Phases : "Visible" -> "Demat" -> "Invisible" -> "Remat" -> "Visible" (animées chez les clients)
-	local function phaseVol(phase, urgence)
-		exterieur:SetAttribute("VolPhaseUrgence", urgence == true)
+	local function phaseVol(phase, mode)
+		mode = Config.normaliserMode(mode)
+		exterieur:SetAttribute("VolPhaseUrgence", mode == "Urgence")
+		exterieur:SetAttribute("VolPhaseMode", mode)
 		exterieur:SetAttribute("VolPhaseDebut", workspace:GetServerTimeNow())
 		exterieur:SetAttribute("VolPhase", phase) -- en dernier : déclenche l'animation chez les clients
 	end
 
-	local function changerPhaseVol(depuis, transition, arrivee, etatAnimation, son)
+	-- modeDemande : le mode des protocoles du pilote ("Express" possible depuis la V6.6.4)
+	local function changerPhaseVol(depuis, transition, arrivee, etatAnimation, modeDemande)
 		if exterieur:GetAttribute("VolPhase") ~= depuis or volLibre.enDescente then return end
 		if transition == "Demat" then fermerPortesEnVol() end
-		local urgence = exterieur:GetAttribute("VolUrgence") == true
-		phaseVol(transition, urgence)
+		local mode = "Normal"
+		if exterieur:GetAttribute("VolUrgence") == true then
+			mode = "Urgence" -- vol d'urgence : démat et remat d'urgence
+		elseif Config.normaliserMode(modeDemande) == "Express" then
+			mode = modeAutorise("Express", (volLibre.dernierCF or exterieur:GetPivot()).Position)
+		end
+		phaseVol(transition, mode)
 		-- Le son de la salle de contrôle est joué ici ; celui de dehors est joué par les clients, sur le TARDIS qui bouge
-		jouer(urgence and (son .. "_Urg") or son, false)
-		local duree, decalage = Config.Timing(etatAnimation, urgence)
+		jouerVoyage(etatAnimation, mode, false)
+		local duree, decalage = Config.Timing(etatAnimation, mode)
 		local jeton = {}
 		volLibre.jetonPhase = jeton
 		task.delay(duree + decalage, function()
 			if volLibre.jetonPhase == jeton and exterieur:GetAttribute("VolPhase") == transition then
-				phaseVol(arrivee, urgence)
+				phaseVol(arrivee, mode)
+				if mode == "Express" and transition == "Remat" then partage.expressPret = os.clock() + (Config.Modes.Express.Recharge or 0) end
 			end
 		end)
 	end
@@ -91,7 +101,7 @@ return function(contexte)
 		setCollisionsExterieur(false)
 		exterieur:SetAttribute("VolVortex", false)
 		exterieur:SetAttribute("VolUrgence", false)
-		phaseVol("Visible", false)
+		phaseVol("Visible", "Normal")
 		volLibre.dernierCF = exterieur:GetPivot()
 		volLibre.dernierTemps = os.clock()
 		volLibre.enDescente = false

@@ -132,7 +132,7 @@ local function alphaVol()
 	if phase == "Invisible" or exterieur:GetAttribute("Detruit") == true then return 1 end
 	if phase == E.Demat or phase == E.Remat then
 		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
-		return Config.Alpha(phase, ecoule, exterieur:GetAttribute("VolPhaseUrgence") == true)
+		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur))
 	end
 	return 0
 end
@@ -453,7 +453,7 @@ do
 		if etat == E.Remat then
 			debut, mode = exterieur:GetAttribute("DebutEtat"), Config.modeDe(exterieur)
 		elseif exterieur:GetAttribute("VolPhase") == E.Remat then
-			debut, mode = exterieur:GetAttribute("VolPhaseDebut"), exterieur:GetAttribute("VolPhaseUrgence") == true
+			debut, mode = exterieur:GetAttribute("VolPhaseDebut"), Config.modeVolDe(exterieur)
 		else
 			return 0
 		end
@@ -681,6 +681,61 @@ do
 		elseif enAttente then
 			enAttente:Destroy() -- démat interrompue
 			enAttente = nil
+		end
+	end)
+end
+--------------------------------------------------------------------
+-- Éclair Express (V6.6.4) : au départ et à l'arrivée d'un voyage express, un flash lumineux jaillit de la
+-- cabine et une onde court au sol. Rien pour un voyage camouflé.
+--------------------------------------------------------------------
+do
+	local TweenService = game:GetService("TweenService")
+	local Debris = game:GetService("Debris")
+	local COULEUR = Config.Modes.Express.CouleurRotor or Color3.fromRGB(74, 222, 128)
+
+	local function piece(proprietes)
+		local p = Instance.new("Part")
+		p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery, p.CastShadow = true, false, false, false, false
+		p.Material = Enum.Material.Neon
+		for cle, valeur in proprietes do p[cle] = valeur end
+		p.Parent = workspace
+		return p
+	end
+
+	local function eclair(cf)
+		local hauteur = math.max(exterieur:GetExtentsSize().Y, 4)
+		local sol = cf.Position
+		-- Flash : une sphère qui grossit en s'effaçant, avec une lumière
+		local boule = piece({ Name = "TardisEclairExpress", Shape = Enum.PartType.Ball, Size = Vector3.one * 2,
+			Color = Color3.new(1, 1, 1):Lerp(COULEUR, 0.35), Transparency = 0.1, CFrame = CFrame.new(sol + Vector3.new(0, hauteur / 2, 0)) })
+		local lumiere = Instance.new("PointLight")
+		lumiere.Color, lumiere.Range, lumiere.Brightness = COULEUR, 30, 6
+		lumiere.Parent = boule
+		TweenService:Create(boule, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.one * (hauteur * 1.6), Transparency = 1 }):Play()
+		TweenService:Create(lumiere, TweenInfo.new(0.45), { Brightness = 0 }):Play()
+		-- Onde au sol : un disque fin qui s'élargit
+		local onde = piece({ Name = "TardisOndeExpress", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 2, 2),
+			Color = COULEUR, Transparency = 0.3, CFrame = CFrame.new(sol + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
+		TweenService:Create(onde, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.new(0.2, 34, 34), Transparency = 1 }):Play()
+		Debris:AddItem(boule, 0.8)
+		Debris:AddItem(onde, 1)
+	end
+
+	-- Voyage : démat (départ) et remat (arrivée)
+	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+		local etat = exterieur:GetAttribute("Etat")
+		if (etat == E.Demat or etat == E.Remat) and Config.modeDe(exterieur) == "Express" and exterieur:GetAttribute("Camouflage") ~= true then
+			eclair(exterieur:GetPivot())
+		end
+	end)
+	-- Vol libre : démat / remat en plein vol, là où le TARDIS se trouve
+	exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
+		local phase = exterieur:GetAttribute("VolPhase")
+		if (phase == E.Demat or phase == E.Remat) and Config.modeVolDe(exterieur) == "Express" then
+			local cf = exterieur:GetAttribute("VolLibreCF")
+			eclair(typeof(cf) == "CFrame" and cf or exterieur:GetPivot())
 		end
 	end)
 end

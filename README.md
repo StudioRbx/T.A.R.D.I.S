@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.6.3** (mode Express, rotor coloré, empreinte temporelle ; gros scripts découpés en modules). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.6.4** (mode Express complet, rotor coloré, empreinte temporelle ; scripts découpés en modules). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 
@@ -76,7 +76,7 @@ Puis, dans Studio (mode Édition), coller le contenu de `outils/synchro_studio.l
    TARDIS (Folder)
    ├─ TARDIS_1 (Folder) › EXTERIEURE (Folder) › <Model, PrimaryPart = Racine>
    │                    › INTERIEURE (Folder) › <Model>
-   └─ TARDIS_DESTINATIONS (Folder) › ACCORDE / REFUSE
+   └─ TARDIS_DESTINATIONS (Folder) › ACCORDE / REFUSE / SANS_EXPRESS
    ```
 6. `TardisConfig` : renseigner `Config.Pilotes`, `Config.Techniciens` et `Config.Tardis` (mettre en commentaire les TARDIS qui n'existent pas dans le Workspace).
 7. Paramètres du jeu › Sécurité : **Enable Studio Access to API Services** (sauvegarde) ; avec StreamingEnabled, `ModelStreamingMode = Persistent` sur les Models du TARDIS.
