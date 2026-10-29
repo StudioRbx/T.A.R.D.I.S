@@ -195,14 +195,13 @@ Config.Sauvegarde = {
 -- Menu de contrôle à distance : qui a le droit de l'utiliser (vérifié par le serveur)
 -- Par défaut : le propriétaire du jeu. Si le jeu appartient à un groupe : les membres de rang >= RangMin.
 Config.Pilotes = {
-	UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 },      -- joueurs autorisés
-	RangMin = 255,     -- rang minimum dans ce groupe (255 = propriétaire du groupe)
+	UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 2467966666, 3855328330 },      -- joueurs autorisés
 	UniquementUserIds = true, -- true : SEULS les UserIds ci-dessus ont accès (ni le propriétaire du jeu, ni le groupe)
 }
 
 -- Techniciens de TOUS les TARDIS : menu des outils (chiffon, visseuse, clé à molette, extincteur), réparations, tablette technicien
 Config.Techniciens = {
-	UserIds = { 10829137819, 3192865267, 3855328330 },
+	UserIds = { 10829137819, 3192865267, 2644152451 },
 	UniquementUserIds = true,
 }
 
@@ -211,9 +210,9 @@ Config.Techniciens = {
 -- Config.Pilotes.UserIds (accès à tous les TARDIS) et Config.Techniciens.UserIds.
 -- Le dossier Workspace > TARDIS > <Nom> doit contenir EXTERIEURE (avec le Model extérieur) et INTERIEURE (avec le Model intérieur).
 Config.Tardis = {
-	{ Nom = "TARDIS_1", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
-	-- { Nom = "TARDIS_2", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
-	-- { Nom = "TARDIS_3", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
+	{ Nom = "TARDIS_1", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 2644152451, 2467966666 } } },
+	-- { Nom = "TARDIS_2", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002 } }, Techniciens = { UserIds = { 10829137819, 3192865267 } } },
+	-- { Nom = "TARDIS_3", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002 } }, Techniciens = { UserIds = { 10829137819, 3192865267 } } },
 }
 
 -- Outils multi-TARDIS (utilisés par tous les scripts)

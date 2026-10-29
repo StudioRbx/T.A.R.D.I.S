@@ -77,7 +77,7 @@ Conséquences :
 - **3855328330** est à la fois pilote et technicien. Le rôle pilote l'emporte.
 - **TARDIS_2 et TARDIS_3 sont actifs dans la config alors que leurs modèles n'existent plus** dans le Workspace. Leurs exemplaires de scripts démarrent et attendent leurs modèles indéfiniment. L'Output se remplit d'avertissements « Infinite yield » et des scripts tournent pour rien. **À corriger** en remettant les deux lignes en commentaire (`-- { Nom = "TARDIS_2", ... }`).
 
-Ces différences viennent sans doute de modifications faites à la main dans Studio. À toi de dire quelle liste est la bonne.
+Ces différences venaient sans doute de modifications faites à la main dans Studio. **Résolu le 29/10 : la config du 18/10 a été remise en place** (voir §6).
 
 ### 3.3 Le reste est conforme
 
@@ -160,7 +160,7 @@ Les nombreux scripts d'animation du kit (`FastPhase`, `Oscillate`, `Move` des le
 |---|---|---|
 | 1. TARDIS_2 et TARDIS_3 en commentaire | ✅ Fait | `TardisConfig` : `-- { Nom = "TARDIS_2", ... }` et `-- { Nom = "TARDIS_3", ... }`. Fichier du dépôt identique à Studio. |
 | 4. Scripts `Power` des écrans | ✅ Fait | `ScreenA › Screen › Power` et `ScreenB › Screen › Power` : `Enabled = false` (objets du modèle, hors dépôt). |
-| 2. Liste des accès | ⏳ En attente | Il faut décider quelle liste garder. |
+| 2. Liste des accès | ✅ Fait | Décision : **config du 18/10** (V6.5.11). Pilotes 2039993113, 2973741851, 10819409819, 4366160002, 2467966666, 3855328330 ; techniciens 10829137819, 3192865267, 2644152451 ; TARDIS_1 : techniciens + 2644152451 et 2467966666 ; `RangMin` retiré. Vérifié en Play : 6 pilotes, 3 techniciens, le compte de test reconnu pilote par le serveur. |
 | 3. V6.5.13 et V6.5.14 | ⏳ À faire | Le code n'est pas dans le jeu. |
 | 5. Points `ZDC-…` et `Arrivee` | ⏳ À faire | Objets à placer dans Studio. |
 
