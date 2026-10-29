@@ -212,8 +212,8 @@ Config.Techniciens = {
 -- Le dossier Workspace > TARDIS > <Nom> doit contenir EXTERIEURE (avec le Model extérieur) et INTERIEURE (avec le Model intérieur).
 Config.Tardis = {
 	{ Nom = "TARDIS_1", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
-	{ Nom = "TARDIS_2", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
-	{ Nom = "TARDIS_3", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
+	-- { Nom = "TARDIS_2", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
+	-- { Nom = "TARDIS_3", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 3855328330 } } },
 }
 
 -- Outils multi-TARDIS (utilisés par tous les scripts)

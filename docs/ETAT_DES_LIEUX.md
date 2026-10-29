@@ -13,7 +13,7 @@ Reprise du projet T.A.R.D.I.S. après l'ancienne conversation (du 9 au 20 octobr
 | **Dernière livraison de l'ancienne conversation** | V6.5.14 (20/10/2026) |
 | **Scripts du projet** | 17 sur 17 présents, du bon type et au bon endroit |
 | **TARDIS actifs dans le Workspace** | 1 (`TARDIS_1`) |
-| **TARDIS déclarés dans la config** | 3 (`TARDIS_1`, `TARDIS_2`, `TARDIS_3`) ⚠️ |
+| **TARDIS déclarés dans la config** | 1 (`TARDIS_2` et `TARDIS_3` mis en commentaire le 29/10, voir §6) |
 
 Le jeu tourne sur la V6.5, mais **deux correctifs livrés à la fin de l'ancienne conversation ne sont pas installés**, et la **configuration des accès diffère** de la dernière version envoyée. Tout le reste correspond.
 
@@ -151,3 +151,19 @@ Les nombreux scripts d'animation du kit (`FastPhase`, `Oscillate`, `Move` des le
 4. **Désactiver les deux scripts `Power`** des écrans.
 5. **Créer au moins un point `ZDC-…`** dans `TARDIS_DESTINATIONS` pour que la saisie fonctionne, et une Part `Arrivee` dans l'intérieur.
 6. **Prochaine étape prévue** dans l'ancienne conversation : la **tablette technicien** de la V6 (informations complètes, aucun contrôle de vol, commandes RP pour l'énergie, l'air, la vapeur, les pannes et les réparations).
+
+---
+
+## 6. Corrections appliquées dans ZONE-TSADE (29/10/2026)
+
+| Recommandation | Statut | Détail |
+|---|---|---|
+| 1. TARDIS_2 et TARDIS_3 en commentaire | ✅ Fait | `TardisConfig` : `-- { Nom = "TARDIS_2", ... }` et `-- { Nom = "TARDIS_3", ... }`. Fichier du dépôt identique à Studio. |
+| 4. Scripts `Power` des écrans | ✅ Fait | `ScreenA › Screen › Power` et `ScreenB › Screen › Power` : `Enabled = false` (objets du modèle, hors dépôt). |
+| 2. Liste des accès | ⏳ En attente | Il faut décider quelle liste garder. |
+| 3. V6.5.13 et V6.5.14 | ⏳ À faire | Le code n'est pas dans le jeu. |
+| 5. Points `ZDC-…` et `Arrivee` | ⏳ À faire | Objets à placer dans Studio. |
+
+**Vérification en Play :** un seul exemplaire de chaque script serveur (aucun clone `_TARDIS_2` ni `_TARDIS_3`), `TARDIS_1 : extras prêts` et `systèmes prêts` dans l'Output, et le pont `TardisInterne_TARDIS_1` qui répond (état `Pose`, 6 destinations). Le message `serveur prêt` n'a pas pu être relu, car l'historique de l'Output est saturé par les autres systèmes du jeu, mais il est imprimé juste après la création de ce pont.
+
+⚠️ Ces changements ont été faits dans Studio. Il faut **enregistrer ou publier la place** pour les garder.
