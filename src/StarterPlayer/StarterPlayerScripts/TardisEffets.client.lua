@@ -141,8 +141,8 @@ local function proteger(nom, fonction, ...)
 	end
 end
 
-local function fondu(etat, ecoule, camouflage, urgence, express)
-	local alpha = math.max(Config.Alpha(etat, ecoule, urgence, express), camouflage)
+local function fondu(etat, ecoule, camouflage, mode)
+	local alpha = math.max(Config.Alpha(etat, ecoule, mode), camouflage)
 	if alpha ~= alphaActuel then
 		alphaActuel = alpha
 		for objet, fiche in visuels do
@@ -172,10 +172,11 @@ RunService.RenderStepped:Connect(function(dt)
 		-- Le camouflage et la démat en vol rendent tous les deux le TARDIS invisible : on garde le plus fort
 		camouflage = math.max(alphaCamouflage(), alphaVol())
 	end)
-	local urgence = exterieur:GetAttribute("Urgence") == true
+	local mode = Config.modeDe(exterieur)
+	local urgence = mode == "Urgence"
 	-- Vortex temporel : pendant le vol, le TARDIS est visible dans le ciel (le vortex est dessiné par TardisVolLibre)
 	local etatFondu = (etat == E.Vol and exterieur:GetAttribute("Ciel") == true) and E.Pose or etat
-	proteger("fondu", fondu, etatFondu, ecoule, camouflage, urgence, exterieur:GetAttribute("Express") == true)
+	proteger("fondu", fondu, etatFondu, ecoule, camouflage, mode)
 
 	-- 2) Lampe du toit
 	if lumiere then
@@ -335,7 +336,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local racine = personnage and personnage:FindFirstChild("HumanoidRootPart")
 	if humanoid and racine then
 		-- Les secousses commencent en même temps que l'animation (après le silence du début du son)
-		local _, decalage = Config.Timing(etat, urgence, exterieur:GetAttribute("Express") == true)
+		local _, decalage = Config.Timing(etat, Config.modeDe(exterieur))
 		-- Stabilisateur actif : aucune secousse en voyage normal ; en urgence, il n'en absorbe qu'une partie
 		local stabilise = exterieur:GetAttribute("Stabilisateur") ~= false
 		local secouer = (etat == E.Demat or etat == E.Remat) and ecoule >= decalage and dansInterieur(racine.Position)
@@ -424,15 +425,15 @@ do
 	local function intensiteRemat()
 		local maintenant = workspace:GetServerTimeNow()
 		local etat = exterieur:GetAttribute("Etat")
-		local debut, urgence
+		local debut, mode
 		if etat == E.Remat then
-			debut, urgence = exterieur:GetAttribute("DebutEtat"), exterieur:GetAttribute("Urgence") == true
+			debut, mode = exterieur:GetAttribute("DebutEtat"), Config.modeDe(exterieur)
 		elseif exterieur:GetAttribute("VolPhase") == E.Remat then
-			debut, urgence = exterieur:GetAttribute("VolPhaseDebut"), exterieur:GetAttribute("VolPhaseUrgence") == true
+			debut, mode = exterieur:GetAttribute("VolPhaseDebut"), exterieur:GetAttribute("VolPhaseUrgence") == true
 		else
 			return 0
 		end
-		local duree, decalage = Config.Timing(E.Remat, urgence, exterieur:GetAttribute("Express") == true)
+		local duree, decalage = Config.Timing(E.Remat, mode)
 		local p = ((maintenant - (debut or 0)) - decalage) / duree
 		if p <= 0 or p >= 1 then return 0 end
 		return math.sin(p * math.pi) -- monte, culmine au milieu, retombe

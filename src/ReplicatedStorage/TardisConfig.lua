@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6"
+Config.Version = "6.6.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -44,33 +44,36 @@ Config.NomPortesInt = "PortesInterieures" -- Folder des portes de l'intérieur (
 Config.NomArrivee = "Arrivee"             -- Part optionnelle de l'intérieur : où arrivent les joueurs embarqués
 Config.NomDossierPortes = "TARDISDoors"   -- Model des battants extérieurs
 
--- Durées (secondes)
--- Durée de l'ANIMATION de (dé)matérialisation
-Config.DureeDemat = 17
-Config.DureeVol = 8
-Config.DureeRemat = 16.86
--- Le son démarre ce nombre de secondes AVANT l'animation.
--- Durée totale d'un décollage = DecalageDemat + DureeDemat (3,25 + 17 = 20,25 s)
--- Durée totale d'un atterrissage = DecalageRemat + DureeRemat (2,5 + 16,86 = 19,36 s)
--- Pour que l'animation finisse pile avec le son : Duree = longueur du son - Decalage
-Config.DecalageDemat = 3.25
-Config.DecalageRemat = 2.5
-
--- Mode URGENCE (sons Demat_Urg / Remat_Urg, animation saccadée : il a du mal à décoller / atterrir)
-Config.DureeDematUrg = 14
-Config.DecalageDematUrg = 2.25
-Config.DureeRematUrg = 23
-Config.DecalageRematUrg = 2
-Config.SaccadeUrgence = 0.75       -- force des saccades : 0 = aucune, 1 = forte (V3.2)
-Config.StabilisationUrgence = 5    -- les saccades s'apaisent pendant ces dernières secondes de l'animation
-
--- Mode EXPRESS (V6.6, l'inverse de l'urgence) : démat et remat éclair, sans silence de départ ni saccades.
--- Sons optionnels Demat_Express / Remat_Express ; s'ils manquent, le son normal est joué sans son silence
--- de départ, puis coupé en fondu à la fin de l'animation. L'urgence (demandée ou imposée) l'emporte toujours.
-Config.DureeDematExpress = 2
-Config.DureeRematExpress = 2
-Config.NbPulsationsExpress = 2   -- moins de fondus : l'animation est très courte
-Config.NbPulsations = 4   -- nombre de fondus pendant la (dé)matérialisation
+-- Modes de voyage (secondes). Pour chaque mode :
+--   Duree    = durée de l'ANIMATION de (dé)matérialisation
+--   Decalage = le son démarre ce nombre de secondes AVANT l'animation (silence au début du fichier audio)
+--   Durée totale = Decalage + Duree. Pour que l'animation finisse pile avec le son : Duree = longueur du son - Decalage
+-- L'urgence (demandée ou imposée : alerte, collision, zone REFUSE) l'emporte toujours sur l'express.
+Config.Modes = {
+	Normal = {
+		Demat = { Duree = 17, Decalage = 3.25 },   -- 20,25 s au total
+		Remat = { Duree = 16.86, Decalage = 2.5 }, -- 19,36 s au total
+		Pulsations = 4,                            -- nombre de fondus pendant la (dé)matérialisation
+		Sons = { Demat = "Demat", Remat = "Remat" },
+	},
+	-- Urgence : il a du mal à décoller / atterrir (animation saccadée)
+	Urgence = {
+		Demat = { Duree = 14, Decalage = 2.25 },
+		Remat = { Duree = 23, Decalage = 2 },
+		Saccades = 0.75,       -- force des saccades : 0 = aucune, 1 = forte
+		Stabilisation = 5,     -- les saccades s'apaisent pendant ces dernières secondes de l'animation
+		Sons = { Demat = "Demat_Urg", Remat = "Remat_Urg" }, -- absents : sons du mode Normal
+	},
+	-- Express (V6.6, l'inverse de l'urgence) : voyage éclair, sans silence de départ ni saccades
+	Express = {
+		Demat = { Duree = 2, Decalage = 0 },
+		Remat = { Duree = 2, Decalage = 0 },
+		Pulsations = 2,
+		-- Absents : le son normal est joué sans son silence de départ, puis coupé en fondu à la fin
+		Sons = { Demat = "Demat_Express", Remat = "Remat_Express" },
+	},
+}
+Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
 Config.Cooldown = 1       -- délai minimum entre deux actions sur la console
 Config.DureeCamouflage = 2  -- durée du fondu quand le TARDIS se camoufle / réapparaît
 
@@ -212,14 +215,13 @@ Config.Techniciens = {
 	UniquementUserIds = true,
 }
 
--- Rôles temporaires (menu Équipage) : durées proposées pour promouvoir un pilote ou bannir un joueur
--- Les TARDIS : un par entrée. Chaque TARDIS a ses pilotes et ses techniciens, en plus des listes globales
--- Config.Pilotes.UserIds (accès à tous les TARDIS) et Config.Techniciens.UserIds.
+-- Les TARDIS : un par entrée. Les listes globales ci-dessus (Config.Pilotes, Config.Techniciens) donnent déjà
+-- accès à TOUS les TARDIS : n'ajoute ici que les joueurs qui ne doivent avoir accès qu'à CE TARDIS.
 -- Le dossier Workspace > TARDIS > <Nom> doit contenir EXTERIEURE (avec le Model extérieur) et INTERIEURE (avec le Model intérieur).
 Config.Tardis = {
-	{ Nom = "TARDIS_1", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002, 3855328330 } }, Techniciens = { UserIds = { 10829137819, 3192865267, 2644152451, 2467966666 } } },
-	-- { Nom = "TARDIS_2", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002 } }, Techniciens = { UserIds = { 10829137819, 3192865267 } } },
-	-- { Nom = "TARDIS_3", Pilotes = { UserIds = { 2039993113, 2973741851, 10819409819, 4366160002 } }, Techniciens = { UserIds = { 10829137819, 3192865267 } } },
+	{ Nom = "TARDIS_1", Pilotes = { UserIds = {} }, Techniciens = { UserIds = {} } },
+	-- { Nom = "TARDIS_2", Pilotes = { UserIds = {} }, Techniciens = { UserIds = {} } },
+	-- { Nom = "TARDIS_3", Pilotes = { UserIds = {} }, Techniciens = { UserIds = {} } },
 }
 
 -- Outils multi-TARDIS (utilisés par tous les scripts)
@@ -427,24 +429,31 @@ function Config.Trouver(racine, cle)
 	return objet
 end
 
--- Durée de l'animation et décalage du son pour un état (normal, urgence ou express)
-function Config.Timing(etat, urgence, express)
-	if express and not urgence then
-		if etat == Config.Etats.Demat then return Config.DureeDematExpress or 2, 0 end
-		if etat == Config.Etats.Remat then return Config.DureeRematExpress or 2, 0 end
-	end
-	if etat == Config.Etats.Demat then
-		if urgence then
-			return Config.DureeDematUrg or Config.DureeDemat, Config.DecalageDematUrg or 0
-		end
-		return Config.DureeDemat, Config.DecalageDemat or 0
-	elseif etat == Config.Etats.Remat then
-		if urgence then
-			return Config.DureeRematUrg or Config.DureeRemat, Config.DecalageRematUrg or 0
-		end
-		return Config.DureeRemat, Config.DecalageRemat or 0
-	end
-	return 0, 0
+-- Nom de mode valide ("Normal", "Urgence" ou "Express"). Accepte aussi un booléen : true = "Urgence"
+-- (c'est ainsi que le vol libre désigne sa démat / remat d'urgence).
+function Config.normaliserMode(mode)
+	if mode == true then return "Urgence" end
+	if type(mode) == "string" and Config.Modes[mode] then return mode end
+	return "Normal"
+end
+
+-- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)
+function Config.modeDe(exterieur)
+	return Config.normaliserMode(exterieur:GetAttribute("Mode"))
+end
+
+-- Durée de l'animation et décalage du son pour un état et un mode
+function Config.Timing(etat, mode)
+	local reglages = Config.Modes[Config.normaliserMode(mode)]
+	local phase = (etat == Config.Etats.Demat and reglages.Demat) or (etat == Config.Etats.Remat and reglages.Remat)
+	if not phase then return 0, 0 end
+	return phase.Duree, phase.Decalage or 0
+end
+
+-- Nom du son d'un état dans un mode (le serveur se rabat sur le son Normal s'il n'existe pas)
+function Config.Son(etat, mode)
+	local sons = Config.Modes[Config.normaliserMode(mode)].Sons
+	return sons[etat == Config.Etats.Demat and "Demat" or "Remat"]
 end
 
 -- Bruit pseudo-aléatoire mais identique chez tous les joueurs (dépend seulement du temps)
@@ -466,10 +475,10 @@ local function alphaUrgence(etat, p, t, duree)
 	-- Stabilisation : pendant les dernières secondes, les perturbations s'apaisent progressivement
 	-- jusqu'à disparaître (le TARDIS "s'accroche" à l'atterrissage, ou lâche prise au décollage)
 	local restant = (1 - p) * duree
-	local fenetre = Config.StabilisationUrgence or 5
+	local fenetre = Config.Modes.Urgence.Stabilisation or 5
 	local calme = math.clamp(restant / fenetre, 0, 1)   -- 1 = loin de la fin, 0 = fin
 	calme = calme * calme * (3 - 2 * calme)              -- transition douce
-	local intensite = (Config.SaccadeUrgence or 0.75) * calme
+	local intensite = (Config.Modes.Urgence.Saccades or 0.75) * calme
 
 	-- Reculs : il gagne du terrain puis est repoussé, de façon irrégulière
 	local recul = math.max(0, math.sin(t * 2.3) * math.sin(t * 0.9 + 1))
@@ -488,25 +497,26 @@ local function alphaUrgence(etat, p, t, duree)
 end
 
 -- Transparence de l'extérieur (0 = visible, 1 = disparu) selon l'état, le temps écoulé et le mode
-function Config.Alpha(etat, ecoule, urgence, express)
+function Config.Alpha(etat, ecoule, mode)
 	if etat == Config.Etats.Pose then return 0 end
 	if etat == Config.Etats.Vol then return 1 end
 
-	local duree, decalage = Config.Timing(etat, urgence, express)
+	mode = Config.normaliserMode(mode)
+	local duree, decalage = Config.Timing(etat, mode)
 	decalage = math.max(decalage, 0)
 	-- Avant le décalage : seul le son joue, rien ne bouge (visible au décollage, invisible à l'atterrissage).
 	-- Ensuite l'animation dure sa durée complète.
 	local p = math.clamp((ecoule - decalage) / duree, 0, 1)
 
-	if urgence then
+	if mode == "Urgence" then
 		return alphaUrgence(etat, p, ecoule, duree)
 	end
 
-	-- Animation normale : le TARDIS s'efface et revient plusieurs fois, de plus en plus fort
+	-- Animation normale (ou express, plus courte) : le TARDIS s'efface et revient plusieurs fois, de plus en plus fort
 	if etat == Config.Etats.Remat then
 		p = 1 - p
 	end
-	local pulsations = (express and Config.NbPulsationsExpress) or Config.NbPulsations
+	local pulsations = Config.Modes[mode].Pulsations or 4
 	local vague = (1 - math.cos(p * pulsations * 2 * math.pi)) / 2
 	return math.clamp(p + (1 - p) * vague * 0.8, 0, 1)
 end

@@ -23,6 +23,8 @@ local camera = workspace.CurrentCamera
 local def, monRole = Config.attendreMonTardis(joueur) -- le TARDIS de ce joueur (pilote ou technicien)
 local exterieur, interieur = Config.modeles(def)
 local remote = ReplicatedStorage:WaitForChild(Config.canal(def, "TardisCommande"))
+-- Commandes de voyage et protocoles partagés avec le menu rapide
+local Commandes = require(ReplicatedStorage:WaitForChild("TardisCommandes")).demarrer(exterieur, remote)
 
 -- Réglages
 local R = {
@@ -491,9 +493,8 @@ do
 	W.interUrgence = UI.interrupteur(gauche, "Urgence", "Vol instable", C.orange, 1)
 	W.interExpress = UI.interrupteur(milieu, "Express", "Voyage en 2 s", C.vert, 1)
 	W.interInvisible = UI.interrupteur(droite, "Invisible", "Déjà camouflé", C.cyan, 1)
-	-- Urgence et Express sont opposés : en activer un coupe l'autre
-	W.interUrgence.surChangement = function(actif) if actif then W.interExpress.regler(false) end end
-	W.interExpress.surChangement = function(actif) if actif then W.interUrgence.regler(false) end end
+	-- État partagé avec le menu rapide (Urgence et Express s'excluent)
+	Commandes.lierInterrupteurs({ urgence = W.interUrgence, express = W.interExpress, invisible = W.interInvisible })
 
 	-- Grands boutons
 	local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 62), BackgroundTransparency = 1, LayoutOrder = 6,
@@ -795,8 +796,8 @@ local function lireEtat()
 		porteur = idPorteur and Players:GetPlayerByUserId(idPorteur),
 		porte = idPorteur ~= nil,
 		verrouille = exterieur:GetAttribute("PortesVerrouillees") == true,
-		urgence = exterieur:GetAttribute("Urgence") == true and etat ~= E.Pose,
-		express = exterieur:GetAttribute("Express") == true and etat ~= E.Pose,
+		urgence = Config.modeDe(exterieur) == "Urgence" and etat ~= E.Pose,
+		express = Config.modeDe(exterieur) == "Express" and etat ~= E.Pose,
 		alimente = exterieur:GetAttribute("Alimentation") ~= false,
 		alerte = exterieur:GetAttribute("Alerte") == true,
 		bloque = exterieur:GetAttribute("DemarrageBloque") == true,
@@ -934,8 +935,8 @@ local function majInterface()
 	W.demat.SousTitre.Text = poche and (S.choix and "Téléportation de poche" or "Choisis une destination") or "Décoller"
 	UI.setDisponible(W.demat, dematOk, C.bleu)
 	UI.setDisponible(W.remat, rematOk, C.bleu)
-	if S.autoRemat and S.autoRemat.fin and e.etat == E.Vol then
-		W.remat.SousTitre.Text = string.format("Auto dans %d s", math.ceil(math.max(S.autoRemat.fin - os.clock(), 0)))
+	if Commandes.secondesAutoRemat() and e.etat == E.Vol then
+		W.remat.SousTitre.Text = string.format("Auto dans %d s", math.ceil(Commandes.secondesAutoRemat()))
 	else
 		W.remat.SousTitre.Text = petit and "Sur place (réduit)" or (UI.pref("modeVoyage", "auto") == "manuel" and e.etat ~= E.Vol and "Atterrir (choix dans le vortex)" or "Atterrir")
 	end
@@ -1181,24 +1182,11 @@ W.boutonSurLui.Activated:Connect(function() choisirFiger(true) end)
 -- Commandes
 --------------------------------------------------------------------
 -- Destination choisie, au format attendu par le serveur (nil si rien n'est choisi)
+local function optionsDestination()
+	return { figer = S.figer, positionPerso = S.positionPerso }
+end
 local function donneesDestination()
-	if not S.choix then return nil end
-	local donnees = { invisible = W.interInvisible.valeur(), urgence = W.interUrgence.valeur(), express = W.interExpress.valeur() }
-	if S.choix.type == "precedent" then
-		donnees.precedent = true
-	elseif S.choix.type == "lieu" then
-		donnees.destination = S.choix.nom
-	elseif S.choix.type == "joueur" then
-		donnees.joueur = S.choix.id
-		donnees.figer = S.figer
-	elseif S.choix.type == "position" and S.positionPerso then
-		donnees.position = S.positionPerso.cframe
-	elseif S.choix.type == "historique" and S.choix.cframe then
-		donnees.position = S.choix.cframe
-	else
-		return nil
-	end
-	return donnees
+	return Commandes.donnees(S.choix, optionsDestination())
 end
 
 -- La destination choisie est partagée avec les commandes de port (bouton DÉMAT quand on porte le TARDIS)
@@ -1221,66 +1209,18 @@ W.demat.Activated:Connect(function()
 		end
 		return
 	end
-	if exterieur:GetAttribute("Porteur") == joueur.UserId then
-		-- Téléportation de poche : il se dématérialise dans tes mains et réapparaît (petit) à la destination
-		local donnees = donneesDestination()
-		if donnees then remote:FireServer("DematPorte", donnees) end
-		return
-	end
-	if UI.pref("modeVoyage", "auto") == "auto" and (exterieur:GetAttribute("Echelle") or 1) >= 0.999 then
-		local donnees = S.choix and donneesDestination()
-		if not donnees then
-			notifier("Mode automatique : choisis une destination avant de décoller.", false)
-			return
-		end
-		S.autoRemat = { donnees = donnees, fin = nil }
-	end
-	remote:FireServer("Demat", { urgence = W.interUrgence.valeur(), express = W.interExpress.valeur() })
-end)
--- Rematérialisation automatique : 15 s après l'entrée dans le vortex
-exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
-	local etat = exterieur:GetAttribute("Etat")
-	if etat == E.Vol and S.autoRemat and not S.autoRemat.fin then
-		S.autoRemat.fin = os.clock() + 15
-		local auto = S.autoRemat
-		task.spawn(function()
-			while S.autoRemat == auto and os.clock() < auto.fin do
-				if S.ouvert then W.remat.SousTitre.Text = string.format("Auto dans %d s", math.ceil(auto.fin - os.clock())) end
-				task.wait(0.5)
-			end
-			if S.autoRemat == auto then
-				S.autoRemat = nil
-				remote:FireServer("Remat", auto.donnees)
-			end
-		end)
-	elseif etat == E.Pose then
-		S.autoRemat = nil
-	end
+	Commandes.demat(S.choix, optionsDestination())
 end)
 
 W.remat.Activated:Connect(function()
-	if S.autoRemat and (exterieur:GetAttribute("Etat") or E.Pose) == E.Vol then
-		-- Appui manuel pendant le compte à rebours : on part tout de suite
-		local donnees = S.autoRemat.donnees
-		S.autoRemat = nil
-		remote:FireServer("Remat", donnees)
-		return
-	end
-	if W.remat:GetAttribute("Disponible") == false then
+	-- Pendant le compte à rebours de la rematérialisation automatique, un appui la lance tout de suite
+	if not Commandes.secondesAutoRemat() and W.remat:GetAttribute("Disponible") == false then
 		if (exterieur:GetAttribute("Etat") or E.Pose) == E.Vol and not S.choix then
 			notifier("Choisis d'abord une destination.", false)
 		end
 		return
 	end
-	local donnees
-	if (exterieur:GetAttribute("Echelle") or 1) < 0.999 then
-		-- Réduit : il se rematérialise sur place
-		donnees = { invisible = W.interInvisible.valeur(), urgence = W.interUrgence.valeur(), express = W.interExpress.valeur() }
-	else
-		donnees = donneesDestination()
-		if not donnees then return end
-	end
-	remote:FireServer("Remat", donnees)
+	Commandes.remat(S.choix, optionsDestination())
 end)
 
 W.tuiles.camouflage.bouton.Activated:Connect(function()
@@ -1296,6 +1236,7 @@ W.tuiles.portes.bouton.Activated:Connect(function()
 end)
 
 remote.OnClientEvent:Connect(notifier)
+Commandes.annonce.Event:Connect(notifier)
 
 -- Curseur de taille
 local function afficherTaille(facteur)
@@ -1785,7 +1726,7 @@ do
 		ordre += 1
 		boutonLigne(UI.pref("modeVoyage", "auto") == "auto" and "Mode de voyage : automatique (destination, DEMAT, 15 s de vortex, REMAT seul)"
 			or "Mode de voyage : manuel (DEMAT, choix dans le vortex, REMAT)", ordre, nil,
-			function() UI.setPref("modeVoyage", UI.pref("modeVoyage", "auto") == "auto" and "manuel" or "auto") S.autoRemat = nil afficherReglages() end)
+			function() UI.setPref("modeVoyage", UI.pref("modeVoyage", "auto") == "auto" and "manuel" or "auto") Commandes.annulerAutoRemat() afficherReglages() end)
 		ordre += 1
 		boutonLigne(UI.pref("tri", "nom") == "distance" and "Tri des lieux : par distance" or "Tri des lieux : par nom", ordre, nil,
 			function() UI.setPref("tri", UI.pref("tri", "nom") == "distance" and "nom" or "distance") afficherReglages() end)
@@ -2258,8 +2199,8 @@ RunService.RenderStepped:Connect(function(dt)
 		W.anneauSous.Text = "HORS TENSION"
 		W.chrono.Text = ""
 	elseif e.etat == E.Demat or e.etat == E.Remat then
-		local urgence = exterieur:GetAttribute("Urgence") == true
-		local duree, decalage = Config.Timing(e.etat, urgence, e.express)
+		local urgence = e.urgence
+		local duree, decalage = Config.Timing(e.etat, Config.modeDe(exterieur))
 		local total = duree + decalage
 		local p = math.clamp(ecoule / total, 0, 1)
 		local couleur = (urgence and C.orange) or (e.express and C.vert) or C.ambre
@@ -2346,7 +2287,7 @@ local function surChangement(attribut, rappel)
 end
 
 surChangement("Etat", function(etat, avant)
-	local urgence = exterieur:GetAttribute("Urgence") == true
+	local mode = Config.modeDe(exterieur)
 	local position = tostring(exterieur:GetAttribute("Position") or "?")
 	if avant == E.Vol and S.debutVol then
 		S.tempsVortex += os.clock() - S.debutVol
@@ -2354,7 +2295,7 @@ surChangement("Etat", function(etat, avant)
 	end
 	if etat == E.Demat then
 		S.voyages += 1
-		journaliser(urgence and "Dématérialisation d'URGENCE." or (exterieur:GetAttribute("Express") and "Dématérialisation EXPRESS.") or "Dématérialisation.", C.ambre)
+		journaliser((mode == "Urgence" and "Dématérialisation d'URGENCE.") or (mode == "Express" and "Dématérialisation EXPRESS.") or "Dématérialisation.", C.ambre)
 	elseif etat == E.Vol then
 		S.debutVol = os.clock()
 		journaliser("Entrée dans le vortex.", C.cyan)
@@ -2401,7 +2342,7 @@ end)
 --------------------------------------------------------------------
 -- Mises à jour automatiques et accès
 --------------------------------------------------------------------
-for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Urgence", "PorteOuverte",
+for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Mode", "PorteOuverte",
 	"Echelle", "Alimentation", "Alerte", "DemarrageBloque", "VolLibre", "SurEau", "BouclierJoueurs", "BouclierBalles", "BouclierComplet", "BouclierEnergie", "PointsDeVie", "Avarie" } do
 	exterieur:GetAttributeChangedSignal(attribut):Connect(function()
 		if S.ouvert then majInterface() end

@@ -263,7 +263,7 @@ end
 local derniereUrgence = false
 exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	local etat = exterieur:GetAttribute("Etat")
-	if etat == E.Remat then derniereUrgence = exterieur:GetAttribute("Urgence") == true end
+	if etat == E.Remat then derniereUrgence = Config.modeDe(exterieur) == "Urgence" end
 	if etat ~= E.Pose then return end
 	task.delay(2, function()
 		if exterieur:GetAttribute("Etat") ~= E.Pose then return end

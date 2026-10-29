@@ -66,5 +66,6 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | V6.5.12 | 18/10 | Commandes rapides sur la tablette |
 | V6.5.13 | 18/10 | Accessoires après régénération *(non installée)* |
 | V6.5.14 | 20/10 | Plus d'onglet à l'écran *(non installée)* |
-| **V6.6** ⭐🎮 | 29/10 | **Mode Express** : démat et remat en 2 s (l'inverse de l'urgence) ; crash de la rotation dans le ciel corrigé |
 | Maintenance | 29/10 | Dans ZONE-TSADE : TARDIS_2 et TARDIS_3 mis en commentaire, scripts `Power` du kit désactivés, accès remis à la config du 18/10 ([détail](docs/ETAT_DES_LIEUX.md#6-corrections-appliquées-dans-zone-tsade-29102026)) |
+| **V6.6** ⭐ | 29/10 | **Mode Express** : démat et remat en 2 s (l'inverse de l'urgence) ; crash de la rotation dans le ciel corrigé |
+| **V6.6.1** ⭐🎮 | 29/10 | Fondations : `Config.Modes`, attribut `Mode`, module `TardisCommandes`, interrupteurs synchronisés, diagnostic, archive du kit |

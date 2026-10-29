@@ -51,12 +51,13 @@ local function preparerSon(nom, parent, optionnel)
 end
 
 -- [nom] = { son extérieur, son intérieur }
-local LISTE_SONS = {
-	{ "Demat", false }, { "Remat", false },
-	{ "Demat_Urg", false }, { "Remat_Urg", false },
-	{ "Demat_Express", true }, { "Remat_Express", true },
-	{ "Camouflage", true }, { "Decamouflage", true },
-}
+-- Sons des voyages, tirés de Config.Modes (ceux du mode Express sont optionnels)
+local LISTE_SONS = { { "Camouflage", true }, { "Decamouflage", true } }
+for nomMode, reglages in Config.Modes do
+	for _, nomSon in reglages.Sons do
+		table.insert(LISTE_SONS, { nomSon, nomMode == "Express" })
+	end
+end
 local sons = {}
 for _, info in LISTE_SONS do
 	local nom, optionnel = info[1], info[2]
@@ -67,10 +68,9 @@ for _, info in LISTE_SONS do
 end
 
 -- Son express absent : le son normal, sans son silence de départ, coupé en fondu à la fin de l'animation express
-local function jouerExpress(son, nom)
-	local etat = string.find(nom, "Demat") and E.Demat or E.Remat
-	local _, decalage = Config.Timing(etat, false)
-	local duree = Config.Timing(etat, false, true)
+local function jouerExpress(son, etat)
+	local _, decalage = Config.Timing(etat, "Normal")
+	local duree = Config.Timing(etat, "Express")
 	local volume = son.Volume
 	son:Play()
 	son.TimePosition = decalage
@@ -86,13 +86,6 @@ end
 
 local function jouer(nom, dehorsAussi)
 	local groupe = sons[nom]
-	if not (groupe and (groupe.int or groupe.ext)) and string.find(nom, "_Express") then
-		local normal = sons[(string.gsub(nom, "_Express", ""))]
-		if not normal then return end
-		if normal.int then jouerExpress(normal.int, nom) end
-		if dehorsAussi and normal.ext then jouerExpress(normal.ext, nom) end
-		return
-	end
 	-- Son d'urgence absent : on se rabat sur le son normal
 	if not (groupe and (groupe.int or groupe.ext)) and string.find(nom, "_Urg") then
 		groupe = sons[(string.gsub(nom, "_Urg", ""))]
@@ -100,6 +93,21 @@ local function jouer(nom, dehorsAussi)
 	if not groupe then return end
 	if groupe.int then groupe.int:Play() end
 	if dehorsAussi and groupe.ext then groupe.ext:Play() end
+end
+
+-- Son d'un voyage (démat ou remat) dans un mode. Son du mode absent : celui du mode Normal,
+-- raccourci en express (voir jouerExpress)
+local function jouerVoyage(etat, mode, dehorsAussi)
+	mode = Config.normaliserMode(mode)
+	local groupe = sons[Config.Son(etat, mode)]
+	if groupe and (groupe.int or groupe.ext) then
+		return jouer(Config.Son(etat, mode), dehorsAussi)
+	end
+	local normal = sons[Config.Son(etat, "Normal")]
+	if not normal then return end
+	if mode ~= "Express" then return jouer(Config.Son(etat, "Normal"), dehorsAussi) end
+	if normal.int then jouerExpress(normal.int, etat) end
+	if dehorsAussi and normal.ext then jouerExpress(normal.ext, etat) end
 end
 
 --------------------------------------------------------------------
@@ -271,8 +279,7 @@ exterieur:SetAttribute("Echelle", 1)
 exterieur:SetAttribute("Alimentation", true)
 exterieur:SetAttribute("Alerte", false)
 exterieur:SetAttribute("DemarrageBloque", false)
-exterieur:SetAttribute("Urgence", false)
-exterieur:SetAttribute("Express", false)
+exterieur:SetAttribute("Mode", "Normal") -- mode du voyage en cours : Normal, Urgence ou Express
 exterieur:SetAttribute("Porteur", nil)
 exterieur:GetAttributeChangedSignal("PorteOuverte"):Connect(majPortailInterieur)
 setCamouflage(false, true)
@@ -357,7 +364,7 @@ local function fermerPortes()
 end
 
 -- Posé -> En vol (le TARDIS reste en vol jusqu'à un atterrissage)
--- urgence = true : sons Demat_Urg et animation saccadée
+-- mode : "Normal", "Urgence" (sons Demat_Urg, animation saccadée) ou "Express" (2 s) ; voir Config.Modes
 --------------------------------------------------------------------
 -- Vortex temporel (voyage classique) : pendant le vol, le TARDIS est visible très haut dans le ciel et tourne sur
 -- lui-même, entouré du vortex (dessiné par les clients). Les passagers clandestins collés à la cabine au départ
@@ -421,17 +428,15 @@ local function deposer_clandestins()
 end
 Players.PlayerRemoving:Connect(function(joueur) clandestins[joueur] = nil end)
 
--- express = true : démat éclair (V6.6), ignorée si l'urgence est demandée ou imposée
-local function decoller(urgence, express)
-	urgence = urgence == true
+local function decoller(mode)
+	mode = Config.normaliserMode(mode)
 	if occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "DÉJÀ EN VOL" end
 	if exterieur:GetAttribute("Porteur") then return false, "TARDIS PORTÉ" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
 	-- Alerte générale : toujours en urgence
-	if exterieur:GetAttribute("Alerte") then urgence = true end
-	express = express == true and not urgence
+	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
 
 	occupe = true
 	exterieur:SetAttribute("Verrouille", true)
@@ -445,11 +450,10 @@ local function decoller(urgence, express)
 	exterieur:SetAttribute("SurEau", false)
 
 	local camoufle = exterieur:GetAttribute("Camouflage") == true
-	exterieur:SetAttribute("Urgence", urgence) -- posé AVANT l'état : les clients choisissent la bonne animation
-	exterieur:SetAttribute("Express", express)
+	exterieur:SetAttribute("Mode", mode) -- posé AVANT l'état : les clients choisissent la bonne animation
 	setEtat(E.Demat)
-	jouer(urgence and "Demat_Urg" or (express and "Demat_Express") or "Demat", not camoufle) -- camouflé : on ne l'entend que de l'intérieur
-	local duree, decalage = Config.Timing(E.Demat, urgence, express)
+	jouerVoyage(E.Demat, mode, not camoufle) -- camouflé : on ne l'entend que de l'intérieur
+	local duree, decalage = Config.Timing(E.Demat, mode)
 	task.wait(decalage + duree) -- son d'abord, puis l'animation complète
 
 	setCollisionsExterieur(false)
@@ -457,7 +461,6 @@ local function decoller(urgence, express)
 	-- Passagers clandestins : ceux qui se collent à la cabine au moment du départ partent avec elle
 	reperer_clandestins()
 	setEtat(E.Vol) -- vol silencieux
-	exterieur:SetAttribute("Express", false)
 	-- Vortex temporel : le TARDIS visible, très haut dans le ciel, tournant dans son vortex jusqu'à la matérialisation
 	partir_dans_le_ciel()
 
@@ -586,25 +589,23 @@ end
 -- En vol -> Posé (visible ou invisible)
 -- cible : CFrame où poser la Racine · nom : affiché dans le menu · partDestination : la Part si c'est une destination
 -- Retourne ok, erreur, urgenceForcee (vrai si une collision a imposé l'urgence)
-local function atterrir(cible, nom, invisible, partDestination, urgence, express)
-	urgence = urgence == true
+local function atterrir(cible, nom, invisible, partDestination, mode)
+	mode = Config.normaliserMode(mode)
 	if occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Vol then return false, "PAS EN VOL" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 	-- Alerte générale : toujours en urgence
-	if exterieur:GetAttribute("Alerte") then urgence = true end
+	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
 
-	-- Une partie du TARDIS dans un mur : atterrissage d'urgence obligatoire
+	-- Une partie du TARDIS dans un mur : atterrissage d'urgence obligatoire (même en express)
 	local urgenceForcee = false
 	local okCollision, collision = pcall(enCollision, cible)
-	if okCollision and collision and not urgence then
-		urgence, urgenceForcee = true, true
+	if okCollision and collision and mode ~= "Urgence" then
+		mode, urgenceForcee = "Urgence", true
 	end
 	-- Zone refusée (sous-dossier REFUSE des destinations) : la première tentative est repoussée à mi-chemin,
 	-- puis le TARDIS se matérialise en urgence, au même endroit
-	local zoneRefusee = not urgence and dansZoneRefusee(cible.Position)
-	-- Express : seulement si rien n'impose l'urgence (alerte, collision, zone refusée)
-	express = express == true and not urgence and not zoneRefusee
+	local zoneRefusee = mode ~= "Urgence" and dansZoneRefusee(cible.Position)
 
 	occupe = true
 
@@ -618,33 +619,31 @@ local function atterrir(cible, nom, invisible, partDestination, urgence, express
 	setCamouflage(invisible, true)
 	if zoneRefusee then
 		-- Première tentative, en mode normal : à la moitié, le TARDIS est repoussé dans le vortex
-		exterieur:SetAttribute("Urgence", false)
+		exterieur:SetAttribute("Mode", "Normal")
 		setEtat(E.Remat)
-		jouer("Remat", not invisible)
-		local dureeNormale, decalageNormal = Config.Timing(E.Remat, false)
+		jouerVoyage(E.Remat, "Normal", not invisible)
+		local dureeNormale, decalageNormal = Config.Timing(E.Remat, "Normal")
 		task.wait(decalageNormal + dureeNormale / 2)
 		alerter("ZONE REFUSÉE : MATÉRIALISATION REPOUSSÉE")
-		exterieur:SetAttribute("Urgence", true)
+		exterieur:SetAttribute("Mode", "Urgence")
 		setEtat(E.Demat) -- il redisparaît (démat d'urgence, courte)
-		jouer("Demat_Urg", not invisible)
-		local dureeDemat, decalageDemat = Config.Timing(E.Demat, true)
+		jouerVoyage(E.Demat, "Urgence", not invisible)
+		local dureeDemat, decalageDemat = Config.Timing(E.Demat, "Urgence")
 		task.wait(decalageDemat + dureeDemat)
 		setEtat(E.Vol)
 		task.wait(1.5)
-		urgence, urgenceForcee = true, true
+		mode, urgenceForcee = "Urgence", true
 	end
-	exterieur:SetAttribute("Urgence", urgence) -- posé AVANT l'état : les clients choisissent la bonne animation
-	exterieur:SetAttribute("Express", express)
+	exterieur:SetAttribute("Mode", mode) -- posé AVANT l'état : les clients choisissent la bonne animation
 	setEtat(E.Remat)
-	jouer(urgence and "Remat_Urg" or (express and "Remat_Express") or "Remat", not invisible) -- invisible : on ne l'entend que de l'intérieur
-	local duree, decalage = Config.Timing(E.Remat, urgence, express)
+	jouerVoyage(E.Remat, mode, not invisible) -- invisible : on ne l'entend que de l'intérieur
+	local duree, decalage = Config.Timing(E.Remat, mode)
 	task.wait(decalage + duree) -- son d'abord, puis l'animation complète
 
 	emmenerALInterieur() -- avant les collisions, sinon les joueurs seraient coincés dans la cabine
 	setCollisionsExterieur(true)
 	setEtat(E.Pose)
-	exterieur:SetAttribute("Urgence", false)
-	exterieur:SetAttribute("Express", false)
+	exterieur:SetAttribute("Mode", "Normal")
 	-- Trop petit : les portes restent bloquées
 	exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes())
 	occupe = false
@@ -1815,18 +1814,18 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 	if occupe then return false, "TARDIS OCCUPÉ" end
 	if not estAlimente() then return false, "HORS TENSION" end
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
-	local urgence = exterieur:GetAttribute("Alerte") == true
+	local mode = exterieur:GetAttribute("Alerte") == true and "Urgence" or "Normal"
 
 	occupe = true
 	majRamassage()
 
 	-- 1) Dématérialisation dans les mains du porteur (les clients continuent de le faire suivre)
-	exterieur:SetAttribute("Urgence", urgence)
+	exterieur:SetAttribute("Mode", mode)
 	setEtat(E.Demat)
-	local son = urgence and "Demat_Urg" or "Demat"
+	local son = Config.Son(E.Demat, mode)
 	jouer(son, false)                -- dans la salle de contrôle
 	jouerSurPersonnage(porteur, son) -- dehors : sur le porteur
-	local duree, decalage = Config.Timing(E.Demat, urgence)
+	local duree, decalage = Config.Timing(E.Demat, mode)
 	task.wait(decalage + duree)
 
 	-- 2) Invisible : il quitte le porteur et rejoint la destination
@@ -1839,7 +1838,7 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 
 	-- 3) Rematérialisation, toujours petit
 	if joueurAFiger then figerJoueur(joueurAFiger, true) end
-	local ok, erreur = atterrir(cible, nom, false, partDestination, urgence)
+	local ok, erreur = atterrir(cible, nom, false, partDestination, mode)
 	if joueurAFiger then figerJoueur(joueurAFiger, false) end
 	sauvegardeModifiee = true
 	return ok, erreur
@@ -1946,14 +1945,17 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		remote:FireClient(joueur, ok and messageOk or ("Impossible : " .. string.lower(erreur or "erreur")), ok)
 	end
 
-	local urgence = typeof(donnees) == "table" and donnees.urgence == true
-	local express = typeof(donnees) == "table" and donnees.express == true and not urgence
+	-- Mode demandé : "Normal", "Urgence" ou "Express" (les anciens champs urgence / express restent acceptés)
+	local mode = "Normal"
+	if typeof(donnees) == "table" then
+		mode = Config.normaliserMode(donnees.mode or (donnees.urgence == true and "Urgence") or (donnees.express == true and "Express"))
+	end
 
 	if action == "Demat" then
 		task.spawn(function()
-			local ok, erreur = decoller(urgence, express)
-			repondre(ok, erreur, urgence and "Décollage d'urgence réussi : le TARDIS est en vol."
-				or (express and "Décollage express : le TARDIS est en vol.") or "Le TARDIS est en vol.")
+			local ok, erreur = decoller(mode)
+			repondre(ok, erreur, (mode == "Urgence" and "Décollage d'urgence réussi : le TARDIS est en vol.")
+				or (mode == "Express" and "Décollage express : le TARDIS est en vol.") or "Le TARDIS est en vol.")
 		end)
 
 	elseif action == "Remat" then
@@ -1977,15 +1979,15 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 
 		task.spawn(function()
 			if joueurAFiger then figerJoueur(joueurAFiger, true) end
-			local ok, erreur, urgenceForcee = atterrir(cible, nom, invisible, partDestination, urgence, express)
+			local ok, erreur, urgenceForcee = atterrir(cible, nom, invisible, partDestination, mode)
 			if joueurAFiger then figerJoueur(joueurAFiger, false) end
 
 			local texte = (invisible and "Atterri en secret : " or "Atterri : ") .. nom .. "."
 			if urgenceForcee then
 				texte = "Collision détectée : atterrissage d'urgence. " .. texte
-			elseif urgence then
+			elseif mode == "Urgence" then
 				texte = "Atterrissage d'urgence réussi. " .. texte
-			elseif express then
+			elseif mode == "Express" then
 				texte = "Atterrissage express. " .. texte
 			end
 			repondre(ok, erreur, texte)
@@ -2239,3 +2241,10 @@ do
 end
 
 print("[TARDIS] " .. def.Nom .. " : serveur prêt (V" .. tostring(Config.Version or "?") .. ").")
+-- Diagnostic : une ligne qui résume les pièces, sons et destinations en place
+task.spawn(function()
+	local ok, resultat = pcall(function()
+		return require(script.Parent:WaitForChild("TardisDiagnostic", 10))(def, exterieur, interieur)
+	end)
+	if ok then print(resultat) else warn("[TARDIS] Diagnostic impossible : " .. tostring(resultat)) end
+end)

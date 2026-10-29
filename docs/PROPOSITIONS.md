@@ -81,3 +81,51 @@
 ### Livraison
 24. **Projet Rojo** (`default.project.json`) pour synchroniser le dépôt et Studio, au lieu des ZIP et copier-coller.
 25. **Releases GitHub par version** à la place des ZIP envoyés dans la conversation.
+
+---
+
+## Plan retenu (29/10/2026)
+
+Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15, 16, 20, 21, 22, 25** et simplifications **1, 2, 3, 10, 11, 12, 15, 17, 18, 20, 21, 22, 25**. Chaque étape est livrée comme une sous-version (numéro dans le jeu, tag et release GitHub, patch note).
+
+| Sous-version | Contenu | État |
+|---|---|---|
+| **V6.6.1** | Simplifications 1, 2, 3, 15, 17, 18, 20 · modification 11 (interrupteurs synchronisés) · outil de synchro dépôt → Studio | ✅ livrée |
+| V6.6.2 | Simplifications 10, 11, 12 : découpage de `TardisTablette`, `TardisExtrasClient` et du vol libre du serveur | à faire |
+| V6.6.3 | Modifications 1 à 6 (suite de l'Express, recharge de 5 s) et 13 (historique par mode) | à faire |
+| V6.6.4 | Modification 7 (V6.5.13 et V6.5.14 réécrites), 16 (réduire les effets) · simplifications 21 (vol à 8 boutons), 22 (mode débutant par défaut) | à faire |
+| V6.6.5 | Modification 15 : tablette technicien | à faire |
+| V6.6.6 | Modification 20 (intercom « faille spatio-temporelle » via un petit module pont dans l'OS Fondation, 1 fois par session, puis rappel au pilote toutes les 10 min), 21 (jukebox de musiques d'action audible seulement dans le TARDIS), 3 et 22 (sons) | à faire |
+| à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
+
+Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
+
+---
+
+## C. Ajouts proposés (nouveaux, 29/10/2026)
+
+### Gameplay et RP
+1. **Protocole Silencieux** : démat et remat sans son ni lumière, pour les infiltrations (un 4ᵉ mode à côté de Normal, Urgence et Express).
+2. **Copilote** : un second joueur gère la navigation (destination, protocoles) pendant que le pilote est en vol libre.
+3. **Signaux de détresse aléatoires** : un point apparaît sur la mini-carte ; l'équipage qui s'y rend gagne une entrée au journal.
+4. **Empreinte temporelle** : après un départ, une silhouette translucide du TARDIS reste 30 s à l'ancien emplacement.
+5. **Équipage scanné** : les portes s'ouvrent seulement pour les joueurs ajoutés à l'équipage du jour (liste tenue par le pilote).
+6. **Mode Siège** : un bouton qui active d'un coup boucliers, verrou des portes et alerte.
+7. **Carnet de bord RP** : les pilotes écrivent des notes par destination, sauvegardées.
+
+### Intégration OS Fondation (en plus de l'intercom)
+8. **Application « TARDIS » sur les postes** : la sécurité voit les dernières matérialisations détectées (heure, lieu).
+9. **Niveau d'alerte du site → TARDIS** : quand l'OS passe le site en alerte, le TARDIS passe lui aussi en alerte.
+10. **Panne de courant de l'OS → TARDIS** : le blackout du site met hors tension un TARDIS posé dans le site.
+
+### Staff et technique
+11. **Mode maintenance** : le TARDIS est bloqué pour tous sauf le staff pendant une mise à jour.
+12. **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
+13. **Remontée d'erreurs client** : les erreurs des scripts joueurs sont comptées et visibles dans le diagnostic du serveur.
+
+### Visuel et son
+14. **Rotor coloré selon le mode** : vert en Express, orange en urgence, bleu en normal.
+15. **Traînée au sol après un Express** : des lignes lumineuses qui s'effacent en quelques secondes.
+16. **Enseigne « POLICE BOX » qui clignote** différemment selon le mode.
+17. **Annonce de bord** : « Matérialisation dans 3… 2… 1… » sur l'écran de la console et en son (option).
+18. **Ambiance sonore par thème** d'intérieur (Classique, Nuit, Alerte…).

@@ -22,6 +22,8 @@ local camera = workspace.CurrentCamera
 local def, monRole = Config.attendreMonTardis(joueur) -- le TARDIS de ce joueur (pilote ou technicien)
 local exterieur, interieur = Config.modeles(def)
 local remote = ReplicatedStorage:WaitForChild(Config.canal(def, "TardisCommande"))
+-- Commandes de voyage et protocoles partagés avec la tablette
+local Commandes = require(ReplicatedStorage:WaitForChild("TardisCommandes")).demarrer(exterieur, remote)
 
 --------------------------------------------------------------------
 -- Réglages
@@ -201,9 +203,8 @@ local protocoles = UI.carte(contenu, 5, 6)
 local interrupteurUrgence = UI.interrupteur(protocoles, "Urgence", "Sons d'urgence et vol instable", C.orange, 1)
 local interrupteurExpress = UI.interrupteur(protocoles, "Express", "Démat et remat en 2 secondes", C.vert, 2)
 local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 3)
--- Urgence et Express sont opposés : en activer un coupe l'autre
-interrupteurUrgence.surChangement = function(actif) if actif then interrupteurExpress.regler(false) end end
-interrupteurExpress.surChangement = function(actif) if actif then interrupteurUrgence.regler(false) end end
+-- État partagé avec la tablette (Urgence et Express s'excluent)
+Commandes.lierInterrupteurs({ urgence = interrupteurUrgence, express = interrupteurExpress, invisible = interrupteurInvisible })
 
 -- Actions
 local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 54), BackgroundTransparency = 1, LayoutOrder = 6,
@@ -305,7 +306,6 @@ end
 local ouvert = false
 local mode = "lieux"
 local choix = nil -- { type = "lieu", nom } ou { type = "joueur", id, nom }
-local autoRemat = nil -- mode de voyage automatique : destination mémorisée au décollage
 local elementsListe, boutonsChoix = {}, {}
 
 local function cleDe(c)
@@ -328,7 +328,8 @@ local function majInterface()
 	local petit = echelle < 0.999
 	local porte = exterieur:GetAttribute("Porteur") ~= nil
 	local verrouille = exterieur:GetAttribute("PortesVerrouillees") == true
-	local urgenceEnCours = exterieur:GetAttribute("Urgence") == true and etat ~= E.Pose
+	local mode = Config.modeDe(exterieur)
+	local urgenceEnCours = mode == "Urgence" and etat ~= E.Pose
 	local alimente = exterieur:GetAttribute("Alimentation") ~= false
 	local alerte = exterieur:GetAttribute("Alerte") == true
 	local bloque = exterieur:GetAttribute("DemarrageBloque") == true
@@ -359,7 +360,7 @@ local function majInterface()
 	B.verrou.Visible = verrouille
 	B.retreci.Visible = petit
 	B.urgence.Visible = urgenceEnCours
-	B.express.Visible = exterieur:GetAttribute("Express") == true and etat ~= E.Pose
+	B.express.Visible = mode == "Express" and etat ~= E.Pose
 	B.horsTension.Visible = not alimente
 	B.alerte.Visible = alerte
 	B.bloque.Visible = bloque
@@ -515,16 +516,7 @@ end)
 
 -- Destination choisie, au format attendu par le serveur (nil si rien n'est choisi)
 local function donneesDestination()
-	if not choix then return nil end
-	local donnees = { invisible = interrupteurInvisible.valeur(), urgence = interrupteurUrgence.valeur(), express = interrupteurExpress.valeur() }
-	if choix.type == "precedent" then
-		donnees.precedent = true
-	elseif choix.type == "lieu" then
-		donnees.destination = choix.nom
-	else
-		donnees.joueur = choix.id -- dernière position du joueur
-	end
-	return donnees
+	return Commandes.donnees(choix)
 end
 
 -- La destination choisie est partagée avec les commandes de port (bouton DÉMAT quand on porte le TARDIS)
@@ -547,62 +539,18 @@ boutonDemat.Activated:Connect(function()
 		end
 		return
 	end
-	if exterieur:GetAttribute("Porteur") == joueur.UserId then
-		-- Téléportation de poche : il se dématérialise dans tes mains et réapparaît (petit) à la destination
-		local donnees = donneesDestination()
-		if donnees then remote:FireServer("DematPorte", donnees) end
-		return
-	end
-	if UI.pref("modeVoyage", "auto") == "auto" and (exterieur:GetAttribute("Echelle") or 1) >= 0.999 then
-		local donnees = choix and donneesDestination()
-		if not donnees then
-			notifier("Mode automatique : choisis une destination avant de décoller.", false)
-			return
-		end
-		autoRemat = { donnees = donnees }
-	end
-	remote:FireServer("Demat", { urgence = interrupteurUrgence.valeur(), express = interrupteurExpress.valeur() })
-end)
--- Rematérialisation automatique : 15 s après l'entrée dans le vortex
-exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
-	local etat = exterieur:GetAttribute("Etat")
-	if etat == E.Vol and autoRemat and not autoRemat.fin then
-		autoRemat.fin = os.clock() + 15
-		local auto = autoRemat
-		notifier("Rematérialisation automatique dans 15 s.", true)
-		task.delay(15, function()
-			if autoRemat == auto then
-				autoRemat = nil
-				remote:FireServer("Remat", auto.donnees)
-			end
-		end)
-	elseif etat == E.Pose then
-		autoRemat = nil
-	end
+	Commandes.demat(choix)
 end)
 
 boutonRemat.Activated:Connect(function()
-	if autoRemat and (exterieur:GetAttribute("Etat") or E.Pose) == E.Vol then
-		local donnees = autoRemat.donnees
-		autoRemat = nil
-		remote:FireServer("Remat", donnees)
-		return
-	end
-	if boutonRemat:GetAttribute("Disponible") == false then
+	-- Pendant le compte à rebours de la rematérialisation automatique, un appui la lance tout de suite
+	if not Commandes.secondesAutoRemat() and boutonRemat:GetAttribute("Disponible") == false then
 		if (exterieur:GetAttribute("Etat") or E.Pose) == E.Vol and not choix then
 			notifier("Choisis d'abord un lieu ou un joueur.", false)
 		end
 		return
 	end
-	local donnees
-	if (exterieur:GetAttribute("Echelle") or 1) < 0.999 then
-		-- Petit : il se rematérialise sur place
-		donnees = { invisible = interrupteurInvisible.valeur(), urgence = interrupteurUrgence.valeur(), express = interrupteurExpress.valeur() }
-	else
-		donnees = donneesDestination()
-		if not donnees then return end
-	end
-	remote:FireServer("Remat", donnees)
+	Commandes.remat(choix)
 end)
 
 T.camouflage.bouton.Activated:Connect(function()
@@ -619,6 +567,9 @@ T.taille.bouton.Activated:Connect(function()
 	remote:FireServer("Taille", { facteur = petit and 1 or TAILLE_PETITE })
 end)
 
+Commandes.annonce.Event:Connect(function(message, reussi)
+	if ouvert then notifier(message, reussi) end
+end)
 remote.OnClientEvent:Connect(function(message, reussi)
 	if ouvert then notifier(message, reussi) end
 end)
@@ -653,7 +604,7 @@ RunService.RenderStepped:Connect(function(dt)
 
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
 	if etat == E.Demat or etat == E.Remat then
-		local duree, decalage = Config.Timing(etat, exterieur:GetAttribute("Urgence") == true, exterieur:GetAttribute("Express") == true)
+		local duree, decalage = Config.Timing(etat, Config.modeDe(exterieur))
 		local total = duree + decalage
 		local p = math.clamp(ecoule / total, 0, 1)
 		zoneProgression.Visible = true
@@ -685,7 +636,7 @@ majTaille()
 --------------------------------------------------------------------
 -- Mises à jour automatiques
 --------------------------------------------------------------------
-for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Urgence", "Express", "PorteOuverte",
+for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Mode", "PorteOuverte",
 	"Echelle", "Alimentation", "Alerte", "DemarrageBloque", "VolLibre", "BouclierJoueurs", "BouclierBalles", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "Enseigne", "Detruit", "AutoDestructionDebut", "StyleInterieur", "StyleConsole", "CouleurMurs", "Jukebox", "BouclierComplet", "BouclierEnergie", "PointsDeVie", "Avarie", "Stabilisateur", "Decoration", "Reflets" } do
 	exterieur:GetAttributeChangedSignal(attribut):Connect(majInterface)
 end

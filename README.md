@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.6** (mode Express). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.6.1** (mode Express, fondations simplifiées). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 
@@ -11,20 +11,22 @@ Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE**
 ```
 src/
 ├─ ReplicatedStorage/
-│  ├─ TardisConfig.lua                  ModuleScript : tous les réglages, accès, outils multi-TARDIS
-│  └─ TardisUI.lua                      ModuleScript : briques d'interface et styles partagés
+│  ├─ TardisConfig.lua                  ModuleScript : tous les réglages (dont Config.Modes), accès, outils multi-TARDIS
+│  ├─ TardisUI.lua                      ModuleScript : briques d'interface et styles partagés
+│  └─ TardisCommandes.lua               ModuleScript : commandes de voyage et protocoles partagés par le menu et la tablette
 ├─ ServerScriptService/
 │  ├─ TardisServeur.server.lua          Script : états, voyages, console, vol libre (autorité serveur)
 │  ├─ TardisExtras.server.lua           Script : outils, rôles, zones, auto-destruction, sauvegarde des préférences
 │  ├─ TardisSystemes.server.lua         Script : PV, boucliers, pannes, régénération, techniciens
-│  └─ TardisLiaisonPortes.server.lua    Script : pont entre les portes du kit et le système
+│  ├─ TardisLiaisonPortes.server.lua    Script : pont entre les portes du kit et le système
+│  └─ TardisDiagnostic.lua              ModuleScript : diagnostic au démarrage (une ligne dans l'Output)
 ├─ StarterPlayer/StarterPlayerScripts/
 │  ├─ TardisEffets.client.lua           (dé)matérialisation, lampe, rotor, lumières, secousses
 │  ├─ TardisPortail.client.lua          vues à travers la porte et passage
 │  ├─ TardisCamera.client.lua           caméra au-dessus de la Lampe
 │  ├─ TardisMenu.client.lua             menu rapide (T)
 │  ├─ TardisTablette.client.lua         tablette avancée (Y)
-│  ├─ Tardisporter.client.lua           TARDIS porté (main, ceinture, épaule)
+│  ├─ TardisPorter.client.lua           TARDIS porté (main, ceinture, épaule)
 │  ├─ TardisVolLibre.client.lua         vol libre à la 3ᵉ personne
 │  ├─ TardisRotation.client.lua         repositionnement fin
 │  └─ TardisExtrasClient.client.lua     effets et interfaces des extras et systèmes
@@ -33,16 +35,33 @@ src/
    └─ RightDoor/Shut.server.lua         battant droit (dans chaque TARDIS)
 docs/
 ├─ ETAT_DES_LIEUX.md                    reprise du 29/10/2026 et comparaison avec ZONE-TSADE
+├─ PROPOSITIONS.md                      modifications, simplifications et ajouts proposés
 └─ patch-notes/V1.md … V6.md            notes détaillées par version et sous-version
+outils/
+├─ manifeste.py                         liste les scripts de src/ avec leur empreinte (outils/manifeste.json)
+├─ synchro_studio.luau                  met Studio à jour depuis le dépôt et vérifie chaque empreinte
+└─ remplacer.py                         remplacements exacts et vérifiés dans les fichiers
 CHANGELOG.md                            index de toutes les versions
 ```
 
-Le code de `src/` a été **exporté directement depuis ZONE-TSADE** le 29/10/2026, et il est identique octet pour octet à ce qui tourne dans le jeu. Les suffixes `.server.lua` / `.client.lua` / `.lua` indiquent le type d'objet Roblox (Script / LocalScript / ModuleScript), selon la convention de Rojo.
+Le code de `src/` est **identique octet pour octet** à ce qui tourne dans ZONE-TSADE. Les suffixes `.server.lua` / `.client.lua` / `.lua` indiquent le type d'objet Roblox (Script / LocalScript / ModuleScript), selon la convention de Rojo.
+
+## Synchroniser Studio avec le dépôt
+
+```bash
+python outils/manifeste.py
+```
+
+```bash
+python -m http.server 35001 --bind 127.0.0.1
+```
+
+Puis, dans Studio (mode Édition), coller le contenu de `outils/synchro_studio.luau` dans la barre de commande. Seuls les scripts qui diffèrent sont réécrits ; chaque script est vérifié par son empreinte, et le rapport liste ce qui a été créé, mis à jour ou supprimé.
 
 ## Installation dans Studio
 
-1. **ReplicatedStorage** : `TardisConfig` et `TardisUI` (ModuleScripts), plus le dossier `TardisAssets › Sons` (`Demat`, `Remat`, `Demat_Urg`, `Remat_Urg`, `Alarme`…).
-2. **ServerScriptService** : les 4 **Script** (`TardisServeur`, `TardisExtras`, `TardisSystemes`, `TardisLiaisonPortes`). ⚠️ Ce sont des Script, pas des LocalScript.
+1. **ReplicatedStorage** : `TardisConfig`, `TardisUI` et `TardisCommandes` (ModuleScripts), plus le dossier `TardisAssets › Sons` (`Demat`, `Remat`, `Demat_Urg`, `Remat_Urg`, `Alarme`…).
+2. **ServerScriptService** : les 4 **Script** (`TardisServeur`, `TardisExtras`, `TardisSystemes`, `TardisLiaisonPortes`) et le ModuleScript `TardisDiagnostic`. ⚠️ Ce sont des Script, pas des LocalScript.
 3. **StarterPlayer › StarterPlayerScripts** : les 9 **LocalScript**.
 4. Dans **chaque** TARDIS : un `Shut` (Script) dans `TARDISDoors › LeftDoor` et un autre dans `RightDoor`.
 5. Workspace :
@@ -55,7 +74,7 @@ Le code de `src/` a été **exporté directement depuis ZONE-TSADE** le 29/10/20
 6. `TardisConfig` : renseigner `Config.Pilotes`, `Config.Techniciens` et `Config.Tardis` (mettre en commentaire les TARDIS qui n'existent pas dans le Workspace).
 7. Paramètres du jeu › Sécurité : **Enable Studio Access to API Services** (sauvegarde) ; avec StreamingEnabled, `ModelStreamingMode = Persistent` sur les Models du TARDIS.
 
-Au lancement, l'Output (côté Server) doit afficher, pour chaque TARDIS actif : `serveur prêt`, `extras prêts` et `systèmes prêts`.
+Au lancement, l'Output (côté Server) doit afficher, pour chaque TARDIS actif : `serveur prêt`, `extras prêts`, `systèmes prêts`, puis une ligne de **diagnostic** (pièces obligatoires et optionnelles, sons, destinations).
 
 ## Touches principales
 

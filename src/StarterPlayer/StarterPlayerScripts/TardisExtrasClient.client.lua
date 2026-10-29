@@ -46,15 +46,15 @@ end
 local function progressionAnimation()
 	local etat = exterieur:GetAttribute("Etat") or E.Pose
 	local phase = exterieur:GetAttribute("VolPhase")
-	local debut, urgence, quoi
+	local debut, mode, quoi
 	if etat == E.Demat or etat == E.Remat then
-		debut, urgence, quoi = exterieur:GetAttribute("DebutEtat"), exterieur:GetAttribute("Urgence") == true, etat
+		debut, mode, quoi = exterieur:GetAttribute("DebutEtat"), Config.modeDe(exterieur), etat
 	elseif phase == E.Demat or phase == E.Remat then
-		debut, urgence, quoi = exterieur:GetAttribute("VolPhaseDebut"), exterieur:GetAttribute("VolPhaseUrgence") == true, phase
+		debut, mode, quoi = exterieur:GetAttribute("VolPhaseDebut"), exterieur:GetAttribute("VolPhaseUrgence") == true, phase
 	else
 		return nil
 	end
-	local duree, decalage = Config.Timing(quoi, urgence, exterieur:GetAttribute("Express") == true)
+	local duree, decalage = Config.Timing(quoi, mode)
 	local p = ((workspace:GetServerTimeNow() - (debut or 0)) - decalage) / duree
 	if p < -0.3 or p > 1 then return nil end
 	return math.clamp(p, 0, 1), quoi == E.Remat
@@ -233,7 +233,7 @@ end
 --------------------------------------------------------------------
 RunService.Heartbeat:Connect(function()
 	local etat = exterieur:GetAttribute("Etat") or E.Pose
-	local urgence = (exterieur:GetAttribute("Urgence") == true and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
+	local urgence = (Config.modeDe(exterieur) == "Urgence" and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
 	if not (urgence and jeSuisDedans()) then return end
 	if exterieur:GetAttribute("Stabilisateur") ~= false then return end -- le stabilisateur annule la gravité folle
 	local racine = maRacine()
@@ -294,7 +294,7 @@ do
 	local jukebox, jukeboxIndex = nil, nil
 	RunService.Heartbeat:Connect(function(dt)
 		local etat = exterieur:GetAttribute("Etat") or E.Pose
-		local urgence = (exterieur:GetAttribute("Urgence") == true and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
+		local urgence = (Config.modeDe(exterieur) == "Urgence" and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
 			or exterieur:GetAttribute("Alerte") == true or exterieur:GetAttribute("AutoDestructionDebut") ~= nil
 		local alimente = exterieur:GetAttribute("Alimentation") ~= false and exterieur:GetAttribute("Detruit") ~= true
 		local cibles = {
@@ -504,7 +504,7 @@ do
 
 	-- Givre : après un atterrissage d'urgence, la cabine se couvre de givre qui fond lentement
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
-		if exterieur:GetAttribute("Etat") ~= E.Pose or exterieur:GetAttribute("Urgence") ~= true then return end
+		if exterieur:GetAttribute("Etat") ~= E.Pose or Config.modeDe(exterieur) ~= "Urgence" then return end
 		if givre then givre:Destroy() end
 		givre = creer("Highlight", { FillColor = Color3.fromRGB(215, 240, 255), OutlineColor = Color3.fromRGB(240, 250, 255),
 			FillTransparency = 0.55, OutlineTransparency = 0.35, DepthMode = Enum.HighlightDepthMode.Occluded, Parent = exterieur })
