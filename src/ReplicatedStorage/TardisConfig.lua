@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6.1"
+Config.Version = "6.6.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -54,6 +54,7 @@ Config.Modes = {
 		Demat = { Duree = 17, Decalage = 3.25 },   -- 20,25 s au total
 		Remat = { Duree = 16.86, Decalage = 2.5 }, -- 19,36 s au total
 		Pulsations = 4,                            -- nombre de fondus pendant la (dé)matérialisation
+		CouleurRotor = Color3.fromRGB(80, 160, 255), -- couleur du rotor pendant le voyage (V6.6.2)
 		Sons = { Demat = "Demat", Remat = "Remat" },
 	},
 	-- Urgence : il a du mal à décoller / atterrir (animation saccadée)
@@ -62,6 +63,7 @@ Config.Modes = {
 		Remat = { Duree = 23, Decalage = 2 },
 		Saccades = 0.75,       -- force des saccades : 0 = aucune, 1 = forte
 		Stabilisation = 5,     -- les saccades s'apaisent pendant ces dernières secondes de l'animation
+		CouleurRotor = Color3.fromRGB(255, 130, 40),
 		Sons = { Demat = "Demat_Urg", Remat = "Remat_Urg" }, -- absents : sons du mode Normal
 	},
 	-- Express (V6.6, l'inverse de l'urgence) : voyage éclair, sans silence de départ ni saccades
@@ -69,11 +71,20 @@ Config.Modes = {
 		Demat = { Duree = 2, Decalage = 0 },
 		Remat = { Duree = 2, Decalage = 0 },
 		Pulsations = 2,
+		CouleurRotor = Color3.fromRGB(74, 222, 128),
 		-- Absents : le son normal est joué sans son silence de départ, puis coupé en fondu à la fin
 		Sons = { Demat = "Demat_Express", Remat = "Remat_Express" },
 	},
 }
 Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
+
+-- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
+-- à l'ancien emplacement, puis s'efface. Pas d'empreinte pour un départ camouflé, porté ou en vol libre.
+Config.Empreinte = {
+	Duree = 30,                              -- secondes avant qu'elle ait complètement disparu
+	Couleur = Color3.fromRGB(120, 180, 255),
+	Transparence = 0.75,                     -- transparence au départ (1 = invisible)
+}
 Config.Cooldown = 1       -- délai minimum entre deux actions sur la console
 Config.DureeCamouflage = 2  -- durée du fondu quand le TARDIS se camoufle / réapparaît
 

@@ -66,6 +66,15 @@ local rotorBase = rotor:GetPivot() -- marche avec une Part OU un Model
 local brillanceBase = lumiere and lumiere.Brightness or 0
 local couleurLampe = lumiere and lumiere.Color or Color3.new(1, 1, 1)
 
+-- Rotor coloré selon le mode du voyage (V6.6.2) : ses néons et ses lumières prennent la couleur du mode
+-- (Config.Modes[mode].CouleurRotor) pendant le voyage, en fondu, puis retrouvent leur couleur d'origine.
+local melangeRotor, couleurRotor = 0, Color3.new(1, 1, 1)
+local neonsRotor = {} -- [part] = couleur d'origine
+for _, objet in rotor:GetDescendants() do
+	if objet:IsA("BasePart") and objet.Material == Enum.Material.Neon then neonsRotor[objet] = objet.Color end
+end
+if rotor:IsA("BasePart") and rotor.Material == Enum.Material.Neon then neonsRotor[rotor] = rotor.Color end
+
 -- Ambiance de l'intérieur (locale) : noir quand le courant est coupé, teinte rouge en alerte
 local Lighting = game:GetService("Lighting")
 local expositionOrigine = Lighting.ExposureCompensation
@@ -268,6 +277,19 @@ RunService.RenderStepped:Connect(function(dt)
 		rotor:PivotTo(rotorBase * CFrame.new(0, math.sin(t * vitesse) * amplitude, 0))
 	end
 
+	-- 3 ter) Couleur du rotor selon le mode (sauf hors tension et en alerte, qui ont leurs propres couleurs)
+	proteger("couleurRotor", function()
+		local actif = etat ~= E.Pose and exterieur:GetAttribute("Alimentation") ~= false and exterieur:GetAttribute("Alerte") ~= true
+		if actif then couleurRotor = Config.Modes[Config.modeDe(exterieur)].CouleurRotor or couleurRotor end
+		local avant = melangeRotor
+		melangeRotor += ((actif and 1 or 0) - melangeRotor) * math.min(dt * 2, 1)
+		if melangeRotor < 0.002 then melangeRotor = 0 end
+		if melangeRotor == 0 and avant == 0 then return end
+		for part, origine in neonsRotor do
+			part.Color = origine:Lerp(couleurRotor, melangeRotor)
+		end
+	end)
+
 	-- 3 bis) Lumières de la salle : secours hors tension, pièces vides éteintes, pénombre après 5 min,
 	-- nuit automatique, et pulsation avec le rotor en vol (les LEDs d'alerte restent gérées par le thème)
 	proteger("lumieres", function()
@@ -320,6 +342,8 @@ RunService.RenderStepped:Connect(function(dt)
 					elseif nuit then cible = 0.7 end -- nuit automatique
 					if nuit and cible > 0 then couleur = couleur:Lerp(Color3.fromRGB(255, 200, 140), 0.35) end
 					if enVol then cible *= pulsation end
+					-- Lumières du rotor : couleur du mode du voyage
+					if melangeRotor > 0 and objet:IsDescendantOf(rotor) then couleur = couleur:Lerp(couleurRotor, 0.85 * melangeRotor) end
 				end
 				infos.facteur += (cible - infos.facteur) * math.min(dt * 2, 1)
 				objet.Brightness = infos.brillance * infos.facteur
@@ -582,4 +606,81 @@ do
 	interieur.DescendantAdded:Connect(regler)
 	joueur:GetAttributeChangedSignal("TardisPilote_" .. def.Nom):Connect(toutRegler)
 	toutRegler()
+end
+
+--------------------------------------------------------------------
+-- Empreinte temporelle (V6.6.2) : après un départ, une silhouette translucide du TARDIS reste là où il
+-- était, scintille légèrement, puis s'efface (Config.Empreinte). Chaque joueur la construit lui-même à
+-- partir de l'attribut "Etat" : tout le monde la voit au même endroit.
+--------------------------------------------------------------------
+do
+	local reglages = Config.Empreinte or {}
+	local DUREE = reglages.Duree or 30
+	local COULEUR = reglages.Couleur or Color3.fromRGB(120, 180, 255)
+	local TRANSPARENCE = reglages.Transparence or 0.75
+	local enAttente = nil -- silhouette préparée au début de la démat, montrée quand le TARDIS est parti
+
+	-- Copie de la cabine à sa position actuelle (pièces visibles seulement, sans scripts ni interfaces)
+	local function preparer()
+		local modele = Instance.new("Model")
+		modele.Name = "TardisEmpreinte_" .. def.Nom
+		for _, part in exterieur:GetDescendants() do
+			local fiche = visuels[part]
+			local origine = fiche and fiche.transparences.Transparency
+			if part:IsA("BasePart") and part ~= exterieur.PrimaryPart and part.Name ~= Config.NomPortailExt
+				and (origine or part.Transparency) < 0.95 then
+				local fantome = part:Clone()
+				if fantome then
+					fantome:ClearAllChildren()
+					fantome.Anchored, fantome.CanCollide, fantome.CanTouch, fantome.CanQuery = true, false, false, false
+					fantome.CastShadow = false
+					fantome.Material = Enum.Material.Neon
+					fantome.Color = COULEUR
+					if fantome:IsA("UnionOperation") then fantome.UsePartColor = true end
+					if fantome:IsA("MeshPart") then fantome.TextureID = "" end
+					fantome.Transparency = 1
+					fantome.Parent = modele
+				end
+			end
+		end
+		return modele
+	end
+
+	local function montrer(modele)
+		local pieces = modele:GetChildren()
+		modele.Parent = workspace
+		local debut = os.clock()
+		local connexion
+		connexion = RunService.Heartbeat:Connect(function()
+			local ecoule = os.clock() - debut
+			local p = ecoule / DUREE
+			if p >= 1 or not modele.Parent then
+				connexion:Disconnect()
+				modele:Destroy()
+				return
+			end
+			-- Apparition rapide, puis effacement lent, avec un léger scintillement
+			local apparition = math.clamp(ecoule / 0.6, 0, 1)
+			local visibilite = (1 - TRANSPARENCE) * apparition * (1 - p) * (1 + 0.15 * math.sin(ecoule * 9))
+			local transparence = math.clamp(1 - visibilite, 0, 1)
+			for _, piece in pieces do piece.Transparency = transparence end
+		end)
+	end
+
+	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+		local etat = exterieur:GetAttribute("Etat")
+		if etat == E.Demat then
+			if enAttente then enAttente:Destroy() enAttente = nil end
+			-- Pas d'empreinte pour un départ discret : camouflé, porté (téléportation de poche) ou en vol libre
+			if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") or exterieur:GetAttribute("VolLibre") then return end
+			enAttente = preparer()
+		elseif etat == E.Vol and enAttente then
+			local modele = enAttente
+			enAttente = nil
+			montrer(modele)
+		elseif enAttente then
+			enAttente:Destroy() -- démat interrompue
+			enAttente = nil
+		end
+	end)
 end
