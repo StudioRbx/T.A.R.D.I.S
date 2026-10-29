@@ -35,36 +35,18 @@ local TOUCHE = Enum.KeyCode.T    -- ouvrir / fermer
 local TAILLE_PETITE = Config.TaillePetite or Config.TailleMin or 0.25
 
 --------------------------------------------------------------------
--- Tiroir et onglet
+-- Tiroir (ouvert et fermé avec la touche T : il n'y a plus d'onglet à l'écran depuis la V6.6.5)
 --------------------------------------------------------------------
 local gui = creer("ScreenGui", { Name = "TardisMenu", ResetOnSpawn = false, Enabled = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = joueur:WaitForChild("PlayerGui") })
 
 local OUVERT = UDim2.new(0, 12, POSITION_Y, 0)
 local FERME = UDim2.new(0, -LARGEUR - 20, POSITION_Y, 0)
-local MARGE_ONGLET = 10 -- l'onglet reste bien à l'intérieur de l'écran, facile à cliquer
 
 local tiroir = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = FERME, Size = UDim2.fromOffset(LARGEUR, 540),
 	BackgroundColor3 = C.fond, Parent = gui }, { UI.coin(16), UI.contour(C.ambre, 1.5, 0.5) })
 local echelleTiroir = creer("UIScale", { Parent = tiroir })
 creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(150, 160, 190)), Parent = tiroir })
-
--- L'onglet est un bouton indépendant : collé au bord de l'écran quand le menu est fermé,
--- juste à droite du menu quand il est ouvert
-local onglet = creer("TextButton", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, MARGE_ONGLET, POSITION_Y, 0),
-	Size = UDim2.fromOffset(42, 92), BackgroundColor3 = C.fond, Text = "", ZIndex = 5, Parent = gui },
-{ UI.coin(12), UI.contour(C.ambre, 1.5, 0.25) })
-onglet:SetAttribute("CouleurBase", C.fond)
-UI.rendreVivant(onglet)
-local anneauOnglet = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.3, 0),
-	Size = UDim2.fromOffset(20, 20), BackgroundTransparency = 1, Parent = onglet }, { UI.coin(99), UI.contour(C.ambre, 1.5, 0) })
-creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(5, 5),
-	BackgroundColor3 = C.cyan, Parent = anneauOnglet }, { UI.coin(99) })
-local voyantOnglet = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(6, 6), BackgroundColor3 = C.vert, Parent = anneauOnglet }, { UI.coin(99) })
-local flecheOnglet = texte({ Text = "›", Font = UI.POLICE_GRAS, TextSize = 28, TextColor3 = C.ambre,
-	TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.new(0.5, 0, 0.7, 0), Size = UDim2.fromOffset(20, 28), Parent = onglet })
 
 --------------------------------------------------------------------
 -- En-tête
@@ -354,7 +336,6 @@ local function majInterface()
 	textePastille.Text = (alerte and "Alerte · " or "") .. nomCourt
 	animer(pointPastille, 0.3, { BackgroundColor3 = couleurEtat })
 	contourPastille.Color = couleurEtat
-	animer(voyantOnglet, 0.3, { BackgroundColor3 = couleurEtat })
 
 	B.camouflage.Visible = camoufle
 	B.verrou.Visible = verrouille
@@ -494,15 +475,8 @@ recherche:GetPropertyChangedSignal("Text"):Connect(construireListe)
 local function basculerMenu()
 	ouvert = not ouvert
 	animer(tiroir, 0.45, { Position = ouvert and OUVERT or FERME })
-	-- L'onglet suit le bord droit du menu (en tenant compte de sa mise à l'échelle)
-	local xOuvert = 12 + LARGEUR * echelleTiroir.Scale + 8
-	animer(onglet, 0.45, { Position = UDim2.new(0, ouvert and xOuvert or MARGE_ONGLET, POSITION_Y, 0) })
-	animer(flecheOnglet, 0.3, { Rotation = ouvert and 180 or 0 })
 	if not ouvert then recherche:ReleaseFocus() end
 end
-onglet.Activated:Connect(basculerMenu)
--- Plus d'onglet à l'écran : le menu s'ouvre et se ferme uniquement avec la touche T (et la tablette avec Y)
-onglet.Visible = false
 
 -- La tablette (script TardisTablette) écoute cet attribut local du joueur
 boutonTablette.Activated:Connect(function()
@@ -588,7 +562,6 @@ RunService.RenderStepped:Connect(function(dt)
 	local enMouvement = etat ~= E.Pose
 	local vitesse = enMouvement and 3 or 1
 	local t = os.clock()
-	anneauOnglet.Rotation += dt * 60 * vitesse
 	if not ouvert then return end
 
 	for i, anneau in anneaux do
@@ -625,9 +598,6 @@ local function majTaille()
 	local echelle = math.clamp(ecran.Y / 820, 0.72, 1) * UI.tailleInterface()
 	echelleTiroir.Scale = echelle
 	tiroir.Size = UDim2.fromOffset(LARGEUR, math.clamp(ecran.Y * HAUTEUR_ECRAN / echelle, 360, 700))
-	if ouvert then
-		onglet.Position = UDim2.new(0, 12 + LARGEUR * echelle + 8, POSITION_Y, 0)
-	end
 end
 camera:GetPropertyChangedSignal("ViewportSize"):Connect(majTaille)
 UI.prefsChangees.Event:Connect(function(cle) if cle == "taille" then majTaille() end end)

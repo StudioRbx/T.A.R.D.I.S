@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.6.4** (mode Express complet, rotor coloré, empreinte temporelle ; scripts découpés en modules). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.6.5** (mode Express complet, rotor coloré, empreinte temporelle ; régénération fiable, option « réduire les effets », vol libre à 8 boutons). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 

@@ -94,7 +94,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.6.2** | Ajouts C4 (empreinte temporelle de 30 s) et C14 (rotor coloré selon le mode) | ✅ livrée |
 | **V6.6.3** | Simplifications 10, 11, 12 : découpage de `TardisTablette`, `TardisExtrasClient` et du vol libre du serveur | ✅ livrée |
 | **V6.6.4** | Modifications 1 à 6 (suite de l'Express, recharge de 5 s) et 13 (historique par mode) | ✅ livrée |
-| V6.6.5 | Modification 7 (V6.5.13 et V6.5.14 réécrites), 16 (réduire les effets) · simplifications 21 (vol à 8 boutons), 22 (mode débutant par défaut) | à faire |
+| **V6.6.5** | Modification 7 (V6.5.13 et V6.5.14 réécrites), 16 (réduire les effets) · simplifications 21 (vol à 8 boutons), 22 (mode débutant par défaut) | ✅ livrée |
 | V6.6.6 | Modification 15 : tablette technicien | à faire |
 | V6.6.7 | Modification 20 (intercom « faille spatio-temporelle » via un petit module pont dans l'OS Fondation, 1 fois par session, puis rappel au pilote toutes les 10 min), 21 (jukebox de musiques d'action audible seulement dans le TARDIS), 3 et 22 (sons) | à faire |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |

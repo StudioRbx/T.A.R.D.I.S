@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("TardisConfig"))
+local UI = require(ReplicatedStorage:WaitForChild("TardisUI"))
 local E = Config.Etats
 local joueur = Players.LocalPlayer
 
@@ -132,7 +133,7 @@ local function alphaVol()
 	if phase == "Invisible" or exterieur:GetAttribute("Detruit") == true then return 1 end
 	if phase == E.Demat or phase == E.Remat then
 		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
-		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur))
+		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur), UI.effetsReduits())
 	end
 	return 0
 end
@@ -151,7 +152,7 @@ local function proteger(nom, fonction, ...)
 end
 
 local function fondu(etat, ecoule, camouflage, mode)
-	local alpha = math.max(Config.Alpha(etat, ecoule, mode), camouflage)
+	local alpha = math.max(Config.Alpha(etat, ecoule, mode, UI.effetsReduits()), camouflage)
 	if alpha ~= alphaActuel then
 		alphaActuel = alpha
 		for objet, fiche in visuels do
@@ -227,6 +228,7 @@ RunService.RenderStepped:Connect(function(dt)
 		local ambiance, exterieure, exposition = ambianceOrigine, exterieureOrigine, 0
 		if theme then
 			ambiance, exterieure, exposition = theme.ambiance, theme.exterieur, theme.exposition or 0
+			if UI.effetsReduits() then exposition = math.min(exposition, 0.6) end -- Flashbang : beaucoup moins éblouissant
 			if theme.festive then
 				-- Festive : les couleurs tournent
 				local teinteFestive = Color3.fromHSV((t * 0.08) % 1, 0.8, 0.9)
@@ -370,6 +372,7 @@ RunService.RenderStepped:Connect(function(dt)
 			if stabilise then f *= 0.05 end -- urgence avec stabilisateur : à peine une vibration (5 %)
 			-- Sièges d'équipage : assis, on est bien moins secoué
 			if humanoid.Sit and humanoid.SeatPart and string.sub(humanoid.SeatPart.Name, 1, 13) == "SiegeEquipage" then f *= 0.3 end
+			if UI.effetsReduits() then f *= 0.3 end
 			humanoid.CameraOffset = Vector3.new(
 				(math.random() - 0.5) * f,
 				(math.random() - 0.5) * f,
@@ -705,21 +708,23 @@ do
 	local function eclair(cf)
 		local hauteur = math.max(exterieur:GetExtentsSize().Y, 4)
 		local sol = cf.Position
-		-- Flash : une sphère qui grossit en s'effaçant, avec une lumière
-		local boule = piece({ Name = "TardisEclairExpress", Shape = Enum.PartType.Ball, Size = Vector3.one * 2,
+		-- Flash : une sphère qui grossit en s'effaçant, avec une lumière (pas de flash si le joueur a réduit les effets)
+		local boule = not UI.effetsReduits() and piece({ Name = "TardisEclairExpress", Shape = Enum.PartType.Ball, Size = Vector3.one * 2,
 			Color = Color3.new(1, 1, 1):Lerp(COULEUR, 0.35), Transparency = 0.1, CFrame = CFrame.new(sol + Vector3.new(0, hauteur / 2, 0)) })
-		local lumiere = Instance.new("PointLight")
-		lumiere.Color, lumiere.Range, lumiere.Brightness = COULEUR, 30, 6
-		lumiere.Parent = boule
-		TweenService:Create(boule, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.one * (hauteur * 1.6), Transparency = 1 }):Play()
-		TweenService:Create(lumiere, TweenInfo.new(0.45), { Brightness = 0 }):Play()
+		if boule then
+			local lumiere = Instance.new("PointLight")
+			lumiere.Color, lumiere.Range, lumiere.Brightness = COULEUR, 30, 6
+			lumiere.Parent = boule
+			TweenService:Create(boule, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Size = Vector3.one * (hauteur * 1.6), Transparency = 1 }):Play()
+			TweenService:Create(lumiere, TweenInfo.new(0.45), { Brightness = 0 }):Play()
+			Debris:AddItem(boule, 0.8)
+		end
 		-- Onde au sol : un disque fin qui s'élargit
 		local onde = piece({ Name = "TardisOndeExpress", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 2, 2),
 			Color = COULEUR, Transparency = 0.3, CFrame = CFrame.new(sol + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
 		TweenService:Create(onde, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{ Size = Vector3.new(0.2, 34, 34), Transparency = 1 }):Play()
-		Debris:AddItem(boule, 0.8)
 		Debris:AddItem(onde, 1)
 	end
 

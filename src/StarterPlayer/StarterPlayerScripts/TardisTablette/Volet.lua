@@ -158,8 +158,11 @@ return function(contexte)
 			boutonLigne(UI.pref("confirmations", true) ~= false and "Confirmation des actions dangereuses : activée" or "Confirmation des actions dangereuses : désactivée",
 				ordre, nil, function() UI.setPref("confirmations", UI.pref("confirmations", true) == false) afficherReglages() end)
 			ordre += 1
-			boutonLigne(UI.pref("debutant", false) and "Mode débutant : activé (l'essentiel seulement)" or "Mode débutant : désactivé", ordre,
-				UI.pref("debutant", false) and C.bleu or nil, function() UI.setPref("debutant", not UI.pref("debutant", false)) afficherReglages() end)
+			boutonLigne(UI.effetsReduits() and "Réduire les effets : activé (moins de flashs, de saccades et de secousses)" or "Réduire les effets : désactivé",
+				ordre, UI.effetsReduits() and C.bleu or nil, function() UI.setPref("effetsReduits", not UI.effetsReduits()) afficherReglages() end)
+			ordre += 1
+			boutonLigne(UI.debutant() and "Mode débutant : activé (l'essentiel seulement)" or "Mode débutant : désactivé", ordre,
+				UI.debutant() and C.bleu or nil, function() UI.setPref("debutant", not UI.debutant()) afficherReglages() end)
 			ordre += 1
 			boutonLigne(UI.pref("modeVoyage", "auto") == "auto" and "Mode de voyage : automatique (destination, DEMAT, 15 s de vortex, REMAT seul)"
 				or "Mode de voyage : manuel (DEMAT, choix dans le vortex, REMAT)", ordre, nil,

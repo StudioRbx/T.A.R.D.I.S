@@ -326,24 +326,62 @@ local REGEN = Config.Regeneration or {}
 local regenerations = {}   -- [UserId] = nombre de régénérations depuis la dernière vraie mort
 local tenuesCompte = {}    -- [UserId] = { identifiants des avatars sauvegardés } (envoyés par le joueur, avec sa permission)
 local derniereTenue = {}   -- [UserId] = dernier avatar porté, pour ne pas reprendre le même
+local descriptionsChargees = {} -- [identifiant d'avatar] = HumanoidDescription (gardée pour la session)
+local incompatiblesR6 = {}      -- [identifiant d'avatar] = true : écarté, car il s'afficherait mal sur un corps R6
 local function estRegenerateur(joueur)
 	return joueur.Team ~= nil and joueur.Team.Name == (REGEN.Equipe or "Le Voyageur")
 end
--- Un des avatars sauvegardés du joueur (nil si aucun, ou si la permission a été refusée)
-local function choisirDescription(joueur)
+-- Le joueur a-t-il partagé ses avatars ?
+local function aPartageSesAvatars(joueur)
 	local liste = tenuesCompte[joueur.UserId]
-	if REGEN.TenuesDuCompte == false or not liste or #liste == 0 then return nil end
-	local choix = liste[math.random(#liste)]
-	if #liste > 1 then
-		for _ = 1, 5 do
-			if choix ~= derniereTenue[joueur.UserId] then break end
-			choix = liste[math.random(#liste)]
+	return REGEN.TenuesDuCompte ~= false and liste ~= nil and #liste > 0
+end
+-- Charge un avatar sauvegardé : 3 essais, car le service des avatars de Roblox échoue parfois
+local function chargerDescription(identifiant)
+	if descriptionsChargees[identifiant] then return descriptionsChargees[identifiant] end
+	for essai = 1, 3 do
+		local ok, description = pcall(function() return Players:GetHumanoidDescriptionFromOutfitId(identifiant) end)
+		if ok and description then
+			descriptionsChargees[identifiant] = description
+			return description
+		end
+		task.wait(0.5 * essai)
+	end
+	return nil
+end
+-- Un corps R6 ne porte ni les vêtements 3D (accessoires superposés) ni les têtes dynamiques (tête sans visage)
+local function compatibleR6(description)
+	local ok, accessoires = pcall(function() return description:GetAccessories(true) end)
+	if ok then
+		for _, accessoire in accessoires do
+			if accessoire.IsLayered then return false end
 		end
 	end
-	local ok, description = pcall(function() return Players:GetHumanoidDescriptionFromOutfitId(choix) end)
-	if ok and description then
-		derniereTenue[joueur.UserId] = choix
-		return description
+	return not (description.Head ~= 0 and description.Face == 0)
+end
+-- Un des avatars sauvegardés du joueur (nil si aucun n'est utilisable, ou si la permission a été refusée).
+-- Essaie jusqu'à 4 avatars différents, sans reprendre le dernier porté s'il y a le choix.
+local function choisirDescription(joueur, r6)
+	if not aPartageSesAvatars(joueur) then return nil end
+	local derniere = derniereTenue[joueur.UserId]
+	local candidats, repli = {}, nil
+	for _, identifiant in tenuesCompte[joueur.UserId] do
+		if not (r6 and incompatiblesR6[identifiant]) then
+			if identifiant == derniere then repli = identifiant else table.insert(candidats, identifiant) end
+		end
+	end
+	if #candidats == 0 and repli then candidats = { repli } end
+	for _ = 1, math.min(#candidats, 4) do
+		local choix = table.remove(candidats, math.random(#candidats))
+		local description = chargerDescription(choix)
+		if description and r6 and not compatibleR6(description) then
+			incompatiblesR6[choix] = true
+			description = nil
+		end
+		if description then
+			derniereTenue[joueur.UserId] = choix
+			return description:Clone()
+		end
 	end
 	return nil
 end
@@ -361,9 +399,30 @@ local function habillerTenueJeu(personnage)
 	pants.PantsTemplate = "rbxassetid://" .. tenue.pant
 	pants.Parent = personnage
 end
-local function changerApparence(joueur, personnage, humanoid)
-	local description = choisirDescription(joueur)
-	if description and humanoid.Parent and pcall(function() humanoid:ApplyDescription(description) end) then return end
+-- Applique l'avatar puis vérifie que tous ses accessoires sont arrivés (ApplyDescription en perd parfois) : jusqu'à 3 essais
+local function appliquerDescription(personnage, humanoid, description)
+	local attendus = 0
+	pcall(function() attendus = #description:GetAccessories(true) end)
+	local applique = false
+	for essai = 1, 3 do
+		if not humanoid.Parent then return applique end
+		if pcall(function() humanoid:ApplyDescription(description) end) then
+			applique = true
+			local portes = 0
+			for _, objet in personnage:GetChildren() do
+				if objet:IsA("Accessory") then portes += 1 end
+			end
+			if portes >= attendus then return true end
+		end
+		task.wait(0.3 * essai)
+	end
+	return applique -- un accessoire manque encore (supprimé du catalogue ?) : l'avatar reste quand même
+end
+-- Nouvelle apparence (la description a été préparée au début de la régénération)
+local function changerApparence(joueur, personnage, humanoid, description)
+	if description and appliquerDescription(personnage, humanoid, description) then return end
+	-- Aucun avatar utilisable : celui qui a partagé ses avatars garde le sien, les autres prennent une tenue du jeu
+	if aPartageSesAvatars(joueur) then return end
 	habillerTenueJeu(personnage)
 end
 -- Le corps tient-il encore ? (une commande :kill ou une explosion casse toutes les articulations)
@@ -567,8 +626,16 @@ local function surveillerPersonnage(joueur, personnage)
 		dire(joueur, maximum > 0 and string.format("Régénération %d/%d…", nombre + 1, maximum) or string.format("Régénération n°%d…", nombre + 1), true)
 		-- Au cœur de l'énergie : nouvelle apparence
 		if changerTenue then
+			-- L'avatar est chargé dès maintenant (le service peut être lent), puis appliqué au cœur de l'énergie
+			local description, prete = nil, false
+			task.spawn(function()
+				description = choisirDescription(joueur, humanoid.RigType == Enum.HumanoidRigType.R6)
+				prete = true
+			end)
 			task.delay(duree * 0.55, function()
-				if personnage.Parent then changerApparence(joueur, personnage, humanoid) end
+				local limite = os.clock() + duree * 0.35
+				while not prete and os.clock() < limite do task.wait(0.1) end
+				if personnage.Parent then changerApparence(joueur, personnage, humanoid, description) end
 			end)
 		end
 		task.delay(duree, function()
@@ -595,7 +662,7 @@ local function surveillerPersonnage(joueur, personnage)
 			if regard.Magnitude < 0.1 then regard = Vector3.new(0, 0, -1) end
 			personnage:PivotTo(CFrame.lookAt(attente.position, attente.position + regard.Unit))
 		end
-		if not attente.habille then habillerTenueJeu(personnage) end
+		if not attente.habille and not aPartageSesAvatars(joueur) then habillerTenueJeu(personnage) end
 		derouler(false)
 	end
 
@@ -648,7 +715,7 @@ local function surveillerPersonnage(joueur, personnage)
 			-- au même endroit, déjà avec la nouvelle apparence, et la régénération s'y déroule
 			enCours = true
 			local reference = personnage:FindFirstChild("Head") or personnage:FindFirstChild("HumanoidRootPart")
-			local description = choisirDescription(joueur)
+			local description = choisirDescription(joueur, humanoid.RigType == Enum.HumanoidRigType.R6)
 			enAttente[joueur.UserId] = {
 				position = reference and (reference.Position + Vector3.new(0, 3, 0)) or nil,
 				regard = reference and reference.CFrame.LookVector or nil,

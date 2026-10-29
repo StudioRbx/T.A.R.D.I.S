@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6.4"
+Config.Version = "6.6.5"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -486,7 +486,8 @@ end
 Config.Bruit = bruit
 
 -- Animation d'urgence : progression contrariée, reculs, grésillements, tremblements
-local function alphaUrgence(etat, p, t, duree)
+-- (reduit = option « réduire les effets » du joueur : saccades à 30 %, sans les disparitions brèves)
+local function alphaUrgence(etat, p, t, duree, reduit)
 	if p <= 0 then return etat == Config.Etats.Remat and 1 or 0 end
 	if p >= 1 then return etat == Config.Etats.Remat and 0 or 1 end
 
@@ -499,7 +500,7 @@ local function alphaUrgence(etat, p, t, duree)
 	local fenetre = Config.Modes.Urgence.Stabilisation or 5
 	local calme = math.clamp(restant / fenetre, 0, 1)   -- 1 = loin de la fin, 0 = fin
 	calme = calme * calme * (3 - 2 * calme)              -- transition douce
-	local intensite = (Config.Modes.Urgence.Saccades or 0.75) * calme
+	local intensite = (Config.Modes.Urgence.Saccades or 0.75) * calme * (reduit and 0.3 or 1)
 
 	-- Reculs : il gagne du terrain puis est repoussé, de façon irrégulière
 	local recul = math.max(0, math.sin(t * 2.3) * math.sin(t * 0.9 + 1))
@@ -507,7 +508,7 @@ local function alphaUrgence(etat, p, t, duree)
 
 	-- Grésillements : disparitions brèves, moins fréquentes et moins profondes que la V3.2
 	-- (8 changements par seconde au lieu de 12 : moins agressif pour les yeux)
-	if bruit(t, 8) < 0.14 * intensite then
+	if not reduit and bruit(t, 8) < 0.14 * intensite then
 		v *= 0.35
 	end
 
@@ -518,7 +519,8 @@ local function alphaUrgence(etat, p, t, duree)
 end
 
 -- Transparence de l'extérieur (0 = visible, 1 = disparu) selon l'état, le temps écoulé et le mode
-function Config.Alpha(etat, ecoule, mode)
+-- (reduit : le joueur a choisi « réduire les effets »)
+function Config.Alpha(etat, ecoule, mode, reduit)
 	if etat == Config.Etats.Pose then return 0 end
 	if etat == Config.Etats.Vol then return 1 end
 
@@ -530,7 +532,7 @@ function Config.Alpha(etat, ecoule, mode)
 	local p = math.clamp((ecoule - decalage) / duree, 0, 1)
 
 	if mode == "Urgence" then
-		return alphaUrgence(etat, p, ecoule, duree)
+		return alphaUrgence(etat, p, ecoule, duree, reduit)
 	end
 
 	-- Animation normale (ou express, plus courte) : le TARDIS s'efface et revient plusieurs fois, de plus en plus fort

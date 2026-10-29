@@ -87,7 +87,8 @@ return function(contexte)
 			local intensite = math.clamp(1 - distance / 200, 0, 1)
 			if intensite > 0 then
 				local flash = creer("ScreenGui", { Name = "TardisFlashExplosion", ResetOnSpawn = false, IgnoreGuiInset = true, Parent = joueur:WaitForChild("PlayerGui") })
-				local voile = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(255, 240, 200), BackgroundTransparency = 1 - intensite * 0.9,
+				local reduit = require(ReplicatedStorage:WaitForChild("TardisUI")).effetsReduits()
+				local voile = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(255, 240, 200), BackgroundTransparency = 1 - intensite * (reduit and 0.3 or 0.9),
 					BorderSizePixel = 0, Parent = flash })
 				animer(voile, 1.2, { BackgroundTransparency = 1 })
 				task.delay(1.3, function() flash:Destroy() end)

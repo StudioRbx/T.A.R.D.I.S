@@ -324,6 +324,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local joueurLocal = Players.LocalPlayer
 UI.prefs = {}
 local prefsChargees = false
+local nouveauJoueur = false -- aucune préférence sauvegardée à l'arrivée : le joueur n'a jamais ouvert les réglages
 
 local function lirePrefs()
 	if not joueurLocal then return end
@@ -333,6 +334,7 @@ local function lirePrefs()
 	if ok and type(valeur) == "table" then
 		UI.prefs = valeur
 		prefsChargees = true
+		nouveauJoueur = next(valeur) == nil
 		if type(valeur.theme) == "string" and UI.THEMES[valeur.theme] then UI.appliquerTheme(valeur.theme) end
 	end
 end
@@ -345,6 +347,8 @@ end
 
 local envoiPrevu = false
 function UI.sauverPrefs()
+	-- Première sauvegarde : le mode débutant choisi d'office (voir UI.debutant) est gardé tel quel
+	if UI.prefs.debutant == nil then UI.prefs.debutant = UI.debutant() end
 	if envoiPrevu then return end
 	envoiPrevu = true
 	task.delay(0.5, function()
@@ -369,6 +373,11 @@ end
 -- Taille de l'interface (0.6 à 1.4), multipliée à l'échelle automatique de chaque menu
 function UI.tailleInterface()
 	return math.clamp(tonumber(UI.pref("taille", 1)) or 1, 0.6, 1.4)
+end
+
+-- Option « réduire les effets » (joueurs sensibles) : saccades d'urgence, flashs, secousses et thème Flashbang adoucis
+function UI.effetsReduits()
+	return UI.pref("effetsReduits", false) == true
 end
 
 -- Volume des sons du TARDIS (0 à 1)
@@ -400,10 +409,27 @@ function UI.confirmer(bouton, action)
 	end)
 end
 
+-- Mode débutant : le choix des réglages ; à défaut, activé d'office pour un nouveau pilote
+-- (aucune préférence sauvegardée et aucun voyage), jamais imposé à un pilote qui a déjà voyagé
+function UI.debutant()
+	local choix = UI.prefs.debutant
+	if choix ~= nil then return choix == true end
+	if not nouveauJoueur then return false end
+	local json = joueurLocal and joueurLocal:GetAttribute("TardisStats")
+	local ok, st = pcall(HttpService.JSONDecode, HttpService, typeof(json) == "string" and json or "{}")
+	return not (ok and type(st) == "table" and (tonumber(st.voyages) or 0) > 0)
+end
+if joueurLocal then
+	-- Les statistiques arrivent après les préférences : la tablette se remet à jour
+	joueurLocal:GetAttributeChangedSignal("TardisStats"):Connect(function()
+		if UI.prefs.debutant == nil then UI.prefsChangees:Fire("debutant") end
+	end)
+end
+
 -- Widgets de la tablette : quels panneaux sont affichés (le mode débutant n'affiche que l'essentiel)
 UI.WIDGETS = { "statut", "telemetrie", "flux", "navigation", "scanner", "occupants", "journal" }
 function UI.widgetVisible(nom)
-	if UI.pref("debutant", false) == true then
+	if UI.debutant() then
 		return nom == "statut" or nom == "navigation"
 	end
 	local widgets = UI.prefs.widgets

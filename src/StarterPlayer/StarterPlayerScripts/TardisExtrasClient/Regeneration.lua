@@ -303,7 +303,7 @@ return function(contexte)
 						flashFait = true
 						local flash = creer("ScreenGui", { Name = "TardisRegenerationFlash", ResetOnSpawn = false, IgnoreGuiInset = true, Parent = joueur.PlayerGui })
 						local voile = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = couleurFlash, BackgroundTransparency = 1, BorderSizePixel = 0, Parent = flash })
-						animer(voile, duree * 0.05, { BackgroundTransparency = 0 })
+						animer(voile, duree * 0.05, { BackgroundTransparency = UI.effetsReduits() and 0.7 or 0 })
 						task.delay(duree * 0.12, function() animer(voile, duree * 0.35, { BackgroundTransparency = 1 }) end)
 						task.delay(duree * 0.6, function() flash:Destroy() end)
 					end

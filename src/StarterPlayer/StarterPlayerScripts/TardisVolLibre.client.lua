@@ -201,44 +201,60 @@ do
 	H.infosSecondaires = texte({ Text = "", Font = UI.POLICE_CODE, TextSize = 10, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
 		Position = UDim2.fromOffset(18, 112), Size = UDim2.new(1, -36, 0, 14), Parent = tableau })
 
-	-- Panneau des boutons, en colonne à droite (deux colonnes)
+	-- Panneau des boutons, à droite (deux colonnes) : 8 boutons essentiels, les autres dans le sous-menu PLUS.
+	-- Toutes les touches du clavier restent les mêmes, sous-menu ouvert ou fermé.
 	local panneauBoutons = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -20, 0.5, 0),
 		Size = UDim2.fromOffset(352, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.12,
-		Parent = H.gui }, { UI.coin(18), UI.contour(C.cyan, 1.5, 0.35), UI.marges(12) })
+		Parent = H.gui }, { UI.coin(18), UI.contour(C.cyan, 1.5, 0.35), UI.marges(12),
+		creer("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	H.echelleBoutons = creer("UIScale", { Parent = panneauBoutons })
-	local rangee = creer("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
-		Parent = panneauBoutons }, { creer("UIGridLayout", { CellSize = UDim2.fromOffset(160, 34), CellPadding = UDim2.fromOffset(8, 8),
-		HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }) })
-	local function bouton(txt, largeur, couleur, ordre)
+	local function grille(ordre)
+		return creer("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
+			LayoutOrder = ordre, Parent = panneauBoutons }, { creer("UIGridLayout", { CellSize = UDim2.fromOffset(160, 34),
+			CellPadding = UDim2.fromOffset(8, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }) })
+	end
+	local rangee = grille(1)
+	H.sousMenu = grille(2)
+	H.sousMenu.Visible = false
+	local function bouton(txt, largeur, couleur, ordre, parent)
 		local b = creer("TextButton", { Size = UDim2.fromOffset(largeur, 34), BackgroundColor3 = couleur, Text = txt,
-			Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.texte, LayoutOrder = ordre, Parent = rangee },
+			Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.texte, LayoutOrder = ordre, Parent = parent or rangee },
 		{ UI.coin(10), UI.contour(C.blanc, 1, 0.8) })
 		b:SetAttribute("CouleurBase", couleur)
 		UI.rendreVivant(b)
 		return b
 	end
+	-- Les 8 essentiels (DÉMAT et REMAT partagent une place : un seul est affiché selon la phase)
 	H.boutonVitesse = bouton("VITESSE  ►  (F)", 160, C.bleu, 1)
 	H.boutonUrgence = bouton("URGENCE  (U)", 160, Color3.fromRGB(110, 45, 25), 2)
 	H.boutonVortex = bouton("VORTEX  (V)", 160, Color3.fromRGB(70, 40, 130), 3)
-	H.boutonSaut = bouton("SAUT  (B)", 160, Color3.fromRGB(40, 110, 160), 4)
-	H.boutonPortes = bouton("PORTES  (O)", 160, Color3.fromRGB(60, 70, 95), 5)
-	H.boutonCamouflage = bouton("CAMOUFLAGE  (K)", 160, Color3.fromRGB(50, 80, 110), 6)
-	H.boutonDemat = bouton("DÉMAT  (X)", 160, Color3.fromRGB(26, 75, 140), 7)
-	H.boutonRemat = bouton("REMAT  (X)", 160, Color3.fromRGB(26, 75, 140), 8)
-	H.boutonTonneau = bouton("TONNEAU  (C)", 160, Color3.fromRGB(70, 90, 140), 9)
-	H.boutonFrein = bouton("FREIN  (Ctrl)", 160, Color3.fromRGB(120, 90, 30), 10)
-	H.boutonTracteur = bouton("TRACTEUR  (R)", 160, Color3.fromRGB(30, 110, 120), 11)
-	H.boutonChute = bouton("CHUTE  (Espace ×2)", 160, Color3.fromRGB(150, 60, 20), 12)
-	H.boutonPoser = bouton("SE POSER  (G)", 160, Color3.fromRGB(30, 100, 70), 13)
-	H.boutonStationnaire = bouton("STATIONNAIRE  (H)", 160, Color3.fromRGB(60, 90, 120), 14)
-	H.boutonSiege = bouton("SIÈGE EXT.  (I)", 160, Color3.fromRGB(90, 70, 120), 15)
-	H.boutonBoost = bouton("BOOST  (Maj)", 160, Color3.fromRGB(150, 110, 30), 16)
-	H.boutonAtterrir = bouton("ATTERRIR ICI  (N)", 160, Color3.fromRGB(30, 110, 100), 17)
-	H.boutonPlaneur = bouton("PLANEUR  (J)", 160, Color3.fromRGB(70, 100, 90), 18)
-	H.boutonCible = bouton("CIBLE  (L)", 160, Color3.fromRGB(110, 60, 90), 19)
-	H.boutonPrecision = bouton("PRÉCISION  (P)", 160, Color3.fromRGB(60, 110, 60), 20)
-	H.boutonCap = bouton("CAP FIXE  (M)", 160, Color3.fromRGB(80, 80, 110), 21)
+	H.boutonDemat = bouton("DÉMAT  (X)", 160, Color3.fromRGB(26, 75, 140), 4)
+	H.boutonRemat = bouton("REMAT  (X)", 160, Color3.fromRGB(26, 75, 140), 4)
+	H.boutonRemat.Visible = false
+	H.boutonChute = bouton("CHUTE  (Espace ×2)", 160, Color3.fromRGB(150, 60, 20), 5)
+	H.boutonPoser = bouton("SE POSER  (G)", 160, Color3.fromRGB(30, 100, 70), 6)
+	H.boutonCamouflage = bouton("CAMOUFLAGE  (K)", 160, Color3.fromRGB(50, 80, 110), 7)
+	H.boutonPlus = bouton("PLUS  ▼", 160, Color3.fromRGB(45, 55, 75), 8)
+	-- Le sous-menu
+	local sous = H.sousMenu
+	H.boutonSaut = bouton("SAUT  (B)", 160, Color3.fromRGB(40, 110, 160), 1, sous)
+	H.boutonPortes = bouton("PORTES  (O)", 160, Color3.fromRGB(60, 70, 95), 2, sous)
+	H.boutonAtterrir = bouton("ATTERRIR ICI  (N)", 160, Color3.fromRGB(30, 110, 100), 3, sous)
+	H.boutonStationnaire = bouton("STATIONNAIRE  (H)", 160, Color3.fromRGB(60, 90, 120), 4, sous)
+	H.boutonBoost = bouton("BOOST  (Maj)", 160, Color3.fromRGB(150, 110, 30), 5, sous)
+	H.boutonFrein = bouton("FREIN  (Ctrl)", 160, Color3.fromRGB(120, 90, 30), 6, sous)
+	H.boutonTonneau = bouton("TONNEAU  (C)", 160, Color3.fromRGB(70, 90, 140), 7, sous)
+	H.boutonTracteur = bouton("TRACTEUR  (R)", 160, Color3.fromRGB(30, 110, 120), 8, sous)
+	H.boutonSiege = bouton("SIÈGE EXT.  (I)", 160, Color3.fromRGB(90, 70, 120), 9, sous)
+	H.boutonPlaneur = bouton("PLANEUR  (J)", 160, Color3.fromRGB(70, 100, 90), 10, sous)
+	H.boutonCible = bouton("CIBLE  (L)", 160, Color3.fromRGB(110, 60, 90), 11, sous)
+	H.boutonPrecision = bouton("PRÉCISION  (P)", 160, Color3.fromRGB(60, 110, 60), 12, sous)
+	H.boutonCap = bouton("CAP FIXE  (M)", 160, Color3.fromRGB(80, 80, 110), 13, sous)
 end
+H.boutonPlus.Activated:Connect(function()
+	H.sousMenu.Visible = not H.sousMenu.Visible
+	H.boutonPlus.Text = H.sousMenu.Visible and "MOINS  ▲" or "PLUS  ▼"
+end)
 
 local function afficherNiveau()
 	H.nomNiveau.Text = R.NOMS[vol.niveau] or tostring(vol.niveau)
@@ -328,6 +344,8 @@ local function majBoutonsBascule()
 	UI.setDisponible(H.boutonVitesse, not urgence, C.bleu)
 	-- Démat / remat en vol ; on ne peut se poser (ou chuter) que matérialisé
 	local phase = exterieur:GetAttribute("VolPhase") or "Visible"
+	local invisible = phase == "Invisible" or phase == "Remat"
+	H.boutonDemat.Visible, H.boutonRemat.Visible = not invisible, invisible
 	UI.setDisponible(H.boutonDemat, phase == "Visible", Color3.fromRGB(26, 75, 140))
 	UI.setDisponible(H.boutonRemat, phase == "Invisible", Color3.fromRGB(26, 75, 140))
 	UI.setDisponible(H.boutonChute, phase == "Visible", Color3.fromRGB(150, 60, 20))
@@ -406,6 +424,7 @@ end
 
 -- Éclair de lumière d'un saut temporel (au départ et à l'arrivée)
 local function flashTemporel(position)
+	if UI.effetsReduits() then return end
 	local boule = creer("Part", { Name = "TardisFlash", Shape = Enum.PartType.Ball, Anchored = true, CanCollide = false,
 		CanQuery = false, CanTouch = false, CastShadow = false, Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(190, 235, 255), Transparency = 0.1, Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(position),
@@ -426,7 +445,7 @@ local function alphaVol()
 	if phase == "Invisible" or exterieur:GetAttribute("Camouflage") == true then return 1 end
 	if phase == "Demat" or phase == "Remat" then
 		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
-		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur))
+		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur), UI.effetsReduits())
 	end
 	return 0
 end
@@ -765,7 +784,7 @@ RunService:BindToRenderStep("TardisImpact", Enum.RenderPriority.Camera.Value + 2
 	end
 	local total = secousse + vibration
 	if total <= 0 then return end
-	local force = total * 0.03
+	local force = total * 0.03 * (UI.effetsReduits() and 0.3 or 1)
 	camera.CFrame = camera.CFrame * CFrame.Angles((math.random() - 0.5) * force, (math.random() - 0.5) * force, (math.random() - 0.5) * force)
 	secousse = math.max(0, secousse - dt * 1.6)
 end)

@@ -213,7 +213,8 @@ return function(contexte)
 	--------------------------------------------------------------------
 	local secousse = 0
 	-- Les autres effets demandent une secousse par cette fonction (la plus forte demande l'emporte)
-	local function secouer(force) secousse = math.max(secousse, force) end
+	local UI = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI"))
+	local function secouer(force) secousse = math.max(secousse, force * (UI.effetsReduits() and 0.3 or 1)) end
 	exterieur:GetAttributeChangedSignal("ChocTemps"):Connect(function()
 		local position = exterieur:GetAttribute("ChocPos")
 		if typeof(position) ~= "Vector3" then return end
