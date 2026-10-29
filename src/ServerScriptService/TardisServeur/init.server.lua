@@ -141,9 +141,13 @@ end
 -- Destinations
 --------------------------------------------------------------------
 local indexDestination = 1
-local positionActuelle = nil -- Part de destination où le TARDIS se trouve
+-- État partagé entre le script et ses modules (vol libre) : une table, pour que tous voient la même valeur
+local partage = {
+	occupe = false,           -- vrai pendant une animation (portes, demat, remat)
+	positionActuelle = nil,   -- Part de destination où le TARDIS se trouve
+	sauvegardeModifiee = false,
+}
 local precedent = nil        -- { cf, nom } : là d'où le TARDIS est parti (bouton "Dernière destination")
-local sauvegardeModifiee = false
 
 local historique = {} -- { { nom, x, y, z }, ... } : les 10 derniers atterrissages
 local function publierHistorique()
@@ -158,13 +162,13 @@ local function ajouterHistorique(nom, cf)
 	table.insert(historique, 1, { tostring(nom), p.X, p.Y, p.Z })
 	while #historique > 10 do table.remove(historique) end
 	publierHistorique()
-	sauvegardeModifiee = true
+	partage.sauvegardeModifiee = true
 end
 
 local function memoriserDepart()
 	precedent = { cf = exterieur:GetPivot(), nom = tostring(exterieur:GetAttribute("Position") or "Départ") }
 	exterieur:SetAttribute("PrecedentNom", precedent.nom)
-	sauvegardeModifiee = true
+	partage.sauvegardeModifiee = true
 end
 
 local function listeDestinations()
@@ -348,7 +352,7 @@ end)
 --------------------------------------------------------------------
 -- Séquences : portes, décollage, atterrissage, camouflage
 --------------------------------------------------------------------
-local occupe = false -- vrai pendant une animation (portes, demat, remat)
+-- (« occupe » est dans la table partage, en tête de la section Destinations)
 
 -- Demande aux scripts Shut de fermer les portes et attend qu'elles le soient
 local function fermerPortes()
@@ -430,7 +434,7 @@ Players.PlayerRemoving:Connect(function(joueur) clandestins[joueur] = nil end)
 
 local function decoller(mode)
 	mode = Config.normaliserMode(mode)
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "DÉJÀ EN VOL" end
 	if exterieur:GetAttribute("Porteur") then return false, "TARDIS PORTÉ" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
@@ -438,12 +442,12 @@ local function decoller(mode)
 	-- Alerte générale : toujours en urgence
 	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
 
-	occupe = true
+	partage.occupe = true
 	exterieur:SetAttribute("Verrouille", true)
 
 	if not fermerPortes() then
 		exterieur:SetAttribute("Verrouille", false)
-		occupe = false
+		partage.occupe = false
 		return false, "PORTES BLOQUÉES"
 	end
 	memoriserDepart()
@@ -464,7 +468,7 @@ local function decoller(mode)
 	-- Vortex temporel : le TARDIS visible, très haut dans le ciel, tournant dans son vortex jusqu'à la matérialisation
 	partir_dans_le_ciel()
 
-	occupe = false
+	partage.occupe = false
 	return true
 end
 
@@ -591,7 +595,7 @@ end
 -- Retourne ok, erreur, urgenceForcee (vrai si une collision a imposé l'urgence)
 local function atterrir(cible, nom, invisible, partDestination, mode)
 	mode = Config.normaliserMode(mode)
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Vol then return false, "PAS EN VOL" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 	-- Alerte générale : toujours en urgence
@@ -607,11 +611,11 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	-- puis le TARDIS se matérialise en urgence, au même endroit
 	local zoneRefusee = mode ~= "Urgence" and dansZoneRefusee(cible.Position)
 
-	occupe = true
+	partage.occupe = true
 
 	revenir_du_ciel()
 	exterieur:PivotTo(cible)
-	positionActuelle = partDestination
+	partage.positionActuelle = partDestination
 	exterieur:SetAttribute("Position", nom)
 	deposer_clandestins()
 
@@ -646,7 +650,7 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	exterieur:SetAttribute("Mode", "Normal")
 	-- Trop petit : les portes restent bloquées
 	exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes())
-	occupe = false
+	partage.occupe = false
 	verifierEau()
 	ajouterHistorique(nom, cible)
 	-- Les portes restent fermées : elles s'ouvriront quand un joueur voudra sortir (voir plus bas)
@@ -684,10 +688,10 @@ end
 -- Fermeture simple des portes (sans verrouiller)
 local function fermerPortesSimple()
 	if not exterieur:GetAttribute("PorteOuverte") then return false, "PORTES DÉJÀ FERMÉES" end
-	if occupe then return false, "TARDIS OCCUPÉ" end
-	occupe = true
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
+	partage.occupe = true
 	local fermees = fermerPortes()
-	occupe = false
+	partage.occupe = false
 	majEcran()
 	if not fermees then return false, "PORTES BLOQUÉES" end
 	return true
@@ -696,7 +700,7 @@ end
 -- Ouverture des portes à la demande (menu) : les scripts Shut ouvrent les deux battants
 local function ouvrirPortesSimple()
 	if exterieur:GetAttribute("PorteOuverte") then return false, "PORTES DÉJÀ OUVERTES" end
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
 	if exterieur:GetAttribute("PortesVerrouillees") then return false, "PORTES VERROUILLÉES" end
 	if exterieur:GetAttribute("Verrouille") or tropPetitPourLesPortes() then return false, "PORTES BLOQUÉES (TAILLE)" end
@@ -727,10 +731,10 @@ end
 local function basculerVerrou()
 	local verrouiller = not exterieur:GetAttribute("PortesVerrouillees")
 	if verrouiller and exterieur:GetAttribute("PorteOuverte") then
-		if occupe then return false, "TARDIS OCCUPÉ" end
-		occupe = true
+		if partage.occupe then return false, "TARDIS OCCUPÉ" end
+		partage.occupe = true
 		local fermees = fermerPortes()
-		occupe = false
+		partage.occupe = false
 		majEcran()
 		if not fermees then return false, "PORTES BLOQUÉES" end
 	end
@@ -748,7 +752,7 @@ local function voyager(dest)
 	task.wait(Config.DureeVol)
 	if exterieur:GetAttribute("Retreci") then
 		local cible, nom = cibleSurPlace()
-		ok, erreur = atterrir(cible, nom, false, positionActuelle)
+		ok, erreur = atterrir(cible, nom, false, partage.positionActuelle)
 	else
 		ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest)
 	end
@@ -758,7 +762,7 @@ local function voyager(dest)
 end
 
 local function basculerCamouflage()
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 
@@ -831,7 +835,7 @@ local function reglerAlimentation(allumer)
 	majEcran()
 end
 local function basculerAlimentation()
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
 	if exterieur:GetAttribute("Avarie") then return false, "AVARIE : RÉPARER LE ROTOR" end
 	if exterieur:GetAttribute("RedemarrageRequis") then return false, "REDÉMARRAGE REQUIS (10 S SUR L'ALIMENTATION)" end
@@ -867,7 +871,7 @@ local derniereOuverture = 0
 
 local function demanderOuverture()
 	if exterieur:GetAttribute("PorteOuverte") then return end
-	if occupe or etatActuel() ~= E.Pose or exterieur:GetAttribute("Verrouille") then return end
+	if partage.occupe or etatActuel() ~= E.Pose or exterieur:GetAttribute("Verrouille") then return end
 	if exterieur:GetAttribute("PortesVerrouillees") or tropPetitPourLesPortes() then return end
 	local maintenant = os.clock()
 	if maintenant - derniereOuverture < 3 then return end
@@ -950,14 +954,14 @@ promptLevier.Triggered:Connect(function(joueur)
 	local etat = etatActuel()
 	local retreci = exterieur:GetAttribute("Retreci") == true
 	if etat == E.Pose then
-		if dest == positionActuelle and not retreci then alerter("DÉJÀ SUR PLACE") return end
+		if dest == partage.positionActuelle and not retreci then alerter("DÉJÀ SUR PLACE") return end
 		task.spawn(voyager, dest)
 	elseif etat == E.Vol then
 		task.spawn(function()
 			local ok, erreur
 			if retreci then
 				local cible, nom = cibleSurPlace()
-				ok, erreur = atterrir(cible, nom, false, positionActuelle)
+				ok, erreur = atterrir(cible, nom, false, partage.positionActuelle)
 			else
 				ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest)
 			end
@@ -1147,7 +1151,7 @@ local function majRamassage()
 		and assezPetit
 		and exterieur:GetAttribute("Porteur") == nil
 		and etatActuel() == E.Pose
-		and not occupe
+		and not partage.occupe
 end
 exterieur:GetAttributeChangedSignal("Etat"):Connect(majRamassage)
 
@@ -1168,7 +1172,7 @@ end
 -- Règle la taille du TARDIS : facteur entre Config.TailleMin (ex. 0.25) et 1 (taille normale)
 local function reglerTaille(facteur)
 	if not hauteurNormale then return false, "RAPETISSEMENT INDISPONIBLE" end
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
 	if exterieur:GetAttribute("Porteur") then return false, "TARDIS PORTÉ" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
@@ -1179,7 +1183,7 @@ local function reglerTaille(facteur)
 	local actuel = exterieur:GetAttribute("Echelle") or 1
 	if math.abs(facteur - actuel) < 0.01 then return true end
 
-	occupe = true
+	partage.occupe = true
 	majRamassage()
 
 	-- Il passe sous le seuil des portes : on les ferme et on les bloque AVANT de rétrécir
@@ -1187,7 +1191,7 @@ local function reglerTaille(facteur)
 		exterieur:SetAttribute("Verrouille", true)
 		if not fermerPortes() then
 			exterieur:SetAttribute("Verrouille", false)
-			occupe = false
+			partage.occupe = false
 			majRamassage()
 			return false, "PORTES BLOQUÉES"
 		end
@@ -1201,20 +1205,20 @@ local function reglerTaille(facteur)
 	-- Assez grand : les portes peuvent de nouveau s'ouvrir
 	exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes(facteur))
 
-	occupe = false
+	partage.occupe = false
 	majRamassage()
 	majEcran()
 	return true
 end
 
 local function ramasser(joueur)
-	if not exterieur:GetAttribute("Retreci") or exterieur:GetAttribute("Porteur") or occupe then return end
+	if not exterieur:GetAttribute("Retreci") or exterieur:GetAttribute("Porteur") or partage.occupe then return end
 	setCollisionsExterieur(false) -- sinon il pousserait son porteur
 	exterieur:SetAttribute("SurEau", false)
 	exterieur:SetAttribute("ModePort", "Main")
 	exterieur:SetAttribute("Porteur", joueur.UserId)
 	exterieur:SetAttribute("Position", "Porté par " .. joueur.DisplayName)
-	positionActuelle = nil
+	partage.positionActuelle = nil
 	majRamassage()
 end
 
@@ -1243,317 +1247,15 @@ local function poserTardis(joueur, personnage)
 	exterieur:SetAttribute("Position", "Posé par " .. joueur.DisplayName)
 	majRamassage()
 	verifierEau()
-	sauvegardeModifiee = true
+	partage.sauvegardeModifiee = true
 end
 
 --------------------------------------------------------------------
--- Vol libre (piloté depuis la tablette)
--- Le pilote envoie la position du TARDIS ~15 fois par seconde ; le serveur la vérifie et la publie
--- dans l'attribut VolLibreCF, que tous les clients suivent. Les vraies pièces ne bougent qu'à l'atterrissage.
+-- Vol libre (piloté depuis la tablette) : module VolLibre
 --------------------------------------------------------------------
-local reglagesVol = Config.VolLibre or {}
-local volLibre = { dernierCF = nil, dernierTemps = 0, enDescente = false }
-local ATTRIBUTS_DESCENTE = { "DescenteMode", "DescenteDepart", "DescenteArrivee", "DescenteDebut", "DescenteDuree" }
-
--- Portes en plein vol : les passagers voient le paysage défiler et peuvent sauter.
--- Pendant le vol, les portes restent bloquées (Verrouille) : on ne les débloque que le temps de les ouvrir.
-local function fermerPortesEnVol()
-	if exterieur:GetAttribute("PorteOuverte") then
-		exterieur:SetAttribute("FermerPortes", true)
-		task.delay(1, function() exterieur:SetAttribute("FermerPortes", false) end)
-	end
-end
-
-local function basculerPortesEnVol()
-	if exterieur:GetAttribute("PorteOuverte") then
-		fermerPortesEnVol()
-		return
-	end
-	if exterieur:GetAttribute("PortesVerrouillees") or tropPetitPourLesPortes() then return end
-	if exterieur:GetAttribute("VolPhase") ~= "Visible" then return end
-	exterieur:SetAttribute("Verrouille", false)
-	exterieur:SetAttribute("OuvrirPorte", false)
-	task.wait()
-	exterieur:SetAttribute("OuvrirPorte", true)
-	task.delay(1, function()
-		exterieur:SetAttribute("OuvrirPorte", false)
-		if exterieur:GetAttribute("VolLibre") then
-			exterieur:SetAttribute("Verrouille", true) -- refermables, mais pas rouvrables par quelqu'un d'autre
-		end
-	end)
-end
-
--- Démat / remat EN VOL : le TARDIS devient invisible (ou réapparaît) sans arrêter le vol libre.
--- Phases : "Visible" -> "Demat" -> "Invisible" -> "Remat" -> "Visible" (animées chez les clients)
-local function phaseVol(phase, urgence)
-	exterieur:SetAttribute("VolPhaseUrgence", urgence == true)
-	exterieur:SetAttribute("VolPhaseDebut", workspace:GetServerTimeNow())
-	exterieur:SetAttribute("VolPhase", phase) -- en dernier : déclenche l'animation chez les clients
-end
-
-local function changerPhaseVol(depuis, transition, arrivee, etatAnimation, son)
-	if exterieur:GetAttribute("VolPhase") ~= depuis or volLibre.enDescente then return end
-	if transition == "Demat" then fermerPortesEnVol() end
-	local urgence = exterieur:GetAttribute("VolUrgence") == true
-	phaseVol(transition, urgence)
-	-- Le son de la salle de contrôle est joué ici ; celui de dehors est joué par les clients, sur le TARDIS qui bouge
-	jouer(urgence and (son .. "_Urg") or son, false)
-	local duree, decalage = Config.Timing(etatAnimation, urgence)
-	local jeton = {}
-	volLibre.jetonPhase = jeton
-	task.delay(duree + decalage, function()
-		if volLibre.jetonPhase == jeton and exterieur:GetAttribute("VolPhase") == transition then
-			phaseVol(arrivee, urgence)
-		end
-	end)
-end
-
-local function demarrerVolLibre(pilote)
-	if exterieur:GetAttribute("VolLibre") then return false, "DÉJÀ EN VOL LIBRE" end
-	if occupe then return false, "TARDIS OCCUPÉ" end
-	if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
-	if exterieur:GetAttribute("Porteur") then return false, "TARDIS PORTÉ" end
-	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
-	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
-
-	occupe = true -- rien d'autre ne peut être fait pendant le vol libre
-	majRamassage()
-	exterieur:SetAttribute("Verrouille", true)
-	if not fermerPortes() then
-		exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes())
-		occupe = false
-		majRamassage()
-		return false, "PORTES BLOQUÉES"
-	end
-
-	setCollisionsExterieur(false)
-	exterieur:SetAttribute("VolVortex", false)
-	exterieur:SetAttribute("VolUrgence", false)
-	phaseVol("Visible", false)
-	volLibre.dernierCF = exterieur:GetPivot()
-	volLibre.dernierTemps = os.clock()
-	volLibre.enDescente = false
-	memoriserDepart()
-	exterieur:SetAttribute("SurEau", false)
-	volLibre.bonusDistance = 0
-	exterieur:SetAttribute("VolLibreCF", volLibre.dernierCF)
-	exterieur:SetAttribute("VolLibre", pilote.UserId)
-	exterieur:SetAttribute("Position", "Vol libre")
-	positionActuelle = nil
-	majEcran()
-	return true
-end
-
--- Position envoyée par le pilote : vérifiée (format, zone, vitesse) avant d'être publiée
-local function recevoirPositionVol(pilote, cf)
-	if exterieur:GetAttribute("VolLibre") ~= pilote.UserId or volLibre.enDescente then return end
-	if typeof(cf) ~= "CFrame" then return end
-	local p = cf.Position
-	if p.X ~= p.X or p.Y ~= p.Y or p.Z ~= p.Z then return end -- NaN
-	if math.abs(p.X) > 100000 or math.abs(p.Y) > 100000 or math.abs(p.Z) > 100000 then return end
-	if dansInterieur(p) then return end
-
-	-- Vitesse maximale : si la position saute trop loin, on la ramène à la distance autorisée
-	local maintenant = os.clock()
-	local dt = math.clamp(maintenant - volLibre.dernierTemps, 0.03, 1)
-	local vitesseMax = 0
-	for _, v in reglagesVol.Niveaux or { reglagesVol.Vitesse or 40 } do
-		vitesseMax = math.max(vitesseMax, v)
-	end
-	local maxDistance = (vitesseMax * 1.4 + 10) * dt + 2 + (volLibre.bonusDistance or 0)
-	local ancien = volLibre.dernierCF.Position
-	local ecart = p - ancien
-	if ecart.Magnitude > maxDistance then
-		p = ancien + ecart.Unit * maxDistance
-	end
-	volLibre.dernierCF = (CFrame.new(p) * cf.Rotation):Orthonormalize()
-	volLibre.dernierTemps = maintenant
-	volLibre.bonusDistance = 0 -- le bond du saut temporel ne sert qu'une fois
-	exterieur:SetAttribute("VolLibreCF", volLibre.dernierCF)
-end
-
--- Vol de précision : le TARDIS rapetisse (30 %) le temps du mode, puis reprend sa taille
-local function echellerEnVol(facteur)
-	if not hauteurNormale then return end
-	facteur = math.clamp(facteur, Config.TailleMin or 0.25, 1)
-	exterieur:ScaleTo(echelleNormale * facteur)
-	exterieur:SetAttribute("Echelle", facteur)
-	exterieur:SetAttribute("Retreci", facteur < 0.999)
-end
-
-local function finirVolLibre(arrivee)
-	exterieur:SetAttribute("VolPrecision", false)
-	exterieur:SetAttribute("Tempete", nil)
-	exterieur:PivotTo(arrivee)
-	exterieur:SetAttribute("DepotCF", arrivee) -- les clients s'y recalent en arrêtant de suivre le vol
-	emmenerALInterieur()                      -- les joueurs sous le TARDIS se retrouvent à bord
-	setCollisionsExterieur(true)
-	exterieur:SetAttribute("VolLibre", nil)
-	exterieur:SetAttribute("VolLibreCF", nil)
-	exterieur:SetAttribute("VolVortex", false)
-	exterieur:SetAttribute("VolUrgence", false)
-	volLibre.jetonPhase = nil
-	exterieur:SetAttribute("VolPhase", nil) -- de nouveau visible normalement
-	for _, nom in ATTRIBUTS_DESCENTE do
-		exterieur:SetAttribute(nom, nil)
-	end
-	exterieur:SetAttribute("DescenteVitesse", nil)
-	exterieur:SetAttribute("DescenteGravite", nil)
-	exterieur:SetAttribute("DescenteRebond", nil)
-	exterieur:SetAttribute("DescenteGlisse", nil)
-	exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes())
-	local p = arrivee.Position
-	exterieur:SetAttribute("Position", string.format("Vol libre (%d, %d, %d)", p.X, p.Y, p.Z))
-	verifierEau()
-	sauvegardeModifiee = true
-	volLibre.enDescente = false
-	occupe = false
-	majRamassage()
-	majEcran()
-end
-
--- mode "Chute" : chute libre à la verticale (effet de rentrée atmosphérique côté clients)
--- mode "Douce" : descente posée jusqu'au sol
--- Chute avec élan : on suit la trajectoire (vitesse initiale + gravité) jusqu'au premier obstacle
-local function trajectoireChute(depart, vitesse, gravite)
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local exclus = { exterieur, interieur }
-	for _, autre in Players:GetPlayers() do
-		if autre.Character then table.insert(exclus, autre.Character) end
-	end
-	params.FilterDescendantsInstances = exclus
-	params.RespectCanCollide = true
-	local pas = 0.05
-	local position = depart.Position
-	for i = 1, 200 do -- 10 s maximum
-		local temps = i * pas
-		local suivante = depart.Position + vitesse * temps + Vector3.new(0, -0.5 * gravite * temps * temps, 0)
-		local resultat = workspace:Raycast(position, suivante - position, params)
-		if resultat then
-			return resultat.Position, temps, resultat.Normal
-		end
-		position = suivante
-	end
-	return nil
-end
-
-local function lancerDescente(mode, force, vitesseInitiale)
-	if not exterieur:GetAttribute("VolLibre") or volLibre.enDescente then return false end
-	-- Il faut être matérialisé pour se poser (sauf si le pilote part : on le pose quand même)
-	if not force and exterieur:GetAttribute("VolPhase") ~= "Visible" then return false end
-	volLibre.enDescente = true
-	fermerPortesEnVol() -- on referme avant de se poser
-
-	local depart = volLibre.dernierCF
-	-- En urgence, la chute garde l'élan du vol : trajectoire balistique au lieu de la verticale
-	if mode == "Chute" and exterieur:GetAttribute("VolUrgence") and typeof(vitesseInitiale) == "Vector3" and vitesseInitiale.Magnitude > 10 then
-		local vitesseMax = (reglagesVol.VitesseUrgence or 220) * 1.2
-		if vitesseInitiale.Magnitude > vitesseMax then vitesseInitiale = vitesseInitiale.Unit * vitesseMax end
-		local gravite = reglagesVol.GraviteChute or 70
-		local impact, duree = trajectoireChute(depart, vitesseInitiale, gravite)
-		if impact then
-			local devant = vitesseInitiale * Vector3.new(1, 0, 1)
-			devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
-			local arrivee = CFrame.lookAt(impact + Vector3.new(0, exterieur.PrimaryPart.Size.Y / 2, 0), impact + devant + Vector3.new(0, exterieur.PrimaryPart.Size.Y / 2, 0))
-			exterieur:SetAttribute("DescenteMode", "Chute")
-			exterieur:SetAttribute("DescenteDepart", depart)
-			exterieur:SetAttribute("DescenteArrivee", arrivee)
-			exterieur:SetAttribute("DescenteVitesse", vitesseInitiale) -- les clients animent la parabole
-			exterieur:SetAttribute("DescenteGravite", gravite)
-			exterieur:SetAttribute("DescenteDuree", duree)
-			exterieur:SetAttribute("DescenteDebut", workspace:GetServerTimeNow())
-			task.delay(duree, function() finirVolLibre(arrivee) end)
-			return true
-		end
-	end
-	exterieur:SetAttribute("DescenteVitesse", nil)
-	exterieur:SetAttribute("DescenteGravite", nil)
-	exterieur:SetAttribute("DescenteRebond", nil)
-	exterieur:SetAttribute("DescenteGlisse", nil)
-	local devant = depart.LookVector * Vector3.new(1, 0, 1)
-	devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
-	-- Le point d'impact est calculé par le serveur, à la verticale du TARDIS
-	local sol = chercherSol(depart.Position + Vector3.new(0, 2, 0), 3000)
-	local arrivee = sol and CFrame.lookAt(sol, sol + devant) or CFrame.lookAt(depart.Position, depart.Position + devant)
-
-	local hauteur = math.max(depart.Position.Y - arrivee.Position.Y, 0)
-	local duree
-	if mode == "Chute" then
-		duree = math.clamp(math.sqrt(2 * hauteur / (reglagesVol.GraviteChute or 70)), 0.8, 5)
-	else
-		duree = math.clamp(hauteur / (reglagesVol.VitesseDescente or 14), 0.8, 5)
-	end
-
-	-- Rebond : une chute très rapide fait rebondir le TARDIS une fois (0,9 s de plus)
-	if mode == "Chute" and math.sqrt(2 * (reglagesVol.GraviteChute or 70) * hauteur) > 60 then
-		exterieur:SetAttribute("DescenteRebond", math.clamp(hauteur * 0.08, 3, 10))
-		duree += 0.9
-	end
-	exterieur:SetAttribute("DescenteMode", mode)
-	exterieur:SetAttribute("DescenteDepart", depart)
-	exterieur:SetAttribute("DescenteArrivee", arrivee)
-	exterieur:SetAttribute("DescenteDuree", duree)
-	exterieur:SetAttribute("DescenteDebut", workspace:GetServerTimeNow()) -- en dernier : lance l'animation chez les clients
-	task.delay(duree, function()
-		finirVolLibre(arrivee)
-	end)
-	return true
-end
-
--- Atterrissage glissé (urgence, "Atterrir ici") : descente rapide puis glissade de quelques mètres avec étincelles
-local function lancerGlisse(vitesse)
-	if not exterieur:GetAttribute("VolLibre") or volLibre.enDescente then return false end
-	if exterieur:GetAttribute("VolPhase") ~= "Visible" then return false end
-	volLibre.enDescente = true
-	fermerPortesEnVol()
-	local depart = volLibre.dernierCF
-	local horizontale = typeof(vitesse) == "Vector3" and vitesse * Vector3.new(1, 0, 1) or Vector3.zero
-	local direction = horizontale.Magnitude > 1 and horizontale.Unit or depart.LookVector * Vector3.new(1, 0, 1)
-	if direction.Magnitude < 0.01 then direction = Vector3.new(0, 0, -1) end
-	direction = direction.Unit
-	local sol1 = chercherSol(depart.Position + Vector3.new(0, 2, 0), 3000)
-	if not sol1 then
-		volLibre.enDescente = false
-		return lancerDescente("Douce")
-	end
-	local longueur = math.clamp(horizontale.Magnitude * 0.25, 8, 25)
-	local sol2 = chercherSol(sol1 + direction * longueur + Vector3.new(0, 4, 0), 30) or (sol1 + direction * longueur)
-	local toucher = CFrame.lookAt(sol1, sol1 + direction)
-	local arrivee = CFrame.lookAt(sol2, sol2 + direction)
-	local hauteur = math.max(depart.Position.Y - sol1.Y, 0)
-	local dureeDescente = math.clamp(hauteur / 40, 0.5, 2.5)
-	local dureeGlisse = math.clamp(longueur / 12, 0.8, 2.2)
-	exterieur:SetAttribute("DescenteMode", "Glisse")
-	exterieur:SetAttribute("DescenteDepart", depart)
-	exterieur:SetAttribute("DescenteGlisse", toucher)      -- point où il touche le sol
-	exterieur:SetAttribute("DescenteGlisseDuree", dureeDescente)
-	exterieur:SetAttribute("DescenteArrivee", arrivee)     -- fin de la glissade
-	exterieur:SetAttribute("DescenteDuree", dureeDescente + dureeGlisse)
-	exterieur:SetAttribute("DescenteDebut", workspace:GetServerTimeNow())
-	task.delay(dureeDescente + dureeGlisse, function() finirVolLibre(arrivee) end)
-	return true
-end
-
--- "Atterrir ici" quand le chemin est bloqué : le TARDIS, déjà dématérialisé en vol, se rematérialise au point visé
-local function teleAtterrir(position)
-	if not exterieur:GetAttribute("VolLibre") or volLibre.enDescente then return false end
-	if exterieur:GetAttribute("VolPhase") ~= "Invisible" then return false end
-	if typeof(position) ~= "Vector3" or dansInterieur(position) then return false end
-	local sol = chercherSol(position + Vector3.new(0, 20, 0), 3000)
-	if not sol then return false end
-	local devant = volLibre.dernierCF.LookVector * Vector3.new(1, 0, 1)
-	devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
-	local cible = CFrame.lookAt(sol, sol + devant)
-	volLibre.dernierCF = cible
-	exterieur:SetAttribute("VolLibreCF", cible) -- tout le monde se recale, invisible
-	task.wait(0.2)
-	changerPhaseVol("Invisible", "Remat", "Visible", E.Remat, "Remat")
-	volLibre.enDescente = true
-	local duree, decalage = Config.Timing(E.Remat, exterieur:GetAttribute("VolUrgence") == true)
-	task.delay(duree + decalage + 0.1, function() finirVolLibre(cible) end)
-	return true
-end
+local VolLibre = require(script:WaitForChild("VolLibre"))({ Config = Config, E = E, Players = Players, chercherSol = chercherSol, dansInterieur = dansInterieur, echelleNormale = echelleNormale, emmenerALInterieur = emmenerALInterieur, etatActuel = etatActuel, exterieur = exterieur, fermerPortes = fermerPortes, hauteurNormale = hauteurNormale, interieur = interieur, jouer = jouer, majEcran = majEcran, majRamassage = majRamassage, memoriserDepart = memoriserDepart, partage = partage, setCollisionsExterieur = setCollisionsExterieur, tropPetitPourLesPortes = tropPetitPourLesPortes, verifierEau = verifierEau })
+local basculerPortesEnVol, changerPhaseVol, demarrerVolLibre, lancerDescente, lancerGlisse, recevoirPositionVol = VolLibre.basculerPortesEnVol, VolLibre.changerPhaseVol, VolLibre.demarrerVolLibre, VolLibre.lancerDescente, VolLibre.lancerGlisse, VolLibre.recevoirPositionVol
+local reglagesVol, teleAtterrir, volLibre = VolLibre.reglagesVol, VolLibre.teleAtterrir, VolLibre.volLibre
 
 --------------------------------------------------------------------
 -- Boucliers
@@ -1811,12 +1513,12 @@ end
 -- puis se rematérialise tout seul, toujours petit, à la destination choisie
 local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFiger)
 	if exterieur:GetAttribute("Porteur") ~= porteur.UserId then return false, "TARDIS PAS PORTÉ" end
-	if occupe then return false, "TARDIS OCCUPÉ" end
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if not estAlimente() then return false, "HORS TENSION" end
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
 	local mode = exterieur:GetAttribute("Alerte") == true and "Urgence" or "Normal"
 
-	occupe = true
+	partage.occupe = true
 	majRamassage()
 
 	-- 1) Dématérialisation dans les mains du porteur (les clients continuent de le faire suivre)
@@ -1834,13 +1536,13 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 	exterieur:PivotTo(cible)
 	setCamouflage(false, true)
 	setEtat(E.Vol)
-	occupe = false
+	partage.occupe = false
 
 	-- 3) Rematérialisation, toujours petit
 	if joueurAFiger then figerJoueur(joueurAFiger, true) end
 	local ok, erreur = atterrir(cible, nom, false, partDestination, mode)
 	if joueurAFiger then figerJoueur(joueurAFiger, false) end
-	sauvegardeModifiee = true
+	partage.sauvegardeModifiee = true
 	return ok, erreur
 end
 
@@ -1967,7 +1669,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		if exterieur:GetAttribute("Retreci") then
 			-- Rétréci : atterrissage sur place uniquement, la destination demandée est ignorée
 			cible, nom = cibleSurPlace()
-			partDestination = positionActuelle
+			partDestination = partage.positionActuelle
 		else
 			local erreur
 			cible, nom, partDestination, joueurAFiger, erreur = resoudreDestination(donnees)
@@ -2128,7 +1830,7 @@ do
 	local function sauvegarder()
 		if not store then return end
 		-- On ne sauvegarde qu'un état stable (posé, pas en vol libre, pas porté)
-		if etatActuel() ~= E.Pose or occupe or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then return end
+		if etatActuel() ~= E.Pose or partage.occupe or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then return end
 		local donnees = {
 			version = 1,
 			cf = versTable(exterieur:GetPivot()),
@@ -2143,7 +1845,7 @@ do
 		}
 		local ok, erreur = pcall(function() store:SetAsync(CLE, donnees) end)
 		if ok then
-			sauvegardeModifiee = false
+			partage.sauvegardeModifiee = false
 		else
 			warn("[TARDIS] Échec de la sauvegarde : " .. tostring(erreur))
 		end
@@ -2199,12 +1901,12 @@ do
 
 	charger()
 	for _, nom in { "Camouflage", "PortesVerrouillees", "Alimentation", "DemarrageBloque", "Echelle", "Position" } do
-		exterieur:GetAttributeChangedSignal(nom):Connect(function() sauvegardeModifiee = true end)
+		exterieur:GetAttributeChangedSignal(nom):Connect(function() partage.sauvegardeModifiee = true end)
 	end
 	task.spawn(function()
 		while true do
 			task.wait(reglagesSave.Intervalle or 60)
-			if sauvegardeModifiee then sauvegarder() end
+			if partage.sauvegardeModifiee then sauvegarder() end
 		end
 	end)
 	game:BindToClose(sauvegarder)
@@ -2224,10 +1926,10 @@ do
 		elseif action == "cibleJoueur" then return cibleJoueur(...)
 		elseif action == "dansInterieur" then return dansInterieur(...)
 		elseif action == "estPilote" then local j = ... return pilotes[j] == true
-		elseif action == "etat" then return etatActuel(), occupe
+		elseif action == "etat" then return etatActuel(), partage.occupe
 		elseif action == "alerter" then alerter(...) return true
 		elseif action == "jouer" then jouer(...) return true
-		elseif action == "sauvegarder" then sauvegardeModifiee = true return true
+		elseif action == "sauvegarder" then partage.sauvegardeModifiee = true return true
 		elseif action == "setEtat" then setEtat(...) return true
 		elseif action == "collisions" then setCollisionsExterieur(...) return true
 		elseif action == "listeDestinations" then return listeDestinations()

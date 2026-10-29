@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.6.2** (mode Express, rotor coloré selon le mode, empreinte temporelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.6.3** (mode Express, rotor coloré, empreinte temporelle ; gros scripts découpés en modules). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 
@@ -15,7 +15,9 @@ src/
 │  ├─ TardisUI.lua                      ModuleScript : briques d'interface et styles partagés
 │  └─ TardisCommandes.lua               ModuleScript : commandes de voyage et protocoles partagés par le menu et la tablette
 ├─ ServerScriptService/
-│  ├─ TardisServeur.server.lua          Script : états, voyages, console, vol libre (autorité serveur)
+│  ├─ TardisServeur/                    Script : états, voyages, console (autorité serveur)
+│  │  ├─ init.server.lua                le script lui-même
+│  │  └─ VolLibre.lua                   module : vol libre piloté depuis la tablette
 │  ├─ TardisExtras.server.lua           Script : outils, rôles, zones, auto-destruction, sauvegarde des préférences
 │  ├─ TardisSystemes.server.lua         Script : PV, boucliers, pannes, régénération, techniciens
 │  ├─ TardisLiaisonPortes.server.lua    Script : pont entre les portes du kit et le système
@@ -25,11 +27,14 @@ src/
 │  ├─ TardisPortail.client.lua          vues à travers la porte et passage
 │  ├─ TardisCamera.client.lua           caméra au-dessus de la Lampe
 │  ├─ TardisMenu.client.lua             menu rapide (T)
-│  ├─ TardisTablette.client.lua         tablette avancée (Y)
+│  ├─ TardisTablette/                   tablette avancée (Y) : init.client.lua + 10 modules
+│  │                                   (Construction, Etat, Navigation, Ouverture, Placement, Volet, Scanner, Suivi, Journal, Outils)
 │  ├─ TardisPorter.client.lua           TARDIS porté (main, ceinture, épaule)
 │  ├─ TardisVolLibre.client.lua         vol libre à la 3ᵉ personne
 │  ├─ TardisRotation.client.lua         repositionnement fin
-│  └─ TardisExtrasClient.client.lua     effets et interfaces des extras et systèmes
+│  └─ TardisExtrasClient/               effets et interfaces des extras et systèmes : init.client.lua + 11 modules
+│                                      (Ambiance, EffetsExterieurs, Replay, AutoDestruction, Interactions, Boucliers,
+│                                       Regeneration, Systemes, Decor, TabletteLecture, Preferences)
 └─ Workspace/TARDIS/TARDIS_x/EXTERIEURE/TARDISDoors/
    ├─ LeftDoor/Shut.server.lua          battant gauche (dans chaque TARDIS)
    └─ RightDoor/Shut.server.lua         battant droit (dans chaque TARDIS)
@@ -40,7 +45,9 @@ docs/
 outils/
 ├─ manifeste.py                         liste les scripts de src/ avec leur empreinte (outils/manifeste.json)
 ├─ synchro_studio.luau                  met Studio à jour depuis le dépôt et vérifie chaque empreinte
-└─ remplacer.py                         remplacements exacts et vérifiés dans les fichiers
+├─ remplacer.py                         remplacements exacts et vérifiés dans les fichiers
+├─ analyse_luau.py                      variables de niveau principal par section (qui déclare, lit, réaffecte)
+└─ decouper.py                          découpe un script en modules, avec vérifications de sûreté
 CHANGELOG.md                            index de toutes les versions
 ```
 

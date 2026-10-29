@@ -92,7 +92,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 |---|---|---|
 | **V6.6.1** | Simplifications 1, 2, 3, 15, 17, 18, 20 · modification 11 (interrupteurs synchronisés) · outil de synchro dépôt → Studio | ✅ livrée |
 | **V6.6.2** | Ajouts C4 (empreinte temporelle de 30 s) et C14 (rotor coloré selon le mode) | ✅ livrée |
-| V6.6.3 | Simplifications 10, 11, 12 : découpage de `TardisTablette`, `TardisExtrasClient` et du vol libre du serveur | à faire |
+| **V6.6.3** | Simplifications 10, 11, 12 : découpage de `TardisTablette`, `TardisExtrasClient` et du vol libre du serveur | ✅ livrée |
 | V6.6.4 | Modifications 1 à 6 (suite de l'Express, recharge de 5 s) et 13 (historique par mode) | à faire |
 | V6.6.5 | Modification 7 (V6.5.13 et V6.5.14 réécrites), 16 (réduire les effets) · simplifications 21 (vol à 8 boutons), 22 (mode débutant par défaut) | à faire |
 | V6.6.6 | Modification 15 : tablette technicien | à faire |
