@@ -141,8 +141,8 @@ local function proteger(nom, fonction, ...)
 	end
 end
 
-local function fondu(etat, ecoule, camouflage, urgence)
-	local alpha = math.max(Config.Alpha(etat, ecoule, urgence), camouflage)
+local function fondu(etat, ecoule, camouflage, urgence, express)
+	local alpha = math.max(Config.Alpha(etat, ecoule, urgence, express), camouflage)
 	if alpha ~= alphaActuel then
 		alphaActuel = alpha
 		for objet, fiche in visuels do
@@ -175,7 +175,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local urgence = exterieur:GetAttribute("Urgence") == true
 	-- Vortex temporel : pendant le vol, le TARDIS est visible dans le ciel (le vortex est dessiné par TardisVolLibre)
 	local etatFondu = (etat == E.Vol and exterieur:GetAttribute("Ciel") == true) and E.Pose or etat
-	proteger("fondu", fondu, etatFondu, ecoule, camouflage, urgence)
+	proteger("fondu", fondu, etatFondu, ecoule, camouflage, urgence, exterieur:GetAttribute("Express") == true)
 
 	-- 2) Lampe du toit
 	if lumiere then
@@ -335,7 +335,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local racine = personnage and personnage:FindFirstChild("HumanoidRootPart")
 	if humanoid and racine then
 		-- Les secousses commencent en même temps que l'animation (après le silence du début du son)
-		local _, decalage = Config.Timing(etat, urgence)
+		local _, decalage = Config.Timing(etat, urgence, exterieur:GetAttribute("Express") == true)
 		-- Stabilisateur actif : aucune secousse en voyage normal ; en urgence, il n'en absorbe qu'une partie
 		local stabilise = exterieur:GetAttribute("Stabilisateur") ~= false
 		local secouer = (etat == E.Demat or etat == E.Remat) and ecoule >= decalage and dansInterieur(racine.Position)
@@ -432,7 +432,7 @@ do
 		else
 			return 0
 		end
-		local duree, decalage = Config.Timing(E.Remat, urgence)
+		local duree, decalage = Config.Timing(E.Remat, urgence, exterieur:GetAttribute("Express") == true)
 		local p = ((maintenant - (debut or 0)) - decalage) / duree
 		if p <= 0 or p >= 1 then return 0 end
 		return math.sin(p * math.pi) -- monte, culmine au milieu, retombe

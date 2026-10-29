@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.5"
+Config.Version = "6.6"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -63,6 +63,13 @@ Config.DureeRematUrg = 23
 Config.DecalageRematUrg = 2
 Config.SaccadeUrgence = 0.75       -- force des saccades : 0 = aucune, 1 = forte (V3.2)
 Config.StabilisationUrgence = 5    -- les saccades s'apaisent pendant ces dernières secondes de l'animation
+
+-- Mode EXPRESS (V6.6, l'inverse de l'urgence) : démat et remat éclair, sans silence de départ ni saccades.
+-- Sons optionnels Demat_Express / Remat_Express ; s'ils manquent, le son normal est joué sans son silence
+-- de départ, puis coupé en fondu à la fin de l'animation. L'urgence (demandée ou imposée) l'emporte toujours.
+Config.DureeDematExpress = 2
+Config.DureeRematExpress = 2
+Config.NbPulsationsExpress = 2   -- moins de fondus : l'animation est très courte
 Config.NbPulsations = 4   -- nombre de fondus pendant la (dé)matérialisation
 Config.Cooldown = 1       -- délai minimum entre deux actions sur la console
 Config.DureeCamouflage = 2  -- durée du fondu quand le TARDIS se camoufle / réapparaît
@@ -420,8 +427,12 @@ function Config.Trouver(racine, cle)
 	return objet
 end
 
--- Durée de l'animation et décalage du son pour un état (normal ou urgence)
-function Config.Timing(etat, urgence)
+-- Durée de l'animation et décalage du son pour un état (normal, urgence ou express)
+function Config.Timing(etat, urgence, express)
+	if express and not urgence then
+		if etat == Config.Etats.Demat then return Config.DureeDematExpress or 2, 0 end
+		if etat == Config.Etats.Remat then return Config.DureeRematExpress or 2, 0 end
+	end
 	if etat == Config.Etats.Demat then
 		if urgence then
 			return Config.DureeDematUrg or Config.DureeDemat, Config.DecalageDematUrg or 0
@@ -477,11 +488,11 @@ local function alphaUrgence(etat, p, t, duree)
 end
 
 -- Transparence de l'extérieur (0 = visible, 1 = disparu) selon l'état, le temps écoulé et le mode
-function Config.Alpha(etat, ecoule, urgence)
+function Config.Alpha(etat, ecoule, urgence, express)
 	if etat == Config.Etats.Pose then return 0 end
 	if etat == Config.Etats.Vol then return 1 end
 
-	local duree, decalage = Config.Timing(etat, urgence)
+	local duree, decalage = Config.Timing(etat, urgence, express)
 	decalage = math.max(decalage, 0)
 	-- Avant le décalage : seul le son joue, rien ne bouge (visible au décollage, invisible à l'atterrissage).
 	-- Ensuite l'animation dure sa durée complète.
@@ -495,7 +506,8 @@ function Config.Alpha(etat, ecoule, urgence)
 	if etat == Config.Etats.Remat then
 		p = 1 - p
 	end
-	local vague = (1 - math.cos(p * Config.NbPulsations * 2 * math.pi)) / 2
+	local pulsations = (express and Config.NbPulsationsExpress) or Config.NbPulsations
+	local vague = (1 - math.cos(p * pulsations * 2 * math.pi)) / 2
 	return math.clamp(p + (1 - p) * vague * 0.8, 0, 1)
 end
 

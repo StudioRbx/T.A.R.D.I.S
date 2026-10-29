@@ -161,6 +161,7 @@ local B = {
 	alerte = UI.badge(badges, "ALERTE", C.rouge, 6),
 	bloque = UI.badge(badges, "DÉMARRAGE BLOQUÉ", C.orange, 7),
 	volLibre = UI.badge(badges, "VOL LIBRE", C.cyan, 8),
+	express = UI.badge(badges, "EXPRESS", C.vert, 9),
 }
 local zoneProgression = creer("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = 4,
 	Visible = false, Parent = carteStatut })
@@ -198,7 +199,11 @@ local listeVide = texte({ Text = "", TextSize = 12, TextColor3 = C.texte2, TextX
 UI.titreSection(contenu, "PROTOCOLES", 4)
 local protocoles = UI.carte(contenu, 5, 6)
 local interrupteurUrgence = UI.interrupteur(protocoles, "Urgence", "Sons d'urgence et vol instable", C.orange, 1)
-local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 2)
+local interrupteurExpress = UI.interrupteur(protocoles, "Express", "Démat et remat en 2 secondes", C.vert, 2)
+local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 3)
+-- Urgence et Express sont opposés : en activer un coupe l'autre
+interrupteurUrgence.surChangement = function(actif) if actif then interrupteurExpress.regler(false) end end
+interrupteurExpress.surChangement = function(actif) if actif then interrupteurUrgence.regler(false) end end
 
 -- Actions
 local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 54), BackgroundTransparency = 1, LayoutOrder = 6,
@@ -354,11 +359,12 @@ local function majInterface()
 	B.verrou.Visible = verrouille
 	B.retreci.Visible = petit
 	B.urgence.Visible = urgenceEnCours
+	B.express.Visible = exterieur:GetAttribute("Express") == true and etat ~= E.Pose
 	B.horsTension.Visible = not alimente
 	B.alerte.Visible = alerte
 	B.bloque.Visible = bloque
 	B.volLibre.Visible = volLibre
-	badges.Visible = camoufle or verrouille or petit or urgenceEnCours or not alimente or alerte or bloque or volLibre
+	badges.Visible = camoufle or verrouille or petit or urgenceEnCours or B.express.Visible or not alimente or alerte or bloque or volLibre
 
 	-- Actions principales
 	local poche = exterieur:GetAttribute("Porteur") == joueur.UserId -- je porte le TARDIS : téléportation de poche
@@ -510,7 +516,7 @@ end)
 -- Destination choisie, au format attendu par le serveur (nil si rien n'est choisi)
 local function donneesDestination()
 	if not choix then return nil end
-	local donnees = { invisible = interrupteurInvisible.valeur(), urgence = interrupteurUrgence.valeur() }
+	local donnees = { invisible = interrupteurInvisible.valeur(), urgence = interrupteurUrgence.valeur(), express = interrupteurExpress.valeur() }
 	if choix.type == "precedent" then
 		donnees.precedent = true
 	elseif choix.type == "lieu" then
@@ -555,7 +561,7 @@ boutonDemat.Activated:Connect(function()
 		end
 		autoRemat = { donnees = donnees }
 	end
-	remote:FireServer("Demat", { urgence = interrupteurUrgence.valeur() })
+	remote:FireServer("Demat", { urgence = interrupteurUrgence.valeur(), express = interrupteurExpress.valeur() })
 end)
 -- Rematérialisation automatique : 15 s après l'entrée dans le vortex
 exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
@@ -591,7 +597,7 @@ boutonRemat.Activated:Connect(function()
 	local donnees
 	if (exterieur:GetAttribute("Echelle") or 1) < 0.999 then
 		-- Petit : il se rematérialise sur place
-		donnees = { invisible = interrupteurInvisible.valeur(), urgence = interrupteurUrgence.valeur() }
+		donnees = { invisible = interrupteurInvisible.valeur(), urgence = interrupteurUrgence.valeur(), express = interrupteurExpress.valeur() }
 	else
 		donnees = donneesDestination()
 		if not donnees then return end
@@ -647,7 +653,7 @@ RunService.RenderStepped:Connect(function(dt)
 
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
 	if etat == E.Demat or etat == E.Remat then
-		local duree, decalage = Config.Timing(etat, exterieur:GetAttribute("Urgence") == true)
+		local duree, decalage = Config.Timing(etat, exterieur:GetAttribute("Urgence") == true, exterieur:GetAttribute("Express") == true)
 		local total = duree + decalage
 		local p = math.clamp(ecoule / total, 0, 1)
 		zoneProgression.Visible = true
@@ -679,7 +685,7 @@ majTaille()
 --------------------------------------------------------------------
 -- Mises à jour automatiques
 --------------------------------------------------------------------
-for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Urgence", "PorteOuverte",
+for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Urgence", "Express", "PorteOuverte",
 	"Echelle", "Alimentation", "Alerte", "DemarrageBloque", "VolLibre", "BouclierJoueurs", "BouclierBalles", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "Enseigne", "Detruit", "AutoDestructionDebut", "StyleInterieur", "StyleConsole", "CouleurMurs", "Jukebox", "BouclierComplet", "BouclierEnergie", "PointsDeVie", "Avarie", "Stabilisateur", "Decoration", "Reflets" } do
 	exterieur:GetAttributeChangedSignal(attribut):Connect(majInterface)
 end

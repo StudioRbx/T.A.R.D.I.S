@@ -54,7 +54,7 @@ local function progressionAnimation()
 	else
 		return nil
 	end
-	local duree, decalage = Config.Timing(quoi, urgence)
+	local duree, decalage = Config.Timing(quoi, urgence, exterieur:GetAttribute("Express") == true)
 	local p = ((workspace:GetServerTimeNow() - (debut or 0)) - decalage) / duree
 	if p < -0.3 or p > 1 then return nil end
 	return math.clamp(p, 0, 1), quoi == E.Remat

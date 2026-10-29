@@ -364,6 +364,7 @@ do
 		petit = UI.badge(badges, "RÉDUIT", C.ambre, 3),
 		porte = UI.badge(badges, "PORTÉ", C.vert, 4),
 		urgence = UI.badge(badges, "URGENCE", C.orange, 5),
+		express = UI.badge(badges, "EXPRESS", C.vert, 9),
 		horsTension = UI.badge(badges, "HORS TENSION", C.texte2, 6),
 		alerte = UI.badge(badges, "ALERTE", C.rouge, 7),
 		bloque = UI.badge(badges, "BLOQUÉ", C.orange, 8),
@@ -484,10 +485,15 @@ do
 	-- Protocoles côte à côte
 	local protocoles = creer("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, LayoutOrder = 5,
 		Parent = contenu }, { UI.pile(16, true) })
-	local gauche = creer("Frame", { Size = UDim2.new(0.5, -8, 1, 0), BackgroundTransparency = 1, LayoutOrder = 1, Parent = protocoles })
-	local droite = creer("Frame", { Size = UDim2.new(0.5, -8, 1, 0), BackgroundTransparency = 1, LayoutOrder = 2, Parent = protocoles })
-	W.interUrgence = UI.interrupteur(gauche, "Urgence", "Sons d'urgence, vol instable", C.orange, 1)
-	W.interInvisible = UI.interrupteur(droite, "Invisible", "Atterrit déjà camouflé", C.cyan, 1)
+	local gauche = creer("Frame", { Size = UDim2.new(1 / 3, -11, 1, 0), BackgroundTransparency = 1, LayoutOrder = 1, Parent = protocoles })
+	local milieu = creer("Frame", { Size = UDim2.new(1 / 3, -11, 1, 0), BackgroundTransparency = 1, LayoutOrder = 2, Parent = protocoles })
+	local droite = creer("Frame", { Size = UDim2.new(1 / 3, -11, 1, 0), BackgroundTransparency = 1, LayoutOrder = 3, Parent = protocoles })
+	W.interUrgence = UI.interrupteur(gauche, "Urgence", "Vol instable", C.orange, 1)
+	W.interExpress = UI.interrupteur(milieu, "Express", "Voyage en 2 s", C.vert, 1)
+	W.interInvisible = UI.interrupteur(droite, "Invisible", "Déjà camouflé", C.cyan, 1)
+	-- Urgence et Express sont opposés : en activer un coupe l'autre
+	W.interUrgence.surChangement = function(actif) if actif then W.interExpress.regler(false) end end
+	W.interExpress.surChangement = function(actif) if actif then W.interUrgence.regler(false) end end
 
 	-- Grands boutons
 	local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 62), BackgroundTransparency = 1, LayoutOrder = 6,
@@ -790,6 +796,7 @@ local function lireEtat()
 		porte = idPorteur ~= nil,
 		verrouille = exterieur:GetAttribute("PortesVerrouillees") == true,
 		urgence = exterieur:GetAttribute("Urgence") == true and etat ~= E.Pose,
+		express = exterieur:GetAttribute("Express") == true and etat ~= E.Pose,
 		alimente = exterieur:GetAttribute("Alimentation") ~= false,
 		alerte = exterieur:GetAttribute("Alerte") == true,
 		bloque = exterieur:GetAttribute("DemarrageBloque") == true,
@@ -912,6 +919,7 @@ local function majInterface()
 	W.badges.petit.Visible = e.echelle < 0.999
 	W.badges.porte.Visible = e.porte
 	W.badges.urgence.Visible = e.urgence
+	W.badges.express.Visible = e.express
 	W.badges.horsTension.Visible = not e.alimente
 	W.badges.alerte.Visible = e.alerte
 	W.badges.bloque.Visible = e.bloque
@@ -1175,7 +1183,7 @@ W.boutonSurLui.Activated:Connect(function() choisirFiger(true) end)
 -- Destination choisie, au format attendu par le serveur (nil si rien n'est choisi)
 local function donneesDestination()
 	if not S.choix then return nil end
-	local donnees = { invisible = W.interInvisible.valeur(), urgence = W.interUrgence.valeur() }
+	local donnees = { invisible = W.interInvisible.valeur(), urgence = W.interUrgence.valeur(), express = W.interExpress.valeur() }
 	if S.choix.type == "precedent" then
 		donnees.precedent = true
 	elseif S.choix.type == "lieu" then
@@ -1227,7 +1235,7 @@ W.demat.Activated:Connect(function()
 		end
 		S.autoRemat = { donnees = donnees, fin = nil }
 	end
-	remote:FireServer("Demat", { urgence = W.interUrgence.valeur() })
+	remote:FireServer("Demat", { urgence = W.interUrgence.valeur(), express = W.interExpress.valeur() })
 end)
 -- Rematérialisation automatique : 15 s après l'entrée dans le vortex
 exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
@@ -1267,7 +1275,7 @@ W.remat.Activated:Connect(function()
 	local donnees
 	if (exterieur:GetAttribute("Echelle") or 1) < 0.999 then
 		-- Réduit : il se rematérialise sur place
-		donnees = { invisible = W.interInvisible.valeur(), urgence = W.interUrgence.valeur() }
+		donnees = { invisible = W.interInvisible.valeur(), urgence = W.interUrgence.valeur(), express = W.interExpress.valeur() }
 	else
 		donnees = donneesDestination()
 		if not donnees then return end
@@ -2251,10 +2259,10 @@ RunService.RenderStepped:Connect(function(dt)
 		W.chrono.Text = ""
 	elseif e.etat == E.Demat or e.etat == E.Remat then
 		local urgence = exterieur:GetAttribute("Urgence") == true
-		local duree, decalage = Config.Timing(e.etat, urgence)
+		local duree, decalage = Config.Timing(e.etat, urgence, e.express)
 		local total = duree + decalage
 		local p = math.clamp(ecoule / total, 0, 1)
-		local couleur = urgence and C.orange or C.ambre
+		local couleur = (urgence and C.orange) or (e.express and C.vert) or C.ambre
 		for i = 1, n do
 			local allume = (i - 1) / n < p
 			W.segments[i].BackgroundColor3 = allume and couleur or C.gris
@@ -2346,7 +2354,7 @@ surChangement("Etat", function(etat, avant)
 	end
 	if etat == E.Demat then
 		S.voyages += 1
-		journaliser(urgence and "Dématérialisation d'URGENCE." or "Dématérialisation.", C.ambre)
+		journaliser(urgence and "Dématérialisation d'URGENCE." or (exterieur:GetAttribute("Express") and "Dématérialisation EXPRESS.") or "Dématérialisation.", C.ambre)
 	elseif etat == E.Vol then
 		S.debutVol = os.clock()
 		journaliser("Entrée dans le vortex.", C.cyan)

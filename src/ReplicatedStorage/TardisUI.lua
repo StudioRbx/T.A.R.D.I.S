@@ -251,6 +251,7 @@ function UI.interrupteur(parent, nom, description, couleur, ordre)
 	end
 	ligne.Activated:Connect(function()
 		inter.regler(not etat)
+		if inter.surChangement then inter.surChangement(etat) end
 	end)
 	return inter
 end

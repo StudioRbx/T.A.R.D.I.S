@@ -2,7 +2,7 @@
 
 Index de toutes les versions et sous-versions. Le détail de chacune est dans [`docs/patch-notes/`](docs/patch-notes/).
 
-⭐ = version officielle (avec ZIP) · 🎮 = sous-version installée dans ZONE-TSADE
+⭐ = version officielle · 🎮 = version installée dans ZONE-TSADE
 
 | Version | Date | Résumé |
 |---|---|---|
@@ -63,7 +63,8 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | V6.5 ⭐ | 14/10 | Version établie ; mode de voyage Auto / Manuel |
 | V6.5.1 → V6.5.6 | 16–17/10 | IDs, ZIP, performances, crash du ciel, stabilisateur, alarme |
 | V6.5.7 → V6.5.11 | 18/10 | Régénération « Le Voyageur » (infinie, avatars, refus, 5 styles), config de référence |
-| V6.5.12 🎮 | 18/10 | Commandes rapides sur la tablette |
+| V6.5.12 | 18/10 | Commandes rapides sur la tablette |
 | V6.5.13 | 18/10 | Accessoires après régénération *(non installée)* |
 | V6.5.14 | 20/10 | Plus d'onglet à l'écran *(non installée)* |
+| **V6.6** ⭐🎮 | 29/10 | **Mode Express** : démat et remat en 2 s (l'inverse de l'urgence) ; crash de la rotation dans le ciel corrigé |
 | Maintenance | 29/10 | Dans ZONE-TSADE : TARDIS_2 et TARDIS_3 mis en commentaire, scripts `Power` du kit désactivés, accès remis à la config du 18/10 ([détail](docs/ETAT_DES_LIEUX.md#6-corrections-appliquées-dans-zone-tsade-29102026)) |
