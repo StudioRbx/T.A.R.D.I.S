@@ -1,0 +1,975 @@
+-- ServerScriptService > TardisSystemes (Script)
+-- Systèmes du TARDIS : points de vie et avarie, énergie et fissures des boucliers, pannes (surcharge de vapeur,
+-- incendie, coupure après N voyages), régénération des pilotes, outils des techniciens (chiffon, visseuse,
+-- clé à molette, extincteur), saleté de la cabine, électricité statique, stabilisateur.
+-- S'appuie sur TardisServeur à travers le pont "TardisInterne" (ServerStorage).
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("TardisConfig"))
+local def = Config.demarrerPourChaqueTardis(script) -- cet exemplaire ne s'occupe que d'un TARDIS (voir Config.Tardis)
+local exterieur, interieur = Config.modeles(def)
+local remote = ReplicatedStorage:WaitForChild(Config.canal(def, "TardisCommande"))
+local pont = ServerStorage:WaitForChild(Config.canal(def, "TardisInterne"), 60)
+if not pont then
+	error("[TARDIS] TardisSystemes : le pont TardisInterne n'existe pas. TardisServeur a-t-il une erreur (voir l'Output) ?")
+end
+local E = Config.Etats
+local S = Config.Systemes or {}
+
+local function interne(action, ...) return pont:Invoke(action, ...) end
+local function estPilote(joueur) return interne("estPilote", joueur) == true end
+local function estTechnicien(joueur) return joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true or Config.estTechnicienDe(def, joueur.UserId) end
+local function dire(joueur, message, ok) remote:FireClient(joueur, message, ok ~= false) end
+local function direAuxPilotes(message, ok)
+	for _, autre in Players:GetPlayers() do
+		if estPilote(autre) or estTechnicien(autre) then dire(autre, message, ok) end
+	end
+end
+local function racineDe(joueur) return joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart") end
+local function partDe(objet)
+	if not objet then return nil end
+	if objet:IsA("BasePart") then return objet end
+	if objet:IsA("Model") then return objet.PrimaryPart or objet:FindFirstChildWhichIsA("BasePart", true) end
+	return objet:FindFirstChildWhichIsA("BasePart", true)
+end
+local function trouverChemin(cle)
+	local chemin = Config.Chemins and Config.Chemins[cle]
+	if not chemin then return nil end
+	local objet = interieur
+	for _, nom in chemin do objet = objet and objet:FindFirstChild(nom) end
+	return partDe(objet)
+end
+local rotorPart = partDe(interieur:FindFirstChild(Config.NomRotor or "Rotor"))
+
+--------------------------------------------------------------------
+-- Points de vie et avarie
+--------------------------------------------------------------------
+local pvMax = S.PointsDeVie or 10000
+local pv = pvMax
+local function publierPV()
+	exterieur:SetAttribute("PointsDeVie", math.floor(pv / pvMax * 100 + 0.5))
+	exterieur:SetAttribute("PV", math.floor(pv))
+	exterieur:SetAttribute("PVMax", pvMax)
+end
+local function avarie(actif)
+	if (exterieur:GetAttribute("Avarie") == true) == actif then return end
+	exterieur:SetAttribute("Avarie", actif)
+	if actif then
+		interne("alerter", "AVARIE : RÉPARER LE ROTOR")
+		direAuxPilotes("AVARIE : le TARDIS est à 0 % d'intégrité. Portes ouvertes, tension coupée. Réparez le rotor (maintenir E).", false)
+		interne("reglerAlimentation", false)
+		exterieur:SetAttribute("Verrouille", false)
+		interne("ouvrirPortes")
+	else
+		direAuxPilotes("Réparation suffisante : les systèmes repartent.", true)
+		interne("reglerAlimentation", true)
+	end
+end
+local function degats(montant, raison)
+	if exterieur:GetAttribute("Detruit") then return end
+	pv = math.clamp(pv - montant, 0, pvMax)
+	publierPV()
+	if pv <= 0 then avarie(true) end
+	exterieur:SetAttribute("DernierDegat", string.format("%s\t%d\t%.2f", raison, montant, workspace:GetServerTimeNow()))
+end
+local function reparer(montant)
+	pv = math.clamp(pv + montant, 0, pvMax)
+	publierPV()
+	if pv > 0 and exterieur:GetAttribute("Avarie") then avarie(false) end
+end
+publierPV()
+-- Pendant une avarie, les portes restent ouvertes
+task.spawn(function()
+	while true do
+		task.wait(4)
+		if exterieur:GetAttribute("Avarie") and not exterieur:GetAttribute("PorteOuverte") and (exterieur:GetAttribute("Etat") or E.Pose) == E.Pose then
+			exterieur:SetAttribute("Verrouille", false)
+			interne("ouvrirPortes")
+		end
+	end
+end)
+
+-- Sources de dégâts : chocs en vol, chutes, balles sans bouclier, explosions
+exterieur:GetAttributeChangedSignal("ChocTemps"):Connect(function() degats(S.DegatsChoc or 25, "Choc en vol") end)
+local derniereDescente = nil
+exterieur:GetAttributeChangedSignal("DescenteDebut"):Connect(function()
+	local debut = exterieur:GetAttribute("DescenteDebut")
+	if debut then
+		derniereDescente = exterieur:GetAttribute("DescenteMode")
+	elseif derniereDescente == "Chute" then
+		derniereDescente = nil
+		degats(S.DegatsChute or 80, "Chute")
+	end
+end)
+local function bouclierActif()
+	return exterieur:GetAttribute("BouclierBalles") == true or exterieur:GetAttribute("BouclierComplet") == true
+end
+local function surveillerImpacts(part)
+	part.DescendantAdded:Connect(function(objet)
+		-- Les systèmes d'armes attachent leurs impacts (Attachment, Decal...) aux pièces touchées ; les nôtres commencent par "Tardis"
+		if (objet:IsA("Attachment") or objet:IsA("Decal")) and string.sub(objet.Name, 1, 6) ~= "Tardis" and not bouclierActif() then
+			degats(S.DegatsBalle or 4, "Tir")
+		end
+	end)
+end
+for _, objet in exterieur:GetDescendants() do
+	if objet:IsA("BasePart") and not objet:IsDescendantOf(exterieur:FindFirstChild("Boucliers") or exterieur.PrimaryPart) then surveillerImpacts(objet) end
+end
+workspace.DescendantAdded:Connect(function(objet)
+	if objet:IsA("Explosion") and not exterieur:GetAttribute("AutoDestructionDebut") and not exterieur:GetAttribute("Detruit") then
+		task.defer(function()
+			if (objet.Position - exterieur:GetPivot().Position).Magnitude <= 60 then degats(S.DegatsExplosion or 300, "Explosion") end
+		end)
+	end
+end)
+
+-- Réparation : maintenir E 5 s sur le rotor (pilotes et techniciens)
+if rotorPart then
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TardisReparation"
+	prompt.ActionText = "Réparer"
+	prompt.ObjectText = "Rotor"
+	prompt.HoldDuration = 5
+	prompt.MaxActivationDistance = 9
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = rotorPart
+	prompt.Triggered:Connect(function(joueur)
+		if not (estPilote(joueur) or estTechnicien(joueur)) then return end
+		if pv >= pvMax then dire(joueur, "Le TARDIS est déjà intact.", true) return end
+		reparer(S.ReparationParMaintien or 1500)
+		exterieur:SetAttribute("ReparationTemps", workspace:GetServerTimeNow())
+		interne("jouer", "Reparation", false)
+		dire(joueur, string.format("Réparation : %d %% d'intégrité.", exterieur:GetAttribute("PointsDeVie") or 0), true)
+	end)
+end
+
+--------------------------------------------------------------------
+-- Boucliers : énergie, impacts, chute du bouclier
+--------------------------------------------------------------------
+local function surveillerBouclier(modele)
+	local bulle = modele:WaitForChild("Bulle", 5)
+	if not bulle then return end
+	local dernierCoup = 0
+	local function coup(position)
+		if os.clock() - dernierCoup < 0.03 then return end
+		dernierCoup = os.clock()
+		local energie = (exterieur:GetAttribute("BouclierEnergie") or 100) - 100 / (S.BouclierCoups or 250)
+		exterieur:SetAttribute("BouclierImpact", position)
+		exterieur:SetAttribute("BouclierImpactTemps", workspace:GetServerTimeNow())
+		if energie <= 0 then
+			exterieur:SetAttribute("BouclierEnergie", 0)
+			exterieur:SetAttribute("BouclierBrise", workspace:GetServerTimeNow())
+			exterieur:SetAttribute("BouclierJoueurs", false)
+			exterieur:SetAttribute("BouclierBalles", false)
+			exterieur:SetAttribute("BouclierComplet", false)
+			interne("alerter", "BOUCLIER TOMBÉ")
+			direAuxPilotes("Le bouclier est tombé sous les tirs. Relance-le depuis le menu.", false)
+		else
+			exterieur:SetAttribute("BouclierEnergie", energie)
+		end
+	end
+	bulle.DescendantAdded:Connect(function(objet)
+		local position = (objet:IsA("Attachment") and objet.WorldPosition) or (objet:IsA("BasePart") and objet.Position)
+		if position then coup(position) end
+	end)
+	bulle.Touched:Connect(function(autre)
+		if autre:IsDescendantOf(exterieur) or (autre.Parent and autre.Parent:FindFirstChildOfClass("Humanoid")) then return end
+		if not autre.Anchored then coup(autre.Position) end -- projectile physique
+	end)
+end
+task.spawn(function()
+	local dossier = exterieur:WaitForChild("Boucliers", 30)
+	if not dossier then return end
+	dossier.ChildAdded:Connect(function(modele) task.spawn(surveillerBouclier, modele) end)
+	for _, modele in dossier:GetChildren() do task.spawn(surveillerBouclier, modele) end
+end)
+
+--------------------------------------------------------------------
+-- Pannes : surcharge de vapeur (visseuse), incendie (extincteur + clé à molette), coupure après N voyages
+--------------------------------------------------------------------
+local grilles = {}
+for _, objet in interieur:GetDescendants() do
+	if objet:IsA("BasePart") and (objet.Name == "Grille" or (objet.Parent and objet.Parent.Name == "Grilles")) then table.insert(grilles, objet) end
+end
+local function panneVapeur()
+	if #grilles == 0 or exterieur:GetAttribute("VapeurSurcharge") then return false end
+	local index = math.random(#grilles)
+	exterieur:SetAttribute("VapeurSurcharge", index)
+	exterieur:SetAttribute("VapeurSurchargeAvancement", 0)
+	interne("alerter", "SURCHARGE DE VAPEUR")
+	direAuxPilotes("PANNE : surcharge de vapeur sur une grille. Un technicien doit la régler avec la visseuse (3 fois).", false)
+	return true
+end
+local function panneIncendie()
+	if exterieur:GetAttribute("Incendie") then return false end
+	exterieur:SetAttribute("Incendie", true)
+	exterieur:SetAttribute("IncendieEteint", nil)
+	interne("alerter", "INCENDIE DE CONSOLE")
+	direAuxPilotes("PANNE : des flammes sur la console. L'extincteur les éteint, la clé à molette sur la vanne coupe le problème.", false)
+	return true
+end
+-- Les flammes repartent 20 s après l'extincteur tant que la vanne n'est pas fermée
+task.spawn(function()
+	while true do
+		task.wait(1)
+		local eteint = exterieur:GetAttribute("IncendieEteint")
+		if exterieur:GetAttribute("Incendie") and eteint and workspace:GetServerTimeNow() - eteint > 20 then
+			exterieur:SetAttribute("IncendieEteint", nil)
+			direAuxPilotes("Les flammes repartent : fermez la vanne avec la clé à molette.", false)
+		end
+	end
+end)
+-- Vanne : pièce "Vanne" de l'intérieur (sinon le rotor), à fermer avec la clé à molette (maintenir E 4 s)
+do
+	local vanne = partDe(interieur:FindFirstChild("Vanne", true)) or rotorPart
+	if vanne then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "TardisVanne"
+		prompt.ActionText = "Fermer la vanne (clé à molette)"
+		prompt.ObjectText = "Vanne"
+		prompt.HoldDuration = 4
+		prompt.MaxActivationDistance = 8
+		prompt.RequiresLineOfSight = false
+		prompt.UIOffset = Vector2.new(0, 50)
+		prompt.Enabled = false
+		prompt.Parent = vanne
+		exterieur:GetAttributeChangedSignal("Incendie"):Connect(function() prompt.Enabled = exterieur:GetAttribute("Incendie") == true end)
+		prompt.Triggered:Connect(function(joueur)
+			local outil = joueur.Character and joueur.Character:FindFirstChild("CleMolette")
+			if not outil then dire(joueur, "Il faut la clé à molette en main.", false) return end
+			exterieur:SetAttribute("Incendie", false)
+			exterieur:SetAttribute("IncendieEteint", nil)
+			interne("jouer", "Reparation", false)
+			direAuxPilotes("Vanne fermée par " .. joueur.DisplayName .. " : incendie terminé.", true)
+		end)
+	end
+end
+-- Coupure après N voyages consécutifs : 10 s sur le levier d'alimentation pour redémarrer
+local voyagesConsecutifs = 0
+local etatPrecedent = exterieur:GetAttribute("Etat")
+exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+	local etat = exterieur:GetAttribute("Etat")
+	if etat == E.Pose and etatPrecedent == E.Remat then
+		voyagesConsecutifs += 1
+		-- Saleté : la cabine se salit à chaque atterrissage
+		exterieur:SetAttribute("Salete", math.clamp((exterieur:GetAttribute("Salete") or 0) + (S.SaleteParVoyage or 8), 0, 100))
+		if voyagesConsecutifs >= (S.VoyagesAvantCoupure or 5) and not exterieur:GetAttribute("RedemarrageRequis") then
+			task.delay(2, function()
+				exterieur:SetAttribute("RedemarrageRequis", true)
+				interne("reglerAlimentation", false)
+				interne("alerter", "SYSTÈME COUPÉ : REDÉMARRAGE REQUIS")
+				direAuxPilotes(string.format("Après %d voyages consécutifs, le système s'est coupé. Maintiens E %d s sur le levier d'alimentation pour redémarrer.",
+					voyagesConsecutifs, S.RedemarrageDuree or 10), false)
+			end)
+		end
+	end
+	etatPrecedent = etat
+end)
+do
+	local levier = trouverChemin("Alimentation")
+	if levier then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "TardisRedemarrage"
+		prompt.ActionText = "Redémarrer le système"
+		prompt.ObjectText = "Alimentation"
+		prompt.HoldDuration = S.RedemarrageDuree or 10
+		prompt.MaxActivationDistance = 8
+		prompt.RequiresLineOfSight = false
+		prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+		prompt.Enabled = false
+		prompt.Parent = levier
+		-- Pendant le redémarrage requis, l'invite habituelle du levier (On/Off) est cachée : seule la nôtre (E maintenu) reste
+		local function majInvites()
+			local requis = exterieur:GetAttribute("RedemarrageRequis") == true
+			prompt.Enabled = requis
+			for _, autre in levier:GetDescendants() do
+				if autre:IsA("ProximityPrompt") and autre ~= prompt then autre.Enabled = not requis end
+			end
+		end
+		exterieur:GetAttributeChangedSignal("RedemarrageRequis"):Connect(majInvites)
+		prompt.Triggered:Connect(function(joueur)
+			if not (estPilote(joueur) or estTechnicien(joueur)) then return end
+			voyagesConsecutifs = 0
+			exterieur:SetAttribute("RedemarrageRequis", false)
+			interne("reglerAlimentation", true)
+			interne("jouer", "Reparation", false)
+			direAuxPilotes("Système redémarré par " .. joueur.DisplayName .. ".", true)
+		end)
+	end
+end
+-- Pannes aléatoires, très rares
+task.spawn(function()
+	while true do
+		local mini, maxi = S.PannesIntervalleMin or 1200, S.PannesIntervalleMax or 2400
+		task.wait(mini + math.random() * math.max(maxi - mini, 0))
+		local etat, occupe = interne("etat")
+		if etat == E.Pose and not occupe and exterieur:GetAttribute("Alimentation") ~= false and not exterieur:GetAttribute("Detruit") then
+			if math.random() < 0.5 then
+				if not panneVapeur() then panneIncendie() end
+			else
+				if not panneIncendie() then panneVapeur() end
+			end
+		end
+	end
+end)
+
+--------------------------------------------------------------------
+-- Régénération (Config.Regeneration) : les joueurs de l'équipe "Le Voyageur" ne meurent pas, ils se régénèrent.
+-- Pendant la régénération, rien ne peut les tuer. Ils prennent l'apparence d'un des avatars sauvegardés sur leur compte
+-- (sinon une tenue de Config.Tenues), sont soignés et gagnent des PV en plus pendant quelques minutes.
+-- (Un seul exemplaire du script s'en occupe : celui du premier TARDIS.)
+--------------------------------------------------------------------
+local REGEN = Config.Regeneration or {}
+local regenerations = {}   -- [UserId] = nombre de régénérations depuis la dernière vraie mort
+local tenuesCompte = {}    -- [UserId] = { identifiants des avatars sauvegardés } (envoyés par le joueur, avec sa permission)
+local derniereTenue = {}   -- [UserId] = dernier avatar porté, pour ne pas reprendre le même
+local function estRegenerateur(joueur)
+	return joueur.Team ~= nil and joueur.Team.Name == (REGEN.Equipe or "Le Voyageur")
+end
+-- Un des avatars sauvegardés du joueur (nil si aucun, ou si la permission a été refusée)
+local function choisirDescription(joueur)
+	local liste = tenuesCompte[joueur.UserId]
+	if REGEN.TenuesDuCompte == false or not liste or #liste == 0 then return nil end
+	local choix = liste[math.random(#liste)]
+	if #liste > 1 then
+		for _ = 1, 5 do
+			if choix ~= derniereTenue[joueur.UserId] then break end
+			choix = liste[math.random(#liste)]
+		end
+	end
+	local ok, description = pcall(function() return Players:GetHumanoidDescriptionFromOutfitId(choix) end)
+	if ok and description then
+		derniereTenue[joueur.UserId] = choix
+		return description
+	end
+	return nil
+end
+-- Une tenue de Config.Tenues (quand aucun avatar du compte n'est disponible)
+local function habillerTenueJeu(personnage)
+	local tenues = Config.Tenues or {}
+	if #tenues == 0 then return end
+	local tenue = tenues[math.random(#tenues)]
+	local shirt = personnage:FindFirstChildOfClass("Shirt") or Instance.new("Shirt")
+	shirt.Name = "Shirt"
+	shirt.ShirtTemplate = "rbxassetid://" .. tenue.shirt
+	shirt.Parent = personnage
+	local pants = personnage:FindFirstChildOfClass("Pants") or Instance.new("Pants")
+	pants.Name = "Pants"
+	pants.PantsTemplate = "rbxassetid://" .. tenue.pant
+	pants.Parent = personnage
+end
+local function changerApparence(joueur, personnage, humanoid)
+	local description = choisirDescription(joueur)
+	if description and humanoid.Parent and pcall(function() humanoid:ApplyDescription(description) end) then return end
+	habillerTenueJeu(personnage)
+end
+-- Le corps tient-il encore ? (une commande :kill ou une explosion casse toutes les articulations)
+local function corpsIntact(personnage)
+	local torse = personnage:FindFirstChild("Torso")
+	if torse then -- R6
+		for _, nom in { "Neck", "Right Shoulder", "Left Shoulder", "Right Hip", "Left Hip" } do
+			if not torse:FindFirstChild(nom) then return false end
+		end
+		local racine = personnage:FindFirstChild("HumanoidRootPart")
+		return racine ~= nil and racine:FindFirstChild("RootJoint") ~= nil
+	end
+	local tete, haut, bas = personnage:FindFirstChild("Head"), personnage:FindFirstChild("UpperTorso"), personnage:FindFirstChild("LowerTorso")
+	return tete ~= nil and tete:FindFirstChild("Neck") ~= nil and haut ~= nil and haut:FindFirstChild("Waist") ~= nil
+		and bas ~= nil and bas:FindFirstChild("Root") ~= nil
+end
+local enAttente = {} -- [UserId] = { position, regard, habille } : régénération à finir sur un corps neuf
+local choixEnAttente = {} -- [UserId] = fonction appelée si le joueur refuse sa régénération
+
+-- Journal des régénérations (qui, quand, où), visible dans la tablette (outil Régénérations)
+local journalRegen = {}
+local function noterRegeneration(joueur, nature, lieu, numero)
+	table.insert(journalRegen, 1, { heure = os.date("%d/%m %H:%M:%S"), nom = joueur.DisplayName, pseudo = joueur.Name,
+		nature = nature, lieu = lieu or "Hors du TARDIS", numero = numero })
+	while #journalRegen > 40 do table.remove(journalRegen) end
+	ReplicatedStorage:SetAttribute("TardisRegenerations", game:GetService("HttpService"):JSONEncode(journalRegen))
+end
+-- Dans quel TARDIS se trouve cette position ? (tous les TARDIS du jeu, par leurs ponts)
+local function tardisABord(position)
+	for _, d in Config.Tardis do
+		local autrePont = ServerStorage:FindFirstChild(Config.canal(d, "TardisInterne"))
+		if autrePont then
+			local ok, dedans = pcall(function() return autrePont:Invoke("dansInterieur", position) end)
+			if ok and dedans then return d.Nom end
+		end
+	end
+	return nil
+end
+-- Régénération à bord : le TARDIS concerné encaisse le choc (étincelles, alarme, intégrité)
+local evenementABord = ServerStorage:FindFirstChild("TardisRegenerationABord")
+if not evenementABord then
+	evenementABord = Instance.new("BindableEvent")
+	evenementABord.Name = "TardisRegenerationABord"
+	evenementABord.Parent = ServerStorage
+end
+evenementABord.Event:Connect(function(nomTardis)
+	if nomTardis ~= def.Nom then return end
+	degats(REGEN.DegatsTardis or 400, "Régénération à bord")
+	exterieur:SetAttribute("RegenerationABord", workspace:GetServerTimeNow()) -- étincelles sur la console (clients)
+	interne("alerter", "RÉGÉNÉRATION À BORD")
+	interne("jouer", "Cloitre", false)
+end)
+-- Main qui repousse : après une régénération, un membre perdu repousse pendant quelques minutes (R6)
+local MEMBRES = { ["Right Arm"] = "Right Shoulder", ["Left Arm"] = "Left Shoulder", ["Right Leg"] = "Right Hip", ["Left Leg"] = "Left Hip" }
+local function surveillerMembres(joueur, personnage, duree)
+	local torse = personnage:FindFirstChild("Torso")
+	if not torse or duree <= 0 then return end
+	local modeles = {}
+	for membre, nomMoteur in MEMBRES do
+		local part, moteur = personnage:FindFirstChild(membre), torse:FindFirstChild(nomMoteur)
+		if part and moteur and moteur:IsA("Motor6D") then
+			modeles[membre] = { part = part:Clone(), C0 = moteur.C0, C1 = moteur.C1, moteur = nomMoteur }
+		end
+	end
+	local fin = os.clock() + duree
+	task.spawn(function()
+		local enRepousse = {}
+		while os.clock() < fin and personnage.Parent and torse.Parent do
+			task.wait(1)
+			for membre, modele in modeles do
+				local part, moteur = personnage:FindFirstChild(membre), torse:FindFirstChild(modele.moteur)
+				local attache = part and moteur and moteur:IsA("Motor6D") and moteur.Part1 == part
+				if not attache and not enRepousse[membre] then
+					enRepousse[membre] = true
+					dire(joueur, (string.find(membre, "Arm") and "Ton bras" or "Ta jambe") .. " repousse…", true)
+					task.delay(2.5, function()
+						if not personnage.Parent or not torse.Parent then return end
+						local ancien = personnage:FindFirstChild(membre)
+						if ancien then ancien:Destroy() end
+						local ancienMoteur = torse:FindFirstChild(modele.moteur)
+						if ancienMoteur then ancienMoteur:Destroy() end
+						local neuf = modele.part:Clone()
+						neuf.CFrame = torse.CFrame * modele.C0 * modele.C1:Inverse()
+						neuf.Parent = personnage
+						local m = Instance.new("Motor6D")
+						m.Name = modele.moteur
+						m.Part0, m.Part1, m.C0, m.C1 = torse, neuf, modele.C0, modele.C1
+						m.Parent = torse
+						-- Un peu d'énergie dorée sur le membre neuf
+						local eclat = Instance.new("ParticleEmitter")
+						eclat.Color = ColorSequence.new(Color3.fromRGB(255, 235, 150), Color3.fromRGB(255, 150, 40))
+						eclat.LightEmission = 1
+						eclat.Size = NumberSequence.new(0.4, 0)
+						eclat.Speed = NumberRange.new(2, 5)
+						eclat.Lifetime = NumberRange.new(0.4, 0.8)
+						eclat.Rate = 60
+						eclat.Parent = neuf
+						task.delay(2, function() eclat:Destroy() end)
+						enRepousse[membre] = nil
+					end)
+				end
+			end
+		end
+	end)
+end
+
+-- PV en plus pendant quelques minutes (une nouvelle régénération relance la durée, sans cumuler)
+local function bonusPV(humanoid)
+	local bonus, dureeBonus = REGEN.BonusPV or 100, REGEN.BonusDuree or 300
+	local jeton = (humanoid:GetAttribute("TardisBonusJeton") or 0) + 1
+	humanoid:SetAttribute("TardisBonusJeton", jeton)
+	if not humanoid:GetAttribute("TardisBonusActif") then
+		humanoid:SetAttribute("TardisBonusActif", true)
+		humanoid.MaxHealth += bonus
+	end
+	humanoid.Health = humanoid.MaxHealth
+	task.delay(dureeBonus, function()
+		if humanoid.Parent and humanoid:GetAttribute("TardisBonusJeton") == jeton and humanoid:GetAttribute("TardisBonusActif") then
+			humanoid:SetAttribute("TardisBonusActif", nil)
+			humanoid.MaxHealth = math.max(humanoid.MaxHealth - bonus, 1)
+			humanoid.Health = math.min(humanoid.Health, humanoid.MaxHealth)
+		end
+	end)
+end
+-- Pose de la série (R6) : bras écartés sur les côtés, paumes vers le ciel, tête renversée en arrière.
+-- Le mouvement est fluide (interpolation des articulations), et tout le monde le voit.
+local TweenService = game:GetService("TweenService")
+local POSE = {
+	["Right Shoulder"] = CFrame.Angles(-math.rad(72), 0, 0) * CFrame.Angles(0, 0, math.rad(8)),  -- bras droit levé sur le côté
+	["Left Shoulder"] = CFrame.Angles(-math.rad(72), 0, 0) * CFrame.Angles(0, 0, -math.rad(8)),  -- bras gauche levé sur le côté
+	["Neck"] = CFrame.Angles(-math.rad(28), 0, 0),                                                  -- tête renversée en arrière
+	["Right Hip"] = CFrame.Angles(-math.rad(6), 0, 0),                                              -- jambes légèrement écartées
+	["Left Hip"] = CFrame.Angles(-math.rad(6), 0, 0),
+}
+local function poseRegeneration(personnage, active, duree)
+	local torse = personnage:FindFirstChild("Torso")
+	if not torse then return end
+	for nom, rotation in POSE do
+		local moteur = torse:FindFirstChild(nom)
+		if moteur and moteur:IsA("Motor6D") then
+			if active then
+				moteur:SetAttribute("TardisC0", moteur:GetAttribute("TardisC0") or moteur.C0)
+				TweenService:Create(moteur, TweenInfo.new(duree or 0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+					{ C0 = moteur:GetAttribute("TardisC0") * rotation }):Play()
+			elseif moteur:GetAttribute("TardisC0") then
+				local origine = moteur:GetAttribute("TardisC0")
+				moteur:SetAttribute("TardisC0", nil)
+				TweenService:Create(moteur, TweenInfo.new(duree or 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { C0 = origine }):Play()
+			end
+		end
+	end
+end
+
+local function surveillerPersonnage(joueur, personnage)
+	if def.Nom ~= Config.Tardis[1].Nom then return end -- un seul exemplaire gère la régénération
+	local humanoid = personnage:WaitForChild("Humanoid", 10)
+	if not humanoid then return end
+	-- Dans l'équipe : pas de mort normale (le client fait de même, voir TardisExtrasClient)
+	local function majEligible()
+		if not humanoid.Parent then return end
+		local ok = estRegenerateur(joueur)
+		humanoid.BreakJointsOnDeath = not ok
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, not ok)
+		personnage:SetAttribute("TardisRegenerateur", ok)
+	end
+	majEligible()
+	local connexionEquipe = joueur:GetPropertyChangedSignal("Team"):Connect(majEligible)
+	personnage.AncestryChanged:Connect(function() if not personnage:IsDescendantOf(game) then connexionEquipe:Disconnect() end end)
+
+	local enCours = false
+	local function derouler(changerTenue)
+		enCours = true
+		local nombre = regenerations[joueur.UserId] or 0
+		local maximum = REGEN.Nombre or 0
+		regenerations[joueur.UserId] = nombre + 1
+		local duree = REGEN.Duree or 5
+		-- Où ? Dans un TARDIS, il encaisse le choc
+		local racinePos = (personnage:FindFirstChild("HumanoidRootPart") or personnage:FindFirstChild("Head"))
+		local lieu = racinePos and tardisABord(racinePos.Position) or nil
+		noterRegeneration(joueur, "Régénération", lieu, nombre + 1)
+		if lieu then evenementABord:Fire(lieu) end
+		-- Style de l'animation (Config.Regeneration.Style : 0 = au hasard, 1 à 5 = imposé)
+		local style = REGEN.Style or 0
+		if style < 1 or style > 5 then style = math.random(5) end
+		personnage:SetAttribute("TardisRegenerationStyle", style)
+		-- Invulnérable pendant toute la régénération : bouclier invisible, et la santé est maintenue au maximum
+		local protection = Instance.new("ForceField")
+		protection.Name = "TardisRegenerationProtection"
+		protection.Visible = false
+		protection.Parent = personnage
+		humanoid.Health = humanoid.MaxHealth
+		local garde = game:GetService("RunService").Heartbeat:Connect(function()
+			if humanoid.Parent and humanoid.Health < humanoid.MaxHealth then humanoid.Health = humanoid.MaxHealth end
+		end)
+		-- Figé, bras écartés
+		local vitesse, saut, hauteurSaut = humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight
+		humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight = 0, 0, 0
+		poseRegeneration(personnage, true, math.max((REGEN.Duree or 7) * 0.15, 0.5))
+		personnage:SetAttribute("TardisRegenerationDuree", duree)
+		personnage:SetAttribute("TardisRegeneration", workspace:GetServerTimeNow()) -- les clients jouent les effets
+		dire(joueur, maximum > 0 and string.format("Régénération %d/%d…", nombre + 1, maximum) or string.format("Régénération n°%d…", nombre + 1), true)
+		-- Au cœur de l'énergie : nouvelle apparence
+		if changerTenue then
+			task.delay(duree * 0.55, function()
+				if personnage.Parent then changerApparence(joueur, personnage, humanoid) end
+			end)
+		end
+		task.delay(duree, function()
+			garde:Disconnect()
+			if not personnage.Parent then return end
+			poseRegeneration(personnage, false)
+			humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight = vitesse, saut, hauteurSaut
+			bonusPV(humanoid) -- soigné, avec des PV en plus pendant quelques minutes
+			personnage:SetAttribute("TardisRegeneration", nil)
+			protection:Destroy()
+			enCours = false
+			surveillerMembres(joueur, personnage, REGEN.RepousseDuree or 300)
+		end)
+	end
+
+	-- Corps neuf après un corps disloqué : on le replace où était l'ancien, et la régénération se poursuit
+	local attente = enAttente[joueur.UserId]
+	if attente then
+		enAttente[joueur.UserId] = nil
+		local racine = personnage:WaitForChild("HumanoidRootPart", 5)
+		if racine and attente.position then
+			task.wait(0.1)
+			local regard = attente.regard and Vector3.new(attente.regard.X, 0, attente.regard.Z) or Vector3.new(0, 0, -1)
+			if regard.Magnitude < 0.1 then regard = Vector3.new(0, 0, -1) end
+			personnage:PivotTo(CFrame.lookAt(attente.position, attente.position + regard.Unit))
+		end
+		if not attente.habille then habillerTenueJeu(personnage) end
+		derouler(false)
+	end
+
+	local function mortReelle(nature)
+		regenerations[joueur.UserId] = 0 -- le compteur repart de zéro
+		local reference = personnage:FindFirstChild("HumanoidRootPart") or personnage:FindFirstChild("Head")
+		noterRegeneration(joueur, nature, reference and tardisABord(reference.Position) or nil, nil)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+		humanoid.BreakJointsOnDeath = true
+		personnage:SetAttribute("TardisMortReelle", true)
+		humanoid.Health = 0
+		humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+	end
+
+	humanoid.HealthChanged:Connect(function(sante)
+		if sante > 0 or enCours or not estRegenerateur(joueur) then return end
+		enCours = true
+		local maximum = REGEN.Nombre or 0 -- 0 = infini
+		if maximum > 0 and (regenerations[joueur.UserId] or 0) >= maximum then
+			mortReelle("Mort (plus de régénération)")
+			return
+		end
+		-- Régénération refusée : quelques secondes pour choisir, sans pouvoir être tué pendant ce temps
+		if REGEN.ChoixRefus ~= false then
+			local delai = REGEN.DelaiChoix or 3
+			local refuse = false
+			local protection = Instance.new("ForceField")
+			protection.Visible = false
+			protection.Parent = personnage
+			humanoid.Health = humanoid.MaxHealth
+			local garde = game:GetService("RunService").Heartbeat:Connect(function()
+				if humanoid.Parent and humanoid.Health < humanoid.MaxHealth then humanoid.Health = humanoid.MaxHealth end
+			end)
+			choixEnAttente[joueur.UserId] = function() refuse = true end
+			personnage:SetAttribute("TardisRegenChoix", workspace:GetServerTimeNow() + delai)
+			local fin = os.clock() + delai
+			while os.clock() < fin and not refuse and personnage.Parent do task.wait(0.1) end
+			choixEnAttente[joueur.UserId] = nil
+			personnage:SetAttribute("TardisRegenChoix", nil)
+			garde:Disconnect()
+			protection:Destroy()
+			if not personnage.Parent then return end
+			if refuse then
+				mortReelle("Régénération refusée")
+				return
+			end
+		end
+		if not corpsIntact(personnage) then
+			-- Corps disloqué (commande :kill, explosion…) : impossible de le remettre d'aplomb, on en reconstruit un neuf
+			-- au même endroit, déjà avec la nouvelle apparence, et la régénération s'y déroule
+			enCours = true
+			local reference = personnage:FindFirstChild("Head") or personnage:FindFirstChild("HumanoidRootPart")
+			local description = choisirDescription(joueur)
+			enAttente[joueur.UserId] = {
+				position = reference and (reference.Position + Vector3.new(0, 3, 0)) or nil,
+				regard = reference and reference.CFrame.LookVector or nil,
+				habille = description ~= nil,
+			}
+			local ok = pcall(function()
+				if description then joueur:LoadCharacterWithHumanoidDescription(description) else joueur:LoadCharacter() end
+			end)
+			if not ok then enAttente[joueur.UserId] = nil end
+			return
+		end
+		derouler(true)
+	end)
+end
+local function suivreJoueur(joueur)
+	joueur.CharacterAdded:Connect(function(personnage) task.spawn(surveillerPersonnage, joueur, personnage) end)
+	if joueur.Character then task.spawn(surveillerPersonnage, joueur, joueur.Character) end
+end
+Players.PlayerAdded:Connect(suivreJoueur)
+for _, joueur in Players:GetPlayers() do suivreJoueur(joueur) end
+Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = nil derniereTenue[joueur.UserId] = nil enAttente[joueur.UserId] = nil end)
+
+--------------------------------------------------------------------
+-- Outils des techniciens : chiffon (saleté), visseuse (surcharge de vapeur), clé à molette (vanne), extincteur
+--------------------------------------------------------------------
+local OUTILS = {
+	Chiffon = { nom = "Chiffon", couleur = Color3.fromRGB(230, 225, 210), taille = Vector3.new(1, 0.3, 1) },
+	Visseuse = { nom = "Visseuse / Dévisseuse", couleur = Color3.fromRGB(240, 170, 40), taille = Vector3.new(0.5, 0.5, 1.6) },
+	CleMolette = { nom = "Clé à molette", couleur = Color3.fromRGB(160, 165, 175), taille = Vector3.new(0.4, 1.8, 0.3) },
+	Extincteur = { nom = "Extincteur", couleur = Color3.fromRGB(200, 30, 30), taille = Vector3.new(0.7, 1.6, 0.7) },
+}
+local function donnerOutil(joueur, cle)
+	local infos = OUTILS[cle]
+	local sac = joueur:FindFirstChildOfClass("Backpack")
+	if not infos or not sac then return end
+	if sac:FindFirstChild(cle) or (joueur.Character and joueur.Character:FindFirstChild(cle)) then return end
+	local outil = Instance.new("Tool")
+	outil.Name = cle
+	outil.ToolTip = infos.nom
+	outil.RequiresHandle = true
+	outil.CanBeDropped = false
+	local manche = Instance.new("Part")
+	manche.Name = "Handle"
+	manche.Size = infos.taille
+	manche.Color = infos.couleur
+	manche.Material = cle == "Chiffon" and Enum.Material.Fabric or Enum.Material.Metal
+	manche.CanCollide = false
+	manche.Parent = outil
+	outil.Parent = sac
+	outil.Activated:Connect(function()
+		local racine = racineDe(joueur)
+		if not racine then return end
+		if cle == "Chiffon" then
+			if (racine.Position - exterieur:GetPivot().Position).Magnitude > 10 then dire(joueur, "Approche-toi de la cabine pour la nettoyer.", false) return end
+			local salete = math.max((exterieur:GetAttribute("Salete") or 0) - 15, 0)
+			exterieur:SetAttribute("Salete", salete)
+			exterieur:SetAttribute("Nettoyage", workspace:GetServerTimeNow())
+			dire(joueur, salete > 0 and string.format("Nettoyage : encore %d %% de saleté.", salete) or "La cabine est propre.", true)
+		elseif cle == "Visseuse" then
+			local index = exterieur:GetAttribute("VapeurSurcharge")
+			local grille = index and grilles[index]
+			if not grille then dire(joueur, "Aucune surcharge de vapeur à régler.", false) return end
+			if (racine.Position - grille.Position).Magnitude > 8 then dire(joueur, "Approche-toi de la grille en surcharge.", false) return end
+			local avancement = (exterieur:GetAttribute("VapeurSurchargeAvancement") or 0) + 1
+			exterieur:SetAttribute("VapeurSurchargeAvancement", avancement)
+			if avancement >= 3 then
+				exterieur:SetAttribute("VapeurSurcharge", nil)
+				interne("jouer", "Reparation", false)
+				direAuxPilotes("Surcharge de vapeur réglée par " .. joueur.DisplayName .. ".", true)
+			else
+				dire(joueur, string.format("Réglage %d/3…", avancement), true)
+			end
+		elseif cle == "Extincteur" then
+			exterieur:SetAttribute("ExtincteurJet", string.format("%s\t%.2f", joueur.Name, workspace:GetServerTimeNow()))
+			local console = interieur:FindFirstChild("Console")
+			local centre = console and (console:IsA("Model") and console:GetPivot().Position or partDe(console).Position) or interieur:GetPivot().Position
+			if exterieur:GetAttribute("Incendie") and not exterieur:GetAttribute("IncendieEteint") and (racine.Position - centre).Magnitude < 12 then
+				exterieur:SetAttribute("IncendieEteint", workspace:GetServerTimeNow())
+				dire(joueur, "Flammes éteintes… pour l'instant. Fermez la vanne avec la clé à molette.", true)
+			end
+		elseif cle == "CleMolette" then
+			dire(joueur, "Maintiens E sur la vanne avec la clé en main pour la fermer.", true)
+		end
+	end)
+end
+local function retirerOutils(joueur)
+	for _, conteneur in { joueur:FindFirstChildOfClass("Backpack"), joueur.Character } do
+		if conteneur then
+			for cle in OUTILS do
+				local outil = conteneur:FindFirstChild(cle)
+				if outil then outil:Destroy() end
+			end
+		end
+	end
+end
+
+--------------------------------------------------------------------
+-- Électricité statique : toucher la cabine pendant une démat (voyage ou en vol) donne un arc et de très légers dégâts
+--------------------------------------------------------------------
+do
+	local derniersArcs = {}
+	local function surveiller(part)
+		part.Touched:Connect(function(autre)
+			local personnage = autre.Parent
+			local humanoid = personnage and personnage:FindFirstChildOfClass("Humanoid")
+			local joueur = humanoid and Players:GetPlayerFromCharacter(personnage)
+			if not joueur then return end
+			local enDemat = exterieur:GetAttribute("Etat") == E.Demat or exterieur:GetAttribute("VolPhase") == E.Demat
+			if not enDemat or os.clock() - (derniersArcs[joueur] or 0) < 0.8 then return end
+			derniersArcs[joueur] = os.clock()
+			humanoid:TakeDamage(S.DegatsStatique or 0.5)
+			exterieur:SetAttribute("ArcStatique", string.format("%.1f\t%.1f\t%.1f\t%.2f", autre.Position.X, autre.Position.Y, autre.Position.Z, workspace:GetServerTimeNow()))
+		end)
+	end
+	for _, objet in exterieur:GetDescendants() do
+		if objet:IsA("BasePart") and objet.CanTouch and not objet:IsDescendantOf(exterieur:FindFirstChild("Boucliers") or exterieur.PrimaryPart) then surveiller(objet) end
+	end
+end
+
+--------------------------------------------------------------------
+-- Atterrissages : terrain réactif, bousculade des objets, atterrissage sur un véhicule, tempêtes
+--------------------------------------------------------------------
+local function solSousLeTardis()
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local exclus = { exterieur, interieur }
+	for _, autre in Players:GetPlayers() do
+		if autre.Character then table.insert(exclus, autre.Character) end
+	end
+	params.FilterDescendantsInstances = exclus
+	params.IgnoreWater = false
+	return workspace:Raycast(exterieur:GetPivot().Position + Vector3.new(0, 2, 0), Vector3.new(0, -6, 0), params)
+end
+local vehiculeSuivi = nil -- { part, decalage }
+local function surAtterrissage()
+	local sol = solSousLeTardis()
+	-- Terrain réactif : les clients jouent l'effet du matériau (sable, neige, métal, eau, herbe...)
+	exterieur:SetAttribute("TerrainAtterrissage", sol and sol.Material.Name or "Inconnu")
+	exterieur:SetAttribute("TerrainTemps", workspace:GetServerTimeNow())
+	-- Bousculade : les objets non ancrés autour sont repoussés
+	local centre = exterieur:GetPivot().Position
+	local taille = exterieur:GetExtentsSize()
+	local rayon = math.max(taille.X, taille.Z) * 1.2 + 2
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local exclus = { exterieur, interieur }
+	for _, autre in Players:GetPlayers() do
+		if autre.Character then table.insert(exclus, autre.Character) end
+	end
+	params.FilterDescendantsInstances = exclus
+	local vus = {}
+	for _, part in workspace:GetPartBoundsInRadius(centre, rayon, params) do
+		local racine = part.AssemblyRootPart
+		if racine and not racine.Anchored and not vus[racine] and racine.AssemblyMass < 3000 then
+			vus[racine] = true
+			local direction = (racine.Position - centre) * Vector3.new(1, 0, 1)
+			direction = direction.Magnitude > 0.1 and direction.Unit or Vector3.new(1, 0, 0)
+			racine.AssemblyLinearVelocity = direction * 22 + Vector3.new(0, 12, 0)
+		end
+	end
+	-- Atterrissage sur un véhicule : posé sur un objet non ancré et lourd, le TARDIS le suit
+	vehiculeSuivi = nil
+	if sol and sol.Instance and sol.Instance:IsA("BasePart") then
+		local racine = sol.Instance.AssemblyRootPart
+		if racine and not racine.Anchored and racine.AssemblyMass >= 50 then
+			vehiculeSuivi = { part = racine, decalage = racine.CFrame:ToObjectSpace(exterieur:GetPivot()) }
+			direAuxPilotes("Posé sur un véhicule : le TARDIS le suit.", true)
+		end
+	end
+end
+game:GetService("RunService").Heartbeat:Connect(function()
+	if not vehiculeSuivi then return end
+	local etat = exterieur:GetAttribute("Etat") or E.Pose
+	if etat ~= E.Pose or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") or not vehiculeSuivi.part.Parent then
+		vehiculeSuivi = nil
+		return
+	end
+	local cible = vehiculeSuivi.part.CFrame * vehiculeSuivi.decalage
+	if (cible.Position - exterieur:GetPivot().Position).Magnitude > 0.05 then
+		exterieur:PivotTo(cible)
+		exterieur:SetAttribute("DepotCF", cible)
+	end
+end)
+local etatAvant = exterieur:GetAttribute("Etat")
+exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+	local etat = exterieur:GetAttribute("Etat")
+	if etat == E.Pose and etatAvant == E.Remat then task.delay(0.1, surAtterrissage) end
+	etatAvant = etat
+end)
+local volLibreAvant = nil
+exterieur:GetAttributeChangedSignal("VolLibre"):Connect(function()
+	local id = exterieur:GetAttribute("VolLibre")
+	if volLibreAvant and not id and not exterieur:GetAttribute("Detruit") then task.delay(0.1, surAtterrissage) end
+	volLibreAvant = id
+end)
+
+-- Tempête temporelle en vol libre : de temps en temps, une rafale dévie le TARDIS (8 s)
+task.spawn(function()
+	while true do
+		task.wait(180 + math.random() * 180)
+		if exterieur:GetAttribute("VolLibre") and not exterieur:GetAttribute("DescenteDebut") and math.random() < 0.6 then
+			local direction = Vector3.new(math.random() - 0.5, (math.random() - 0.5) * 0.4, math.random() - 0.5).Unit
+			exterieur:SetAttribute("Tempete", string.format("%.2f\t%.2f\t%.2f\t%.2f\t%d", direction.X, direction.Y, direction.Z, workspace:GetServerTimeNow(), 8))
+			direAuxPilotes("TEMPÊTE TEMPORELLE : le TARDIS est dévié pendant quelques secondes !", false)
+		end
+	end
+end)
+-- Tempête de vortex : trop longtemps dans le vortex (10 min), il se matérialise près de la destination du sélecteur
+task.spawn(function()
+	local debutVol = nil
+	while true do
+		task.wait(5)
+		local etat = exterieur:GetAttribute("Etat") or E.Pose
+		if etat == E.Vol then
+			debutVol = debutVol or os.clock()
+			if os.clock() - debutVol > 10 * 60 then
+				debutVol = nil
+				local dest = interne("destinationChoisie")
+				local liste = interne("listeDestinations") or {}
+				local proches = {}
+				for _, part in liste do
+					if not dest or (part.Position - dest.Position).Magnitude < 200 then table.insert(proches, part) end
+				end
+				local cible = #proches > 0 and proches[math.random(#proches)] or (#liste > 0 and liste[math.random(#liste)])
+				if cible then
+					interne("alerter", "TEMPÊTE DE VORTEX")
+					direAuxPilotes("TEMPÊTE DE VORTEX : trop longtemps dans le vortex, le TARDIS se matérialise en urgence vers " .. cible.Name .. ".", false)
+					interne("atterrir", cible.CFrame, cible.Name, false, cible, true)
+				end
+			end
+		else
+			debutVol = nil
+		end
+	end
+end)
+
+--------------------------------------------------------------------
+-- Commandes
+--------------------------------------------------------------------
+exterieur:SetAttribute("Stabilisateur", true)
+
+-- Siège extérieur (vol stationnaire) : poses R6 procédurales, appliquées par le serveur pour que tout le monde les voie
+local posesOrigine = {} -- [personnage] = { [Motor6D] = C0 d'origine }
+local function appliquerPose(personnage, pose)
+	local torse = personnage:FindFirstChild("Torso")
+	if not torse then return end
+	local motors = {}
+	for _, nom in { "Right Hip", "Left Hip", "Right Shoulder", "Left Shoulder" } do
+		local m = torse:FindFirstChild(nom)
+		if m and m:IsA("Motor6D") then motors[nom] = m end
+	end
+	posesOrigine[personnage] = posesOrigine[personnage] or {}
+	for _, m in motors do posesOrigine[personnage][m] = posesOrigine[personnage][m] or m.C0 end
+	local angles = ({
+		[0] = { 0, 0, 0, 0 },                                -- pose normale
+		[1] = { math.pi / 2, -math.pi / 2, 0, 0 },           -- assis, deux jambes dans le vide
+		[2] = { math.pi / 2, -2.2, 0, 0 },                    -- une jambe dans le vide, l'autre remontée
+		[3] = { 0.15, -0.15, math.pi, -math.pi },             -- accroché au bas du TARDIS, deux mains
+		[4] = { 0.3, -0.1, math.pi, 0.35 },                   -- accroché d'une main
+	})[pose] or { 0, 0, 0, 0 }
+	local ordre = { "Right Hip", "Left Hip", "Right Shoulder", "Left Shoulder" }
+	for i, nom in ordre do
+		local m = motors[nom]
+		if m then m.C0 = posesOrigine[personnage][m] * CFrame.Angles(0, 0, angles[i]) end
+	end
+end
+
+remote.OnServerEvent:Connect(function(joueur, action, donnees)
+	if action == "RefuserRegeneration" then
+		local refuser = choixEnAttente[joueur.UserId]
+		if refuser then refuser() end
+		return
+	end
+	if action == "TenuesCompte" then
+		local ids = typeof(donnees) == "table" and donnees.ids
+		if type(ids) ~= "table" then return end
+		local propres = {}
+		for _, id in ids do
+			if type(id) == "number" and id > 0 and id == math.floor(id) and #propres < 50 then table.insert(propres, id) end
+		end
+		tenuesCompte[joueur.UserId] = propres
+		return
+	end
+	if action == "SiegePose" then
+		local pose = typeof(donnees) == "table" and tonumber(donnees.pose) or 0
+		if joueur.Character and exterieur:GetAttribute("VolLibre") == joueur.UserId then appliquerPose(joueur.Character, math.clamp(math.floor(pose), 0, 4)) end
+		return
+	end
+	if action == "Outil" then
+		if not estTechnicien(joueur) then return end
+		local mon = Config.tardisDuJoueur(joueur)
+		if mon and mon.Nom ~= def.Nom then return end -- les outils viennent de l'exemplaire de son TARDIS principal
+		local cle = typeof(donnees) == "table" and donnees.outil
+		if cle == "Retirer" then retirerOutils(joueur) elseif OUTILS[cle] then donnerOutil(joueur, cle) end
+		return
+	end
+	if not estPilote(joueur) then return end
+	if action == "LienTimeLord" then
+		local actif = not ReplicatedStorage:GetAttribute("TardisLienTimeLord")
+		ReplicatedStorage:SetAttribute("TardisLienTimeLord", actif)
+		dire(joueur, actif and "Lien Time Lord activé : les Voyageurs ressentent les régénérations." or "Lien Time Lord désactivé.", true)
+		return
+	end
+	if action == "Stabilisateur" then
+		exterieur:SetAttribute("Stabilisateur", not exterieur:GetAttribute("Stabilisateur"))
+		dire(joueur, exterieur:GetAttribute("Stabilisateur") and "Stabilisateur activé." or "Stabilisateur désactivé : la cabine vibrera pendant les voyages.", true)
+	end
+end)
+-- Les outils disparaissent quand un technicien sort du TARDIS... sauf le chiffon, qui sert dehors
+task.spawn(function()
+	while true do
+		task.wait(2)
+		for _, joueur in Players:GetPlayers() do
+			if estTechnicien(joueur) then
+				local racine = racineDe(joueur)
+				if racine and not interne("dansInterieur", racine.Position) and (racine.Position - exterieur:GetPivot().Position).Magnitude > 20 then
+					retirerOutils(joueur)
+				end
+			end
+		end
+	end
+end)
+
+print("[TARDIS] " .. def.Nom .. " : systèmes prêts.")

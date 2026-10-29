@@ -1,0 +1,68 @@
+# Journal des versions — T.A.R.D.I.S.
+
+Index de toutes les versions et sous-versions. Le détail de chacune est dans [`docs/patch-notes/`](docs/patch-notes/).
+
+⭐ = version officielle (avec ZIP) · 🎮 = sous-version installée dans ZONE-TSADE
+
+| Version | Date | Résumé |
+|---|---|---|
+| **[V1](docs/patch-notes/V1.md)** | 09/10/2026 | **Fondations** *(numérotation reconstituée)* |
+| V1.0 | 09/10 | 4 scripts : intérieur plus grand, vue ViewportFrame, passage sans coupure, démat/remat, console, destinations |
+| V1.1 | 09/10 | Intégration du kit : `Racine` comme PrimaryPart, rotor en Model, `Default Mainscript` désactivé (faille de sécurité) |
+| V1.2 | 09/10 | `TardisLiaisonPortes` : pont avec les portes du kit (LeftOpen, RightOpen, Locked) |
+| V1.2.1 | 09/10 | Script de débogage ; création de `Selecteur`, `Levier` et `Ecran` |
+| V1.3 | 09/10 | Dossier `PortesInterieures` masqué dans la vue et porte ouverte |
+| V1.4 | 09/10 | Fermeture auto au décollage, battant ouvert à l'atterrissage, vue de la rue depuis l'intérieur, `Shut` réécrits |
+| V1.4.1 | 09/10 | 7 scripts complets ; permissions des sons |
+| V1.4.2 | 10/10 | Vue de la rue : Terrain ignoré, copie en parallèle |
+| **[V2](docs/patch-notes/V2.md)** | 10/10/2026 | **Caméra, menu à distance, rapetissement** *(numérotation reconstituée)* |
+| V2.0 → V2.0.2 | 10/10 | `TardisCamera` au-dessus de la Lampe ; dispo dans tous les états ; Lampe en Model |
+| V2.1 → V2.1.2 | 10/10 | `TardisMenu`, camouflage, atterrissage invisible, `Config.Pilotes` ; fondus corrigés et généralisés |
+| V2.2 | 10/10 | Portes ouvertes quand un joueur sort |
+| V2.3 → V2.3.1 | 10/10 | Deux battants, verrou dans le menu, atterrir sur un joueur, embarquement, `Arrivee` |
+| V2.4 | 10/10 | `Config.Chemins` |
+| V2.5 → V2.5.6 | 10/10 | Rapetisser et ramasser (`TardisPorter`), modes main, ceinture et épaule |
+| V2.6 | 10/10 | Démat 14 s, remat 13,86 s |
+| V2.7 | 10/10 | Levier de verrouillage sur la console |
+| V2.8 → V2.8.1 | 10/10 | Décalage son / animation, préchargement ; premier ZIP |
+| **[V3](docs/patch-notes/V3.md)** | 10/10/2026 | **Version officielle, urgence, menus, vol libre** |
+| V3.0 ⭐ | 10/10 | Version officielle, `Config.Version` |
+| V3.1 ⭐ | 10/10 | Animation complète après le son |
+| V3.1.2 | 10/10 | Démat 3,25 s + 17 s, remat 2,5 s + 16,86 s |
+| V3.2 → V3.2.3 | 10/10 | Mode urgence (sons `_Urg`, animation saccadée), adouci, durées, menu remonté |
+| V3.3 | 10/10 | Menu dans le thème Doctor Who, touche T |
+| V3.4 | 10/10 | Joueurs (dernière position / figé), curseur de taille, placement libre, collision = urgence |
+| V3.5 | 10/10 | Portes à 70 %, alimentation, alerte, démarrage |
+| V3.6 | 10/10 | Menu à 4 onglets (Pilotage, Scanner, Systèmes, Journal) |
+| V3.7 | 10/10 | Menu classique + **tablette avancée** (`TardisTablette`, `TardisUI`) |
+| V3.8 → V3.8.1 | 10/10 | **Vol libre** (`TardisVolLibre`), chute ; la tablette ne se ferme plus au clic |
+| V3.9 | 10/10 | Vol refait : 3D, 4 vitesses, collisions |
+| V3.10 | 10/10 | Vortex, urgence en vol (en feu), rotation |
+| V3.11 | 10/10 | Démat en plein vol vers le vortex *(retirée en V3.12)* |
+| V3.12 → V3.12.2 | 10/10 | Démat / remat en pilotant ; vortex en grille filaire ; couleurs de flamme |
+| V3.13 | 10/10 | Saut temporel, turbulences, mini-carte, sauvegarde, sentinelle, eau… |
+| V3.14 | 10/10 | Boucliers anti-joueurs / anti-balles ; pannes retirées |
+| **[V4](docs/patch-notes/V4.md)** | 10–13/10/2026 | **Accès réservés, extras, systèmes** |
+| V4.0 ⭐ | 10/10 | Tout réservé aux pilotes, vérifié par le serveur |
+| V4.1 → V4.1.1 | 11/10 | Téléportation de poche ; départ à la position Studio |
+| V4.2 ⭐ | 11/10 | Menu Rotation (`TardisRotation`) ; `UniquementUserIds` |
+| V4.2.1 ⭐ | 11/10 | Symboles corrigés |
+| V4.3 → V4.3.1 | 11/10 | `TardisExtras` et `TardisExtrasClient` (≈ 40 fonctionnalités) ; ajustements |
+| V4.4 | 12/10 | Étape 1 : rôles temporaires, bannissement, techniciens, réglages, stats |
+| V4.5 | 12/10 | Étape 2 : zones, saisie ZDC, anomalies, auto-destruction, invitation, interphone |
+| V4.6 | 12/10 | Étape 3 : intérieur (sièges, rotor, vapeur, lumières, customisation, casiers) |
+| V4.7 | 12/10 | Étape 4 : `TardisSystemes` (PV, boucliers, pannes, régénération, techniciens) |
+| V4.8 | 12/10 | Étape 5 : 14 nouvelles mécaniques de vol |
+| V4.9 | 12/10 | Étape 6 : vortex dans le ciel, décorations, tablette en lecture seule |
+| V4.10 → V4.10.6 | 12–13/10 | Outils dans la tablette ; correctifs ; 3 styles d'interface |
+| **[V5](docs/patch-notes/V5.md)** | 13/10/2026 | **Version officielle consolidée** |
+| V5.0 ⭐ | 13/10 | Paquet officiel de tout le travail de la V4 |
+| **[V6](docs/patch-notes/V6.md)** | 13–20/10/2026 | **Plusieurs TARDIS et régénération** |
+| V6.0 | 13/10 | Trois TARDIS, nouvelle hiérarchie, ACCORDE / REFUSE |
+| V6.0.1 → V6.0.7 | 13–14/10 | Destinations dans `TARDIS`, IDs tolérants, `Shut`, passage, `TardisUI`, zone REFUSE, coupure à 15 |
+| V6.5 ⭐ | 14/10 | Version établie ; mode de voyage Auto / Manuel |
+| V6.5.1 → V6.5.6 | 16–17/10 | IDs, ZIP, performances, crash du ciel, stabilisateur, alarme |
+| V6.5.7 → V6.5.11 | 18/10 | Régénération « Le Voyageur » (infinie, avatars, refus, 5 styles), config de référence |
+| V6.5.12 🎮 | 18/10 | Commandes rapides sur la tablette |
+| V6.5.13 | 18/10 | Accessoires après régénération *(non installée)* |
+| V6.5.14 | 20/10 | Plus d'onglet à l'écran *(non installée)* |
