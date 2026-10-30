@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6.5"
+Config.Version = "6.6.6"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -402,8 +402,10 @@ Config.Regeneration = {
 	-- Son optionnel : un Sound "Regeneration" dans ReplicatedStorage > TardisAssets > Sons
 	BonusPV = 100,           -- PV en plus après une régénération...
 	BonusDuree = 300,        -- ...pendant ce temps (secondes)
-	TenuesDuCompte = true,   -- nouvelle apparence tirée des avatars sauvegardés du joueur (sinon : Config.Tenues)
-	Style = 0,               -- animation : 0 = au hasard ; 1 Classique, 2 Volcan, 3 Douce, 4 Tourbillon, 5 Colonne
+	TenuesDuCompte = true,   -- nouvelle apparence tirée des avatars sauvegardés du joueur (sinon : AvatarsDuJeu, puis Config.Tenues)
+	AvatarsDuJeu = {},       -- UserIds de comptes dont l'avatar actuel sert de nouvelle apparence aux joueurs qui n'ont pas partagé les leurs
+	Style = 0,               -- animation : 0 = au hasard ; 1 Classique, 2 Volcan, 3 Douce, 4 Tourbillon, 5 Colonne, 6 Supernova, 7 Fracture
+	OndeChoc = { Rayon = 5, Force = 70 }, -- styles 6 et 7 : onde de choc qui repousse les joueurs proches (rayon en studs, vitesse d'éjection)
 	ChoixRefus = true,       -- au moment de mourir, le joueur peut refuser de se régénérer...
 	DelaiChoix = 3,          -- ...pendant ce temps (secondes)
 	DegatsTardis = 400,      -- une régénération à bord abîme le TARDIS (intégrité), avec étincelles et alarme

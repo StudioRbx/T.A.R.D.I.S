@@ -90,6 +90,36 @@ return function(contexte)
 				local parImage = nil -- animation propre au style, appelée à chaque image : parImage(p, i, t)
 				local sol = racine.Position - Vector3.new(0, (humanoid and humanoid.HipHeight or 0) + racine.Size.Y / 2 + 2, 0)
 
+				-- Onde de choc des styles violents (6 et 7) : un dôme d'énergie jusqu'au rayon, un anneau qui court loin au sol,
+				-- et tout joueur à moins de Rayon studs est projeté. Chaque joueur s'occupe de son propre personnage.
+				local ONDE = REG.OndeChoc or {}
+				local RAYON_ONDE, FORCE_ONDE = ONDE.Rayon or 5, ONDE.Force or 70
+				local function ondeDeChoc(couleur, puissance)
+					if not racine.Parent then return end
+					local centre = racine.Position
+					local dome = partTemporaire({ Name = "TardisRegenDome", Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = couleur,
+						Transparency = 0.05, Size = Vector3.one, CFrame = CFrame.new(centre) })
+					animer(dome, 0.3, { Size = Vector3.one * RAYON_ONDE * 2 }, Enum.EasingStyle.Quad)
+					task.delay(0.3, function() animer(dome, 0.5, { Transparency = 1 }) end)
+					task.delay(0.85, function() dome:Destroy() end)
+					local anneau = partTemporaire({ Name = "TardisRegenAnneau", Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon, Color = couleur,
+						Transparency = 0.1, Size = Vector3.new(0.3, 2, 2), CFrame = CFrame.new(sol + Vector3.new(0, 0.25, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
+					animer(anneau, 1.1, { Size = Vector3.new(0.15, 60 * puissance, 60 * puissance), Transparency = 1 }, Enum.EasingStyle.Quad)
+					task.delay(1.2, function() anneau:Destroy() end)
+					etincelles:Emit(math.floor(90 * puissance))
+					secouer(1.6 * puissance)
+					if moi then return end
+					local mienne = maRacine()
+					local monHumanoid = joueur.Character and joueur.Character:FindFirstChildOfClass("Humanoid")
+					if not mienne or not monHumanoid or monHumanoid.Sit then return end
+					local ecart = mienne.Position - centre
+					if ecart.Magnitude > RAYON_ONDE then return end
+					local plat = Vector3.new(ecart.X, 0, ecart.Z)
+					local direction = plat.Magnitude > 0.1 and plat.Unit or -racine.CFrame.LookVector
+					monHumanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
+					mienne.AssemblyLinearVelocity = direction * FORCE_ONDE * puissance + Vector3.new(0, FORCE_ONDE * 0.45 * puissance, 0)
+				end
+
 				if style == 2 then
 					-- VOLCAN (10e → 11e Docteur) : une éruption si violente qu'elle ravage tout autour
 					panachesTeteEtMains(1.8, { BLANC_OR, OR, Color3.fromRGB(255, 70, 10) })
@@ -226,6 +256,81 @@ return function(contexte)
 						for _, trait in traits do trait.Transparency = transparence end
 					end
 					secousseMax = 0.7
+				elseif style == 6 then
+					-- SUPERNOVA : l'énergie est aspirée vers le Voyageur, se comprime en un cœur aveuglant, puis tout explose d'un coup
+					panachesTeteEtMains(1.5, { BLANC_OR, OR_CLAIR, ORANGE })
+					local coque = garder(partTemporaire({ Name = "TardisRegenCoque", Transparency = 1, Size = Vector3.one * 10, CFrame = racine.CFrame }))
+					local aspiration = emetteur(coque, { Texture = ETINCELLE, LightEmission = 1, LightInfluence = 0, Color = ColorSequence.new(OR, BLANC_OR),
+						Size = NumberSequence.new(0.15, 0.45), Speed = NumberRange.new(9, 12), Lifetime = NumberRange.new(0.45, 0.55),
+						Shape = Enum.ParticleEmitterShape.Sphere, ShapeInOut = Enum.ParticleEmitterShapeInOut.Inward,
+						ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface }, 220, 0)
+					local coeur = garder(partTemporaire({ Name = "TardisRegenCoeur", Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = BLANC_OR,
+						Transparency = 1, Size = Vector3.one * 0.5, CFrame = racine.CFrame }))
+					creer("PointLight", { Color = BLANC_OR, Brightness = 6, Range = 14, Parent = coeur })
+					local explose = false
+					parImage = function(p, i, t)
+						if not explose then
+							local charge = math.clamp(p / 0.55, 0, 1)
+							coeur.Size = Vector3.one * (0.5 + 3 * charge * charge) * (1 + 0.12 * math.sin(t * 30 * charge))
+							coeur.Transparency = 1 - 0.85 * charge
+							coeur.CFrame = racine.CFrame
+						end
+						if p >= 0.55 and not explose then
+							explose = true
+							for _, f in flux do if f.e == aspiration then f.debit = 0 end end
+							coeur.Transparency = 1
+							local boule = partTemporaire({ Name = "TardisRegenSupernova", Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = Color3.new(1, 1, 1),
+								Transparency = UI.effetsReduits() and 0.7 or 0, Size = Vector3.one * 4, CFrame = racine.CFrame })
+							animer(boule, 0.55, { Size = Vector3.one * 48, Transparency = 1, Color = ORANGE }, Enum.EasingStyle.Quad)
+							task.delay(0.6, function() boule:Destroy() end)
+							ondeDeChoc(BLANC_OR, 1.2)
+						end
+					end
+					secousseMax, couleurFlash, couleurAmbiance = 1.4, Color3.new(1, 1, 1), OR_CLAIR
+				elseif style == 7 then
+					-- FRACTURE : une régénération instable, rouge et blanche ; des éclairs jaillissent du corps, le sol se fend,
+					-- et trois ondes de choc successives repoussent tout le monde
+					local ROUGE, ROUGE_CLAIR = Color3.fromRGB(255, 55, 30), Color3.fromRGB(255, 140, 110)
+					panachesTeteEtMains(1.6, { BLANC_OR, ROUGE_CLAIR, ROUGE })
+					lueur.FillColor, lueur.OutlineColor = ROUGE, ROUGE_CLAIR
+					lumiere.Color = ROUGE
+					-- Fissures : 8 traits de lumière qui partent des pieds et s'allongent
+					local fissures = {}
+					for k = 1, 8 do
+						local angle = k / 8 * math.pi * 2 + math.random() * 0.4
+						fissures[k] = { angle = angle, part = garder(partTemporaire({ Name = "TardisRegenFissure", Material = Enum.Material.Neon, Color = ROUGE,
+							Transparency = 1, Size = Vector3.new(0.25, 0.1, 1), CFrame = CFrame.new(sol) })) }
+					end
+					-- Un éclair en zigzag entre deux points (quelques segments qui ne vivent qu'un instant)
+					local function eclair(depart, arrivee)
+						local precedent = depart
+						for k = 1, 6 do
+							local suivant = k == 6 and arrivee or depart:Lerp(arrivee, k / 6) + Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 2.4
+							local segment = partTemporaire({ Name = "TardisRegenEclair", Material = Enum.Material.Neon, Color = k % 2 == 0 and BLANC_OR or ROUGE_CLAIR,
+								Size = Vector3.new(0.16, 0.16, (suivant - precedent).Magnitude), CFrame = CFrame.lookAt((precedent + suivant) / 2, suivant) })
+							task.delay(0.12, function() segment:Destroy() end)
+							precedent = suivant
+						end
+					end
+					local ondes = { { p = 0.35, puissance = 0.6 }, { p = 0.55, puissance = 1.1 }, { p = 0.75, puissance = 0.8 } }
+					parImage = function(p, i, t)
+						for k, f in fissures do
+							local longueur = 0.5 + 9 * math.clamp((p - 0.25) / 0.4, 0, 1)
+							local direction = Vector3.new(math.cos(f.angle), 0, math.sin(f.angle))
+							f.part.Size = Vector3.new(0.25 + 0.15 * i, 0.1, longueur)
+							f.part.CFrame = CFrame.lookAt(sol + Vector3.new(0, 0.12, 0) + direction * (longueur / 2), sol + Vector3.new(0, 0.12, 0) + direction * longueur)
+							f.part.Transparency = p > 0.25 and (1 - 0.9 * i) or 1
+						end
+						if i > 0.3 and p < 0.85 and math.random() < 0.4 * i then
+							local a = math.random() * math.pi * 2
+							local loin = 2 + math.random() * 5
+							eclair(racine.Position + Vector3.new(0, math.random() * 2, 0), sol + Vector3.new(math.cos(a) * loin, 0.2, math.sin(a) * loin))
+						end
+						while ondes[1] and p >= ondes[1].p do
+							ondeDeChoc(ondes[1].puissance > 1 and BLANC_OR or ROUGE_CLAIR, table.remove(ondes, 1).puissance)
+						end
+					end
+					secousseMax, couleurFlash, couleurAmbiance = 1.6, ROUGE_CLAIR, ROUGE
 				else
 					-- CLASSIQUE (9e → 10e Docteur) : la tête renversée, les bras écartés, les flammes dorées jaillissent
 					panachesTeteEtMains(1.2)
