@@ -115,7 +115,7 @@ local majCarte, majScanner = Scanner.majCarte, Scanner.majScanner
 --------------------------------------------------------------------
 -- Mises à jour lentes, balises de détresse, sentinelle et animations continues : module Suivi
 --------------------------------------------------------------------
-require(script:WaitForChild("Suivi"))({ C = C, Config = Config, E = E, Players = Players, R = R, RunService = RunService, S = S, UI = UI, W = W, animer = animer, camera = camera, def = def, distanceDe = distanceDe, exterieur = exterieur, interieur = interieur, joueur = joueur, journaliser = journaliser, lireEtat = lireEtat, majCarte = majCarte, majDisposition = majDisposition, majFiche = majFiche, majScanner = majScanner, notifier = notifier, remote = remote })
+require(script:WaitForChild("Suivi"))({ C = C, Commandes = Commandes, Config = Config, E = E, Players = Players, R = R, RunService = RunService, S = S, UI = UI, W = W, animer = animer, camera = camera, def = def, distanceDe = distanceDe, exterieur = exterieur, interieur = interieur, joueur = joueur, journaliser = journaliser, lireEtat = lireEtat, majCarte = majCarte, majDisposition = majDisposition, majFiche = majFiche, majScanner = majScanner, notifier = notifier, remote = remote })
 
 --------------------------------------------------------------------
 -- Journal automatique, statistiques et mises à jour d'accès : module Journal

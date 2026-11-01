@@ -74,3 +74,4 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | **V6.6.4** ⭐ | 29/10 | Express en vol libre, en poche et au levier ; sons et éclair Express ; recharge de 5 s ; zones SANS_EXPRESS ; historique par mode |
 | **V6.6.5** ⭐ | 29/10 | Régénération fiable (avatars préparés, 3 essais, R6, accessoires vérifiés) ; onglet supprimé ; option « réduire les effets » ; vol libre à 8 boutons ; mode débutant pour les nouveaux pilotes |
 | **V6.6.6** ⭐🎮 | 30/10 | L'avatar change vraiment (avatars adaptés au R6, cheveux gardés) ; styles de régénération Supernova et Fracture avec onde de choc de 5 studs |
+| **V6.7** ⭐ | 01/11 | **Refonte visuelle** : (dé)matérialisation qui respire avec le son (lampe, lumières, poussière, ondes, arcs d'urgence, choc d'arrivée) ; menu rapide et tablette refaits ; 6 régénérations refaites avec des jets d'énergie (le Tourbillon est gardé). *À installer dans ZONE-TSADE.* |

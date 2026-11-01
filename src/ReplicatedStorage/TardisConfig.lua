@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6.6"
+Config.Version = "6.7"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -96,6 +96,16 @@ Config.VitesseLampe = 6
 Config.VitesseRotor = 2
 Config.AmplitudeRotor = 1.5
 Config.ForceSecousse = 0.3
+-- Effets de (dé)matérialisation (V6.7) : chacun peut être coupé. Tout est calculé à partir du temps du serveur,
+-- donc identique chez tous les joueurs.
+Config.Effets = {
+	Tourbillon = true,   -- poussière (ou eau) qui tourbillonne autour de la cabine à chaque souffle, près du sol
+	Lueur = true,        -- la cabine irradie à chaque souffle (lumière qui fuit par les fenêtres, halo de la lampe)
+	Ondes = true,        -- un anneau court au sol à chaque souffle
+	Arcs = true,         -- urgence : arcs électriques sur la cabine, étincelles à la lampe
+	Choc = true,         -- atterrissage : secousse d'arrivée dans la salle, bouffée de poussière dehors
+	Contrejour = true,   -- intérieur : flash doux à chaque souffle pour ceux qui sont à bord (très atténué en « effets réduits »)
+}
 
 -- Vue de l'intérieur depuis l'extérieur
 Config.DistanceVueMax = 60
@@ -520,6 +530,41 @@ local function alphaUrgence(etat, p, t, duree, reduit)
 	return 1 - math.clamp(v, 0, 1)
 end
 
+-- Un souffle (le « VWORP » de la série) : montée brusque, retombée lente. frac = position dans le souffle (0..1)
+local function formeSouffle(frac)
+	if frac < 0.3 then
+		local x = frac / 0.3
+		return x * x * (3 - 2 * x)
+	end
+	local x = (frac - 0.3) / 0.7
+	return 1 - x * x * (3 - 2 * x)
+end
+
+-- Respiration de la (dé)matérialisation (V6.7) : tout ce qui bat au rythme du son (fondu, lampe, lumières de la
+-- salle, poussière, ondes au sol) lit la même valeur, donc tout est synchronisé chez tous les joueurs.
+-- Renvoie : souffle (0 = creux, 1 = sommet du souffle), p (progression de l'animation, 0..1),
+-- fond (0 = le TARDIS est là, 1 = il n'est plus là : invisibilité « de fond », sans les souffles).
+-- Dans le vortex : une respiration lente ; posé : rien.
+function Config.Souffle(etat, ecoule, mode)
+	if etat == Config.Etats.Vol then return 0.5 + 0.5 * math.sin(ecoule * 1.3), 1, 1 end
+	if etat ~= Config.Etats.Demat and etat ~= Config.Etats.Remat then return 0, 0, 0 end
+	mode = Config.normaliserMode(mode)
+	local duree, decalage = Config.Timing(etat, mode)
+	local p = math.clamp((ecoule - math.max(decalage, 0)) / duree, 0, 1)
+	local avancee = (etat == Config.Etats.Remat) and (1 - p) or p
+	local fond = avancee ^ 1.4
+	local souffle
+	if mode == "Urgence" then
+		-- Urgence : les souffles sont irréguliers, le moteur peine
+		souffle = formeSouffle((p * 5 + 0.4 * math.sin(ecoule * 1.9)) % 1)
+	else
+		souffle = formeSouffle((p * (Config.Modes[mode].Pulsations or 4)) % 1)
+	end
+	-- Avant le décalage (le son commence par un silence), rien ne bouge
+	if p <= 0 or p >= 1 then souffle = 0 end
+	return souffle, p, fond
+end
+
 -- Transparence de l'extérieur (0 = visible, 1 = disparu) selon l'état, le temps écoulé et le mode
 -- (reduit : le joueur a choisi « réduire les effets »)
 function Config.Alpha(etat, ecoule, mode, reduit)
@@ -537,13 +582,17 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 		return alphaUrgence(etat, p, ecoule, duree, reduit)
 	end
 
-	-- Animation normale (ou express, plus courte) : le TARDIS s'efface et revient plusieurs fois, de plus en plus fort
-	if etat == Config.Etats.Remat then
-		p = 1 - p
+	-- Animation normale (ou express, plus courte) : à chaque souffle, la cabine s'efface d'un coup puis revient
+	-- lentement, de moins en moins (décollage) ou de plus en plus (atterrissage). Elle ne disparaît tout à fait
+	-- qu'aux derniers souffles.
+	local souffle, _, fond = Config.Souffle(etat, ecoule, mode)
+	local profondeur = 0.6 + 0.4 * fond
+	local alpha = fond + (1 - fond) * souffle * profondeur
+	-- Scintillement : l'image hésite au sommet de chaque souffle (pas en « effets réduits »)
+	if not reduit then
+		alpha += (bruit(ecoule, 28) - 0.5) * 0.12 * souffle * (1 - fond)
 	end
-	local pulsations = Config.Modes[mode].Pulsations or 4
-	local vague = (1 - math.cos(p * pulsations * 2 * math.pi)) / 2
-	return math.clamp(p + (1 - p) * vague * 0.8, 0, 1)
+	return math.clamp(alpha, 0, 1)
 end
 
 return Config

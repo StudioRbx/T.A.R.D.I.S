@@ -1,15 +1,19 @@
 -- StarterPlayer > StarterPlayerScripts > TardisEffets (LocalScript)
--- Fondu pulsé de l'extérieur, lampe qui clignote, rotor qui monte/descend, secousses dans l'intérieur.
--- Tout est calculé à partir des attributs "Etat" et "DebutEtat" posés par le serveur,
+-- (Dé)matérialisation de l'extérieur, lampe, rotor, lumières de la salle, secousses, et depuis la V6.7 :
+-- lueur de la cabine, tourbillon de poussière, ondes au sol, arcs d'urgence, choc d'atterrissage.
+-- Tout est calculé à partir des attributs "Etat" et "DebutEtat" posés par le serveur (Config.Souffle),
 -- donc tous les joueurs voient la même chose au même moment (même ceux qui arrivent en cours de vol).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage:WaitForChild("TardisConfig"))
 local UI = require(ReplicatedStorage:WaitForChild("TardisUI"))
 local E = Config.Etats
+local EFFETS = Config.Effets or {}
 local joueur = Players.LocalPlayer
 
 local def = Config.demarrerPourChaqueTardis(script) -- un exemplaire par TARDIS : tout le monde voit les trois
@@ -17,6 +21,21 @@ local exterieur, interieur = Config.modeles(def)
 local rotor = interieur:WaitForChild(Config.NomRotor)
 local lampe = exterieur:FindFirstChild(Config.NomLampe, true)
 local lumiere = lampe and lampe:FindFirstChildWhichIsA("Light", true)
+
+-- Pièce d'effet : ancrée, sans collision, ignorée par les raycasts
+local function piece(proprietes)
+	local p = Instance.new("Part")
+	p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery, p.CastShadow = true, false, false, false, false
+	p.Material = Enum.Material.Neon
+	for cle, valeur in proprietes do p[cle] = valeur end
+	p.Parent = workspace
+	return p
+end
+local function tween(objet, duree, proprietes, style, direction)
+	local t = TweenService:Create(objet, TweenInfo.new(duree, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), proprietes)
+	t:Play()
+	return t
+end
 
 -- Tout ce qui s'affiche sur l'extérieur, avec ses valeurs d'origine.
 -- Chaque type d'objet a ses propres propriétés à faire disparaître.
@@ -65,7 +84,17 @@ end)
 
 local rotorBase = rotor:GetPivot() -- marche avec une Part OU un Model
 local brillanceBase = lumiere and lumiere.Brightness or 0
+local porteeBase = lumiere and lumiere.Range or 8
 local couleurLampe = lumiere and lumiere.Color or Color3.new(1, 1, 1)
+
+-- Position de la lampe dans le monde (sa lumière est sur une pièce ou sur un Attachment)
+local function positionLampe()
+	if not lumiere then return exterieur:GetPivot().Position + Vector3.new(0, exterieur:GetExtentsSize().Y / 2, 0) end
+	local support = lumiere.Parent
+	if support and support:IsA("Attachment") then return support.WorldPosition end
+	if support and support:IsA("BasePart") then return support.Position end
+	return exterieur:GetPivot().Position + Vector3.new(0, exterieur:GetExtentsSize().Y / 2, 0)
+end
 
 -- Rotor coloré selon le mode du voyage (V6.6.2) : ses néons et ses lumières prennent la couleur du mode
 -- (Config.Modes[mode].CouleurRotor) pendant le voyage, en fondu, puis retrouvent leur couleur d'origine.
@@ -138,8 +167,29 @@ local function alphaVol()
 	return 0
 end
 
+-- Respiration en cours (voyage ou phase de vol libre) : souffle 0..1, progression 0..1, fond 0..1, et l'état animé
+local function respiration()
+	local etat = exterieur:GetAttribute("Etat") or E.Pose
+	if etat == E.Demat or etat == E.Remat then
+		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
+		local s, p, fond = Config.Souffle(etat, ecoule, Config.modeDe(exterieur))
+		return s, p, fond, etat, Config.modeDe(exterieur)
+	end
+	local phase = exterieur:GetAttribute("VolPhase")
+	if phase == E.Demat or phase == E.Remat then
+		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
+		local s, p, fond = Config.Souffle(phase, ecoule, Config.modeVolDe(exterieur))
+		return s, p, fond, phase, Config.modeVolDe(exterieur)
+	end
+	return 0, 0, 0, nil, nil
+end
+
 local alphaActuel = 0
 local secousseActive = false
+local courseRotor = 0 -- hauteur actuelle du rotor (lissée)
+local choc = 0        -- secousse d'arrivée (atterrissage), décroît
+local flashLampe = 0  -- éclat de la lampe au départ et à l'arrivée, décroît
+local etatPrecedent = exterieur:GetAttribute("Etat") or E.Pose
 
 -- Une erreur dans un effet est signalée une seule fois dans l'Output, sans bloquer les autres effets
 local erreursSignalees = {}
@@ -171,10 +221,44 @@ local function fondu(etat, ecoule, camouflage, mode)
 	end
 end
 
+--------------------------------------------------------------------
+-- Lueur de la cabine (V6.7) : à chaque souffle, la lumière fuit par les fenêtres et la lampe s'entoure d'un halo.
+-- Deux pièces d'effet indépendantes du modèle (le fondu de l'extérieur ne les touche pas).
+--------------------------------------------------------------------
+local lueur, halo = nil, nil
+if EFFETS.Lueur ~= false then
+	lueur = piece({ Name = "TardisLueur_" .. def.Nom, Transparency = 1, Size = Vector3.one, CFrame = exterieur:GetPivot() })
+	local lumiereLueur = Instance.new("PointLight")
+	lumiereLueur.Name = "Lumiere"
+	lumiereLueur.Brightness, lumiereLueur.Range, lumiereLueur.Shadows = 0, 12, false
+	lumiereLueur.Parent = lueur
+	halo = piece({ Name = "TardisHalo_" .. def.Nom, Shape = Enum.PartType.Ball, Transparency = 1, Size = Vector3.one, Color = couleurLampe })
+end
+
 RunService.RenderStepped:Connect(function(dt)
 	local etat = exterieur:GetAttribute("Etat") or E.Pose
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
 	local t = os.clock()
+	local reduit = UI.effetsReduits()
+
+	-- 0) Changement d'état : départ (la cabine vient de disparaître) et arrivée (elle vient de se poser)
+	if etat ~= etatPrecedent then
+		if etat == E.Vol and etatPrecedent == E.Demat then
+			flashLampe = 1
+		elseif etat == E.Pose and etatPrecedent == E.Remat then
+			flashLampe = 1
+			if EFFETS.Choc ~= false then
+				local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
+				if racine and dansInterieur(racine.Position) then
+					local stabilise = exterieur:GetAttribute("Stabilisateur") ~= false
+					local urgence = Config.modeDe(exterieur) == "Urgence"
+					choc = (urgence and 1.5 or 1) * (stabilise and 0.45 or 1) * (reduit and 0.4 or 1)
+				end
+			end
+		end
+		etatPrecedent = etat
+	end
+	flashLampe = math.max(0, flashLampe - dt * 1.8)
 
 	-- 1) Fondu de l'extérieur (le plus invisible des deux : voyage ou camouflage)
 	local camouflage = 0
@@ -188,26 +272,63 @@ RunService.RenderStepped:Connect(function(dt)
 	local etatFondu = (etat == E.Vol and exterieur:GetAttribute("Ciel") == true) and E.Pose or etat
 	proteger("fondu", fondu, etatFondu, ecoule, camouflage, mode)
 
-	-- 2) Lampe du toit
+	-- Respiration : le souffle en cours (voyage ou phase de vol libre), lu une fois par image
+	local souffle, progression, fond, etatAnime, modeAnime = 0, 0, 0, nil, nil
+	proteger("souffle", function() souffle, progression, fond, etatAnime, modeAnime = respiration() end)
+	local enVoyage = etatAnime ~= nil
+	local camoufle = exterieur:GetAttribute("Camouflage") == true
+	local visible = (1 - alphaActuel) * (1 - camouflage)
+
+	-- 2) Lampe du toit : elle bat au rythme des souffles, vacille en urgence, éclate au départ et à l'arrivée
 	if lumiere then
 		local brillance = brillanceBase
-		if etat ~= E.Pose then
-			if urgence then
+		if etat ~= E.Pose or enVoyage then
+			if urgence or modeAnime == "Urgence" then
 				-- Urgence : la lampe vacille et coupe de façon irrégulière
-				brillance *= (Config.Bruit(ecoule, 15) < 0.35) and 0.05 or (0.6 + 0.4 * Config.Bruit(ecoule + 1.3, 9))
+				brillance *= (Config.Bruit(ecoule, 15) < 0.35) and 0.05 or (0.5 + 0.5 * Config.Bruit(ecoule + 1.3, 9)) * (0.7 + 0.8 * souffle)
+			elseif enVoyage then
+				brillance *= 0.3 + 1.6 * souffle -- un éclat à chaque souffle
 			else
 				brillance *= 0.5 + 0.5 * math.sin(t * Config.VitesseLampe)
 			end
 		end
+		brillance += brillanceBase * 2.5 * flashLampe
 		if exterieur:GetAttribute("Alimentation") == false then
 			brillance = 0 -- plus de courant
 		end
 		lumiere.Brightness = brillance * (1 - camouflage) -- éteinte quand le TARDIS est camouflé
+		lumiere.Range = porteeBase * (1 + 0.6 * souffle + flashLampe)
 		-- Alerte : la lampe du toit passe au rouge
 		lumiere.Color = exterieur:GetAttribute("Alerte") and (Config.CouleurAlerte or Color3.fromRGB(255, 30, 30)) or couleurLampe
 	end
 
-	-- 2 bis) Ambiance pour le joueur qui se trouve dans l'intérieur
+	-- 2 bis) Lueur de la cabine et halo de la lampe
+	if lueur then
+		proteger("lueur", function()
+			local alimente = exterieur:GetAttribute("Alimentation") ~= false
+			local intensite = (enVoyage and alimente) and souffle * visible or 0
+			local couleurMode = (Config.Modes[modeAnime or mode] or Config.Modes.Normal).CouleurRotor or Color3.new(1, 1, 1)
+			local couleur = Color3.fromRGB(255, 240, 210):Lerp(couleurMode, 0.45)
+			local pivot = exterieur:GetPivot()
+			local taille = exterieur:GetExtentsSize()
+			lueur.CFrame = pivot
+			lueur.Lumiere.Brightness = 3.2 * intensite + 2 * flashLampe * (1 - camouflage)
+			lueur.Lumiere.Range = math.max(taille.X, taille.Z) * 1.8 + 6 * souffle
+			lueur.Lumiere.Color = couleur
+			-- Halo : une sphère de lumière autour de la lampe, qui gonfle à chaque souffle
+			local haloIntensite = math.max(intensite, flashLampe * (1 - camouflage) * (alimente and 1 or 0))
+			if haloIntensite > 0.01 then
+				halo.CFrame = CFrame.new(positionLampe())
+				halo.Size = Vector3.one * (0.9 + 2.2 * haloIntensite)
+				halo.Color = (exterieur:GetAttribute("Alerte") and (Config.CouleurAlerte or Color3.fromRGB(255, 30, 30)) or couleurLampe):Lerp(Color3.new(1, 1, 1), 0.5)
+				halo.Transparency = 1 - 0.55 * haloIntensite
+			else
+				halo.Transparency = 1
+			end
+		end)
+	end
+
+	-- 2 ter) Ambiance pour le joueur qui se trouve dans l'intérieur
 	proteger("ambiance", function()
 		local personnage = joueur.Character
 		local racineJoueur = personnage and personnage:FindFirstChild("HumanoidRootPart")
@@ -228,7 +349,7 @@ RunService.RenderStepped:Connect(function(dt)
 		local ambiance, exterieure, exposition = ambianceOrigine, exterieureOrigine, 0
 		if theme then
 			ambiance, exterieure, exposition = theme.ambiance, theme.exterieur, theme.exposition or 0
-			if UI.effetsReduits() then exposition = math.min(exposition, 0.6) end -- Flashbang : beaucoup moins éblouissant
+			if reduit then exposition = math.min(exposition, 0.6) end -- Flashbang : beaucoup moins éblouissant
 			if theme.festive then
 				-- Festive : les couleurs tournent
 				local teinteFestive = Color3.fromHSV((t * 0.08) % 1, 0.8, 0.9)
@@ -261,23 +382,35 @@ RunService.RenderStepped:Connect(function(dt)
 		-- Alerte : teinte rouge qui pulse doucement (comme une alarme)
 		local pulsation = 0.75 + 0.25 * math.sin(t * 4)
 		local intensite = rougeActuel * pulsation
+		-- Contre-jour (V6.7) : à bord, chaque souffle éclaire doucement l'image (la salle respire avec le moteur)
+		local contrejour = 0
+		if EFFETS.Contrejour ~= false and dedans and enVoyage and not horsTension then
+			contrejour = souffle * (reduit and 0.02 or 0.07) + choc * 0.05
+		end
 		teinte.TintColor = Color3.new(1, 1 - 0.45 * intensite, 1 - 0.45 * intensite)
 		teinte.Saturation = -0.2 * noirActuel
-		teinte.Brightness = -0.05 * intensite
+		teinte.Brightness = -0.05 * intensite + contrejour
 	end)
 
-	-- 3) Rotor de la console (il accélère un instant quand on clique dessus : rotor interactif)
-	local boost = exterieur:GetAttribute("RotorBoost")
-	local boostActif = boost ~= nil and workspace:GetServerTimeNow() - boost < 3
-	if etat == E.Pose and not boostActif then
-		if rotor:GetPivot() ~= rotorBase then
-			rotor:PivotTo(rotorBase)
-		end
-	else
+	-- 3) Rotor de la console : il pompe pendant le voyage, s'arrête en douceur une fois posé
+	-- (il accélère un instant quand on clique dessus : rotor interactif)
+	proteger("rotor", function()
+		local boost = exterieur:GetAttribute("RotorBoost")
+		local boostActif = boost ~= nil and workspace:GetServerTimeNow() - boost < 3
+		local actif = etat ~= E.Pose or boostActif or exterieur:GetAttribute("VolLibre") ~= nil
 		local vitesse = Config.VitesseRotor * (boostActif and 3 or 1)
-		local amplitude = Config.AmplitudeRotor * (etat == E.Pose and 0.5 or 1)
-		rotor:PivotTo(rotorBase * CFrame.new(0, math.sin(t * vitesse) * amplitude, 0))
-	end
+		local amplitude = Config.AmplitudeRotor * ((etat == E.Pose and not boostActif) and 0.5 or 1)
+		-- Atterrissage : la course se réduit pendant les 2 dernières secondes, pour s'arrêter sans à-coup
+		if etat == E.Remat then
+			local duree, decalage = Config.Timing(E.Remat, mode)
+			amplitude *= math.clamp((duree + decalage - ecoule) / 2, 0.1, 1)
+		end
+		local cible = actif and math.sin(t * vitesse) * amplitude or 0
+		courseRotor += (cible - courseRotor) * math.min(dt * (actif and 12 or 4), 1)
+		if math.abs(courseRotor) < 0.002 and not actif then courseRotor = 0 end
+		local voulu = rotorBase * CFrame.new(0, courseRotor, 0)
+		if rotor:GetPivot() ~= voulu then rotor:PivotTo(voulu) end
+	end)
 
 	-- 3 ter) Couleur du rotor selon le mode (sauf hors tension et en alerte, qui ont leurs propres couleurs)
 	proteger("couleurRotor", function()
@@ -287,13 +420,15 @@ RunService.RenderStepped:Connect(function(dt)
 		melangeRotor += ((actif and 1 or 0) - melangeRotor) * math.min(dt * 2, 1)
 		if melangeRotor < 0.002 then melangeRotor = 0 end
 		if melangeRotor == 0 and avant == 0 then return end
+		-- Les néons battent au rythme des souffles
+		local battement = 1 - 0.35 * souffle * melangeRotor
 		for part, origine in neonsRotor do
-			part.Color = origine:Lerp(couleurRotor, melangeRotor)
+			part.Color = origine:Lerp(couleurRotor:Lerp(Color3.new(1, 1, 1), 0.25 * souffle), melangeRotor * battement)
 		end
 	end)
 
 	-- 3 bis) Lumières de la salle : secours hors tension, pièces vides éteintes, pénombre après 5 min,
-	-- nuit automatique, et pulsation avec le rotor en vol (les LEDs d'alerte restent gérées par le thème)
+	-- nuit automatique, et respiration avec le moteur en voyage (les LEDs d'alerte restent gérées par le thème)
 	proteger("lumieres", function()
 		local horsTension = exterieur:GetAttribute("Alimentation") == false
 		local activite = exterieur:GetAttribute("ActivitePilote")
@@ -302,7 +437,8 @@ RunService.RenderStepped:Connect(function(dt)
 		local heure = Lighting.ClockTime
 		local nuit = heure < 6 or heure > 18.5
 		local enVol = etat ~= E.Pose
-		local pulsation = 0.6 + 0.4 * (0.5 + 0.5 * math.sin(t * Config.VitesseRotor))
+		-- En démat / remat : chaque souffle fait monter puis redescendre la lumière ; dans le vortex : respiration lente
+		local pulsation = enVoyage and (0.5 + 0.5 * souffle) or (0.7 + 0.3 * (0.5 + 0.5 * math.sin(t * Config.VitesseRotor)))
 		-- Positions des joueurs (une seule fois par image)
 		local racines = {}
 		for _, autre in Players:GetPlayers() do
@@ -318,6 +454,7 @@ RunService.RenderStepped:Connect(function(dt)
 			end
 			interieur.DescendantAdded:Connect(function(objet) if objet:IsA("Light") then table.insert(listeLumieres, objet) end end)
 		end
+		local dossierLeds = interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte")
 		for _, objet in listeLumieres do
 			if objet.Parent then
 				local infos = lumieresSalle[objet]
@@ -343,20 +480,23 @@ RunService.RenderStepped:Connect(function(dt)
 					elseif inactif then cible = 0.35 -- pénombre
 					elseif nuit then cible = 0.7 end -- nuit automatique
 					if nuit and cible > 0 then couleur = couleur:Lerp(Color3.fromRGB(255, 200, 140), 0.35) end
-					if enVol then cible *= pulsation end
+					if enVol or enVoyage then cible *= pulsation end
+					-- Choc d'atterrissage : la lumière vacille
+					if choc > 0 then cible *= 1 - 0.5 * choc * Config.Bruit(t, 20) end
 					-- Lumières du rotor : couleur du mode du voyage
 					if melangeRotor > 0 and objet:IsDescendantOf(rotor) then couleur = couleur:Lerp(couleurRotor, 0.85 * melangeRotor) end
 				end
-				infos.facteur += (cible - infos.facteur) * math.min(dt * 2, 1)
+				-- Les souffles se suivent vite : la lumière les suit de près ; le reste change en douceur
+				infos.facteur += (cible - infos.facteur) * math.min(dt * (enVoyage and 8 or 2), 1)
 				objet.Brightness = infos.brillance * infos.facteur
-				if not objet:IsDescendantOf(interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte") or interieur.PrimaryPart or Instance.new("Folder")) then
+				if not (dossierLeds and objet:IsDescendantOf(dossierLeds)) then
 					objet.Color = couleur
 				end
 			end
 		end
 	end)
 
-	-- 4) Secousses de caméra pendant le décollage et l'atterrissage
+	-- 4) Secousses de caméra pendant le décollage et l'atterrissage, et choc d'arrivée
 	local personnage = joueur.Character
 	local humanoid = personnage and personnage:FindFirstChildOfClass("Humanoid")
 	local racine = personnage and personnage:FindFirstChild("HumanoidRootPart")
@@ -365,38 +505,54 @@ RunService.RenderStepped:Connect(function(dt)
 		local _, decalage = Config.Timing(etat, Config.modeDe(exterieur))
 		-- Stabilisateur actif : aucune secousse en voyage normal ; en urgence, il n'en absorbe qu'une partie
 		local stabilise = exterieur:GetAttribute("Stabilisateur") ~= false
-		local secouer = (etat == E.Demat or etat == E.Remat) and ecoule >= decalage and dansInterieur(racine.Position)
+		local dedans = dansInterieur(racine.Position)
+		local secouer = (etat == E.Demat or etat == E.Remat) and ecoule >= decalage and dedans
 			and not (stabilise and not urgence)
+		local offset = Vector3.zero
 		if secouer then
 			local f = Config.ForceSecousse * (urgence and 2.5 or 1) -- urgence : ça secoue beaucoup plus
 			if stabilise then f *= 0.05 end -- urgence avec stabilisateur : à peine une vibration (5 %)
 			-- Sièges d'équipage : assis, on est bien moins secoué
 			if humanoid.Sit and humanoid.SeatPart and string.sub(humanoid.SeatPart.Name, 1, 13) == "SiegeEquipage" then f *= 0.3 end
-			if UI.effetsReduits() then f *= 0.3 end
-			humanoid.CameraOffset = Vector3.new(
-				(math.random() - 0.5) * f,
-				(math.random() - 0.5) * f,
-				(math.random() - 0.5) * f
-			)
+			if reduit then f *= 0.3 end
+			-- Chaque souffle secoue plus fort que le creux qui le suit
+			f *= 0.4 + 0.6 * souffle
+			offset = Vector3.new((math.random() - 0.5) * f, (math.random() - 0.5) * f, (math.random() - 0.5) * f)
+		end
+		-- Choc d'atterrissage : un à-coup vers le bas qui s'amortit en une demi-seconde
+		if choc > 0 then
+			if dedans then
+				offset += Vector3.new((math.random() - 0.5) * 0.5 * choc, -0.55 * choc * (0.5 + 0.5 * math.cos(choc * 6)), (math.random() - 0.5) * 0.5 * choc)
+			end
+			choc = math.max(0, choc - dt * 2.2)
+		end
+		if offset ~= Vector3.zero then
+			humanoid.CameraOffset = offset
 			secousseActive = true
 		elseif secousseActive then
 			humanoid.CameraOffset = Vector3.zero
 			secousseActive = false
 		end
+	else
+		choc = math.max(0, choc - dt * 2.2)
 	end
 end)
 
 --------------------------------------------------------------------
--- Atterrissage sur l'eau : le TARDIS flotte et tangue doucement
--- Souffle de matérialisation : poussière (ou gerbes d'eau) soufflée tout autour quand il se matérialise près du sol
+-- Atterrissage sur l'eau : le TARDIS flotte et tangue doucement.
+-- Tourbillon de matérialisation (V6.7) : près du sol, la poussière (ou l'eau) tourbillonne autour de la cabine,
+-- avec une rafale à chaque souffle ; une onde court au sol à chaque souffle ; urgence : arcs électriques ;
+-- arrivée : bouffée de poussière.
 --------------------------------------------------------------------
 do
 	local flottait = false
-	local souffle = nil -- { part, emetteurs, eau }
+	local souffleSol = nil -- { part, emetteurs, eau, couleur }
+	local dernierSouffle = 0
+	local etatSol = nil    -- état animé à l'image précédente (pour l'arrivée)
+	local arcsPart = nil   -- étincelles de la lampe en urgence
 
 	local function exclusionsSol()
 		local liste = { exterieur, interieur }
-		if souffle then table.insert(liste, souffle.part) end
 		for _, autre in Players:GetPlayers() do
 			if autre.Character then table.insert(liste, autre.Character) end
 		end
@@ -404,69 +560,111 @@ do
 	end
 
 	local function arreterSouffle()
-		if not souffle then return end
-		local ancien = souffle
-		souffle = nil
+		if not souffleSol then return end
+		local ancien = souffleSol
+		souffleSol = nil
 		for _, emetteur in ancien.emetteurs do emetteur.Enabled = false end
-		task.delay(2, function() ancien.part:Destroy() end)
+		task.delay(2.5, function() ancien.part:Destroy() end)
 	end
 
+	-- Anneau d'émetteurs autour de la cabine : la matière est soufflée en tournant (tangente + un peu vers l'extérieur)
 	local function creerSouffle(position, couleur, eau)
-		local part = Instance.new("Part")
-		part.Name = "TardisSouffle"
-		part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch = true, false, false, false
-		part.Transparency = 1
-		part.Size = Vector3.new(1, 1, 1)
-		part.CFrame = CFrame.new(position)
-		part.Parent = workspace
+		local part = piece({ Name = "TardisSouffle", Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(position) })
 		local taille = exterieur:GetExtentsSize()
-		local rayon = math.max(taille.X, taille.Z) * 0.55
+		local rayon = math.max(taille.X, taille.Z) * 0.6
 		local emetteurs = {}
-		for i = 1, 12 do
-			local angle = i / 12 * math.pi * 2
-			local local_ = Vector3.new(math.cos(angle) * rayon, 0.4, math.sin(angle) * rayon)
+		for i = 1, 14 do
+			local angle = i / 14 * math.pi * 2
+			local local_ = Vector3.new(math.cos(angle) * rayon, 0.3, math.sin(angle) * rayon)
+			local tangente = Vector3.new(-math.sin(angle), 0, math.cos(angle))
+			local dehors = Vector3.new(math.cos(angle), 0, math.sin(angle))
 			local point = Instance.new("Attachment")
-			point.CFrame = CFrame.lookAt(local_, local_ * Vector3.new(2, 1, 2)) -- tourné vers l'extérieur
+			point.CFrame = CFrame.lookAt(local_, local_ + tangente + dehors * 0.4 + Vector3.new(0, eau and 0.6 or 0.25, 0))
 			point.Parent = part
 			local emetteur = Instance.new("ParticleEmitter")
 			emetteur.Texture = "rbxasset://textures/particles/smoke_main.dds"
 			emetteur.EmissionDirection = Enum.NormalId.Front
 			emetteur.Color = ColorSequence.new(couleur)
-			emetteur.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, eau and 0.6 or 0.9), NumberSequenceKeypoint.new(1, eau and 2.5 or 4) })
-			emetteur.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, eau and 0.25 or 0.45), NumberSequenceKeypoint.new(1, 1) })
-			emetteur.Lifetime = NumberRange.new(0.6, 1.3)
-			emetteur.Speed = NumberRange.new(14, 26)
-			emetteur.SpreadAngle = Vector2.new(12, eau and 40 or 25)
-			emetteur.Drag = 3
-			emetteur.Acceleration = Vector3.new(0, eau and -25 or 1.5, 0) -- l'eau retombe, la poussière flotte
+			emetteur.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, eau and 0.5 or 0.7), NumberSequenceKeypoint.new(0.5, eau and 1.8 or 2.6), NumberSequenceKeypoint.new(1, eau and 2.2 or 3.6) })
+			emetteur.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, eau and 0.3 or 0.5), NumberSequenceKeypoint.new(0.6, eau and 0.6 or 0.75), NumberSequenceKeypoint.new(1, 1) })
+			emetteur.Lifetime = NumberRange.new(0.7, 1.4)
+			emetteur.Speed = NumberRange.new(10, 22)
+			emetteur.SpreadAngle = Vector2.new(10, eau and 35 or 18)
+			emetteur.Drag = 2.5
+			emetteur.Acceleration = Vector3.new(0, eau and -28 or 1.2, 0) -- l'eau retombe, la poussière flotte
 			emetteur.Rotation = NumberRange.new(0, 360)
-			emetteur.RotSpeed = NumberRange.new(-60, 60)
+			emetteur.RotSpeed = NumberRange.new(-90, 90)
+			emetteur.LightInfluence = 1
 			emetteur.Rate = 0
 			emetteur.Parent = point
 			table.insert(emetteurs, emetteur)
 		end
-		souffle = { part = part, emetteurs = emetteurs, eau = eau }
+		-- Étincelles de poussière brillante, soulevées au centre (rafales seulement)
+		local centre = Instance.new("Attachment")
+		centre.Parent = part
+		local paillettes = Instance.new("ParticleEmitter")
+		paillettes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		paillettes.Color = ColorSequence.new(couleur:Lerp(Color3.new(1, 1, 1), 0.6))
+		paillettes.LightEmission = 0.6
+		paillettes.Size = NumberSequence.new(0.25, 0)
+		paillettes.Transparency = NumberSequence.new(0.2, 1)
+		paillettes.Lifetime = NumberRange.new(0.8, 1.6)
+		paillettes.Speed = NumberRange.new(6, 14)
+		paillettes.SpreadAngle = Vector2.new(180, 180)
+		paillettes.Acceleration = Vector3.new(0, eau and -20 or -3, 0)
+		paillettes.Drag = 1.5
+		paillettes.Rate = 0
+		paillettes.Parent = centre
+		table.insert(emetteurs, paillettes)
+		souffleSol = { part = part, emetteurs = emetteurs, eau = eau, couleur = couleur, rayon = rayon }
 	end
 
-	-- Intensité de la matérialisation en cours (0 = rien, 1 = au plus fort), voyage ou démat en vol
-	local function intensiteRemat()
-		local maintenant = workspace:GetServerTimeNow()
-		local etat = exterieur:GetAttribute("Etat")
-		local debut, mode
-		if etat == E.Remat then
-			debut, mode = exterieur:GetAttribute("DebutEtat"), Config.modeDe(exterieur)
-		elseif exterieur:GetAttribute("VolPhase") == E.Remat then
-			debut, mode = exterieur:GetAttribute("VolPhaseDebut"), Config.modeVolDe(exterieur)
-		else
-			return 0
+	-- Onde au sol : un anneau fin qui court sur le sol en s'effaçant
+	local function onde(position, couleur, largeur, duree, transparence)
+		local anneau = piece({ Name = "TardisOnde", Shape = Enum.PartType.Cylinder, Color = couleur, Transparency = transparence or 0.55,
+			Size = Vector3.new(0.12, largeur, largeur), CFrame = CFrame.new(position + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
+		tween(anneau, duree or 0.8, { Size = Vector3.new(0.12, largeur * 2.6, largeur * 2.6), Transparency = 1 })
+		Debris:AddItem(anneau, (duree or 0.8) + 0.1)
+	end
+
+	-- Arc électrique (urgence) : un éclair bref en zigzag entre deux points de la cabine
+	local function arc(cf, taille)
+		local function pointSurface()
+			local face = math.random(3)
+			local x, y, z = (math.random() - 0.5) * taille.X, (math.random() - 0.5) * taille.Y, (math.random() - 0.5) * taille.Z
+			local signe = math.random() < 0.5 and -1 or 1
+			if face == 1 then x = signe * taille.X / 2 elseif face == 2 then z = signe * taille.Z / 2 else y = signe * taille.Y / 2 end
+			return cf:PointToWorldSpace(Vector3.new(x, y, z))
 		end
-		local duree, decalage = Config.Timing(E.Remat, mode)
-		local p = ((maintenant - (debut or 0)) - decalage) / duree
-		if p <= 0 or p >= 1 then return 0 end
-		return math.sin(p * math.pi) -- monte, culmine au milieu, retombe
+		local depart, arrivee = pointSurface(), pointSurface()
+		if (arrivee - depart).Magnitude < 1 then arrivee = pointSurface() end
+		local precedent = depart
+		local n = 5
+		for k = 1, n do
+			local suivant = k == n and arrivee or depart:Lerp(arrivee, k / n) + Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.9
+			local segment = piece({ Name = "TardisArc", Color = k % 2 == 0 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 220, 255),
+				Size = Vector3.new(0.1, 0.1, (suivant - precedent).Magnitude), CFrame = CFrame.lookAt((precedent + suivant) / 2, suivant) })
+			Debris:AddItem(segment, 0.08 + math.random() * 0.06)
+			precedent = suivant
+		end
+		local eclat = piece({ Name = "TardisArcEclat", Shape = Enum.PartType.Ball, Color = Color3.fromRGB(200, 235, 255), Transparency = 0.3,
+			Size = Vector3.one * 0.6, CFrame = CFrame.new(arrivee) })
+		local lum = Instance.new("PointLight")
+		lum.Color, lum.Brightness, lum.Range = Color3.fromRGB(170, 220, 255), 4, 12
+		lum.Parent = eclat
+		tween(eclat, 0.15, { Size = Vector3.one * 1.6, Transparency = 1 })
+		Debris:AddItem(eclat, 0.2)
 	end
 
-	RunService.RenderStepped:Connect(function()
+	-- Intensité de la matérialisation en cours (0 = rien, 1 = au plus fort) : voyage ou phase de vol libre, démat ou remat
+	local function intensiteSol()
+		local s, p, _, etatAnime, modeAnime = respiration()
+		if not etatAnime then return 0, 0, nil, nil end
+		if p <= 0 or p >= 1 then return 0, s, etatAnime, modeAnime end
+		return math.sin(p * math.pi), s, etatAnime, modeAnime
+	end
+
+	RunService.RenderStepped:Connect(function(dt)
 		local t = os.clock()
 
 		-- 1) Sur l'eau : flottaison (seulement quand personne ne le porte ni ne le pilote)
@@ -484,18 +682,25 @@ do
 			end
 		end
 
-		-- 2) Souffle de matérialisation près du sol
-		local intensite = intensiteRemat()
-		if intensite > 0 then
+		-- 2) Tourbillon, ondes et arcs près du sol
+		local intensite, s, etatAnime, modeAnime = 0, 0, nil, nil
+		proteger("intensiteSol", function() intensite, s, etatAnime, modeAnime = intensiteSol() end)
+		local camoufle = exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Detruit") == true
+		local pivot = exterieur:GetPivot()
+		local nouveauSouffle = s > 0.5 and dernierSouffle <= 0.5 -- début d'un souffle à cette image
+		dernierSouffle = s
+		local couleurMode = (Config.Modes[modeAnime or "Normal"] or Config.Modes.Normal).CouleurRotor or Color3.fromRGB(120, 180, 255)
+
+		if etatAnime and not camoufle then
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = exclusionsSol()
 			params.IgnoreWater = false
-			local depart = exterieur:GetPivot().Position + Vector3.new(0, 1, 0)
+			local depart = pivot.Position + Vector3.new(0, 1, 0)
 			local resultat = workspace:Raycast(depart, Vector3.new(0, -14, 0), params)
-			if resultat then
+			if resultat and EFFETS.Tourbillon ~= false then
 				local eau = resultat.Material == Enum.Material.Water
-				if not souffle or souffle.eau ~= eau then
+				if not souffleSol or souffleSol.eau ~= eau then
 					arreterSouffle()
 					local couleur
 					if eau then
@@ -508,16 +713,72 @@ do
 					if not eau then couleur = couleur:Lerp(Color3.fromRGB(200, 190, 170), 0.35) end
 					creerSouffle(resultat.Position, couleur, eau)
 				end
-				souffle.part.CFrame = CFrame.new(resultat.Position)
-				for _, emetteur in souffle.emetteurs do
-					emetteur.Rate = 22 * intensite
+				souffleSol.part.CFrame = CFrame.new(resultat.Position)
+				-- Débit continu qui suit la respiration, plus une rafale au début de chaque souffle
+				for i, emetteur in souffleSol.emetteurs do
+					if i < #souffleSol.emetteurs then
+						emetteur.Rate = 16 * intensite * (0.25 + 0.75 * s)
+						if nouveauSouffle then emetteur:Emit(math.floor(4 + 6 * intensite)) end
+					elseif nouveauSouffle then
+						emetteur:Emit(math.floor(10 + 25 * intensite))
+					end
 				end
 			else
 				arreterSouffle()
 			end
-		elseif souffle then
+			-- Onde au sol à chaque souffle (même sans poussière : sol dur ou cabine en l'air à moins de 14 studs)
+			if resultat and nouveauSouffle and EFFETS.Ondes ~= false then
+				local taille = exterieur:GetExtentsSize()
+				local largeur = math.max(taille.X, taille.Z) * 1.1
+				onde(resultat.Position, couleurMode:Lerp(Color3.new(1, 1, 1), 0.3), largeur, 0.7 + 0.5 * intensite, 0.6 - 0.25 * intensite)
+			end
+			-- Urgence : arcs sur la cabine et étincelles à la lampe
+			if modeAnime == "Urgence" and EFFETS.Arcs ~= false and intensite > 0.05 then
+				local cf, taille = exterieur:GetBoundingBox()
+				if math.random() < dt * (3 + 9 * s) * intensite then arc(cf, taille) end
+				if not arcsPart or not arcsPart.Parent then
+					arcsPart = piece({ Name = "TardisEtincellesLampe", Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
+					local etincelles = Instance.new("ParticleEmitter")
+					etincelles.Name = "Etincelles"
+					etincelles.Color = ColorSequence.new(Color3.fromRGB(255, 240, 200), Color3.fromRGB(255, 140, 60))
+					etincelles.LightEmission = 1
+					etincelles.Size = NumberSequence.new(0.2, 0)
+					etincelles.Speed = NumberRange.new(8, 16)
+					etincelles.Lifetime = NumberRange.new(0.3, 0.7)
+					etincelles.SpreadAngle = Vector2.new(60, 60)
+					etincelles.Acceleration = Vector3.new(0, -35, 0)
+					etincelles.Rate = 0
+					etincelles.Parent = arcsPart
+				end
+				arcsPart.CFrame = CFrame.new(positionLampe())
+				if nouveauSouffle or math.random() < dt * 2 then arcsPart.Etincelles:Emit(math.floor(6 + 14 * s)) end
+			elseif arcsPart then
+				arcsPart:Destroy()
+				arcsPart = nil
+			end
+		else
 			arreterSouffle()
+			if arcsPart then arcsPart:Destroy() arcsPart = nil end
 		end
+
+		-- 3) Arrivée : la cabine vient de se poser (fin d'une remat) : bouffée de poussière et onde d'arrivée
+		local etatMaintenant = exterieur:GetAttribute("Etat") or E.Pose
+		if etatSol == E.Remat and etatMaintenant == E.Pose and not camoufle and EFFETS.Choc ~= false then
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = exclusionsSol()
+			params.IgnoreWater = false
+			local resultat = workspace:Raycast(pivot.Position + Vector3.new(0, 1, 0), Vector3.new(0, -14, 0), params)
+			if resultat then
+				local taille = exterieur:GetExtentsSize()
+				local largeur = math.max(taille.X, taille.Z) * 1.2
+				onde(resultat.Position, Color3.fromRGB(235, 235, 235), largeur, 1, 0.5)
+				if souffleSol then
+					for _, emetteur in souffleSol.emetteurs do emetteur:Emit(14) end
+				end
+			end
+		end
+		etatSol = etatMaintenant
 	end)
 end
 
@@ -526,22 +787,8 @@ end
 -- et disparition (la bulle se rétracte en s'effaçant)
 --------------------------------------------------------------------
 do
-	local TweenService = game:GetService("TweenService")
-
-	local function tween(objet, duree, proprietes, style, direction)
-		local t = TweenService:Create(objet, TweenInfo.new(duree, style or Enum.EasingStyle.Quad,
-			direction or Enum.EasingDirection.Out), proprietes)
-		t:Play()
-		return t
-	end
-
 	local function effetTemporaire(proprietes)
-		local p = Instance.new("Part")
-		p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
-		p.Material = Enum.Material.Neon
-		for cle, valeur in proprietes do p[cle] = valeur end
-		p.Parent = workspace
-		return p
+		return piece(proprietes)
 	end
 
 	local function animerBouclier(modele)
@@ -666,7 +913,7 @@ do
 			local apparition = math.clamp(ecoule / 0.6, 0, 1)
 			local visibilite = (1 - TRANSPARENCE) * apparition * (1 - p) * (1 + 0.15 * math.sin(ecoule * 9))
 			local transparence = math.clamp(1 - visibilite, 0, 1)
-			for _, piece in pieces do piece.Transparency = transparence end
+			for _, piece_ in pieces do piece_.Transparency = transparence end
 		end)
 	end
 
@@ -692,18 +939,7 @@ end
 -- cabine et une onde court au sol. Rien pour un voyage camouflé.
 --------------------------------------------------------------------
 do
-	local TweenService = game:GetService("TweenService")
-	local Debris = game:GetService("Debris")
 	local COULEUR = Config.Modes.Express.CouleurRotor or Color3.fromRGB(74, 222, 128)
-
-	local function piece(proprietes)
-		local p = Instance.new("Part")
-		p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery, p.CastShadow = true, false, false, false, false
-		p.Material = Enum.Material.Neon
-		for cle, valeur in proprietes do p[cle] = valeur end
-		p.Parent = workspace
-		return p
-	end
 
 	local function eclair(cf)
 		local hauteur = math.max(exterieur:GetExtentsSize().Y, 4)
@@ -712,12 +948,12 @@ do
 		local boule = not UI.effetsReduits() and piece({ Name = "TardisEclairExpress", Shape = Enum.PartType.Ball, Size = Vector3.one * 2,
 			Color = Color3.new(1, 1, 1):Lerp(COULEUR, 0.35), Transparency = 0.1, CFrame = CFrame.new(sol + Vector3.new(0, hauteur / 2, 0)) })
 		if boule then
-			local lumiere = Instance.new("PointLight")
-			lumiere.Color, lumiere.Range, lumiere.Brightness = COULEUR, 30, 6
-			lumiere.Parent = boule
+			local lumiereEclair = Instance.new("PointLight")
+			lumiereEclair.Color, lumiereEclair.Range, lumiereEclair.Brightness = COULEUR, 30, 6
+			lumiereEclair.Parent = boule
 			TweenService:Create(boule, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ Size = Vector3.one * (hauteur * 1.6), Transparency = 1 }):Play()
-			TweenService:Create(lumiere, TweenInfo.new(0.45), { Brightness = 0 }):Play()
+			TweenService:Create(lumiereEclair, TweenInfo.new(0.45), { Brightness = 0 }):Play()
 			Debris:AddItem(boule, 0.8)
 		end
 		-- Onde au sol : un disque fin qui s'élargit

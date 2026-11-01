@@ -96,8 +96,9 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.6.4** | Modifications 1 à 6 (suite de l'Express, recharge de 5 s) et 13 (historique par mode) | ✅ livrée |
 | **V6.6.5** | Modification 7 (V6.5.13 et V6.5.14 réécrites), 16 (réduire les effets) · simplifications 21 (vol à 8 boutons), 22 (mode débutant par défaut) | ✅ livrée |
 | **V6.6.6** | Correctif : l'avatar change vraiment à la régénération · ajout de 2 styles violents (Supernova, Fracture) avec onde de choc de 5 studs | ✅ livrée |
-| V6.6.7 | Modification 15 : tablette technicien | à faire |
-| V6.6.8 | Modification 20 (intercom « faille spatio-temporelle » via un petit module pont dans l'OS Fondation, 1 fois par session, puis rappel au pilote toutes les 10 min), 21 (jukebox de musiques d'action audible seulement dans le TARDIS), 3 et 22 (sons) | à faire |
+| **V6.7** | Refonte visuelle demandée le 01/11 : (dé)matérialisation réaliste, menu rapide et tablette refaits, régénérations refaites (sauf le Tourbillon) | ✅ livrée (dépôt), à installer dans Studio |
+| V6.7.1 | Modification 15 : tablette technicien | à faire |
+| V6.7.2 | Modification 20 (intercom « faille spatio-temporelle » via un petit module pont dans l'OS Fondation, 1 fois par session, puis rappel au pilote toutes les 10 min), 21 (jukebox de musiques d'action audible seulement dans le TARDIS), 3 et 22 (sons) | à faire |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
