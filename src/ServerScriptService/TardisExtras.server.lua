@@ -1402,11 +1402,14 @@ do
 	end
 	local signalee = nil -- { lieu, heure } : la faille de cette session
 	local etatAvant = exterieur:GetAttribute("Etat")
+	local modeRemat = "Normal"
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 		local etat = exterieur:GetAttribute("Etat")
 		local avant = etatAvant
 		etatAvant = etat
+		if etat == E.Remat then modeRemat = Config.modeDe(exterieur) end
 		if INTERCOM.Actif == false or signalee then return end
+		if etat == E.Pose and (Config.Modes[modeRemat] or {}).Discret then return end -- Silencieux (V6.9) : pas d'annonce
 		-- Posé après une matérialisation, et visible (ni camouflé, ni porté)
 		if etat ~= E.Pose or avant ~= E.Remat then return end
 		if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end

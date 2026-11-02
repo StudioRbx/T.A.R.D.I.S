@@ -325,6 +325,8 @@ return function(contexte)
 			urgence = UI.badge(badges, "URGENCE", C.orange, 5),
 			express = UI.badge(badges, "RAPIDE", C.vert, 9),
 			sauvetage = UI.badge(badges, "SAUVETAGE", UI.couleurMode("Sauvetage"), 11),
+			silencieux = UI.badge(badges, "SILENCIEUX", UI.couleurMode("Silencieux"), 13),
+			siege = UI.badge(badges, "SIÈGE", C.rouge, 14),
 			catastrophe = UI.badge(badges, "PARADOXE", C.rouge, 12),
 			horsTension = UI.badge(badges, "HORS TENSION", C.texte2, 6),
 			alerte = UI.badge(badges, "ALERTE", C.rouge, 7),
@@ -392,7 +394,7 @@ return function(contexte)
 			LayoutOrder = 2, Parent = contenu },
 		{ UI.coin(9), UI.contour(C.bleu, 1, 0.3), creer("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }) })
 
-		W.liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 176), BackgroundColor3 = Color3.fromRGB(4, 10, 24),
+		W.liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 170), BackgroundColor3 = Color3.fromRGB(4, 10, 24),
 			BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(),
 			AutomaticCanvasSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = contenu },
 		{ UI.coin(9), UI.contour(C.bleu, 1, 0.5), UI.marges(6), UI.pile(4) })
@@ -443,19 +445,22 @@ return function(contexte)
 			TextColor3 = C.texte2, BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0), Size = UDim2.fromScale(0.5, 1),
 			Parent = W.modeJoueur })
 
-		-- Protocoles côte à côte (V6.7.1 : quatre, dont Sauvetage)
+		-- Protocoles (V6.9) : le mode dans un sélecteur à segments (un seul actif), l'atterrissage invisible à droite
 		local protocoles = creer("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, LayoutOrder = 5,
 			Parent = contenu }, { UI.pile(10, true) })
-		local colonnes = {}
-		for i = 1, 4 do
-			colonnes[i] = creer("Frame", { Size = UDim2.new(1 / 4, -8, 1, 0), BackgroundTransparency = 1, LayoutOrder = i, Parent = protocoles })
-		end
-		W.interUrgence = UI.interrupteur(colonnes[1], "Urgence", "Vol instable", C.orange, 1)
-		W.interExpress = UI.interrupteur(colonnes[2], "Rapide", "Voyage en 2 s", C.vert, 1)
-		W.interSauvetage = UI.interrupteur(colonnes[3], "Sauvetage", "Descente, portes", UI.couleurMode("Sauvetage"), 1)
-		W.interInvisible = UI.interrupteur(colonnes[4], "Invisible", "Déjà camouflé", C.cyan, 1)
-		-- État partagé avec le menu rapide (Urgence, Rapide et Sauvetage s'excluent)
-		Commandes.lierInterrupteurs({ urgence = W.interUrgence, express = W.interExpress, sauvetage = W.interSauvetage, invisible = W.interInvisible })
+		local modes = UI.selecteurModes(protocoles, {
+			{ cle = "classique", nom = "Classique", couleur = C.cyan },
+			{ cle = "urgence", nom = "Urgence", couleur = C.orange },
+			{ cle = "express", nom = "Rapide", couleur = C.vert },
+			{ cle = "sauvetage", nom = "Sauvetage", couleur = UI.couleurMode("Sauvetage") },
+			{ cle = "silencieux", nom = "Silencieux", couleur = UI.couleurMode("Silencieux") },
+		}, 1, UDim2.new(1, -150, 1, 0))
+		local droite = creer("Frame", { Size = UDim2.new(0, 140, 1, 0), BackgroundTransparency = 1, LayoutOrder = 2, Parent = protocoles })
+		W.interInvisible = UI.interrupteur(droite, "Invisible", "Déjà camouflé", C.cyan, 1)
+		W.modes = modes
+		-- État partagé avec le menu rapide
+		Commandes.lierInterrupteurs({ classique = modes.classique, urgence = modes.urgence, express = modes.express, sauvetage = modes.sauvetage,
+			silencieux = modes.silencieux, invisible = W.interInvisible })
 
 		-- Grands boutons
 		local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 62), BackgroundTransparency = 1, LayoutOrder = 6,

@@ -331,8 +331,9 @@ return function(contexte)
 	do
 		local _, contenu = panneau(726, 442, 286, 74, "OUTILS", "◆", C.vert)
 		UI.pile(5, true).Parent = contenu
-		for i, info in { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Clé" }, { "Extincteur", "Extinct." }, { "Retirer", "Ranger" } } do
-			local b = bouton(contenu, info[2], info[1] == "Retirer" and C.fond or C.panneauClair, UDim2.new(0.2, -4, 1, 0))
+		for i, info in { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Molette" }, { "Extincteur", "Extinct." },
+			{ "Cle", "Clé" }, { "Retirer", "Ranger" } } do
+			local b = bouton(contenu, info[2], info[1] == "Retirer" and C.fond or C.panneauClair, UDim2.new(1 / 6, -5, 1, 0))
 			b.LayoutOrder = i
 			b.TextSize = 11
 			b.Activated:Connect(function() remote:FireServer("Outil", { outil = info[1] }) end)
@@ -515,7 +516,7 @@ return function(contexte)
 	-- Cartes d'intervention (reconstruites seulement quand la liste change)
 	--------------------------------------------------------------------
 	local cartes, signatureListe = {}, nil
-	local OUTILS_NOMS = { Visseuse = "Visseuse", Extincteur = "Extincteur", CleMolette = "Clé à molette", Chiffon = "Chiffon" }
+	local OUTILS_NOMS = { Visseuse = "Visseuse", Extincteur = "Extincteur", CleMolette = "Clé à molette", Chiffon = "Chiffon", Cle = "Clé du TARDIS" }
 	local function construireCartes(liste)
 		for _, carte in cartes do carte.cadre:Destroy() end
 		table.clear(cartes)

@@ -116,6 +116,7 @@ end
 -- raccourci en express (voir jouerExpress)
 local function jouerVoyage(etat, mode, dehorsAussi)
 	mode = Config.normaliserMode(mode)
+	if Config.Modes[mode].Discret then return end -- Silencieux (V6.9) : aucun son
 	local groupe = sons[Config.Son(etat, mode)]
 	if groupe and (groupe.int or groupe.ext) then
 		return jouer(Config.Son(etat, mode), dehorsAussi)
@@ -279,6 +280,7 @@ end
 local function setEtat(etat)
 	exterieur:SetAttribute("DebutEtat", workspace:GetServerTimeNow())
 	exterieur:SetAttribute("Etat", etat)
+	if etat ~= E.Pose and exterieur:GetAttribute("Siege") then exterieur:SetAttribute("Siege", false) end -- V6.9 : le siège prend fin au départ
 	majPortailInterieur()
 	majEcran()
 end
@@ -1925,6 +1927,33 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		local nom = (type == "Balles" and "Bouclier anti-balles") or (type == "Complet" and "Bouclier complet") or "Bouclier anti-joueurs"
 		repondre(ok, erreur, nom .. (actif and " activé." or " désactivé."))
 
+	elseif action == "Siege" then
+		-- Mode Siège (V6.9) : bouclier, verrou et alerte d'un seul geste ; un second appui les relâche
+		task.spawn(function()
+			local reglages = Config.Siege or {}
+			local lever = not exterieur:GetAttribute("Siege")
+			local typeBouclier = reglages.Bouclier or "Complet"
+			local refus = {}
+			if lever and etatActuel() ~= E.Pose then repondre(false, "PAS POSÉ") return end
+			if reglages.Verrou ~= false and (exterieur:GetAttribute("PortesVerrouillees") == true) ~= lever then
+				local ok, erreur = basculerVerrou()
+				if not ok then table.insert(refus, "verrou : " .. string.lower(erreur or "?")) end
+			end
+			if typeBouclier and (exterieur:GetAttribute("Bouclier" .. typeBouclier) == true) ~= lever then
+				local ok, erreur = basculerBouclier(typeBouclier)
+				if not ok then table.insert(refus, "bouclier : " .. string.lower(erreur or "?")) end
+			end
+			if reglages.Alerte ~= false and (exterieur:GetAttribute("Alerte") == true) ~= lever then
+				local ok, erreur = basculerAlerte()
+				if not ok then table.insert(refus, "alerte : " .. string.lower(erreur or "?")) end
+			end
+			exterieur:SetAttribute("Siege", lever)
+			if lever then alerter("MODE SIÈGE") end
+			journal("Sécurité", string.format("%s : mode Siège %s par %s.", def.Nom, lever and "levé" or "relâché", joueur.Name))
+			remote:FireClient(joueur, (lever and "Mode Siège : bouclier levé, portes verrouillées, alerte générale." or "Siège levé : bouclier, verrou et alerte relâchés.")
+				.. (#refus > 0 and ("  (Non appliqué : " .. table.concat(refus, ", ") .. ")") or ""), #refus == 0)
+		end)
+
 	elseif action == "VolLibreDebut" then
 		task.spawn(function()
 			local ok, erreur = demarrerVolLibre(joueur)
@@ -2084,6 +2113,7 @@ do
 		elseif action == "destinationChoisie" then return destinationChoisie()
 		elseif action == "reglerAlimentation" then reglerAlimentation(...) return true
 		elseif action == "basculerAlimentation" then return basculerAlimentation()
+		elseif action == "basculerVerrou" then return basculerVerrou()
 		elseif action == "ouvrirPortes" then return ouvrirPortesSimple()
 		elseif action == "emmener" then emmenerALInterieur() return true
 		end

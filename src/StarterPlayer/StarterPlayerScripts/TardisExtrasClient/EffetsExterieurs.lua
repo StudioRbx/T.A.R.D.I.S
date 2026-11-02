@@ -57,6 +57,9 @@ return function(contexte)
 		end
 		RunService.RenderStepped:Connect(function(dt)
 			local p, remat = progressionAnimation()
+			-- Silencieux (V6.9) : ni ombre, ni air qui ondule, ni distorsion
+			local modeAnime = exterieur:GetAttribute("VolPhase") and Config.modeVolDe(exterieur) or Config.modeDe(exterieur)
+			if p and (Config.Modes[modeAnime] or {}).Discret then p = nil end
 			local base = exterieur:GetPivot().Position
 			-- Ombre au sol avant l'apparition, et air qui ondule pendant la matérialisation
 			if p and remat then

@@ -843,6 +843,7 @@ Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = ni
 --------------------------------------------------------------------
 local OUTILS = {
 	Chiffon = { nom = "Chiffon", couleur = Color3.fromRGB(230, 225, 210), taille = Vector3.new(1, 0.3, 1) },
+	Cle = { nom = "Clé du TARDIS", couleur = Color3.fromRGB(214, 170, 60), taille = Vector3.new(0.3, 1.1, 0.12), garder = true }, -- V6.9
 	Visseuse = { nom = "Visseuse / Dévisseuse", couleur = Color3.fromRGB(240, 170, 40), taille = Vector3.new(0.5, 0.5, 1.6) },
 	CleMolette = { nom = "Clé à molette", couleur = Color3.fromRGB(160, 165, 175), taille = Vector3.new(0.4, 1.8, 0.3) },
 	Extincteur = { nom = "Extincteur", couleur = Color3.fromRGB(200, 30, 30), taille = Vector3.new(0.7, 1.6, 0.7) },
@@ -868,7 +869,21 @@ local function donnerOutil(joueur, cle)
 	outil.Activated:Connect(function()
 		local racine = racineDe(joueur)
 		if not racine then return end
-		if cle == "Chiffon" then
+		if cle == "Cle" then
+			-- Clé du TARDIS (V6.9) : verrouille ou déverrouille les portes à distance
+			local portee = (Config.Cle or {}).Portee or 80
+			local aBord = interne("dansInterieur", racine.Position)
+			if not aBord and (racine.Position - exterieur:GetPivot().Position).Magnitude > portee then
+				dire(joueur, string.format("Trop loin : la clé porte à %d studs.", portee), false)
+				return
+			end
+			local ok, erreur = interne("basculerVerrou")
+			if not ok then dire(joueur, "Impossible : " .. string.lower(erreur or "erreur"), false) return end
+			local verrouille = exterieur:GetAttribute("PortesVerrouillees") == true
+			exterieur:SetAttribute("CleSignal", workspace:GetServerTimeNow()) -- la lampe clignote chez tous
+			dire(joueur, verrouille and "Portes verrouillées." or "Portes déverrouillées.", true)
+			return
+		elseif cle == "Chiffon" then
 			if (racine.Position - exterieur:GetPivot().Position).Magnitude > 10 then dire(joueur, "Approche-toi de la cabine pour la nettoyer.", false) return end
 			local salete = math.max((exterieur:GetAttribute("Salete") or 0) - 15, 0)
 			exterieur:SetAttribute("Salete", salete)
@@ -901,12 +916,12 @@ local function donnerOutil(joueur, cle)
 		end
 	end)
 end
-local function retirerOutils(joueur)
+local function retirerOutils(joueur, garderCle)
 	for _, conteneur in { joueur:FindFirstChildOfClass("Backpack"), joueur.Character } do
 		if conteneur then
-			for cle in OUTILS do
+			for cle, infos in OUTILS do
 				local outil = conteneur:FindFirstChild(cle)
-				if outil then outil:Destroy() end
+				if outil and not (garderCle and infos.garder) then outil:Destroy() end
 			end
 		end
 	end
@@ -1231,7 +1246,9 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		return
 	end
 	if action == "Outil" then
-		if not estTechnicien(joueur) then return end
+		local cleDemandee = typeof(donnees) == "table" and donnees.outil
+		-- La clé du TARDIS peut aussi être prise par un pilote (Config.Cle.Pilotes)
+		if not (estTechnicien(joueur) or (cleDemandee == "Cle" and (Config.Cle or {}).Pilotes ~= false and estPilote(joueur))) then return end
 		local mon = Config.tardisDuJoueur(joueur)
 		if mon and mon.Nom ~= def.Nom then return end -- les outils viennent de l'exemplaire de son TARDIS principal
 		local cle = typeof(donnees) == "table" and donnees.outil
@@ -1258,7 +1275,7 @@ task.spawn(function()
 			if estTechnicien(joueur) then
 				local racine = racineDe(joueur)
 				if racine and not interne("dansInterieur", racine.Position) and (racine.Position - exterieur:GetPivot().Position).Magnitude > 20 then
-					retirerOutils(joueur)
+					retirerOutils(joueur, true) -- la clé du TARDIS reste : elle sert dehors
 				end
 			end
 		end

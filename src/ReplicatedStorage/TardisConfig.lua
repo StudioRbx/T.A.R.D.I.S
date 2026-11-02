@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.8.1"
+Config.Version = "6.9"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -95,6 +95,18 @@ Config.Modes = {
 		OuvrirPortes = true,   -- portes ouvertes automatiquement une fois posée
 		CouleurRotor = Color3.fromRGB(90, 220, 230),
 		Sons = { Demat = "Demat", Remat = "Remat" },
+	},
+	-- Silencieux (V6.9, ajout C1) : pour les infiltrations. Ni son, ni lumière, ni poussière, ni empreinte, ni
+	-- annonce à l'intercom ; la cabine s'efface et revient en souffles lents et réguliers.
+	Silencieux = {
+		Libelle = "Silencieux",
+		Demat = { Duree = 9, Decalage = 0 },
+		Remat = { Duree = 9, Decalage = 0 },
+		Pulsations = 3,
+		Discret = true,        -- aucun son, aucune lumière, aucun effet au sol, pas d'empreinte ni d'intercom
+		CouleurRotor = Color3.fromRGB(150, 120, 230), -- à l'intérieur seulement
+		CouleurDehors = false,
+		Sons = {},
 	},
 	-- Catastrophe (V6.7.1) : la destination est À L'INTÉRIEUR du TARDIS (un joueur à bord, un lieu dans la salle).
 	-- Première tentative : la matérialisation commence puis est repoussée dans le vortex (paradoxe). Le pilote doit
@@ -491,6 +503,17 @@ function Config.trouverChemin(chemin)
 	return objet
 end
 
+-- Clé du TARDIS (V6.9, modification 24) : outil des techniciens (et des pilotes) qui verrouille ou déverrouille
+-- les portes à distance, comme une clé de voiture. La lampe clignote deux fois.
+Config.Cle = {
+	Portee = 80,            -- distance maximale à la cabine (studs) ; à bord, elle marche toujours
+	Pilotes = true,         -- les pilotes peuvent aussi la prendre (menu Systèmes)
+}
+
+-- Mode Siège (V6.9, ajout C6) : un seul bouton lève le bouclier complet, verrouille les portes et déclenche l'alerte.
+-- Un second appui lève le siège. Il prend fin tout seul si le TARDIS décolle.
+Config.Siege = { Bouclier = "Complet", Verrou = true, Alerte = true }
+
 -- Intercom du site (V6.7.3) : la première matérialisation visible d'un TARDIS pendant la session est annoncée à tout
 -- le serveur (« faille spatio-temporelle »), puis les pilotes reçoivent un rappel toutes les RappelMinutes.
 -- Cible : chemin d'un objet de l'OS Fondation qui fait l'annonce (BindableEvent, BindableFunction ou ModuleScript
@@ -552,6 +575,9 @@ Config.Regeneration = {
 	DelaiChoix = 3,          -- ...pendant ce temps (secondes)
 	DegatsTardis = 400,      -- une régénération à bord abîme le TARDIS (intégrité), avec étincelles et alarme
 	RepousseDuree = 300,     -- après une régénération, un membre perdu repousse pendant ce temps (secondes)
+	-- Crise post-régénération (V6.9, modification 23) : vision trouble et démarche titubante pour celui qui vient de
+	-- se régénérer. 0 = aucune crise.
+	CriseDuree = 60,
 	-- Le lien Time Lord (les membres de la C.A.T. ressentent les régénérations des autres) s'active dans la tablette : outil Régénérations
 }
 

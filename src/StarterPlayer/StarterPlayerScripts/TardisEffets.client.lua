@@ -186,6 +186,7 @@ end
 
 local alphaActuel = 0
 local secousseActive = false
+local dernierModeAnime = "Normal" -- mode de la dernière animation (le serveur le remet à Normal en posant le TARDIS)
 local courseRotor = 0 -- hauteur actuelle du rotor (lissée)
 local choc = 0        -- secousse d'arrivée (atterrissage), décroît
 local flashLampe = 0  -- éclat de la lampe au départ et à l'arrivée, décroît
@@ -235,6 +236,12 @@ if EFFETS.Lueur ~= false then
 	halo = piece({ Name = "TardisHalo_" .. def.Nom, Shape = Enum.PartType.Ball, Transparency = 1, Size = Vector3.one, Color = couleurLampe })
 end
 
+-- Clé du TARDIS (V6.9) : la lampe clignote deux fois, comme une voiture qu'on verrouille
+exterieur:GetAttributeChangedSignal("CleSignal"):Connect(function()
+	flashLampe = 0.9
+	task.delay(0.35, function() flashLampe = 0.9 end)
+end)
+
 RunService.RenderStepped:Connect(function(dt)
 	local etat = exterieur:GetAttribute("Etat") or E.Pose
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
@@ -242,11 +249,13 @@ RunService.RenderStepped:Connect(function(dt)
 	local reduit = UI.effetsReduits()
 
 	-- 0) Changement d'état : départ (la cabine vient de disparaître) et arrivée (elle vient de se poser)
+	-- (Silencieux, V6.9 : aucun éclat ; le serveur remet Mode à Normal en posant le TARDIS, d'où dernierModeAnime)
+	local modeDiscret = (Config.Modes[dernierModeAnime] or {}).Discret == true
 	if etat ~= etatPrecedent then
 		if etat == E.Vol and etatPrecedent == E.Demat then
-			flashLampe = 1
+			if not modeDiscret then flashLampe = 1 end
 		elseif etat == E.Pose and etatPrecedent == E.Remat then
-			flashLampe = 1
+			if not modeDiscret then flashLampe = 1 end
 			if EFFETS.Choc ~= false then
 				local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
 				if racine and dansInterieur(racine.Position) then
@@ -277,6 +286,8 @@ RunService.RenderStepped:Connect(function(dt)
 	local souffle, progression, fond, etatAnime, modeAnime = 0, 0, 0, nil, nil
 	proteger("souffle", function() souffle, progression, fond, etatAnime, modeAnime = respiration() end)
 	local enVoyage = etatAnime ~= nil
+	if modeAnime then dernierModeAnime = modeAnime end
+	local discret = enVoyage and (Config.Modes[modeAnime] or {}).Discret == true -- Silencieux : ni lumière ni effet dehors
 	local camoufle = exterieur:GetAttribute("Camouflage") == true
 	local visible = (1 - alphaActuel) * (1 - camouflage)
 
@@ -294,6 +305,7 @@ RunService.RenderStepped:Connect(function(dt)
 			end
 		end
 		brillance += brillanceBase * 2.5 * flashLampe
+		if discret then brillance = 0 end -- Silencieux : la lampe reste éteinte
 		if exterieur:GetAttribute("Alimentation") == false then
 			brillance = 0 -- plus de courant
 		end
@@ -307,7 +319,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if lueur then
 		proteger("lueur", function()
 			local alimente = exterieur:GetAttribute("Alimentation") ~= false
-			local intensite = (enVoyage and alimente) and souffle * visible or 0
+			local intensite = (enVoyage and alimente and not discret) and souffle * visible or 0
 			-- Couleur du mode dehors (le Rapide garde sa couleur pour l'intérieur : lumière neutre ici)
 			local couleur = Color3.fromRGB(255, 240, 210):Lerp(Config.couleurDehors(modeAnime or mode), 0.45)
 			local pivot = exterieur:GetPivot()
@@ -386,7 +398,7 @@ RunService.RenderStepped:Connect(function(dt)
 		-- Contre-jour (V6.7) : à bord, chaque souffle éclaire doucement l'image (la salle respire avec le moteur)
 		local contrejour = 0
 		if EFFETS.Contrejour ~= false and dedans and enVoyage and not horsTension then
-			contrejour = souffle * (reduit and 0.02 or 0.07) + choc * 0.05
+			contrejour = (discret and 0 or souffle * (reduit and 0.02 or 0.07)) + choc * 0.05
 		end
 		teinte.TintColor = Color3.new(1, 1 - 0.45 * intensite, 1 - 0.45 * intensite)
 		teinte.Saturation = -0.2 * noirActuel
@@ -554,6 +566,7 @@ do
 	local dernierSouffle = 0
 	local etatSol = nil    -- état animé à l'image précédente (pour l'arrivée)
 	local arcsPart = nil   -- étincelles de la lampe en urgence
+	local modeSol = "Normal" -- mode de la dernière animation (pour l'arrivée)
 
 	local function exclusionsSol()
 		local liste = { exterieur, interieur }
@@ -695,7 +708,9 @@ do
 		dernierSouffle = s
 		local couleurMode = Config.couleurDehors(modeAnime or "Normal") -- Rapide : neutre dehors
 
-		if etatAnime and not camoufle then
+		local discretSol = etatAnime ~= nil and (Config.Modes[modeAnime] or {}).Discret == true
+		if etatAnime and modeAnime then modeSol = modeAnime end
+		if etatAnime and not camoufle and not discretSol then
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = exclusionsSol()
@@ -767,7 +782,7 @@ do
 
 		-- 3) Arrivée : la cabine vient de se poser (fin d'une remat) : bouffée de poussière et onde d'arrivée
 		local etatMaintenant = exterieur:GetAttribute("Etat") or E.Pose
-		if etatSol == E.Remat and etatMaintenant == E.Pose and not camoufle and EFFETS.Choc ~= false then
+		if etatSol == E.Remat and etatMaintenant == E.Pose and not camoufle and EFFETS.Choc ~= false and not (Config.Modes[modeSol] or {}).Discret then
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = exclusionsSol()
@@ -925,8 +940,9 @@ do
 		local etat = exterieur:GetAttribute("Etat")
 		if etat == E.Demat then
 			if enAttente then enAttente:Destroy() enAttente = nil end
-			-- Pas d'empreinte pour un départ discret : camouflé, porté (téléportation de poche) ou en vol libre
-			if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") or exterieur:GetAttribute("VolLibre") then return end
+			-- Pas d'empreinte pour un départ discret : camouflé, porté (téléportation de poche), en vol libre ou Silencieux
+			if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") or exterieur:GetAttribute("VolLibre")
+				or (Config.Modes[Config.modeDe(exterieur)] or {}).Discret then return end
 			enAttente = preparer()
 		elseif etat == E.Vol and enAttente then
 			local modele = enAttente

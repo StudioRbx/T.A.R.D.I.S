@@ -42,7 +42,8 @@ UI.LIBELLES = {
 }
 -- Couleur d'interface d'un mode de voyage (interrupteurs, badges, texte du mode)
 function UI.couleurMode(mode)
-	return ({ Urgence = C.orange, Express = C.vert, Sauvetage = Color3.fromRGB(90, 220, 230), Catastrophe = C.rouge })[mode] or C.texte2
+	return ({ Urgence = C.orange, Express = C.vert, Sauvetage = Color3.fromRGB(90, 220, 230), Catastrophe = C.rouge,
+		Silencieux = Color3.fromRGB(170, 140, 240) })[mode] or C.texte2
 end
 
 --------------------------------------------------------------------
@@ -375,6 +376,34 @@ function UI.interrupteur(parent, nom, description, couleur, ordre)
 		if inter.surChangement then inter.surChangement(etat) end
 	end)
 	return inter
+end
+
+-- Sélecteur de mode (V6.9) : une rangée de segments, un seul actif à la fois. Chaque segment se comporte comme un
+-- interrupteur pour TardisCommandes.lierInterrupteurs (regler(valeur), valeur(), surChangement(actif)).
+-- modes = { { cle = "classique", nom = "Classique", couleur = Color3 }, ... } ; renvoie { [cle] = segment }, cadre
+function UI.selecteurModes(parent, modes, ordre, taille)
+	local cadre = creer("Frame", { Size = taille or UDim2.new(1, 0, 0, 40), BackgroundColor3 = C.fond, LayoutOrder = ordre or 0, Parent = parent },
+	{ UI.coin(9), UI.contour(Color3.new(0, 0, 0), 1, 0.7) })
+	local rangee = creer("Frame", { Position = UDim2.fromOffset(3, 3), Size = UDim2.new(1, -6, 1, -6), BackgroundTransparency = 1, Parent = cadre }, { UI.pile(3, true) })
+	local segments, n = {}, #modes
+	for i, m in modes do
+		local b = creer("TextButton", { Size = UDim2.new(1 / n, -3 * (n - 1) / n, 1, 0), BackgroundColor3 = m.couleur, BackgroundTransparency = 1, Text = m.nom,
+			Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.texte2, TextTruncate = Enum.TextTruncate.AtEnd, LayoutOrder = i, Parent = rangee }, { UI.coin(7) })
+		local trait = creer("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -3), Size = UDim2.new(0, 0, 0, 2),
+			BackgroundColor3 = m.couleur, BorderSizePixel = 0, Parent = b }, { UI.coin(99) })
+		local segment = { actif = false }
+		function segment.regler(valeur)
+			segment.actif = valeur
+			animer(b, 0.2, { BackgroundTransparency = valeur and 0.78 or 1, TextColor3 = valeur and UI.eclaircir(m.couleur, 0.35) or C.texte2 })
+			animer(trait, 0.25, { Size = valeur and UDim2.new(0.6, 0, 0, 2) or UDim2.new(0, 0, 0, 2) })
+		end
+		function segment.valeur() return segment.actif end
+		b.MouseEnter:Connect(function() if not segment.actif then animer(b, 0.15, { BackgroundTransparency = 0.9 }) end end)
+		b.MouseLeave:Connect(function() if not segment.actif then animer(b, 0.2, { BackgroundTransparency = 1 }) end end)
+		b.Activated:Connect(function() if segment.surChangement then segment.surChangement(not segment.actif) end end)
+		segments[m.cle] = segment
+	end
+	return segments, cadre
 end
 
 --------------------------------------------------------------------

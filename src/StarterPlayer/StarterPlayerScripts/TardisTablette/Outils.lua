@@ -53,6 +53,8 @@ return function(contexte)
 	O.autodestruction = tuileOutil(fSecurite, "Auto-destruction", "▲", 6)
 	O.regenerations = tuileOutil(fSecurite, "Régénérations", "◆", 7)
 	O.ingenierie = tuileOutil(fSecurite, "Ingénierie", "◆", 8) -- V6.7.2 : ouvre la tablette technicien
+	O.siege = tuileOutil(fSecurite, "Siège", "▲", 9) -- V6.9 : bouclier + verrou + alerte d'un seul geste
+	O.cle = tuileOutil(fSecurite, "Clé du TARDIS", "◆", 10) -- V6.9 : verrou à distance
 	O.theme = tuileOutil(fAmbiance, "Thème", "◆", 1)
 	O.jukebox = tuileOutil(fAmbiance, "Jukebox", "●", 2)
 	O.projecteur = tuileOutil(fAmbiance, "Projecteur", "▲", 3)
@@ -100,6 +102,9 @@ return function(contexte)
 			if exterieur:GetAttribute(attribut) then pannes += 1 end
 		end
 		if (exterieur:GetAttribute("RegulAir") or 100) < ((Config.Technicien or {}).SeuilAirVicie or 25) then pannes += 1 end
+		local siege = exterieur:GetAttribute("Siege") == true
+		majTuile(O.siege, siege, siege and "EN SIÈGE · lever" or "Bouclier · verrou · alerte", C.rouge, siege or (pose and alimente))
+		majTuile(O.cle, false, "Verrou à distance", Color3.fromRGB(214, 170, 60), (Config.Cle or {}).Pilotes ~= false)
 		majTuile(O.ingenierie, pannes > 0, pannes > 0 and (pannes .. " intervention(s)") or "Systèmes nominaux", C.orange, true)
 		majTuile(O.regenerations, nbRegen > 0, (nbRegen > 0 and (nbRegen .. " au journal") or "Aucune") .. (lien and " · lien actif" or ""), C.ambre, true)
 		majTuile(O.theme, exterieur:GetAttribute("Theme") ~= nil, exterieur:GetAttribute("Theme") or "Classique", C.ambre, alimente)
@@ -112,7 +117,7 @@ return function(contexte)
 	end
 	-- Mise à jour avec l'interface, et sur les attributs des outils
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function() if S.ouvert then majOutils(lireEtat()) end end)
-	for _, attribut in { "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "StyleInterieur", "Jukebox", "Stabilisateur", "Roles", "BouclierEnergie",
+	for _, attribut in { "Siege", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "StyleInterieur", "Jukebox", "Stabilisateur", "Roles", "BouclierEnergie",
 		"BouclierJoueurs", "BouclierBalles", "BouclierComplet", "AutoDestructionDebut", "Alimentation", "Porteur", "VolLibre", "DemarrageBloque" } do
 		exterieur:GetAttributeChangedSignal(attribut):Connect(function() if S.ouvert then majOutils(lireEtat()) end end)
 	end
@@ -441,6 +446,16 @@ return function(contexte)
 		boutonSurcouche(c, "Appliquer l'enseigne", ordre + 3, C.bleu, function()
 			if #saisie.Text > 0 then remote:FireServer("Enseigne", { texte = string.sub(saisie.Text, 1, 24) }) end
 		end)
+	end)
+	O.siege.bouton.Activated:Connect(function()
+		if O.siege.bouton:GetAttribute("Disponible") == false then return end
+		if exterieur:GetAttribute("Siege") then remote:FireServer("Siege") return end
+		UI.confirmer(O.siege.etat, function() remote:FireServer("Siege") end)
+	end)
+	O.cle.bouton.Activated:Connect(function()
+		if O.cle.bouton:GetAttribute("Disponible") == false then return end
+		remote:FireServer("Outil", { outil = "Cle" })
+		notifier("Clé du TARDIS dans ton inventaire : clique avec, à moins de " .. tostring((Config.Cle or {}).Portee or 80) .. " studs.", true)
 	end)
 	O.ingenierie.bouton.Activated:Connect(function()
 		fermer()

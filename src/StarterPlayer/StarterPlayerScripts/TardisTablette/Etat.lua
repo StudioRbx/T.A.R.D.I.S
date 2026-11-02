@@ -76,6 +76,8 @@ return function(contexte)
 			express = Config.modeDe(exterieur) == "Express" and etat ~= E.Pose,
 			sauvetage = Config.modeDe(exterieur) == "Sauvetage" and etat ~= E.Pose,
 			catastrophe = Config.modeDe(exterieur) == "Catastrophe" and etat ~= E.Pose,
+			silencieux = Config.modeDe(exterieur) == "Silencieux" and etat ~= E.Pose,
+			siege = exterieur:GetAttribute("Siege") == true,
 			mode = Config.modeDe(exterieur),
 			alimente = exterieur:GetAttribute("Alimentation") ~= false,
 			alerte = exterieur:GetAttribute("Alerte") == true,
@@ -204,6 +206,8 @@ return function(contexte)
 		W.badges.express.Visible = e.express
 		W.badges.sauvetage.Visible = e.sauvetage
 		W.badges.catastrophe.Visible = e.catastrophe
+		W.badges.silencieux.Visible = e.silencieux
+		W.badges.siege.Visible = e.siege
 		W.badges.horsTension.Visible = not e.alimente
 		W.badges.alerte.Visible = e.alerte
 		W.badges.bloque.Visible = e.bloque
