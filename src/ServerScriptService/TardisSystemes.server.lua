@@ -317,7 +317,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------
--- Régénération (Config.Regeneration) : les joueurs de l'équipe "Le Voyageur" ne meurent pas, ils se régénèrent.
+-- Régénération (Config.Regeneration) : les joueurs de l'équipe C.A.T. (Config.Equipe) ne meurent pas, ils se régénèrent.
 -- Pendant la régénération, rien ne peut les tuer. Ils prennent l'apparence d'un des avatars sauvegardés sur leur compte
 -- (sinon une tenue de Config.Tenues), sont soignés et gagnent des PV en plus pendant quelques minutes.
 -- (Un seul exemplaire du script s'en occupe : celui du premier TARDIS.)
@@ -668,7 +668,7 @@ local function surveillerPersonnage(joueur, personnage)
 	personnage.AncestryChanged:Connect(function() if not personnage:IsDescendantOf(game) then connexionEquipe:Disconnect() end end)
 
 	-- Articulations gardées (V6.7.1) : une commande :kill (BreakJoints) ou une explosion casse toutes les articulations.
-	-- Pour un Voyageur, chacune est ressoudée à l'instant même : le corps ne tombe plus en miettes avant de se
+	-- Pour un membre de la C.A.T., chacune est ressoudée à l'instant même : le corps ne tombe plus en miettes avant de se
 	-- régénérer. Les suppressions voulues (membre qui repousse) portent l'attribut TardisVolontaire.
 	personnage.DescendantRemoving:Connect(function(moteur)
 		if not moteur:IsA("Motor6D") or moteur:GetAttribute("TardisVolontaire") then return end
@@ -1114,7 +1114,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	if action == "LienTimeLord" then
 		local actif = not ReplicatedStorage:GetAttribute("TardisLienTimeLord")
 		ReplicatedStorage:SetAttribute("TardisLienTimeLord", actif)
-		dire(joueur, actif and "Lien Time Lord activé : les Voyageurs ressentent les régénérations." or "Lien Time Lord désactivé.", true)
+		dire(joueur, actif and "Lien Time Lord activé : les membres de la C.A.T. ressentent les régénérations." or "Lien Time Lord désactivé.", true)
 		return
 	end
 	if action == "Stabilisateur" then

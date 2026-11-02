@@ -103,7 +103,7 @@ local afficherInvitation = Interactions.afficherInvitation
 require(script:WaitForChild("Boucliers"))({ Players = Players, RunService = RunService, UI = UI, animer = animer, exterieur = exterieur, partTemporaire = partTemporaire })
 
 --------------------------------------------------------------------
--- Régénération (équipe Le Voyageur) et régénération à bord : module Regeneration
+-- Régénération (équipe C.A.T.) et régénération à bord : module Regeneration
 --------------------------------------------------------------------
 require(script:WaitForChild("Regeneration"))({ C = C, Config = Config, Lighting = Lighting, Players = Players, ReplicatedStorage = ReplicatedStorage, RunService = RunService, UI = UI, animer = animer, camera = camera, creer = creer, def = def, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, maRacine = maRacine, partTemporaire = partTemporaire, remote = remote, secouer = secouer, texte = texte })
 

@@ -115,10 +115,10 @@ Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un
 Config.DureeVortexAuto = 10 -- destination choisie avant la démat : secondes dans le vortex avant la remat automatique (V6.7.1)
 Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Rapides (V6.6.4)
 
--- L'équipe des Voyageurs (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
+-- L'équipe C.A.T. — Cellule d'Autorité Temporelle (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
 -- Nom : celui de la Team dans le service Teams de Studio (à renommer là aussi si tu changes ce nom).
 Config.Equipe = {
-	Nom = "Le Voyageur",
+	Nom = "Cellule d'Autorité Temporelle", -- nom exact de la Team dans Studio › Teams (sigle : C.A.T.)
 	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
 }
 
@@ -461,7 +461,7 @@ Config.Regeneration = {
 	DelaiChoix = 3,          -- ...pendant ce temps (secondes)
 	DegatsTardis = 400,      -- une régénération à bord abîme le TARDIS (intégrité), avec étincelles et alarme
 	RepousseDuree = 300,     -- après une régénération, un membre perdu repousse pendant ce temps (secondes)
-	-- Le lien Time Lord (les Voyageurs ressentent les régénérations des autres) s'active dans la tablette : outil Régénérations
+	-- Le lien Time Lord (les membres de la C.A.T. ressentent les régénérations des autres) s'active dans la tablette : outil Régénérations
 }
 
 -- Découverte : message affiché la première fois qu'un joueur entre dans le TARDIS (une seule fois, sauvegardé)
@@ -524,9 +524,9 @@ function Config.couleurDehors(mode)
 	return reglages.CouleurRotor or Color3.fromRGB(235, 240, 255)
 end
 
--- Nom de l'équipe des Voyageurs
+-- Nom de l'équipe (C.A.T.)
 function Config.nomEquipe()
-	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "Le Voyageur"
+	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "Cellule d'Autorité Temporelle"
 end
 
 -- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)

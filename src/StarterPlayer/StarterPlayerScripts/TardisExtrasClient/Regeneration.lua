@@ -1,5 +1,5 @@
 -- StarterPlayerScripts > TardisExtrasClient > Regeneration (ModuleScript)
--- Régénération (équipe Le Voyageur) et régénération à bord
+-- Régénération (équipe C.A.T., Config.Equipe) et régénération à bord
 -- Extrait du script principal en V6.6.3 ; animations refaites en V6.7 (sauf le Tourbillon, gardé tel quel).
 
 return function(contexte)
@@ -10,7 +10,7 @@ return function(contexte)
 	local Debris = game:GetService("Debris")
 
 	--------------------------------------------------------------------
-	-- 18) Régénération (équipe "Le Voyageur") : l'énergie monte sous la peau, jaillit de la tête et des mains en
+	-- 18) Régénération (équipe C.A.T.) : l'énergie monte sous la peau, jaillit de la tête et des mains en
 	-- jets solides (Beams) habillés de flammes, le changement d'apparence est caché par un éclat de lumière, puis
 	-- l'énergie se dissipe et le nouveau visage fume encore pendant un moment.
 	-- Un seul exemplaire du script s'en occupe (celui du premier TARDIS).
@@ -689,7 +689,7 @@ return function(contexte)
 					if p >= 1 or not racine.Parent then rendreCamera() end
 				end))
 
-				-- Lien Time Lord : les autres Voyageurs ressentent la régénération, où qu'ils soient
+				-- Lien Time Lord : les autres membres de la C.A.T. ressentent la régénération, où qu'ils soient
 				if not moi and ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true and joueur.Team
 					and joueur.Team.Name == Config.nomEquipe() then
 					local autre = Players:GetPlayerFromCharacter(personnage)
@@ -702,7 +702,7 @@ return function(contexte)
 					secouer(0.15)
 					pcall(function()
 						game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Lien Time Lord",
-							Text = string.format("%s se régénère (%d studs).", autre and autre.DisplayName or "Un Voyageur", distance), Duration = 6 })
+							Text = string.format("%s se régénère (%d studs).", autre and autre.DisplayName or "Un membre de la C.A.T.", distance), Duration = 6 })
 					end)
 				end
 

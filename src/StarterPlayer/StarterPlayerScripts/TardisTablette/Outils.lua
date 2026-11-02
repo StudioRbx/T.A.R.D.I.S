@@ -483,7 +483,7 @@ return function(contexte)
 	local function afficherRegenerations()
 		local c = ouvrirSurcouche("regenerations", "RÉGÉNÉRATIONS")
 		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
-		ligneTexte(c, "LIEN TIME LORD : les Voyageurs ressentent les régénérations des autres (notification et flash).", 1, C.texte2, 11)
+		ligneTexte(c, "LIEN TIME LORD : les membres de la C.A.T. ressentent les régénérations des autres (notification et flash).", 1, C.texte2, 11)
 		boutonSurcouche(c, lien and "●  Lien Time Lord : activé (désactiver)" or "○  Lien Time Lord : désactivé (activer)", 2, lien and C.bleu or nil, function()
 			remote:FireServer("LienTimeLord")
 			task.delay(0.4, afficherRegenerations)
