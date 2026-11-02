@@ -482,6 +482,9 @@ RunService.RenderStepped:Connect(function(dt)
 					elseif nuit then cible = 0.7 end -- nuit automatique
 					if nuit and cible > 0 then couleur = couleur:Lerp(Color3.fromRGB(255, 200, 140), 0.35) end
 					if enVol or enVoyage then cible *= pulsation end
+					-- Régulation de l'énergie (tablette technicien, V6.7.2) : en sous-tension, la salle baisse
+					local tension = exterieur:GetAttribute("RegulEnergie")
+					if tension then cible *= 0.3 + 0.7 * math.clamp(tension / math.max((Config.Technicien or {}).SousTension or 20, 1) * 0.5, 0, 1) end
 					-- Choc d'atterrissage : la lumière vacille
 					if choc > 0 then cible *= 1 - 0.5 * choc * Config.Bruit(t, 20) end
 					-- Lumières du rotor : couleur du mode du voyage

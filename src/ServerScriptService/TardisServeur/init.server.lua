@@ -2059,6 +2059,7 @@ do
 		elseif action == "listeDestinations" then return listeDestinations()
 		elseif action == "destinationChoisie" then return destinationChoisie()
 		elseif action == "reglerAlimentation" then reglerAlimentation(...) return true
+		elseif action == "basculerAlimentation" then return basculerAlimentation()
 		elseif action == "ouvrirPortes" then return ouvrirPortesSimple()
 		elseif action == "emmener" then emmenerALInterieur() return true
 		end

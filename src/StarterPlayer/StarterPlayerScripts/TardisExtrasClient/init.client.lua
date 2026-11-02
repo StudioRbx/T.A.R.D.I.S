@@ -123,6 +123,11 @@ require(script:WaitForChild("Decor"))({ Config = Config, RunService = RunService
 require(script:WaitForChild("TabletteLecture"))({ C = C, Players = Players, UI = UI, creer = creer, dansInterieur = dansInterieur, exterieur = exterieur, joueur = joueur, texte = texte })
 
 --------------------------------------------------------------------
+-- Tablette technicien (V6.7.2) : systèmes, régulation, interventions guidées : module TabletteTechnicien
+--------------------------------------------------------------------
+require(script:WaitForChild("TabletteTechnicien"))({ C = C, Config = Config, E = E, Lighting = Lighting, Players = Players, RunService = RunService, UI = UI, UserInputService = UserInputService, animer = animer, camera = camera, creer = creer, dansInterieur = dansInterieur, def = def, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, partTemporaire = partTemporaire, remote = remote, texte = texte })
+
+--------------------------------------------------------------------
 -- Volume des sons et découverte : module Preferences
 --------------------------------------------------------------------
 require(script:WaitForChild("Preferences"))({ C = C, Config = Config, UI = UI, afficherInvitation = afficherInvitation, animer = animer, creer = creer, exterieur = exterieur, interieur = interieur, joueur = joueur, remote = remote, texte = texte })

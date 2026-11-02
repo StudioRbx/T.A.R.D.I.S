@@ -254,6 +254,7 @@ exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	local etat = exterieur:GetAttribute("Etat")
 	if etat == E.Pose and etatPrecedent == E.Remat then
 		voyagesConsecutifs += 1
+		exterieur:SetAttribute("VoyagesConsecutifs", voyagesConsecutifs) -- lu par la tablette technicien
 		-- Saleté : la cabine se salit à chaque atterrissage
 		exterieur:SetAttribute("Salete", math.clamp((exterieur:GetAttribute("Salete") or 0) + (S.SaleteParVoyage or 8), 0, 100))
 		if voyagesConsecutifs >= (S.VoyagesAvantCoupure or 5) and not exterieur:GetAttribute("RedemarrageRequis") then
@@ -293,6 +294,7 @@ do
 		prompt.Triggered:Connect(function(joueur)
 			if not (estPilote(joueur) or estTechnicien(joueur)) then return end
 			voyagesConsecutifs = 0
+			exterieur:SetAttribute("VoyagesConsecutifs", 0)
 			exterieur:SetAttribute("RedemarrageRequis", false)
 			interne("reglerAlimentation", true)
 			interne("jouer", "Reparation", false)
@@ -1081,7 +1083,133 @@ local function appliquerPose(personnage, pose)
 	end
 end
 
+--------------------------------------------------------------------
+-- Tablette technicien (V6.7.2) : régulation de l'énergie, de l'air et de la vapeur, marche / arrêt de l'énergie,
+-- redémarrage à distance, purge de l'air, diagnostic. Aucune commande de voyage, de vol, de portes ni de boucliers.
+-- Tout est publié en attributs de l'extérieur : Regul<Systeme>, TechRedemarrageFin, TechPurgeFin, TechDiagnostic, TechDernier.
+--------------------------------------------------------------------
+local TECH = Config.Technicien or {}
+local SYSTEMES_REGULES = { Energie = true, Air = true, Vapeur = true }
+local function intensiteVapeur(valeur)
+	return valeur / 50 * ((Config.Vapeur or {}).Intensite or 1)
+end
+for systeme in SYSTEMES_REGULES do
+	if exterieur:GetAttribute("Regul" .. systeme) == nil then
+		exterieur:SetAttribute("Regul" .. systeme, (TECH.Regulation or {})[systeme] or (systeme == "Vapeur" and 50 or 100))
+	end
+end
+exterieur:SetAttribute("VapeurIntensite", intensiteVapeur(exterieur:GetAttribute("RegulVapeur") or 50))
+
+local dernierTech = {}
+local function commandeTechnique(joueur, donnees)
+	if typeof(donnees) ~= "table" then return end
+	local maintenant = os.clock()
+	if dernierTech[joueur] and maintenant - dernierTech[joueur] < 0.25 then return end
+	dernierTech[joueur] = maintenant
+	local commande = donnees.commande
+
+	if commande == "Reguler" then
+		local systeme, valeur = donnees.systeme, tonumber(donnees.valeur)
+		if not SYSTEMES_REGULES[systeme] or not valeur or valeur ~= valeur then return end
+		valeur = math.clamp(math.floor(valeur + 0.5), 0, 100)
+		exterieur:SetAttribute("Regul" .. systeme, valeur)
+		if systeme == "Vapeur" then exterieur:SetAttribute("VapeurIntensite", intensiteVapeur(valeur)) end
+		exterieur:SetAttribute("TechDernier", string.format("%s\tRégulation %s : %d %%\t%.2f", joueur.DisplayName, string.lower(systeme), valeur, workspace:GetServerTimeNow()))
+
+	elseif commande == "Energie" then
+		local ok, erreur = interne("basculerAlimentation")
+		if ok then
+			local allume = exterieur:GetAttribute("Alimentation") ~= false
+			direAuxPilotes((allume and "Énergie rétablie par " or "Énergie coupée par ") .. joueur.DisplayName .. ".", allume)
+			exterieur:SetAttribute("TechDernier", string.format("%s\t%s\t%.2f", joueur.DisplayName, allume and "Énergie rétablie" or "Énergie coupée", workspace:GetServerTimeNow()))
+		else
+			dire(joueur, "Impossible : " .. string.lower(erreur or "erreur"), false)
+		end
+
+	elseif commande == "Redemarrer" then
+		if not exterieur:GetAttribute("RedemarrageRequis") then dire(joueur, "Aucun redémarrage requis.", false) return end
+		if exterieur:GetAttribute("TechRedemarrageFin") then return end
+		local duree = S.RedemarrageDuree or 10
+		exterieur:SetAttribute("TechRedemarrageFin", workspace:GetServerTimeNow() + duree)
+		interne("alerter", "REDÉMARRAGE À DISTANCE")
+		direAuxPilotes(joueur.DisplayName .. " lance le redémarrage à distance (" .. duree .. " s).", true)
+		task.delay(duree, function()
+			exterieur:SetAttribute("TechRedemarrageFin", nil)
+			if not exterieur:GetAttribute("RedemarrageRequis") then return end
+			voyagesConsecutifs = 0
+			exterieur:SetAttribute("VoyagesConsecutifs", 0)
+			exterieur:SetAttribute("RedemarrageRequis", false)
+			interne("reglerAlimentation", true)
+			interne("jouer", "Reparation", false)
+			direAuxPilotes("Système redémarré à distance par " .. joueur.DisplayName .. ".", true)
+		end)
+
+	elseif commande == "Purger" then
+		if exterieur:GetAttribute("TechPurgeFin") then return end
+		if exterieur:GetAttribute("Alimentation") == false then dire(joueur, "Impossible : hors tension.", false) return end
+		local duree = TECH.DureePurge or 6
+		exterieur:SetAttribute("TechPurgeFin", workspace:GetServerTimeNow() + duree)
+		interne("alerter", "PURGE DE L'AIR")
+		interne("jouer", "Reparation", false)
+		task.delay(duree, function()
+			exterieur:SetAttribute("TechPurgeFin", nil)
+			exterieur:SetAttribute("RegulAir", 100)
+			dire(joueur, "Purge terminée : air à 100 %.", true)
+		end)
+
+	elseif commande == "Diagnostic" then
+		exterieur:SetAttribute("TechDiagnostic", workspace:GetServerTimeNow())
+		local defauts = {}
+		if exterieur:GetAttribute("Avarie") then table.insert(defauts, "avarie (intégrité à 0 %)") end
+		if exterieur:GetAttribute("RedemarrageRequis") then table.insert(defauts, "redémarrage requis") end
+		if exterieur:GetAttribute("VapeurSurcharge") then table.insert(defauts, "fuite de vapeur") end
+		if exterieur:GetAttribute("Incendie") then table.insert(defauts, "incendie de console") end
+		if exterieur:GetAttribute("Alimentation") == false then table.insert(defauts, "hors tension") end
+		if (exterieur:GetAttribute("RegulAir") or 100) < (TECH.SeuilAirVicie or 25) then table.insert(defauts, "air vicié") end
+		if (exterieur:GetAttribute("RegulEnergie") or 0) > (TECH.SurtensionAuDessus or 90) then table.insert(defauts, "surtension") end
+		if (exterieur:GetAttribute("PointsDeVie") or 100) < 60 then table.insert(defauts, string.format("intégrité %d %%", exterieur:GetAttribute("PointsDeVie") or 0)) end
+		task.delay(2.5, function()
+			dire(joueur, #defauts == 0 and "Diagnostic : tous les systèmes sont nominaux." or ("Diagnostic : " .. table.concat(defauts, ", ") .. "."), #defauts == 0)
+		end)
+	end
+end
+Players.PlayerRemoving:Connect(function(joueur) dernierTech[joueur] = nil end)
+
+-- Usure de l'air (quand quelqu'un est à bord) et surtension (risque de fuite de vapeur)
+task.spawn(function()
+	while true do
+		task.wait(30)
+		local usure = TECH.UsureAir or 1
+		if usure > 0 and not exterieur:GetAttribute("TechPurgeFin") then
+			local occupants = 0
+			for _, autre in Players:GetPlayers() do
+				local racine = racineDe(autre)
+				if racine and interne("dansInterieur", racine.Position) then occupants += 1 end
+			end
+			if occupants > 0 then
+				local avant = exterieur:GetAttribute("RegulAir") or 100
+				local air = math.max(avant - usure, 0)
+				exterieur:SetAttribute("RegulAir", air)
+				local seuil = TECH.SeuilAirVicie or 25
+				if avant >= seuil and air < seuil then
+					direAuxPilotes("Air vicié dans la salle : purge ou régulation de l'air nécessaire (tablette technicien).", false)
+				end
+			end
+		end
+		if (exterieur:GetAttribute("RegulEnergie") or 0) > (TECH.SurtensionAuDessus or 90) and exterieur:GetAttribute("Alimentation") ~= false
+			and math.random() < 0.25 then
+			if panneVapeur() then direAuxPilotes("Surtension : une grille de vapeur a lâché. Baisse la régulation de l'énergie.", false) end
+		end
+	end
+end)
+
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
+	if action == "Tech" then
+		-- Techniciens et pilotes (les pilotes l'ouvrent depuis l'outil Ingénierie de leur tablette)
+		if not (estTechnicien(joueur) or estPilote(joueur)) then return end
+		commandeTechnique(joueur, donnees)
+		return
+	end
 	if action == "RefuserRegeneration" then
 		local refuser = choixEnAttente[joueur.UserId]
 		if refuser then refuser() end

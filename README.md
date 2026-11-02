@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.7.1** (modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe » avec confirmation, zones REFUSE → urgence, méthode de voyage unifiée, corps qui ne tombe plus en miettes, spawn de l'équipe dans le TARDIS ; V6.7 : refonte visuelle des (dé)matérialisations, des menus et des régénérations). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.7.2** (tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 
@@ -32,9 +32,9 @@ src/
 │  ├─ TardisPorter.client.lua           TARDIS porté (main, ceinture, épaule)
 │  ├─ TardisVolLibre.client.lua         vol libre à la 3ᵉ personne
 │  ├─ TardisRotation.client.lua         repositionnement fin
-│  └─ TardisExtrasClient/               effets et interfaces des extras et systèmes : init.client.lua + 11 modules
+│  └─ TardisExtrasClient/               effets et interfaces des extras et systèmes : init.client.lua + 12 modules
 │                                      (Ambiance, EffetsExterieurs, Replay, AutoDestruction, Interactions, Boucliers,
-│                                       Regeneration, Systemes, Decor, TabletteLecture, Preferences)
+│                                       Regeneration, Systemes, Decor, TabletteLecture, TabletteTechnicien, Preferences)
 └─ Workspace/TARDIS/TARDIS_x/EXTERIEURE/TARDISDoors/
    ├─ LeftDoor/Shut.server.lua          battant gauche (dans chaque TARDIS)
    └─ RightDoor/Shut.server.lua         battant droit (dans chaque TARDIS)
@@ -88,7 +88,7 @@ Au lancement, l'Output (côté Server) doit afficher, pour chaque TARDIS actif :
 | Touche | Action |
 |---|---|
 | T | Menu rapide |
-| Y | Tablette |
+| Y | Tablette (technicien : tablette technicien) |
 | E | Portes, commandes de la console, ramassage |
 | V / G / X | Porter : changer de mode / poser / téléportation de poche |
 

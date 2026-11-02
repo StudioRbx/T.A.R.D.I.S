@@ -7,6 +7,7 @@ return function(contexte)
 	local V, W, animer, creer, donneesDestination, exterieur = contexte.V, contexte.W, contexte.animer, contexte.creer, contexte.donneesDestination, contexte.exterieur
 	local fermer, interieur, joueur, lireEtat, majInterface, majTuile = contexte.fermer, contexte.interieur, contexte.joueur, contexte.lireEtat, contexte.majInterface, contexte.majTuile
 	local notifier, remote, texte = contexte.notifier, contexte.remote, contexte.texte
+	local def = contexte.def
 
 	--------------------------------------------------------------------
 	-- OUTILS (volet latéral) : grille par familles, puis pages dans le même volet
@@ -51,6 +52,7 @@ return function(contexte)
 	O.fiche = tuileOutil(fSecurite, "Fiche", "■", 5)
 	O.autodestruction = tuileOutil(fSecurite, "Auto-destruction", "▲", 6)
 	O.regenerations = tuileOutil(fSecurite, "Régénérations", "◆", 7)
+	O.ingenierie = tuileOutil(fSecurite, "Ingénierie", "◆", 8) -- V6.7.2 : ouvre la tablette technicien
 	O.theme = tuileOutil(fAmbiance, "Thème", "◆", 1)
 	O.jukebox = tuileOutil(fAmbiance, "Jukebox", "●", 2)
 	O.projecteur = tuileOutil(fAmbiance, "Projecteur", "▲", 3)
@@ -92,6 +94,13 @@ return function(contexte)
 		local okJ, journalRegen = pcall(function() return game:GetService("HttpService"):JSONDecode(ReplicatedStorage:GetAttribute("TardisRegenerations") or "[]") end)
 		local nbRegen = okJ and type(journalRegen) == "table" and #journalRegen or 0
 		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
+		-- Ingénierie : nombre de pannes en cours (mêmes critères que la tablette technicien)
+		local pannes = 0
+		for _, attribut in { "Avarie", "RedemarrageRequis", "VapeurSurcharge", "Incendie" } do
+			if exterieur:GetAttribute(attribut) then pannes += 1 end
+		end
+		if (exterieur:GetAttribute("RegulAir") or 100) < ((Config.Technicien or {}).SeuilAirVicie or 25) then pannes += 1 end
+		majTuile(O.ingenierie, pannes > 0, pannes > 0 and (pannes .. " intervention(s)") or "Systèmes nominaux", C.orange, true)
 		majTuile(O.regenerations, nbRegen > 0, (nbRegen > 0 and (nbRegen .. " au journal") or "Aucune") .. (lien and " · lien actif" or ""), C.ambre, true)
 		majTuile(O.theme, exterieur:GetAttribute("Theme") ~= nil, exterieur:GetAttribute("Theme") or "Classique", C.ambre, alimente)
 		local piste = exterieur:GetAttribute("Jukebox")
@@ -431,6 +440,10 @@ return function(contexte)
 		boutonSurcouche(c, "Appliquer l'enseigne", ordre + 3, C.bleu, function()
 			if #saisie.Text > 0 then remote:FireServer("Enseigne", { texte = string.sub(saisie.Text, 1, 24) }) end
 		end)
+	end)
+	O.ingenierie.bouton.Activated:Connect(function()
+		fermer()
+		joueur:SetAttribute("TardisTabletteTech", def.Nom)
 	end)
 	O.jukebox.bouton.Activated:Connect(function()
 		if O.jukebox.bouton:GetAttribute("Disponible") == false then return end

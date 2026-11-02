@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.7.1"
+Config.Version = "6.7.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -427,6 +427,17 @@ Config.Jukebox = {
 
 -- Vapeur de refroidissement : plaques nommées "Grille" (ou dans un dossier "Grilles") de l'intérieur
 Config.Vapeur = { Intensite = 1, IntervalleMin = 4, IntervalleMax = 14 } -- intensité 0 = aucune vapeur
+
+-- Tablette technicien (V6.7.2) : touche Y pour un technicien qui n'est pas pilote (les pilotes l'ouvrent par l'outil
+-- « Ingénierie » de leur tablette). Informations complètes et commandes RP, aucune commande de vol.
+Config.Technicien = {
+	Regulation = { Energie = 80, Air = 100, Vapeur = 50 }, -- valeurs de départ (%) ; Vapeur 50 = intensité normale
+	UsureAir = 1,            -- points d'air perdus toutes les 30 s tant que quelqu'un est à bord (0 = l'air ne s'use jamais)
+	SeuilAirVicie = 25,      -- en dessous : l'air est vicié (voile grisâtre pour les occupants)
+	SurtensionAuDessus = 90, -- au-dessus : une chance sur quatre, toutes les 30 s, qu'une grille de vapeur lâche
+	SousTension = 20,        -- en dessous : les lumières de la salle baissent
+	DureePurge = 6,          -- secondes d'une purge de l'air
+}
 
 -- Bourdonnement du moteur : Sound "Moteur_Pose", "Moteur_Vol", "Moteur_Urgence" dans TardisAssets > Sons (optionnels)
 

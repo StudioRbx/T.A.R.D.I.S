@@ -98,7 +98,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.6.6** | Correctif : l'avatar change vraiment à la régénération · ajout de 2 styles violents (Supernova, Fracture) avec onde de choc de 5 studs | ✅ livrée |
 | **V6.7** | Refonte visuelle demandée le 01/11 : (dé)matérialisation réaliste, menu rapide et tablette refaits, régénérations refaites (sauf le Tourbillon) | ✅ livrée (dépôt), à installer dans Studio |
 | **V6.7.1** | Modes Sauvetage et Catastrophe (paradoxe confirmé), zones REFUSE → urgence, méthode de voyage unifiée, Rapide sans couleur dehors, corps gardé entier à la régénération, spawn de l'équipe dans le TARDIS | ✅ livrée (dépôt), à installer dans Studio |
-| V6.7.2 | Modification 15 : tablette technicien | à faire |
+| **V6.7.2** | Modification 15 : tablette technicien (systèmes, régulation énergie / air / vapeur, redémarrage à distance, purge, diagnostic, interventions guidées) | ✅ livrée (dépôt), à installer dans Studio |
 | V6.7.3 | Modification 20 (intercom « faille spatio-temporelle » via un petit module pont dans l'OS Fondation, 1 fois par session, puis rappel au pilote toutes les 10 min), 21 (jukebox de musiques d'action audible seulement dans le TARDIS), 3 et 22 (sons) | à faire |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
