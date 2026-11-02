@@ -214,7 +214,7 @@ return function(contexte)
 		elseif e.etat == E.Vol then
 			UI.progressionBouton(W.demat, 1, C.cyan)
 			local secondesAuto = Commandes.secondesAutoRemat()
-			UI.progressionBouton(W.remat, secondesAuto and (1 - secondesAuto / 15) or 0, C.ambre)
+			UI.progressionBouton(W.remat, secondesAuto and (1 - secondesAuto / Commandes.DELAI_AUTO_REMAT) or 0, C.ambre)
 			local tete = (t * 22) % n
 			for i = 1, n do
 				local d = (tete - i) % n
@@ -251,10 +251,16 @@ return function(contexte)
 			or (e.etat == E.Vol and "VORTEX") or (enMouvement and "TRANSITION") or "STABLE"
 		W.stabilite.TextColor3 = couleurBarres == C.cyan and C.vert or couleurBarres
 
-		-- Grands boutons qui luisent
+		-- Grands boutons qui luisent ; en confirmation de paradoxe, MATÉRIALISER clignote en rouge
 		local lueur = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3))
 		W.demat.Lueur.Transparency = W.demat:GetAttribute("Disponible") and lueur or 0.7
-		W.remat.Lueur.Transparency = W.remat:GetAttribute("Disponible") and lueur or 0.7
+		local arme = Commandes.paradoxeArme()
+		if arme ~= S.confirmationAffichee then
+			S.confirmationAffichee = arme
+			UI.confirmationBouton(W.remat, arme)
+			if not arme then task.defer(majFiche) end
+		end
+		W.remat.Lueur.Transparency = arme and (0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 8))) or (W.remat:GetAttribute("Disponible") and lueur or 0.7)
 
 		-- Scanner
 		if S.modeScanner == "carte" then

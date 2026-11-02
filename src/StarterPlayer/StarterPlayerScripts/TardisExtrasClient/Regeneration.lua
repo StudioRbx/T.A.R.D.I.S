@@ -691,7 +691,7 @@ return function(contexte)
 
 				-- Lien Time Lord : les autres Voyageurs ressentent la régénération, où qu'ils soient
 				if not moi and ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true and joueur.Team
-					and joueur.Team.Name == (REG.Equipe or "Le Voyageur") then
+					and joueur.Team.Name == Config.nomEquipe() then
 					local autre = Players:GetPlayerFromCharacter(personnage)
 					local maRacine_ = maRacine()
 					local distance = maRacine_ and math.floor((maRacine_.Position - racine.Position).Magnitude) or 0
@@ -756,6 +756,29 @@ return function(contexte)
 			personnage:GetAttributeChangedSignal("TardisRegeneration"):Connect(effets)
 			-- Corps neuf (après un corps disloqué) : la régénération a pu commencer avant qu'on l'écoute
 			task.delay(0.3, effets)
+			-- Avant la régénération (V6.7.1) : pendant le temps du choix, la peau se met à luire et des volutes dorées
+			-- s'échappent des mains, pour tout le monde (le Voyageur « sent » l'énergie monter)
+			personnage:GetAttributeChangedSignal("TardisRegenChoix"):Connect(function()
+				local fin = personnage:GetAttribute("TardisRegenChoix")
+				if not fin then return end
+				local reste = math.max(fin - workspace:GetServerTimeNow(), 0.2)
+				local avant = creer("Highlight", { FillColor = Color3.fromRGB(255, 170, 50), OutlineColor = Color3.fromRGB(255, 225, 120), FillTransparency = 1,
+					OutlineTransparency = 1, DepthMode = Enum.HighlightDepthMode.Occluded, Parent = personnage })
+				animer(avant, reste, { FillTransparency = 0.55, OutlineTransparency = 0.4 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+				local volutes = {}
+				for _, nom in { "Left Arm", "Right Arm", "LeftHand", "RightHand", "Head" } do
+					local membre = personnage:FindFirstChild(nom)
+					if membre then
+						table.insert(volutes, creer("ParticleEmitter", { Texture = FUMEE, LightEmission = 1, Color = ColorSequence.new(Color3.fromRGB(255, 225, 120), Color3.fromRGB(255, 170, 50)),
+							Size = NumberSequence.new(0.15, 0.6), Transparency = NumberSequence.new(0.5, 1), Speed = NumberRange.new(0.5, 1.5), Lifetime = NumberRange.new(0.6, 1.2),
+							SpreadAngle = Vector2.new(180, 180), Acceleration = Vector3.new(0, 2, 0), Rate = 10, Parent = membre }))
+					end
+				end
+				task.delay(reste + 0.3, function()
+					avant:Destroy()
+					for _, v in volutes do v:Destroy() end
+				end)
+			end)
 		end
 		for _, autre in Players:GetPlayers() do
 			if autre.Character then surveillerRegeneration(autre.Character) end
@@ -820,7 +843,7 @@ return function(contexte)
 			end
 			local dejaDemande = false
 			local function envoyerTenues()
-				local equipe = (Config.Regeneration or {}).Equipe or "Le Voyageur"
+				local equipe = Config.nomEquipe()
 				if dejaDemande or not (joueur.Team and joueur.Team.Name == equipe) then return end
 				dejaDemande = true
 				task.spawn(function()

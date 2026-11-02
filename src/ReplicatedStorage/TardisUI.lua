@@ -40,6 +40,10 @@ UI.LIBELLES = {
 	[E.Vol] = { "DANS LE VORTEX", C.cyan, "Dans le vortex" },
 	[E.Remat] = { "MATÉRIALISATION", C.ambre, "Matérialisation" },
 }
+-- Couleur d'interface d'un mode de voyage (interrupteurs, badges, texte du mode)
+function UI.couleurMode(mode)
+	return ({ Urgence = C.orange, Express = C.vert, Sauvetage = Color3.fromRGB(90, 220, 230), Catastrophe = C.rouge })[mode] or C.texte2
+end
 
 --------------------------------------------------------------------
 -- Construction
@@ -299,6 +303,33 @@ function UI.progressionBouton(bouton, p, couleur)
 	if not remplissage then return end
 	remplissage.Size = UDim2.fromScale(p or 0, 1)
 	if couleur then remplissage.BackgroundColor3 = couleur end
+end
+
+-- Bouton principal en mode confirmation (V6.7.1, paradoxe) : rouge, « VOUS CONFIRMEZ ? », qui clignote ;
+-- arme = faux : retour au titre et au sous-titre d'origine
+function UI.confirmationBouton(bouton, arme, sousTitre)
+	local titre, sous = bouton:FindFirstChild("Titre"), bouton:FindFirstChild("SousTitre")
+	if not titre or not sous then return end
+	if arme then
+		if not bouton:GetAttribute("ConfirmationTitre") then
+			bouton:SetAttribute("ConfirmationTitre", titre.Text)
+			bouton:SetAttribute("ConfirmationSous", sous.Text)
+		end
+		titre.Text = "VOUS CONFIRMEZ ?"
+		sous.Text = sousTitre or "Destination dans le TARDIS"
+		bouton:SetAttribute("Disponible", true)
+		UI.colorer(bouton, Color3.fromRGB(150, 35, 40))
+		bouton.Lueur.Color = C.rouge
+		bouton.Lueur.Transparency = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(os.clock() * 8))
+		for _, enfant in bouton:GetDescendants() do
+			if enfant:IsA("TextLabel") then enfant.TextTransparency = 0 end
+		end
+	elseif bouton:GetAttribute("ConfirmationTitre") then
+		titre.Text = bouton:GetAttribute("ConfirmationTitre")
+		sous.Text = bouton:GetAttribute("ConfirmationSous") or sous.Text
+		bouton:SetAttribute("ConfirmationTitre", nil)
+		bouton:SetAttribute("ConfirmationSous", nil)
+	end
 end
 
 function UI.badge(parent, nom, couleur, ordre)

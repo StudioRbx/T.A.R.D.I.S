@@ -170,7 +170,7 @@ return function(contexte)
 	--------------------------------------------------------------------
 	RunService.Heartbeat:Connect(function()
 		local etat = exterieur:GetAttribute("Etat") or E.Pose
-		local urgence = (Config.modeDe(exterieur) == "Urgence" and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
+		local urgence = (Config.modeSaccade(Config.modeDe(exterieur)) and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
 		if not (urgence and jeSuisDedans()) then return end
 		if exterieur:GetAttribute("Stabilisateur") ~= false then return end -- le stabilisateur annule la gravité folle
 		local racine = maRacine()
@@ -231,7 +231,7 @@ return function(contexte)
 		local jukebox, jukeboxIndex = nil, nil
 		RunService.Heartbeat:Connect(function(dt)
 			local etat = exterieur:GetAttribute("Etat") or E.Pose
-			local urgence = (Config.modeDe(exterieur) == "Urgence" and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
+			local urgence = (Config.modeSaccade(Config.modeDe(exterieur)) and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
 				or exterieur:GetAttribute("Alerte") == true or exterieur:GetAttribute("AutoDestructionDebut") ~= nil
 			local alimente = exterieur:GetAttribute("Alimentation") ~= false and exterieur:GetAttribute("Detruit") ~= true
 			local cibles = {

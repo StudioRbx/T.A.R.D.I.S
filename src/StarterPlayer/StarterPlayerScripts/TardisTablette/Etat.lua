@@ -74,6 +74,9 @@ return function(contexte)
 			verrouille = exterieur:GetAttribute("PortesVerrouillees") == true,
 			urgence = Config.modeDe(exterieur) == "Urgence" and etat ~= E.Pose,
 			express = Config.modeDe(exterieur) == "Express" and etat ~= E.Pose,
+			sauvetage = Config.modeDe(exterieur) == "Sauvetage" and etat ~= E.Pose,
+			catastrophe = Config.modeDe(exterieur) == "Catastrophe" and etat ~= E.Pose,
+			mode = Config.modeDe(exterieur),
 			alimente = exterieur:GetAttribute("Alimentation") ~= false,
 			alerte = exterieur:GetAttribute("Alerte") == true,
 			bloque = exterieur:GetAttribute("DemarrageBloque") == true,
@@ -141,10 +144,12 @@ return function(contexte)
 			return
 		end
 		local distance = distanceDe(c)
-		-- Temps de trajet : démat + remat (la durée dans le vortex dépend de toi)
-		local dDemat, cDemat = Config.Timing(E.Demat, false)
-		local dRemat, cRemat = Config.Timing(E.Remat, false)
-		local trajet = string.format("trajet ~%d s", dDemat + cDemat + dRemat + cRemat)
+		-- Temps de trajet : démat + vortex automatique + remat, selon le protocole choisi
+		local modeVoyage = Commandes.mode()
+		local dDemat, cDemat = Config.Timing(E.Demat, modeVoyage)
+		local dRemat, cRemat = Config.Timing(E.Remat, modeVoyage)
+		local trajet = string.format("trajet ~%d s", dDemat + cDemat + dRemat + cRemat + (Config.DureeVortexAuto or 10))
+			.. (modeVoyage ~= "Normal" and ("  ·  " .. Config.libelleMode(modeVoyage, true)) or "")
 		local texteDistance = (distance and string.format("%d studs", distance) or "distance inconnue") .. "  ·  " .. trajet
 		if c.type == "lieu" then
 			W.ficheIcone.Text = "◆"
@@ -197,6 +202,8 @@ return function(contexte)
 		W.badges.porte.Visible = e.porte
 		W.badges.urgence.Visible = e.urgence
 		W.badges.express.Visible = e.express
+		W.badges.sauvetage.Visible = e.sauvetage
+		W.badges.catastrophe.Visible = e.catastrophe
 		W.badges.horsTension.Visible = not e.alimente
 		W.badges.alerte.Visible = e.alerte
 		W.badges.bloque.Visible = e.bloque
@@ -214,10 +221,12 @@ return function(contexte)
 		if Commandes.secondesAutoRemat() and e.etat == E.Vol then
 			W.remat.SousTitre.Text = string.format("Auto dans %d s", math.ceil(Commandes.secondesAutoRemat()))
 		else
-			W.remat.SousTitre.Text = petit and "Sur place (réduit)" or (UI.pref("modeVoyage", "auto") == "manuel" and e.etat ~= E.Vol and "Atterrir (choix dans le vortex)" or "Atterrir")
+			W.remat.SousTitre.Text = petit and "Sur place (réduit)" or (e.etat == E.Vol and not S.choix and "Choisis une destination" or "Atterrir")
 		end
 		W.demat.Lueur.Color = dematOk and C.ambre or C.gris
 		W.remat.Lueur.Color = rematOk and C.ambre or C.gris
+		-- Paradoxe : le bouton MATÉRIALISER demande une confirmation (rouge)
+		UI.confirmationBouton(W.remat, Commandes.paradoxeArme())
 
 		-- Systèmes
 		majTuile(W.tuiles.camouflage, e.camoufle, e.camoufle and "ACTIVÉ" or "Inactif", C.cyan, e.pose and e.alimente)

@@ -152,7 +152,9 @@ local B = {
 	alerte = UI.badge(badges, "ALERTE", C.rouge, 6),
 	bloque = UI.badge(badges, "DÉMARRAGE BLOQUÉ", C.orange, 7),
 	volLibre = UI.badge(badges, "VOL LIBRE", C.cyan, 8),
-	express = UI.badge(badges, "EXPRESS", C.vert, 9),
+	express = UI.badge(badges, "RAPIDE", C.vert, 9),
+	sauvetage = UI.badge(badges, "SAUVETAGE", UI.couleurMode("Sauvetage"), 10),
+	catastrophe = UI.badge(badges, "PARADOXE", C.rouge, 11),
 }
 local zoneProgression = creer("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = 4,
 	Visible = false, Parent = carteStatut })
@@ -211,10 +213,14 @@ local ficheInfo = texte({ Text = "Choisis un lieu ou un joueur.", Font = UI.POLI
 UI.titreSection(contenu, "PROTOCOLES", 4)
 local protocoles = UI.carte(contenu, 5, 4)
 local interrupteurUrgence = UI.interrupteur(protocoles, "Urgence", "Sons d'urgence et vol instable", C.orange, 1)
-local interrupteurExpress = UI.interrupteur(protocoles, "Express", "Démat et remat en 2 secondes", C.vert, 2)
-local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 3)
--- État partagé avec la tablette (Urgence et Express s'excluent)
-Commandes.lierInterrupteurs({ urgence = interrupteurUrgence, express = interrupteurExpress, invisible = interrupteurInvisible })
+local interrupteurExpress = UI.interrupteur(protocoles, "Rapide", "Démat et remat en 2 secondes", C.vert, 2)
+local interrupteurSauvetage = UI.interrupteur(protocoles, "Sauvetage", "Arrive en hauteur, descend en tournant, ouvre les portes", UI.couleurMode("Sauvetage"), 3)
+local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 4)
+-- État partagé avec la tablette (Urgence, Rapide et Sauvetage s'excluent)
+Commandes.lierInterrupteurs({ urgence = interrupteurUrgence, express = interrupteurExpress, sauvetage = interrupteurSauvetage, invisible = interrupteurInvisible })
+texte({ Text = "Zone REFUSE au départ ou à l'arrivée : urgence imposée. Destination choisie avant DÉMAT : " .. tostring(Config.DureeVortexAuto or 10)
+	.. " s de vortex puis REMAT automatique ; sinon, choisis dans le vortex et clique REMAT.", TextSize = 10, TextColor3 = C.texte2, TextWrapped = true,
+	AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 5, Parent = protocoles })
 
 -- 4) Actions
 local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 58), BackgroundTransparency = 1, LayoutOrder = 6,
@@ -361,7 +367,8 @@ local function majFiche()
 	local modeVoyage = Commandes.mode()
 	local dDemat, cDemat = Config.Timing(E.Demat, modeVoyage)
 	local dRemat, cRemat = Config.Timing(E.Remat, modeVoyage)
-	local trajet = string.format("~%d s", dDemat + cDemat + dRemat + cRemat) .. (modeVoyage ~= "Normal" and ("  ·  " .. string.upper(modeVoyage)) or "")
+	local trajet = string.format("~%d s", dDemat + cDemat + dRemat + cRemat + (Config.DureeVortexAuto or 10))
+		.. (modeVoyage ~= "Normal" and ("  ·  " .. Config.libelleMode(modeVoyage, true)) or "")
 	local distance = distanceDe(c)
 	local texteDistance = distance and string.format("%d studs", distance) or "—"
 	if c.type == "lieu" then
@@ -419,8 +426,8 @@ local function majInterface()
 	halo.Color = couleurEtat
 	-- Mode : celui du voyage en cours, sinon le protocole choisi
 	local modeAffiche = etat ~= E.Pose and modeEnCours or Commandes.mode()
-	modeTexte.Text = string.upper(modeAffiche)
-	modeTexte.TextColor3 = (modeAffiche == "Urgence" and C.orange) or (modeAffiche == "Express" and C.vert) or C.texte2
+	modeTexte.Text = Config.libelleMode(modeAffiche, true)
+	modeTexte.TextColor3 = UI.couleurMode(modeAffiche)
 	positionTexte.Text = "●  " .. tostring(exterieur:GetAttribute("Position") or "?")
 	textePastille.Text = (alerte and "Alerte · " or "") .. nomCourt
 	animer(pointPastille, 0.3, { BackgroundColor3 = couleurEtat })
@@ -432,11 +439,14 @@ local function majInterface()
 	B.retreci.Visible = petit
 	B.urgence.Visible = urgenceEnCours
 	B.express.Visible = modeEnCours == "Express" and etat ~= E.Pose
+	B.sauvetage.Visible = modeEnCours == "Sauvetage" and etat ~= E.Pose
+	B.catastrophe.Visible = modeEnCours == "Catastrophe" and etat ~= E.Pose
 	B.horsTension.Visible = not alimente
 	B.alerte.Visible = alerte
 	B.bloque.Visible = bloque
 	B.volLibre.Visible = volLibre
-	badges.Visible = camoufle or verrouille or petit or urgenceEnCours or B.express.Visible or not alimente or alerte or bloque or volLibre
+	badges.Visible = camoufle or verrouille or petit or urgenceEnCours or B.express.Visible or B.sauvetage.Visible or B.catastrophe.Visible
+		or not alimente or alerte or bloque or volLibre
 
 	-- Actions principales
 	local poche = exterieur:GetAttribute("Porteur") == joueur.UserId -- je porte le TARDIS : téléportation de poche
@@ -449,10 +459,12 @@ local function majInterface()
 	if Commandes.secondesAutoRemat() and etat == E.Vol then
 		boutonRemat.SousTitre.Text = string.format("Auto dans %d s", math.ceil(Commandes.secondesAutoRemat()))
 	else
-		boutonRemat.SousTitre.Text = petit and "Sur place (petit)" or "Atterrir"
+		boutonRemat.SousTitre.Text = petit and "Sur place (petit)" or (etat == E.Vol and not choix and "Choisis une destination" or "Atterrir")
 	end
 	boutonDemat.Lueur.Color = dematOk and C.ambre or C.gris
 	boutonRemat.Lueur.Color = rematOk and C.ambre or C.gris
+	-- Paradoxe : le bouton MATÉRIALISER demande une confirmation (rouge)
+	UI.confirmationBouton(boutonRemat, Commandes.paradoxeArme())
 
 	-- Systèmes
 	majTuile(T.camouflage, camoufle, camoufle and "ACTIVÉ" or "Inactif", C.cyan, pose and alimente)
@@ -507,11 +519,6 @@ local function ajouterElement(texteEl, sousTexte, c, ordre)
 	bouton:SetAttribute("CouleurBase", C.panneau)
 	UI.rendreVivant(bouton)
 	bouton.Activated:Connect(function()
-		if UI.pref("modeVoyage", "auto") == "manuel" and (exterieur:GetAttribute("Etat") or E.Pose) == E.Pose
-			and exterieur:GetAttribute("Porteur") ~= joueur.UserId then
-			notifier("Mode manuel : décolle d'abord, les destinations se débloquent dans le vortex.", false)
-			return
-		end
 		choix = c
 		majInterface()
 	end)
@@ -689,6 +696,7 @@ end)
 --------------------------------------------------------------------
 local derniereSecondeAuto = nil
 local prochaineMajLente = 0
+local confirmationAffichee = false
 RunService.RenderStepped:Connect(function(dt)
 	if not gui.Enabled then return end
 	local etat = exterieur:GetAttribute("Etat") or E.Pose
@@ -701,9 +709,16 @@ RunService.RenderStepped:Connect(function(dt)
 		prochaineMajLente = t + 0.5
 		majFiche()
 		local modeAffiche = etat ~= E.Pose and Config.modeDe(exterieur) or Commandes.mode()
-		modeTexte.Text = string.upper(modeAffiche)
-		modeTexte.TextColor3 = (modeAffiche == "Urgence" and C.orange) or (modeAffiche == "Express" and C.vert) or C.texte2
+		modeTexte.Text = Config.libelleMode(modeAffiche, true)
+		modeTexte.TextColor3 = UI.couleurMode(modeAffiche)
 	end
+	-- Confirmation d'un paradoxe : le bouton rouge clignote, puis revient à la normale quand la fenêtre se ferme
+	local arme = Commandes.paradoxeArme()
+	if arme ~= confirmationAffichee then
+		confirmationAffichee = arme
+		majInterface()
+	end
+	if arme then boutonRemat.Lueur.Transparency = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 8)) end
 
 	for i, anneau in anneaux do
 		anneau.Rotation += dt * (i % 2 == 0 and -1 or 1) * (20 + i * 18) * vitesse
@@ -712,7 +727,9 @@ RunService.RenderStepped:Connect(function(dt)
 	vortex.Offset = Vector2.new(math.sin(t * 0.35) * 0.35, 0)
 	local lueur = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3))
 	for _, bouton in { boutonDemat, boutonRemat } do
-		bouton.Lueur.Transparency = bouton:GetAttribute("Disponible") and lueur or 0.7
+		if not (bouton == boutonRemat and Commandes.paradoxeArme()) then
+			bouton.Lueur.Transparency = bouton:GetAttribute("Disponible") and lueur or 0.7
+		end
 	end
 
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
@@ -753,7 +770,7 @@ RunService.RenderStepped:Connect(function(dt)
 		UI.progressionBouton(boutonDemat, 1, C.cyan)
 		-- Compte à rebours de la rematérialisation automatique : le bouton MATÉRIALISER se remplit
 		local secondes = Commandes.secondesAutoRemat()
-		UI.progressionBouton(boutonRemat, secondes and (1 - secondes / 15) or 0, C.ambre)
+		UI.progressionBouton(boutonRemat, secondes and (1 - secondes / Commandes.DELAI_AUTO_REMAT) or 0, C.ambre)
 		local entiere = secondes and math.ceil(secondes) or nil
 		if entiere ~= derniereSecondeAuto then
 			derniereSecondeAuto = entiere
@@ -789,7 +806,7 @@ exterieur:GetAttributeChangedSignal("PrecedentNom"):Connect(construireListe)
 Players.PlayerAdded:Connect(construireListe)
 Players.PlayerRemoving:Connect(function() task.defer(construireListe) end)
 -- Les protocoles changent (ici ou dans la tablette) : le mode affiché et le temps de trajet suivent
-for _, inter in { interrupteurUrgence, interrupteurExpress, interrupteurInvisible } do
+for _, inter in { interrupteurUrgence, interrupteurExpress, interrupteurSauvetage, interrupteurInvisible } do
 	local ancien = inter.surChangement
 	inter.surChangement = function(actif)
 		if ancien then ancien(actif) end

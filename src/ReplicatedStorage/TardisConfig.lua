@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.7"
+Config.Version = "6.7.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -49,9 +49,11 @@ Config.NomDossierPortes = "TARDISDoors"   -- Model des battants extérieurs
 --   Duree    = durée de l'ANIMATION de (dé)matérialisation
 --   Decalage = le son démarre ce nombre de secondes AVANT l'animation (silence au début du fichier audio)
 --   Durée totale = Decalage + Duree. Pour que l'animation finisse pile avec le son : Duree = longueur du son - Decalage
--- L'urgence (demandée ou imposée : alerte, collision, zone REFUSE) l'emporte toujours sur l'express.
+-- L'urgence (demandée ou imposée : alerte, collision, zone REFUSE au départ ou à l'arrivée) l'emporte sur les autres.
+-- Libelle : le nom affiché dans les menus (la clé interne ne change pas, pour l'historique et les sauvegardes).
 Config.Modes = {
 	Normal = {
+		Libelle = "Classique",
 		Demat = { Duree = 17, Decalage = 3.25 },   -- 20,25 s au total
 		Remat = { Duree = 16.86, Decalage = 2.5 }, -- 19,36 s au total
 		Pulsations = 4,                            -- nombre de fondus pendant la (dé)matérialisation
@@ -60,6 +62,7 @@ Config.Modes = {
 	},
 	-- Urgence : il a du mal à décoller / atterrir (animation saccadée)
 	Urgence = {
+		Libelle = "Urgence",
 		Demat = { Duree = 14, Decalage = 2.25 },
 		Remat = { Duree = 23, Decalage = 2 },
 		Saccades = 0.75,       -- force des saccades : 0 = aucune, 1 = forte
@@ -67,19 +70,57 @@ Config.Modes = {
 		CouleurRotor = Color3.fromRGB(255, 130, 40),
 		Sons = { Demat = "Demat_Urg", Remat = "Remat_Urg" }, -- absents : sons du mode Normal
 	},
-	-- Express (V6.6, l'inverse de l'urgence) : voyage éclair, sans silence de départ ni saccades
+	-- Rapide (ex-Express, V6.6) : voyage éclair, sans silence de départ ni saccades.
+	-- Sa couleur (vert) ne se voit qu'à l'intérieur : dehors, les effets restent neutres (V6.7.1).
 	Express = {
+		Libelle = "Rapide",
 		Demat = { Duree = 2, Decalage = 0 },
 		Remat = { Duree = 2, Decalage = 0 },
 		Pulsations = 2,
-		Recharge = 5,          -- secondes après un voyage express avant d'en refaire un (sinon : voyage normal)
+		Recharge = 5,          -- secondes après un voyage rapide avant d'en refaire un (sinon : voyage classique)
 		CouleurRotor = Color3.fromRGB(74, 222, 128),
+		CouleurDehors = false, -- la couleur du mode ne colore pas les effets extérieurs
 		-- Absents : le son normal est joué sans son silence de départ, puis coupé en fondu à la fin
 		Sons = { Demat = "Demat_Express", Remat = "Remat_Express" },
 	},
+	-- Sauvetage (V6.7.1) : décollage classique ; à l'arrivée, la cabine apparaît en hauteur, tourne lentement sur
+	-- elle-même en se matérialisant et en descendant, puis ouvre ses portes toute seule.
+	Sauvetage = {
+		Libelle = "Sauvetage",
+		Demat = { Duree = 17, Decalage = 3.25 },
+		Remat = { Duree = 16.86, Decalage = 2.5 },
+		Pulsations = 4,
+		Hauteur = 22,          -- hauteur d'apparition au-dessus du point d'atterrissage (studs)
+		Tours = 1.25,          -- tours sur elle-même pendant la descente
+		OuvrirPortes = true,   -- portes ouvertes automatiquement une fois posée
+		CouleurRotor = Color3.fromRGB(90, 220, 230),
+		Sons = { Demat = "Demat", Remat = "Remat" },
+	},
+	-- Catastrophe (V6.7.1) : la destination est À L'INTÉRIEUR du TARDIS (un joueur à bord, un lieu dans la salle).
+	-- Première tentative : la matérialisation commence puis est repoussée dans le vortex (paradoxe). Le pilote doit
+	-- confirmer (deuxième clic sur REMAT) pour forcer l'atterrissage : saccades violentes, console qui crache des
+	-- étincelles, lumières rouges, intégrité abîmée, alerte générale.
+	Catastrophe = {
+		Libelle = "Catastrophe",
+		Demat = { Duree = 14, Decalage = 2.25 },
+		Remat = { Duree = 20, Decalage = 2 },
+		Saccades = 1,
+		Stabilisation = 3,
+		Degats = 1500,         -- intégrité perdue à l'atterrissage forcé
+		CouleurRotor = Color3.fromRGB(255, 40, 40),
+		Sons = { Demat = "Demat_Urg", Remat = "Remat_Urg" },
+	},
 }
 Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
-Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Express (V6.6.4)
+Config.DureeVortexAuto = 10 -- destination choisie avant la démat : secondes dans le vortex avant la remat automatique (V6.7.1)
+Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Rapides (V6.6.4)
+
+-- L'équipe des Voyageurs (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
+-- Nom : celui de la Team dans le service Teams de Studio (à renommer là aussi si tu changes ce nom).
+Config.Equipe = {
+	Nom = "Le Voyageur",
+	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
+}
 
 -- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
 -- à l'ancien emplacement, puis s'efface. Pas d'empreinte pour un départ camouflé, porté ou en vol libre.
@@ -405,7 +446,7 @@ Config.Systemes = {
 
 -- Régénération : les joueurs de cette équipe ne meurent pas, ils se régénèrent (invulnérables pendant la régénération)
 Config.Regeneration = {
-	Equipe = "Le Voyageur",  -- nom exact de l'équipe (Team)
+	Equipe = nil,            -- nom exact de l'équipe (Team) ; vide = celui de Config.Equipe.Nom
 	Nombre = 0,              -- nombre de régénérations avant la vraie mort ; 0 = infini
 	Duree = 8,               -- durée de la régénération (secondes) : montée, éruption, changement, dissipation
 	CameraCinematique = true, -- celui qui se régénère voit la scène de l'extérieur (caméra qui tourne autour de lui)
@@ -455,12 +496,37 @@ function Config.Trouver(racine, cle)
 	return objet
 end
 
--- Nom de mode valide ("Normal", "Urgence" ou "Express"). Accepte aussi un booléen : true = "Urgence"
--- (c'est ainsi que le vol libre désigne sa démat / remat d'urgence).
+-- Nom de mode valide ("Normal", "Urgence", "Express", "Sauvetage", "Catastrophe"). Accepte aussi un booléen :
+-- true = "Urgence" (c'est ainsi que le vol libre désigne sa démat / remat d'urgence).
 function Config.normaliserMode(mode)
 	if mode == true then return "Urgence" end
 	if type(mode) == "string" and Config.Modes[mode] then return mode end
 	return "Normal"
+end
+
+-- Nom affiché d'un mode (Libelle), en majuscules si demandé
+function Config.libelleMode(mode, majuscules)
+	local reglages = Config.Modes[Config.normaliserMode(mode)]
+	local libelle = reglages.Libelle or Config.normaliserMode(mode)
+	return majuscules and string.upper(libelle) or libelle
+end
+
+-- Un mode « saccadé » (urgence ou catastrophe) : animation contrariée, sons d'urgence
+function Config.modeSaccade(mode)
+	return (Config.Modes[Config.normaliserMode(mode)].Saccades or 0) > 0
+end
+
+-- Couleur d'un mode pour les effets extérieurs : celle du mode, sauf si elle est réservée à l'intérieur
+-- (Rapide), auquel cas une lumière neutre
+function Config.couleurDehors(mode)
+	local reglages = Config.Modes[Config.normaliserMode(mode)]
+	if reglages.CouleurDehors == false then return Color3.fromRGB(235, 240, 255) end
+	return reglages.CouleurRotor or Color3.fromRGB(235, 240, 255)
+end
+
+-- Nom de l'équipe des Voyageurs
+function Config.nomEquipe()
+	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "Le Voyageur"
 end
 
 -- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)
@@ -497,9 +563,10 @@ local function bruit(t, frequence)
 end
 Config.Bruit = bruit
 
--- Animation d'urgence : progression contrariée, reculs, grésillements, tremblements
+-- Animation saccadée (urgence, catastrophe) : progression contrariée, reculs, grésillements, tremblements
 -- (reduit = option « réduire les effets » du joueur : saccades à 30 %, sans les disparitions brèves)
-local function alphaUrgence(etat, p, t, duree, reduit)
+local function alphaUrgence(etat, p, t, duree, reduit, reglages)
+	reglages = reglages or Config.Modes.Urgence
 	if p <= 0 then return etat == Config.Etats.Remat and 1 or 0 end
 	if p >= 1 then return etat == Config.Etats.Remat and 0 or 1 end
 
@@ -509,10 +576,10 @@ local function alphaUrgence(etat, p, t, duree, reduit)
 	-- Stabilisation : pendant les dernières secondes, les perturbations s'apaisent progressivement
 	-- jusqu'à disparaître (le TARDIS "s'accroche" à l'atterrissage, ou lâche prise au décollage)
 	local restant = (1 - p) * duree
-	local fenetre = Config.Modes.Urgence.Stabilisation or 5
+	local fenetre = reglages.Stabilisation or 5
 	local calme = math.clamp(restant / fenetre, 0, 1)   -- 1 = loin de la fin, 0 = fin
 	calme = calme * calme * (3 - 2 * calme)              -- transition douce
-	local intensite = (Config.Modes.Urgence.Saccades or 0.75) * calme * (reduit and 0.3 or 1)
+	local intensite = (reglages.Saccades or 0.75) * calme * (reduit and 0.3 or 1)
 
 	-- Reculs : il gagne du terrain puis est repoussé, de façon irrégulière
 	local recul = math.max(0, math.sin(t * 2.3) * math.sin(t * 0.9 + 1))
@@ -554,8 +621,8 @@ function Config.Souffle(etat, ecoule, mode)
 	local avancee = (etat == Config.Etats.Remat) and (1 - p) or p
 	local fond = avancee ^ 1.4
 	local souffle
-	if mode == "Urgence" then
-		-- Urgence : les souffles sont irréguliers, le moteur peine
+	if Config.modeSaccade(mode) then
+		-- Urgence, catastrophe : les souffles sont irréguliers, le moteur peine
 		souffle = formeSouffle((p * 5 + 0.4 * math.sin(ecoule * 1.9)) % 1)
 	else
 		souffle = formeSouffle((p * (Config.Modes[mode].Pulsations or 4)) % 1)
@@ -578,11 +645,11 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 	-- Ensuite l'animation dure sa durée complète.
 	local p = math.clamp((ecoule - decalage) / duree, 0, 1)
 
-	if mode == "Urgence" then
-		return alphaUrgence(etat, p, ecoule, duree, reduit)
+	if Config.modeSaccade(mode) then
+		return alphaUrgence(etat, p, ecoule, duree, reduit, Config.Modes[mode])
 	end
 
-	-- Animation normale (ou express, plus courte) : à chaque souffle, la cabine s'efface d'un coup puis revient
+	-- Animation normale (ou rapide, plus courte ; sauvetage : la même, en descendant) : à chaque souffle, la cabine s'efface d'un coup puis revient
 	-- lentement, de moins en moins (décollage) ou de plus en plus (atterrissage). Elle ne disparaît tout à fait
 	-- qu'aux derniers souffles.
 	local souffle, _, fond = Config.Souffle(etat, ecoule, mode)

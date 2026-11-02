@@ -328,7 +328,7 @@ local tenuesCompte = {}    -- [UserId] = { identifiants des avatars sauvegardés
 local derniereTenue = {}   -- [UserId] = dernier avatar porté, pour ne pas reprendre le même
 local descriptionsChargees = {} -- [clé] = HumanoidDescription (gardée pour la session) : "tenue:123" ou "joueur:456"
 local function estRegenerateur(joueur)
-	return joueur.Team ~= nil and joueur.Team.Name == (REGEN.Equipe or "Le Voyageur")
+	return joueur.Team ~= nil and joueur.Team.Name == Config.nomEquipe()
 end
 -- Le joueur a-t-il partagé ses avatars ?
 local function aPartageSesAvatars(joueur)
@@ -506,6 +506,50 @@ evenementABord.Event:Connect(function(nomTardis)
 	interne("alerter", "RÉGÉNÉRATION À BORD")
 	interne("jouer", "Cloitre", false)
 end)
+-- Catastrophe (V6.7.1) : le TARDIS s'est matérialisé dans lui-même (TardisServeur pose l'attribut) : la cabine encaisse
+exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
+	if not exterieur:GetAttribute("Catastrophe") then return end
+	degats((Config.Modes.Catastrophe or {}).Degats or 1500, "Paradoxe : TARDIS dans le TARDIS")
+	exterieur:SetAttribute("RegenerationABord", workspace:GetServerTimeNow()) -- la console crache des étincelles
+	interne("jouer", "Cloitre", false)
+	direAuxPilotes("Paradoxe : la cabine a encaissé le choc (intégrité " .. tostring(exterieur:GetAttribute("PointsDeVie") or "?") .. " %).", false)
+end)
+
+-- Spawn de l'équipe dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis) : un SpawnLocation réservé à l'équipe,
+-- sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
+if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis[1].Nom then
+	task.spawn(function()
+		local Teams = game:GetService("Teams")
+		local nom = Config.nomEquipe()
+		local equipe = Teams:FindFirstChild(nom) or Teams:WaitForChild(nom, 30)
+		if not equipe then
+			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams (Config.Equipe.Nom).")
+			return
+		end
+		local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
+		local portail = interieur:FindFirstChild(Config.NomPortailInt or "Portail")
+		local cf
+		if arrivee and arrivee:IsA("BasePart") then
+			cf = arrivee.CFrame * CFrame.new(0, arrivee.Size.Y / 2 + 0.5, 0)
+		elseif portail and portail:IsA("BasePart") then
+			cf = portail.CFrame * CFrame.new(0, -portail.Size.Y / 2 + 0.5, 5) * CFrame.Angles(0, math.pi, 0)
+		else
+			cf = interieur:GetPivot()
+		end
+		local spawn = Instance.new("SpawnLocation")
+		spawn.Name = "TardisSpawn_" .. def.Nom
+		spawn.Size = Vector3.new(6, 1, 6)
+		spawn.CFrame = cf
+		spawn.Anchored, spawn.CanCollide, spawn.CanQuery, spawn.CanTouch = true, false, false, false
+		spawn.Transparency = 1
+		spawn.Neutral = false
+		spawn.TeamColor = equipe.TeamColor
+		spawn.AllowTeamChangeOnTouch = false
+		spawn.Duration = 0
+		spawn.Parent = interieur
+		print("[TARDIS] " .. def.Nom .. " : spawn de l'équipe « " .. nom .. " » placé dans l'intérieur.")
+	end)
+end
 -- Main qui repousse : après une régénération, un membre perdu repousse pendant quelques minutes (R6)
 local MEMBRES = { ["Right Arm"] = "Right Shoulder", ["Left Arm"] = "Left Shoulder", ["Right Leg"] = "Right Hip", ["Left Leg"] = "Left Hip" }
 local function surveillerMembres(joueur, personnage, duree)
@@ -534,7 +578,7 @@ local function surveillerMembres(joueur, personnage, duree)
 						local ancien = personnage:FindFirstChild(membre)
 						if ancien then ancien:Destroy() end
 						local ancienMoteur = torse:FindFirstChild(modele.moteur)
-						if ancienMoteur then ancienMoteur:Destroy() end
+						if ancienMoteur then ancienMoteur:SetAttribute("TardisVolontaire", true) ancienMoteur:Destroy() end
 						local neuf = modele.part:Clone()
 						neuf.CFrame = torse.CFrame * modele.C0 * modele.C1:Inverse()
 						neuf.Parent = personnage
@@ -622,6 +666,29 @@ local function surveillerPersonnage(joueur, personnage)
 	majEligible()
 	local connexionEquipe = joueur:GetPropertyChangedSignal("Team"):Connect(majEligible)
 	personnage.AncestryChanged:Connect(function() if not personnage:IsDescendantOf(game) then connexionEquipe:Disconnect() end end)
+
+	-- Articulations gardées (V6.7.1) : une commande :kill (BreakJoints) ou une explosion casse toutes les articulations.
+	-- Pour un Voyageur, chacune est ressoudée à l'instant même : le corps ne tombe plus en miettes avant de se
+	-- régénérer. Les suppressions voulues (membre qui repousse) portent l'attribut TardisVolontaire.
+	personnage.DescendantRemoving:Connect(function(moteur)
+		if not moteur:IsA("Motor6D") or moteur:GetAttribute("TardisVolontaire") then return end
+		if not estRegenerateur(joueur) or personnage:GetAttribute("TardisMortReelle") == true then return end
+		if not personnage:IsDescendantOf(workspace) then return end
+		local fiche = { nom = moteur.Name, parent = moteur.Parent, part0 = moteur.Part0, part1 = moteur.Part1, c0 = moteur.C0, c1 = moteur.C1 }
+		if not (fiche.parent and fiche.part0 and fiche.part1) then return end
+		task.defer(function()
+			if not personnage.Parent or not fiche.parent.Parent or not fiche.part0.Parent or not fiche.part1.Parent then return end
+			if fiche.parent:FindFirstChild(fiche.nom) then return end
+			-- La pièce n'a bougé que d'une image au plus : on la remet exactement en place avant de la ressouder
+			fiche.part1.AssemblyLinearVelocity = Vector3.zero
+			fiche.part1.AssemblyAngularVelocity = Vector3.zero
+			fiche.part1.CFrame = fiche.part0.CFrame * fiche.c0 * fiche.c1:Inverse()
+			local neuf = Instance.new("Motor6D")
+			neuf.Name = fiche.nom
+			neuf.Part0, neuf.Part1, neuf.C0, neuf.C1 = fiche.part0, fiche.part1, fiche.c0, fiche.c1
+			neuf.Parent = fiche.parent
+		end)
+	end)
 
 	local enCours = false
 	local function derouler(changerTenue)

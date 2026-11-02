@@ -251,8 +251,9 @@ RunService.RenderStepped:Connect(function(dt)
 				local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
 				if racine and dansInterieur(racine.Position) then
 					local stabilise = exterieur:GetAttribute("Stabilisateur") ~= false
-					local urgence = Config.modeDe(exterieur) == "Urgence"
-					choc = (urgence and 1.5 or 1) * (stabilise and 0.45 or 1) * (reduit and 0.4 or 1)
+					local modeArrivee = Config.modeDe(exterieur)
+					local force = (modeArrivee == "Catastrophe" and 2.2) or (Config.modeSaccade(modeArrivee) and 1.5) or (modeArrivee == "Sauvetage" and 0.7) or 1
+					choc = force * (stabilise and 0.45 or 1) * (reduit and 0.4 or 1)
 				end
 			end
 		end
@@ -267,7 +268,7 @@ RunService.RenderStepped:Connect(function(dt)
 		camouflage = math.max(alphaCamouflage(), alphaVol())
 	end)
 	local mode = Config.modeDe(exterieur)
-	local urgence = mode == "Urgence"
+	local urgence = Config.modeSaccade(mode) -- urgence ou catastrophe : animation contrariée
 	-- Vortex temporel : pendant le vol, le TARDIS est visible dans le ciel (le vortex est dessiné par TardisVolLibre)
 	local etatFondu = (etat == E.Vol and exterieur:GetAttribute("Ciel") == true) and E.Pose or etat
 	proteger("fondu", fondu, etatFondu, ecoule, camouflage, mode)
@@ -283,7 +284,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if lumiere then
 		local brillance = brillanceBase
 		if etat ~= E.Pose or enVoyage then
-			if urgence or modeAnime == "Urgence" then
+			if urgence or Config.modeSaccade(modeAnime) then
 				-- Urgence : la lampe vacille et coupe de façon irrégulière
 				brillance *= (Config.Bruit(ecoule, 15) < 0.35) and 0.05 or (0.5 + 0.5 * Config.Bruit(ecoule + 1.3, 9)) * (0.7 + 0.8 * souffle)
 			elseif enVoyage then
@@ -307,8 +308,8 @@ RunService.RenderStepped:Connect(function(dt)
 		proteger("lueur", function()
 			local alimente = exterieur:GetAttribute("Alimentation") ~= false
 			local intensite = (enVoyage and alimente) and souffle * visible or 0
-			local couleurMode = (Config.Modes[modeAnime or mode] or Config.Modes.Normal).CouleurRotor or Color3.new(1, 1, 1)
-			local couleur = Color3.fromRGB(255, 240, 210):Lerp(couleurMode, 0.45)
+			-- Couleur du mode dehors (le Rapide garde sa couleur pour l'intérieur : lumière neutre ici)
+			local couleur = Color3.fromRGB(255, 240, 210):Lerp(Config.couleurDehors(modeAnime or mode), 0.45)
 			local pivot = exterieur:GetPivot()
 			local taille = exterieur:GetExtentsSize()
 			lueur.CFrame = pivot
@@ -689,7 +690,7 @@ do
 		local pivot = exterieur:GetPivot()
 		local nouveauSouffle = s > 0.5 and dernierSouffle <= 0.5 -- début d'un souffle à cette image
 		dernierSouffle = s
-		local couleurMode = (Config.Modes[modeAnime or "Normal"] or Config.Modes.Normal).CouleurRotor or Color3.fromRGB(120, 180, 255)
+		local couleurMode = Config.couleurDehors(modeAnime or "Normal") -- Rapide : neutre dehors
 
 		if etatAnime and not camoufle then
 			local params = RaycastParams.new()
@@ -732,10 +733,10 @@ do
 				local largeur = math.max(taille.X, taille.Z) * 1.1
 				onde(resultat.Position, couleurMode:Lerp(Color3.new(1, 1, 1), 0.3), largeur, 0.7 + 0.5 * intensite, 0.6 - 0.25 * intensite)
 			end
-			-- Urgence : arcs sur la cabine et étincelles à la lampe
-			if modeAnime == "Urgence" and EFFETS.Arcs ~= false and intensite > 0.05 then
+			-- Urgence et catastrophe : arcs sur la cabine et étincelles à la lampe (deux fois plus en catastrophe)
+			if Config.modeSaccade(modeAnime) and EFFETS.Arcs ~= false and intensite > 0.05 then
 				local cf, taille = exterieur:GetBoundingBox()
-				if math.random() < dt * (3 + 9 * s) * intensite then arc(cf, taille) end
+				if math.random() < dt * (3 + 9 * s) * intensite * (modeAnime == "Catastrophe" and 2 or 1) then arc(cf, taille) end
 				if not arcsPart or not arcsPart.Parent then
 					arcsPart = piece({ Name = "TardisEtincellesLampe", Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
 					local etincelles = Instance.new("ParticleEmitter")
@@ -935,48 +936,127 @@ do
 	end)
 end
 --------------------------------------------------------------------
--- Éclair Express (V6.6.4) : au départ et à l'arrivée d'un voyage express, un flash lumineux jaillit de la
--- cabine et une onde court au sol. Rien pour un voyage camouflé.
+-- Effets propres aux modes (V6.7.1)
+--  • Rapide : sa couleur ne se voit qu'à l'intérieur : un éclair vert dans la salle de contrôle au départ et à
+--    l'arrivée (plus d'éclair vert dehors : l'ancien Éclair Express de la V6.6.4 est remplacé par les ondes neutres)
+--  • Sauvetage : la lampe devient un projecteur braqué vers le sol pendant la descente, avec son cône de lumière
+--  • Catastrophe : à bord, la console crache des étincelles et la salle bat en rouge pendant la matérialisation
 --------------------------------------------------------------------
 do
-	local COULEUR = Config.Modes.Express.CouleurRotor or Color3.fromRGB(74, 222, 128)
+	local COULEUR_RAPIDE = Config.Modes.Express.CouleurRotor or Color3.fromRGB(74, 222, 128)
+	local ROUGE = Color3.fromRGB(255, 60, 60)
+	local teinteMode = Instance.new("ColorCorrectionEffect")
+	teinteMode.Name = "TardisTeinteMode_" .. def.Nom
+	teinteMode.Parent = Lighting
+	local supportRotor = rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true) or interieur.PrimaryPart
+	local lumiereRotor = Instance.new("PointLight")
+	lumiereRotor.Brightness, lumiereRotor.Range, lumiereRotor.Shadows = 0, 40, false
+	lumiereRotor.Parent = supportRotor
+	local eclat, couleurEclat = 0, COULEUR_RAPIDE -- éclair intérieur (décroît)
 
-	local function eclair(cf)
-		local hauteur = math.max(exterieur:GetExtentsSize().Y, 4)
-		local sol = cf.Position
-		-- Flash : une sphère qui grossit en s'effaçant, avec une lumière (pas de flash si le joueur a réduit les effets)
-		local boule = not UI.effetsReduits() and piece({ Name = "TardisEclairExpress", Shape = Enum.PartType.Ball, Size = Vector3.one * 2,
-			Color = Color3.new(1, 1, 1):Lerp(COULEUR, 0.35), Transparency = 0.1, CFrame = CFrame.new(sol + Vector3.new(0, hauteur / 2, 0)) })
-		if boule then
-			local lumiereEclair = Instance.new("PointLight")
-			lumiereEclair.Color, lumiereEclair.Range, lumiereEclair.Brightness = COULEUR, 30, 6
-			lumiereEclair.Parent = boule
-			TweenService:Create(boule, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Size = Vector3.one * (hauteur * 1.6), Transparency = 1 }):Play()
-			TweenService:Create(lumiereEclair, TweenInfo.new(0.45), { Brightness = 0 }):Play()
-			Debris:AddItem(boule, 0.8)
+	-- Projecteur de sauvetage : sous la lampe, braqué vers le bas, avec un cône visible
+	local projecteur = piece({ Name = "TardisProjecteur_" .. def.Nom, Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
+	local spot = Instance.new("SpotLight")
+	spot.Angle, spot.Range, spot.Brightness, spot.Face, spot.Shadows = 58, 70, 0, Enum.NormalId.Bottom, true
+	spot.Color = Color3.fromRGB(255, 245, 215)
+	spot.Parent = projecteur
+	local a0 = Instance.new("Attachment")
+	a0.Parent = projecteur
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -45, 0)
+	a1.Parent = projecteur
+	local cone = Instance.new("Beam")
+	cone.Attachment0, cone.Attachment1 = a0, a1
+	cone.Width0, cone.Width1 = 1, 22
+	cone.LightEmission, cone.LightInfluence = 1, 0
+	cone.Color = ColorSequence.new(Color3.fromRGB(255, 245, 215))
+	cone.Transparency = NumberSequence.new(1)
+	cone.FaceCamera = true
+	cone.Parent = projecteur
+
+	-- Étincelles de la console (catastrophe) : préparées à la demande
+	local pointsConsole = nil
+	local function preparerEtincelles()
+		pointsConsole = {}
+		local console = interieur:FindFirstChild("Console")
+		if not console then return end
+		local pieces = {}
+		for _, objet in console:GetDescendants() do
+			if objet:IsA("BasePart") and objet.Size.Magnitude > 0.8 then table.insert(pieces, objet) end
 		end
-		-- Onde au sol : un disque fin qui s'élargit
-		local onde = piece({ Name = "TardisOndeExpress", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 2, 2),
-			Color = COULEUR, Transparency = 0.3, CFrame = CFrame.new(sol + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
-		TweenService:Create(onde, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.new(0.2, 34, 34), Transparency = 1 }):Play()
-		Debris:AddItem(onde, 1)
+		for _ = 1, math.min(8, #pieces) do
+			local part = table.remove(pieces, math.random(#pieces))
+			local point = Instance.new("Attachment")
+			point.Parent = part
+			local etincelles = Instance.new("ParticleEmitter")
+			etincelles.Color = ColorSequence.new(Color3.fromRGB(255, 235, 150), Color3.fromRGB(255, 90, 30))
+			etincelles.LightEmission = 1
+			etincelles.Size = NumberSequence.new(0.25, 0)
+			etincelles.Speed = NumberRange.new(8, 20)
+			etincelles.Lifetime = NumberRange.new(0.3, 0.8)
+			etincelles.SpreadAngle = Vector2.new(90, 90)
+			etincelles.Acceleration = Vector3.new(0, -30, 0)
+			etincelles.Rate = 0
+			etincelles.Parent = point
+			table.insert(pointsConsole, etincelles)
+		end
 	end
 
-	-- Voyage : démat (départ) et remat (arrivée)
+	local etatAvant, modeAvant = exterieur:GetAttribute("Etat") or E.Pose, "Normal"
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 		local etat = exterieur:GetAttribute("Etat")
-		if (etat == E.Demat or etat == E.Remat) and Config.modeDe(exterieur) == "Express" and exterieur:GetAttribute("Camouflage") ~= true then
-			eclair(exterieur:GetPivot())
+		local modeMaintenant = Config.modeDe(exterieur)
+		-- Rapide : éclair vert dans la salle au début de la démat, au début de la remat et une fois posé
+		if ((etat == E.Demat or etat == E.Remat) and modeMaintenant == "Express")
+			or (etat == E.Pose and etatAvant == E.Remat and (modeMaintenant == "Express" or modeAvant == "Express")) then
+			eclat, couleurEclat = 1, COULEUR_RAPIDE
 		end
+		etatAvant, modeAvant = etat, modeMaintenant
 	end)
-	-- Vol libre : démat / remat en plein vol, là où le TARDIS se trouve
 	exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
 		local phase = exterieur:GetAttribute("VolPhase")
 		if (phase == E.Demat or phase == E.Remat) and Config.modeVolDe(exterieur) == "Express" then
-			local cf = exterieur:GetAttribute("VolLibreCF")
-			eclair(typeof(cf) == "CFrame" and cf or exterieur:GetPivot())
+			eclat, couleurEclat = 1, COULEUR_RAPIDE
+		end
+	end)
+
+	RunService.RenderStepped:Connect(function(dt)
+		local t = os.clock()
+		local etat = exterieur:GetAttribute("Etat") or E.Pose
+		local mode = Config.modeDe(exterieur)
+		local reduit = UI.effetsReduits()
+		local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
+		local dedans = racine ~= nil and dansInterieur(racine.Position)
+
+		-- Éclair intérieur du Rapide, et battement rouge de la catastrophe (seulement pour ceux qui sont à bord)
+		eclat = math.max(0, eclat - dt * 2.5)
+		local intensiteEclat = dedans and eclat * (reduit and 0.4 or 1) or 0
+		local catastrophe = etat == E.Remat and mode == "Catastrophe"
+		local battement = (catastrophe and dedans) and (0.5 + 0.5 * math.sin(t * 9)) * (reduit and 0.25 or 0.5) or 0
+		local teinte = Color3.new(1, 1, 1):Lerp(couleurEclat, 0.4 * intensiteEclat):Lerp(ROUGE, 0.5 * battement)
+		teinteMode.TintColor = teinte
+		teinteMode.Brightness = 0.12 * intensiteEclat
+		lumiereRotor.Color = catastrophe and ROUGE or couleurEclat
+		lumiereRotor.Brightness = 10 * intensiteEclat + (catastrophe and 5 * (0.5 + 0.5 * math.sin(t * 9)) or 0)
+		-- Catastrophe : la console crache des étincelles (chez tout le monde : elle est visible de dehors par la porte)
+		if catastrophe then
+			if not pointsConsole then preparerEtincelles() end
+			if #pointsConsole > 0 and math.random() < dt * 7 then
+				pointsConsole[math.random(#pointsConsole)]:Emit(math.random(10, 25))
+			end
+		end
+
+		-- Projecteur de sauvetage : allumé pendant la descente (pas camouflé, avec du courant)
+		local sauvetage = etat == E.Remat and mode == "Sauvetage" and exterieur:GetAttribute("Camouflage") ~= true
+			and exterieur:GetAttribute("Alimentation") ~= false
+		spot.Brightness += ((sauvetage and 7 or 0) - spot.Brightness) * math.min(dt * 4, 1)
+		if sauvetage or spot.Brightness > 0.05 then
+			projecteur.CFrame = CFrame.new(positionLampe())
+			local part = spot.Brightness / 7
+			cone.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.18 * part), NumberSequenceKeypoint.new(1, 1 - 0.03 * part) })
+			cone.Enabled = true
+		else
+			cone.Enabled = false
 		end
 	end)
 end
