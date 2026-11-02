@@ -5,6 +5,7 @@
 --   2. Journal (Config.Journal) : tout ce qui passe sur ServerStorage › TardisEvenements ("Journal"), plus les
 --      changements d'état des TARDIS, envoyés au journal du jeu (RoSysLog) si Config.Journal.Cible est renseigné.
 --   3. Commandes de chat du staff : /tardis statut · /tardis journal [n] · /tardis erreurs · /tardis commandes
+--      · /tardis maintenance on|off [TARDIS_x] [raison] (V6.9.2) · /tardis recette [TARDIS_x] [complete] (V6.9.2)
 --      (/tardis et /tardis help allument toujours la balise de détresse).
 --   4. Erreurs : celles des scripts du TARDIS chez les joueurs (RemoteEvent TardisErreursClient) et sur le serveur
 --      sont comptées, résumées dans /tardis erreurs et notées au journal à leur première apparition.
@@ -272,7 +273,7 @@ local function statut()
 				tostring(x:GetAttribute("Position") or "?"), p.X, p.Y, p.Z))
 			table.insert(reponse, string.format("   intégrité %s %% · énergie %s · air %s %% · %s%s%s", tostring(x:GetAttribute("PointsDeVie") or "?"),
 				x:GetAttribute("Alimentation") == false and "COUPÉE" or "ok", tostring(x:GetAttribute("RegulAir") or "?"),
-				x:GetAttribute("Alerte") and "ALERTE · " or "", x:GetAttribute("VolLibre") and "vol libre · " or "", x:GetAttribute("Camouflage") and "camouflé" or "visible"))
+				(x:GetAttribute("Maintenance") and "MAINTENANCE · " or "") .. (x:GetAttribute("Alerte") and "ALERTE · " or ""), x:GetAttribute("VolLibre") and "vol libre · " or "", x:GetAttribute("Camouflage") and "camouflé" or "visible"))
 			table.insert(reponse, string.format("   pilotes en ligne : %s · à bord : %s", #pilotes > 0 and table.concat(pilotes, ", ") or "aucun",
 				#occupants > 0 and table.concat(occupants, ", ") or "personne"))
 		end
@@ -312,8 +313,103 @@ local AIDE = {
 	"/tardis statut : état, position, intégrité, pilotes en ligne et occupants de chaque TARDIS",
 	"/tardis journal [n] : les n dernières lignes du journal (10 par défaut, 30 au plus)",
 	"/tardis erreurs : les erreurs des scripts du TARDIS (joueurs et serveur)",
+	"/tardis maintenance on|off [TARDIS_x] [raison] : bloque (ou rend) le TARDIS pour tous sauf le staff ; sans TARDIS : tous",
+	"/tardis recette [TARDIS_x] [complete] : allers-retours chronométrés sur place (Classique et Rapide ; complete : les 5 modes)",
 	"/tardis help : balise de détresse (pour tout le monde)",
 }
+
+--------------------------------------------------------------------
+-- Maintenance et recette (V6.9.2, ajouts C11 et C12)
+--------------------------------------------------------------------
+-- Les TARDIS visés : celui nommé dans les mots (« tardis_2 »), sinon tous ; renvoie la liste et les mots restants
+local function ciblesEtReste(mots)
+	local cibles, reste = {}, {}
+	for _, mot in mots do
+		local trouve = nil
+		for _, def in Config.Tardis do
+			if string.lower(def.Nom) == mot then trouve = def.Nom end
+		end
+		if trouve and tardis[trouve] then table.insert(cibles, trouve)
+		elseif mot ~= "tous" and mot ~= "all" then table.insert(reste, mot) end
+	end
+	if #cibles == 0 then
+		for _, def in Config.Tardis do if tardis[def.Nom] then table.insert(cibles, def.Nom) end end
+	end
+	return cibles, reste
+end
+
+local function maintenanceReponse(joueur, argument)
+	local mots = {}
+	for mot in string.gmatch(argument, "%S+") do table.insert(mots, mot) end
+	local action = table.remove(mots, 1)
+	if action ~= "on" and action ~= "off" then
+		local reponse = { "◆ TARDIS · MAINTENANCE  (/tardis maintenance on|off [TARDIS_x] [raison])" }
+		for _, def in Config.Tardis do
+			local entree = tardis[def.Nom]
+			local raison = entree and entree.exterieur:GetAttribute("Maintenance")
+			table.insert(reponse, string.format("%s : %s", def.Nom, raison and ("EN MAINTENANCE · " .. tostring(raison)) or "en service"))
+		end
+		return reponse
+	end
+	local cibles, reste = ciblesEtReste(mots)
+	local raison = #reste > 0 and table.concat(reste, " ") or ((Config.Maintenance or {}).Raison or "Mise à jour en cours")
+	raison = string.upper(string.sub(raison, 1, 1)) .. string.sub(raison, 2, 60)
+	for _, nom in cibles do
+		local x = tardis[nom].exterieur
+		x:SetAttribute("Maintenance", action == "on" and raison or nil)
+		x:SetAttribute("MaintenancePar", action == "on" and joueur.DisplayName or nil)
+	end
+	journaliser("Maintenance", string.format("%s : maintenance %s par %s%s.", table.concat(cibles, ", "), action == "on" and "commencée" or "terminée",
+		joueur.Name, action == "on" and (" (" .. raison .. ")") or ""), { joueur = joueur.UserId })
+	return { action == "on" and string.format("Maintenance : %s bloqué(s) pour tous sauf le staff (%s).", table.concat(cibles, ", "), raison)
+		or string.format("Fin de maintenance : %s de nouveau en service.", table.concat(cibles, ", ")) }
+end
+
+local recetteEnCours = {}
+local function lancerRecette(joueur, argument)
+	local mots = {}
+	for mot in string.gmatch(argument, "%S+") do table.insert(mots, mot) end
+	local cibles, reste = ciblesEtReste(mots)
+	local nom = cibles[1]
+	-- Sans TARDIS nommé : le premier ; avec plusieurs TARDIS, il vaut mieux le nommer
+	if not nom then return { "Recette impossible : aucun TARDIS trouvé." } end
+	local complete = table.find(reste, "complete") or table.find(reste, "complète") or table.find(reste, "tout")
+	local modes = complete and ((Config.Recette or {}).Complete or { "Normal", "Urgence", "Express", "Sauvetage", "Silencieux" })
+		or ((Config.Recette or {}).Rapide or { "Normal", "Express" })
+	if recetteEnCours[nom] then return { "Une recette de " .. nom .. " est déjà en cours." } end
+	local entree = tardis[nom]
+	local pont = ServerStorage:FindFirstChild(Config.canal(entree.def, "TardisInterne"))
+	if not pont then return { "Recette impossible : " .. nom .. " ne répond pas (pont interne absent)." } end
+	local duree = 0
+	for _, mode in modes do
+		local d, dd = Config.Timing(E.Demat, mode)
+		local r, rr = Config.Timing(E.Remat, mode)
+		duree += d + dd + r + rr + 2.5
+	end
+	recetteEnCours[nom] = true
+	task.spawn(function()
+		-- Pendant les tests, le TARDIS est en maintenance (on remet l'état d'avant à la fin)
+		local x = entree.exterieur
+		local avant, avantPar = x:GetAttribute("Maintenance"), x:GetAttribute("MaintenancePar")
+		if not avant then
+			x:SetAttribute("Maintenance", "Recette automatique en cours")
+			x:SetAttribute("MaintenancePar", joueur.DisplayName)
+		end
+		local okInvoke, ok, rapport = pcall(function() return pont:Invoke("recette", modes) end)
+		if not avant then
+			x:SetAttribute("Maintenance", nil)
+			x:SetAttribute("MaintenancePar", avantPar)
+		end
+		recetteEnCours[nom] = nil
+		if not okInvoke then rapport = { "Recette interrompue par une erreur : " .. tostring(ok) } ok = false end
+		if type(rapport) ~= "table" then rapport = { "Recette : pas de rapport." } end
+		journaliser("Recette", string.format("%s : recette %s par %s (%s).", nom, ok and "réussie" or "à revoir", joueur.Name, tostring(rapport[1])),
+			{ joueur = joueur.UserId })
+		if joueur.Parent then repondre(joueur, rapport) end
+	end)
+	return { string.format("Recette de %s lancée : %d mode(s), environ %d s. Le TARDIS passe en maintenance pendant les tests ; le rapport arrive ici.",
+		nom, #modes, math.ceil(duree)) }
+end
 
 local derniereCommande = {}
 local function commande(joueur, texte)
@@ -342,6 +438,10 @@ local function commande(joueur, texte)
 		repondre(joueur, journalReponse(math.clamp(tonumber(argument) or 10, 1, 30)))
 	elseif sous == "erreurs" or sous == "errors" then
 		repondre(joueur, erreursReponse())
+	elseif sous == "maintenance" then
+		repondre(joueur, maintenanceReponse(joueur, argument))
+	elseif sous == "recette" or sous == "test" then
+		repondre(joueur, lancerRecette(joueur, argument))
 	else
 		repondre(joueur, AIDE)
 	end

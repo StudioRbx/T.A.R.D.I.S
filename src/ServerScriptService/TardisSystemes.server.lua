@@ -1219,6 +1219,12 @@ task.spawn(function()
 end)
 
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
+	-- Maintenance (V6.9.2) : commandes des techniciens et des pilotes bloquées, sauf pour le staff
+	local maintenance = (action == "Tech" or action == "Outil" or action == "LienTimeLord") and Config.bloqueParMaintenance(exterieur, joueur)
+	if maintenance then
+		remote:FireClient(joueur, "Impossible : TARDIS en maintenance (" .. maintenance .. ").", false)
+		return
+	end
 	if action == "Tech" then
 		-- Techniciens et pilotes (les pilotes l'ouvrent depuis l'outil Ingénierie de leur tablette)
 		if not (estTechnicien(joueur) or estPilote(joueur)) then return end

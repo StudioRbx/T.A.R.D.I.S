@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.1"
+Config.Version = "6.9.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -519,6 +519,18 @@ Config.Siege = { Bouclier = "Complet", Verrou = true, Alerte = true }
 -- aucun autre droit. Il perd son poste dès qu'il quitte le TARDIS.
 Config.Copilote = { Actif = true }
 
+-- Mode maintenance (V6.9.2, ajout C11) : « /tardis maintenance on [TARDIS_x] [raison] » bloque le TARDIS pour tous
+-- sauf le staff (Config.Acces.Staff) ; « /tardis maintenance off » le rend. AuDemarrage : le serveur démarre en maintenance.
+Config.Maintenance = { AuDemarrage = false, Raison = "Mise à jour en cours" }
+
+-- Recette automatique (V6.9.2, ajout C12) : « /tardis recette [TARDIS_x] [complete] » fait des allers-retours sur place
+-- dans chaque mode et compare les chronos aux durées de Config.Modes (écart toléré : Tolerance secondes, ou 5 %).
+Config.Recette = {
+	Rapide = { "Normal", "Express" },
+	Complete = { "Normal", "Urgence", "Express", "Sauvetage", "Silencieux" },
+	Tolerance = 0.6,
+}
+
 -- Carnet de bord RP (V6.9.1, ajout C7) : notes des pilotes et du copilote par lieu, filtrées par Roblox et sauvegardées.
 Config.Carnet = {
 	Max = 80,            -- nombre de notes gardées (les plus anciennes partent)
@@ -788,6 +800,14 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 		alpha += (bruit(ecoule, 28) - 0.5) * 0.12 * souffle * (1 - fond)
 	end
 	return math.clamp(alpha, 0, 1)
+end
+
+-- Maintenance (V6.9.2) : la raison si ce joueur est bloqué (le staff ne l'est jamais), sinon nil
+function Config.bloqueParMaintenance(exterieur, joueur)
+	local raison = exterieur and exterieur:GetAttribute("Maintenance")
+	if raison == nil or raison == false then return nil end
+	if joueur and joueur:GetAttribute("TardisStaff") == true then return nil end
+	return type(raison) == "string" and raison or "maintenance"
 end
 
 return Config

@@ -104,6 +104,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.8.1** | Modifications 25 (sauvegarde versionnée avec migration) et 8 (boutons tactiles sur mobile) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9** | Ajouts C1 (protocole Silencieux) et C6 (mode Siège), modifications 23 (crise post-régénération) et 24 (clé du TARDIS) ; sélecteur de mode dans la tablette | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.1** | Ajouts C2 (copilote : poste de navigation pour un joueur à bord) et C7 (carnet de bord RP) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.2** | Ajouts C11 (mode maintenance) et C12 (recette automatique) | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
@@ -127,8 +128,8 @@ Décisions prises avec toi : intercom par **module pont** dans `OSFondation › 
 10. **Panne de courant de l'OS → TARDIS** : le blackout du site met hors tension un TARDIS posé dans le site.
 
 ### Staff et technique
-11. **Mode maintenance** : le TARDIS est bloqué pour tous sauf le staff pendant une mise à jour.
-12. **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
+11. ✅ *(V6.9.2)* **Mode maintenance** : le TARDIS est bloqué pour tous sauf le staff pendant une mise à jour.
+12. ✅ *(V6.9.2)* **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
 13. **Remontée d'erreurs client** : les erreurs des scripts joueurs sont comptées et visibles dans le diagnostic du serveur.
 
 ### Visuel et son

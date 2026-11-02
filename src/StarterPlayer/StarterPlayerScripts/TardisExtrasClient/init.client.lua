@@ -138,6 +138,11 @@ require(script:WaitForChild("Intercom"))({ C = C, Config = Config, ReplicatedSto
 require(script:WaitForChild("Copilote"))({ C = C, Config = Config, E = E, Players = Players, UI = UI, animer = animer, creer = creer, def = def, exterieur = exterieur, joueur = joueur, remote = remote, texte = texte })
 
 --------------------------------------------------------------------
+-- Bandeau « en maintenance » (V6.9.2) : module Maintenance
+--------------------------------------------------------------------
+require(script:WaitForChild("Maintenance"))({ C = C, Config = Config, UI = UI, animer = animer, creer = creer, def = def, exterieur = exterieur, jeSuisDedans = jeSuisDedans, joueur = joueur, texte = texte })
+
+--------------------------------------------------------------------
 -- Remontée des erreurs et réponses du staff (V6.8) : module Supervision
 --------------------------------------------------------------------
 require(script:WaitForChild("Supervision"))({ Config = Config, ReplicatedStorage = ReplicatedStorage, def = def })

@@ -1056,6 +1056,7 @@ local promptLevier = creerPrompt(levier, "Décoller")
 
 promptSelecteur.Triggered:Connect(function(joueur)
 	if not pilotes[joueur] then return end -- réservé aux joueurs autorisés (Config.Pilotes)
+	if Config.bloqueParMaintenance(exterieur, joueur) then alerter("MAINTENANCE") return end
 	marquerActivite()
 	if not disponible() then return end
 	if not estAlimente() then return end -- écran éteint, rien ne répond
@@ -1067,6 +1068,7 @@ end)
 
 promptLevier.Triggered:Connect(function(joueur)
 	if not pilotes[joueur] then return end
+	if Config.bloqueParMaintenance(exterieur, joueur) then alerter("MAINTENANCE") return end
 	marquerActivite()
 	if not disponible() then return end
 	local dest = destinationChoisie()
@@ -1820,6 +1822,12 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	-- Copilote (V6.9.1) : seulement la navigation
 	local copilote = not pilotes[joueur] and exterieur:GetAttribute("Copilote") == joueur.UserId
 	if not pilotes[joueur] and not (copilote and ACTIONS_COPILOTE[action]) then return end
+	-- Maintenance (V6.9.2) : seul le staff commande le TARDIS (un vol libre déjà commencé peut se terminer)
+	local maintenance = Config.bloqueParMaintenance(exterieur, joueur)
+	if maintenance then
+		remote:FireClient(joueur, "Impossible : TARDIS en maintenance (" .. maintenance .. ").", false)
+		return
+	end
 	marquerActivite()
 	-- Détruit (auto-destruction) ou compte à rebours en cours : plus aucune commande
 	if exterieur:GetAttribute("Detruit") or exterieur:GetAttribute("AutoDestructionDebut") then
@@ -2171,6 +2179,84 @@ do
 end
 
 --------------------------------------------------------------------
+-- Recette automatique (V6.9.2, ajout C12) : allers-retours sur place dans chaque mode, chronométrés.
+-- Appelée par TardisSupervision (/tardis recette) à travers le pont interne. Renvoie ok, { lignes du rapport }.
+-- Pendant la recette : attribut Recette (pas d'annonce à l'intercom), recharge de l'Express ignorée ; l'historique
+-- des voyages est remis comme avant à la fin.
+--------------------------------------------------------------------
+local function lancerRecette(modes)
+	if typeof(modes) ~= "table" or #modes == 0 then return false, { "Recette impossible : aucun mode à tester." } end
+	if partage.occupe or etatActuel() ~= E.Pose then return false, { "Recette impossible : le TARDIS doit être posé et libre." } end
+	if exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then return false, { "Recette impossible : vol libre en cours ou TARDIS porté." } end
+	if exterieur:GetAttribute("Alimentation") == false or exterieur:GetAttribute("DemarrageBloque") then
+		return false, { "Recette impossible : TARDIS hors tension ou démarrage bloqué." }
+	end
+	local tolerance = (Config.Recette or {}).Tolerance or 0.6
+	local depart = exterieur:GetPivot()
+	local nomDepart = exterieur:GetAttribute("Position") or "Point de recette"
+	local partDepart = partage.positionActuelle
+	local camoufle = exterieur:GetAttribute("Camouflage") == true
+	local historiqueAvant = table.clone(historique)
+	local expressAvant = partage.expressPret
+	local rapport, reussis, total = {}, 0, 0
+	local function conforme(mesure, attendu) return math.abs(mesure - attendu) <= math.max(tolerance, attendu * 0.05) end
+
+	exterieur:SetAttribute("Recette", true)
+	if exterieur:GetAttribute("Alerte") then table.insert(rapport, "⚠ Alerte générale active : tous les voyages se font en urgence.") end
+	for _, modeDemande in modes do
+		total += 1
+		partage.expressPret = 0
+		local t0 = os.clock()
+		local ok, erreur = decoller(modeDemande)
+		local dureeDemat = os.clock() - t0
+		local modeDemat = Config.modeDe(exterieur)
+		if not ok then
+			table.insert(rapport, string.format("✗ %s : décollage refusé (%s).", Config.libelleMode(modeDemande), string.lower(erreur or "?")))
+			break
+		end
+		task.wait(1)
+		partage.expressPret = 0
+		t0 = os.clock()
+		local okRemat, erreurRemat, urgenceForcee = atterrir(depart, nomDepart, camoufle, partDepart, modeDemande)
+		local dureeRemat = os.clock() - t0
+		if not okRemat then
+			table.insert(rapport, string.format("✗ %s : atterrissage refusé (%s). Le TARDIS est resté dans le vortex.", Config.libelleMode(modeDemande),
+				string.lower(erreurRemat or "?")))
+			break
+		end
+		local modeRemat = urgenceForcee and "Urgence" or modeDemat
+		local dA, decA = Config.Timing(E.Demat, modeDemat)
+		local rA, recA = Config.Timing(E.Remat, modeRemat)
+		local bonMode = modeDemat == Config.normaliserMode(modeDemande)
+		local bon = conforme(dureeDemat, dA + decA) and conforme(dureeRemat, rA + recA) and bonMode
+		if bon then reussis += 1 end
+		table.insert(rapport, string.format("%s %s : démat %.1f s (attendu %.1f) · remat %.1f s (attendu %.1f)%s%s", bon and "✓" or "✗",
+			Config.libelleMode(modeDemande), dureeDemat, dA + decA, dureeRemat, rA + recA,
+			bonMode and "" or (" · fait en " .. Config.libelleMode(modeDemat)), urgenceForcee and " · urgence imposée (collision ou zone)" or ""))
+		task.wait(1.5)
+	end
+	partage.expressPret = expressAvant
+	historique = historiqueAvant
+	publierHistorique()
+	exterieur:SetAttribute("Recette", nil)
+
+	local ecart = (exterieur:GetPivot().Position - depart.Position).Magnitude
+	table.insert(rapport, string.format("%s Retour au point de départ : écart %.2f studs.", ecart < 0.5 and "✓" or "✗", ecart))
+	table.insert(rapport, string.format("%s Portes : %s · état final : %s.", exterieur:GetAttribute("Verrouille") and "⚠" or "✓",
+		exterieur:GetAttribute("Verrouille") and "bloquées" or "libres", tostring(etatActuel())))
+	local okDiag, diagnostic = pcall(function()
+		return require(script.Parent:WaitForChild("TardisDiagnostic", 5))(def, exterieur, interieur)
+	end)
+	if okDiag and diagnostic then table.insert(rapport, "Diagnostic : " .. tostring(diagnostic)) end
+	table.insert(rapport, 1, string.format("◆ RECETTE %s · %d / %d mode(s) conforme(s)", def.Nom, reussis, total))
+	return reussis == total, rapport
+end
+
+if (Config.Maintenance or {}).AuDemarrage then
+	exterieur:SetAttribute("Maintenance", (Config.Maintenance or {}).Raison or "Mise à jour en cours")
+end
+
+--------------------------------------------------------------------
 -- Pont interne : TardisExtras (balise, rappel, minuterie, leurre, zones interdites...) utilise ces fonctions
 --------------------------------------------------------------------
 do
@@ -2197,6 +2283,7 @@ do
 		elseif action == "basculerVerrou" then return basculerVerrou()
 		elseif action == "ouvrirPortes" then return ouvrirPortesSimple()
 		elseif action == "emmener" then emmenerALInterieur() return true
+		elseif action == "recette" then return lancerRecette(...)
 		end
 		return nil
 	end

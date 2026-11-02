@@ -1204,6 +1204,12 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		if Config.Debug then print("[TARDIS] Extras : commande refusée, " .. joueur.Name .. " n'est pas pilote.") end
 		return
 	end
+	-- Maintenance (V6.9.2) : seul le staff commande le TARDIS
+	local maintenance = Config.bloqueParMaintenance(exterieur, joueur)
+	if maintenance then
+		dire(joueur, "Impossible : TARDIS en maintenance (" .. maintenance .. ").", false)
+		return
+	end
 	derniereActionPilote = os.clock() -- pour la saisie
 	if action == "Demat" or action == "Remat" or action == "Repositionner" or action == "Rappel" or action == "DematPorte" then
 		dernierPilote = joueur.UserId -- pour les statistiques
@@ -1477,6 +1483,7 @@ do
 		if etat == E.Remat then modeRemat = Config.modeDe(exterieur) end
 		if INTERCOM.Actif == false or signalee then return end
 		if etat == E.Pose and (Config.Modes[modeRemat] or {}).Discret then return end -- Silencieux (V6.9) : pas d'annonce
+		if exterieur:GetAttribute("Recette") then return end -- recette automatique (V6.9.2) : pas d'annonce
 		-- Posé après une matérialisation, et visible (ni camouflé, ni porté)
 		if etat ~= E.Pose or avant ~= E.Remat then return end
 		if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end
