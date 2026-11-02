@@ -228,7 +228,38 @@ return function(contexte)
 			end
 			majAlarme()
 		end
-		local jukebox, jukeboxIndex = nil, nil
+		-- Jukebox (V6.7.3) : son LOCAL (pas positionné), audible seulement à bord, en fondu quand on entre ou sort.
+		-- Attribut "Jukebox" : un numéro de piste (en boucle) ou un nom de playlist ("Action" : aléatoire, enchaînée).
+		local jukebox, jukeboxIndex, presence = nil, nil, 0
+		local playlist, positionPlaylist = nil, 0
+		local function piste(index) return (Config.Jukebox or {})[index] end
+		local function jouerPiste(index, enBoucle)
+			if jukebox then jukebox:Destroy() jukebox = nil end
+			local p = piste(index)
+			if not p then return end
+			jukebox = creer("Sound", { Name = "TardisJukebox", SoundId = "rbxassetid://" .. tostring(p.id), Looped = enBoucle, Volume = 0,
+				Parent = game:GetService("SoundService") })
+			jukebox:Play()
+			if not enBoucle then
+				local courant = jukebox
+				courant.Ended:Connect(function()
+					if jukebox ~= courant or not playlist then return end
+					positionPlaylist = positionPlaylist % #playlist + 1
+					jouerPiste(playlist[positionPlaylist], false)
+				end)
+			end
+		end
+		local function nouvellePlaylist(categorie)
+			local liste = {}
+			for i, p in Config.Jukebox or {} do
+				if p.categorie == categorie then table.insert(liste, i) end
+			end
+			for i = #liste, 2, -1 do
+				local j = math.random(i)
+				liste[i], liste[j] = liste[j], liste[i]
+			end
+			return liste
+		end
 		RunService.Heartbeat:Connect(function(dt)
 			local etat = exterieur:GetAttribute("Etat") or E.Pose
 			local urgence = (Config.modeSaccade(Config.modeDe(exterieur)) and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
@@ -242,20 +273,24 @@ return function(contexte)
 			for nom, son in moteurs do
 				son.Volume += (cibles[nom] * 0.5 * UI.volume() - son.Volume) * math.min(dt * 1.5, 1)
 			end
-			-- Jukebox : la musique choisie dans le menu, audible dans la salle
+			-- Jukebox : la musique choisie dans la tablette, seulement pour ceux qui sont à bord
 			local index = exterieur:GetAttribute("Jukebox")
 			if index ~= jukeboxIndex then
 				jukeboxIndex = index
-				if jukebox then jukebox:Destroy() jukebox = nil end
-				local piste = index and (Config.Jukebox or {})[index]
-				if piste and support then
-					jukebox = creer("Sound", { SoundId = "rbxassetid://" .. tostring(piste.id), Looped = true, Volume = 0.5 * UI.volume(),
-						RollOffMaxDistance = 90, Parent = support })
-					jukebox:Play()
+				playlist = nil
+				if type(index) == "string" then
+					playlist = nouvellePlaylist(index)
+					positionPlaylist = 1
+					if #playlist > 0 then jouerPiste(playlist[1], false) elseif jukebox then jukebox:Destroy() jukebox = nil end
+				elseif type(index) == "number" then
+					jouerPiste(index, true)
+				elseif jukebox then
+					jukebox:Destroy()
+					jukebox = nil
 				end
-			elseif jukebox then
-				jukebox.Volume = 0.5 * UI.volume()
 			end
+			presence += (((jeSuisDedans() and alimente) and 1 or 0) - presence) * math.min(dt * 1.2, 1)
+			if jukebox then jukebox.Volume = 0.5 * UI.volume() * presence end
 		end)
 
 		-- Vapeur de refroidissement : un jet sous chaque plaque "Grille", par bouffées aléatoires (les mêmes pour tous)

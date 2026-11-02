@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.7.2"
+Config.Version = "6.7.3"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -420,9 +420,36 @@ Config.StylesConsole = {
 	{ nom = "Obsidienne", couleur = Color3.fromRGB(25, 25, 30), materiau = Enum.Material.Glass },
 }
 
--- Jukebox (menu) : musiques proposées aux passagers (identifiants de sons Roblox)
+-- Jukebox (tablette › Ambiance) : musiques audibles SEULEMENT à bord (V6.7.3 : son local, en fondu quand on entre
+-- ou sort). categorie = "Action" : la piste fait partie de la playlist Action (lecture aléatoire, enchaînée).
+-- Les identifiants doivent être des sons publics (ou appartenant au jeu) : à vérifier dans la Toolbox de Studio.
 Config.Jukebox = {
-	-- { nom = "Nom de la musique", id = 1234567890 },
+	-- { nom = "Nom de la musique", id = 1234567890, categorie = "Action" },
+}
+
+-- Sons créés au démarrage s'ils n'existent pas déjà dans ReplicatedStorage › TardisAssets › Sons (V6.7.3).
+-- Valeur : un identifiant Roblox (nombre), un lien rbxasset://, ou { Id = ..., Volume = ..., Vitesse = ... } ; 0 = aucun.
+-- Un Sound placé à la main dans Studio avec le même nom est toujours prioritaire.
+Config.Sons = {
+	Camouflage = 0, Decamouflage = 0, Cloitre = 0, Reparation = 0, Regeneration = 0, Intercom = 0,
+	Moteur_Pose = 0, Moteur_Vol = 0, Moteur_Urgence = 0,
+	-- Replis intégrés à Roblox (toujours disponibles) : à remplacer par de vrais sons de TARDIS si tu en as
+	Chute = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.9 },
+	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
+}
+
+-- Intercom du site (V6.7.3) : la première matérialisation visible d'un TARDIS pendant la session est annoncée à tout
+-- le serveur (« faille spatio-temporelle »), puis les pilotes reçoivent un rappel toutes les RappelMinutes.
+-- Cible : chemin d'un objet de l'OS Fondation qui fait l'annonce (BindableEvent, BindableFunction ou ModuleScript
+-- avec une fonction annoncer / Annoncer), par exemple "ServerScriptService.OSFondation.OSAppsServeur.Intercom".
+-- Vide : le TARDIS fait l'annonce lui-même (bandeau en haut de l'écran, alarme, message dans le chat).
+Config.Intercom = {
+	Actif = true,
+	Cible = nil,
+	RappelMinutes = 10,
+	Titre = "INTERCOM DU SITE",
+	Message = "Alerte : faille spatio-temporelle détectée. Lieu : %s. Personnel de sécurité, restez vigilants.",
+	Rappel = "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
 }
 
 -- Vapeur de refroidissement : plaques nommées "Grille" (ou dans un dossier "Grilles") de l'intérieur

@@ -50,9 +50,26 @@ local function preparerSon(nom, parent, optionnel)
 	return son
 end
 
+-- Sons de Config.Sons (V6.7.3) : créés dans TardisAssets › Sons s'ils n'y sont pas déjà (un Sound placé à la main
+-- dans Studio reste prioritaire). Le premier exemplaire du script les crée, les autres les trouvent.
+for nom, reglage in Config.Sons or {} do
+	local id = type(reglage) == "table" and reglage.Id or reglage
+	local valide = (type(id) == "number" and id > 0) or (type(id) == "string" and id ~= "")
+	if valide and not dossierSons:FindFirstChild(nom) then
+		local son = Instance.new("Sound")
+		son.Name = nom
+		son.SoundId = type(id) == "number" and ("rbxassetid://" .. id) or id
+		son.Volume = type(reglage) == "table" and reglage.Volume or 0.8
+		son.PlaybackSpeed = type(reglage) == "table" and reglage.Vitesse or 1
+		son.RollOffMaxDistance = 140
+		son.Parent = dossierSons
+	end
+end
+
 -- [nom] = { son extérieur, son intérieur }
--- Sons des voyages, tirés de Config.Modes (ceux du mode Express sont optionnels)
-local LISTE_SONS = { { "Camouflage", true }, { "Decamouflage", true } }
+-- Sons des voyages, tirés de Config.Modes (ceux du mode Express sont optionnels), et sons de la salle joués par les
+-- autres scripts (V6.7.3 : Cloitre et Reparation n'étaient pas préparés, donc jamais joués)
+local LISTE_SONS = { { "Camouflage", true }, { "Decamouflage", true }, { "Cloitre", true }, { "Reparation", true } }
 for nomMode, reglages in Config.Modes do
 	for _, nomSon in reglages.Sons do
 		table.insert(LISTE_SONS, { nomSon, nomMode == "Express" })

@@ -1224,7 +1224,19 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 
 	elseif action == "Jukebox" then
 		local index = typeof(donnees) == "table" and tonumber(donnees.index)
-		if index and (Config.Jukebox or {})[index] then
+		local liste = typeof(donnees) == "table" and donnees.liste
+		if type(liste) == "string" and #liste <= 30 then
+			-- Playlist (V6.7.3) : toutes les pistes d'une catégorie, en ordre aléatoire
+			local nombre = 0
+			for _, piste in Config.Jukebox or {} do if piste.categorie == liste then nombre += 1 end end
+			if nombre > 0 then
+				exterieur:SetAttribute("Jukebox", liste)
+				exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
+				dire(joueur, string.format("Jukebox : playlist %s (%d piste(s), aléatoire).", liste, nombre), true)
+			else
+				dire(joueur, "Aucune piste « " .. liste .. " » dans Config.Jukebox.", false)
+			end
+		elseif index and (Config.Jukebox or {})[index] then
 			exterieur:SetAttribute("Jukebox", math.floor(index))
 			exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
 			dire(joueur, "Jukebox : " .. Config.Jukebox[index].nom .. ".", true)
@@ -1354,6 +1366,52 @@ if type(reglages.categories) == "table" then
 		if type(nom) == "string" and type(index) == "number" then categories[nom] = index end
 	end
 	publierCategories()
+end
+
+--------------------------------------------------------------------
+-- Intercom du site (V6.7.3) : la première matérialisation VISIBLE de ce TARDIS pendant la session est publiée sur
+-- l'événement ServerStorage › TardisEvenements ("FailleSpatioTemporelle"). Le script TardisPontFondation fait
+-- l'annonce (OS Fondation si Config.Intercom.Cible est renseigné, sinon l'annonce intégrée). Ensuite, les pilotes
+-- reçoivent un rappel toutes les Config.Intercom.RappelMinutes minutes.
+--------------------------------------------------------------------
+do
+	local INTERCOM = Config.Intercom or {}
+	local evenements = ServerStorage:FindFirstChild("TardisEvenements")
+	if not evenements then
+		evenements = Instance.new("BindableEvent")
+		evenements.Name = "TardisEvenements"
+		evenements.Parent = ServerStorage
+	end
+	local signalee = nil -- { lieu, heure } : la faille de cette session
+	local etatAvant = exterieur:GetAttribute("Etat")
+	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+		local etat = exterieur:GetAttribute("Etat")
+		local avant = etatAvant
+		etatAvant = etat
+		if INTERCOM.Actif == false or signalee then return end
+		-- Posé après une matérialisation, et visible (ni camouflé, ni porté)
+		if etat ~= E.Pose or avant ~= E.Remat then return end
+		if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end
+		local lieu = tostring(exterieur:GetAttribute("Position") or "lieu inconnu")
+		signalee = { lieu = lieu, heure = os.date("%H:%M") }
+		exterieur:SetAttribute("FailleSignalee", workspace:GetServerTimeNow())
+		evenements:Fire("FailleSpatioTemporelle", {
+			tardis = def.Nom, lieu = lieu, position = exterieur:GetPivot().Position,
+			mode = Config.modeDe(exterieur), heure = os.time(),
+		})
+		print(string.format("[TARDIS] %s : faille spatio-temporelle signalée à l'intercom (%s).", def.Nom, lieu))
+	end)
+	task.spawn(function()
+		local minutes = INTERCOM.RappelMinutes or 10
+		if minutes <= 0 then return end
+		while true do
+			task.wait(minutes * 60)
+			if signalee then
+				direAuxPilotes(string.format(INTERCOM.Rappel or "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
+					signalee.heure, signalee.lieu), false)
+			end
+		end
+	end)
 end
 
 print("[TARDIS] " .. def.Nom .. " : extras prêts" .. (Config.Debug and " (diagnostic activé)." or "."))

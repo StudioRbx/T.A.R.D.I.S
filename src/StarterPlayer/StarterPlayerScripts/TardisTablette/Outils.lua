@@ -104,7 +104,8 @@ return function(contexte)
 		majTuile(O.regenerations, nbRegen > 0, (nbRegen > 0 and (nbRegen .. " au journal") or "Aucune") .. (lien and " · lien actif" or ""), C.ambre, true)
 		majTuile(O.theme, exterieur:GetAttribute("Theme") ~= nil, exterieur:GetAttribute("Theme") or "Classique", C.ambre, alimente)
 		local piste = exterieur:GetAttribute("Jukebox")
-		majTuile(O.jukebox, piste ~= nil, piste and ((Config.Jukebox or {})[piste] or {}).nom or "Musique à bord", C.ambre, #(Config.Jukebox or {}) > 0)
+		local nomPiste = (type(piste) == "string" and ("Playlist " .. piste)) or (piste and ((Config.Jukebox or {})[piste] or {}).nom) or nil
+		majTuile(O.jukebox, piste ~= nil, nomPiste or (#(Config.Jukebox or {}) > 0 and "Musique à bord" or "Aucune piste (Config.Jukebox)"), C.ambre, #(Config.Jukebox or {}) > 0)
 		local projecteur = exterieur:GetAttribute("Projecteur") == true
 		majTuile(O.projecteur, projecteur, projecteur and "ALLUMÉ · vise caméra" or "Éteint", Color3.fromRGB(255, 240, 180), alimente)
 		majTuile(O.cabine, exterieur:GetAttribute("StyleInterieur") ~= nil or exterieur:GetAttribute("Couleur") ~= nil, "Intérieur · console · extérieur", C.cyan, alimente)
@@ -448,14 +449,32 @@ return function(contexte)
 	O.jukebox.bouton.Activated:Connect(function()
 		if O.jukebox.bouton:GetAttribute("Disponible") == false then return end
 		local c = ouvrirSurcouche("jukebox", "JUKEBOX")
-		ligneTexte(c, "La musique s'entend dans la salle de contrôle. Volume : réglages de la tablette.", 1, C.texte2, 11)
+		ligneTexte(c, "La musique ne s'entend qu'à bord (elle baisse en fondu quand on sort). Volume : réglages de la tablette.", 1, C.texte2, 11)
+		-- Playlists : une par catégorie (« Action » : musiques d'action, aléatoire et enchaînée)
+		local categories, ordreCategories = {}, {}
+		for _, piste in Config.Jukebox or {} do
+			if piste.categorie and not categories[piste.categorie] then
+				categories[piste.categorie] = 0
+				table.insert(ordreCategories, piste.categorie)
+			end
+			if piste.categorie then categories[piste.categorie] += 1 end
+		end
+		local ordre = 1
+		for _, categorie in ordreCategories do
+			ordre += 1
+			boutonSurcouche(c, string.format("►  Playlist %s  (%d, aléatoire)", categorie, categories[categorie]), ordre,
+				exterieur:GetAttribute("Jukebox") == categorie and C.bleu or Color3.fromRGB(120, 70, 30), function()
+				remote:FireServer("Jukebox", { liste = categorie })
+				fermerSurcouche()
+			end)
+		end
 		for i, piste in Config.Jukebox or {} do
-			boutonSurcouche(c, piste.nom, i + 1, exterieur:GetAttribute("Jukebox") == i and C.bleu or nil, function()
+			boutonSurcouche(c, piste.nom .. (piste.categorie and ("  ·  " .. piste.categorie) or ""), ordre + i, exterieur:GetAttribute("Jukebox") == i and C.bleu or nil, function()
 				remote:FireServer("Jukebox", { index = i })
 				fermerSurcouche()
 			end)
 		end
-		boutonSurcouche(c, "Arrêter la musique", #(Config.Jukebox or {}) + 2, Color3.fromRGB(110, 40, 50), function()
+		boutonSurcouche(c, "Arrêter la musique", ordre + #(Config.Jukebox or {}) + 1, Color3.fromRGB(110, 40, 50), function()
 			remote:FireServer("Jukebox", {})
 			fermerSurcouche()
 		end)
