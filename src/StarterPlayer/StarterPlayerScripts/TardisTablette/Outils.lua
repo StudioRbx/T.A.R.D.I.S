@@ -45,6 +45,8 @@ return function(contexte)
 	O.rotation = tuileOutil(fVoyage, "Rotation", "○", 4)
 	O.replay = tuileOutil(fVoyage, "Replay", "►", 5)
 	O.stabilisateur = tuileOutil(fVoyage, "Stabilisateur", "◆", 6)
+	O.copilote = tuileOutil(fVoyage, "Copilote", "◆", 7) -- V6.9.1 : un joueur à bord gère la navigation
+	O.carnet = tuileOutil(fVoyage, "Carnet de bord", "■", 8) -- V6.9.1 : notes par lieu
 	O.boucliers = tuileOutil(fSecurite, "Boucliers", "●", 1)
 	O.equipage = tuileOutil(fSecurite, "Équipage", "●", 2)
 	O.inviter = tuileOutil(fSecurite, "Inviter", "●", 3)
@@ -53,6 +55,8 @@ return function(contexte)
 	O.autodestruction = tuileOutil(fSecurite, "Auto-destruction", "▲", 6)
 	O.regenerations = tuileOutil(fSecurite, "Régénérations", "◆", 7)
 	O.ingenierie = tuileOutil(fSecurite, "Ingénierie", "◆", 8) -- V6.7.2 : ouvre la tablette technicien
+	O.siege = tuileOutil(fSecurite, "Siège", "▲", 9) -- V6.9 : bouclier + verrou + alerte d'un seul geste
+	O.maintenance = tuileOutil(fSecurite, "Maintenance", "▲", 10) -- V6.9.4 : immobilise le TARDIS (plus de voyage ni de vol)
 	O.theme = tuileOutil(fAmbiance, "Thème", "◆", 1)
 	O.jukebox = tuileOutil(fAmbiance, "Jukebox", "●", 2)
 	O.projecteur = tuileOutil(fAmbiance, "Projecteur", "▲", 3)
@@ -63,6 +67,12 @@ return function(contexte)
 		animer(t.lampe, 0.2, { BackgroundColor3 = actif and couleur or C.gris })
 		t.etat.Text = texteEtat
 		t.etat.TextColor3 = actif and couleur or C.texte2
+	end
+	-- Carnet de bord (V6.9.1) : liste publiée par le serveur, la plus récente d'abord
+	local HttpService = game:GetService("HttpService")
+	local function lireCarnet()
+		local ok, liste = pcall(HttpService.JSONDecode, HttpService, exterieur:GetAttribute("Carnet") or "[]")
+		return (ok and type(liste) == "table") and liste or {}
 	end
 	local function majOutils(e)
 		local pose, alimente, porte, bloque = e.pose and not e.volLibre, e.alimente, e.porte, e.bloque
@@ -78,6 +88,16 @@ return function(contexte)
 		majTuile(O.replay, false, UI.replayDisponible and "Dernier vol" or "Aucun vol", C.cyan, UI.replayDisponible == true)
 		local stabilisateur = exterieur:GetAttribute("Stabilisateur") ~= false
 		majTuile(O.stabilisateur, stabilisateur, stabilisateur and "Activé" or "Coupé · la cabine vibre", C.vert, true)
+		local copiloteNom = exterieur:GetAttribute("CopiloteNom")
+		majTuile(O.copilote, copiloteNom ~= nil, copiloteNom and ("En poste : " .. copiloteNom) or "Nommer un joueur à bord", C.cyan,
+			copiloteNom ~= nil or (Config.Copilote or {}).Actif ~= false)
+		local ici = exterieur:GetAttribute("Position")
+		local notesIci, total = 0, 0
+		for _, n in lireCarnet() do
+			total += 1
+			if type(n) == "table" and n.lieu == ici then notesIci += 1 end
+		end
+		majTuile(O.carnet, notesIci > 0, notesIci > 0 and (notesIci .. " note(s) ici") or (total .. " note(s) en tout"), C.ambre, true)
 		local unBouclier = exterieur:GetAttribute("BouclierJoueurs") == true or exterieur:GetAttribute("BouclierBalles") == true or exterieur:GetAttribute("BouclierComplet") == true
 		local energie = exterieur:GetAttribute("BouclierEnergie") or 100
 		majTuile(O.boucliers, unBouclier, unBouclier and string.format("LEVÉ · énergie %d %%", energie) or "Anti-joueurs · balles · complet",
@@ -100,6 +120,11 @@ return function(contexte)
 			if exterieur:GetAttribute(attribut) then pannes += 1 end
 		end
 		if (exterieur:GetAttribute("RegulAir") or 100) < ((Config.Technicien or {}).SeuilAirVicie or 25) then pannes += 1 end
+		local siege = exterieur:GetAttribute("Siege") == true
+		majTuile(O.siege, siege, siege and "EN SIÈGE · lever" or "Bouclier · verrou · alerte", C.rouge, siege or (pose and alimente))
+		local maintenance = exterieur:GetAttribute("Maintenance")
+		majTuile(O.maintenance, maintenance ~= nil, maintenance and ("EN COURS · " .. tostring(maintenance)) or "Immobiliser le TARDIS", C.orange,
+			maintenance ~= nil or pose)
 		majTuile(O.ingenierie, pannes > 0, pannes > 0 and (pannes .. " intervention(s)") or "Systèmes nominaux", C.orange, true)
 		majTuile(O.regenerations, nbRegen > 0, (nbRegen > 0 and (nbRegen .. " au journal") or "Aucune") .. (lien and " · lien actif" or ""), C.ambre, true)
 		majTuile(O.theme, exterieur:GetAttribute("Theme") ~= nil, exterieur:GetAttribute("Theme") or "Classique", C.ambre, alimente)
@@ -112,7 +137,7 @@ return function(contexte)
 	end
 	-- Mise à jour avec l'interface, et sur les attributs des outils
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function() if S.ouvert then majOutils(lireEtat()) end end)
-	for _, attribut in { "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "StyleInterieur", "Jukebox", "Stabilisateur", "Roles", "BouclierEnergie",
+	for _, attribut in { "Maintenance", "CopiloteNom", "Carnet", "Position", "Siege", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "StyleInterieur", "Jukebox", "Stabilisateur", "Roles", "BouclierEnergie",
 		"BouclierJoueurs", "BouclierBalles", "BouclierComplet", "AutoDestructionDebut", "Alimentation", "Porteur", "VolLibre", "DemarrageBloque" } do
 		exterieur:GetAttributeChangedSignal(attribut):Connect(function() if S.ouvert then majOutils(lireEtat()) end end)
 	end
@@ -442,6 +467,11 @@ return function(contexte)
 			if #saisie.Text > 0 then remote:FireServer("Enseigne", { texte = string.sub(saisie.Text, 1, 24) }) end
 		end)
 	end)
+	O.siege.bouton.Activated:Connect(function()
+		if O.siege.bouton:GetAttribute("Disponible") == false then return end
+		if exterieur:GetAttribute("Siege") then remote:FireServer("Siege") return end
+		UI.confirmer(O.siege.etat, function() remote:FireServer("Siege") end)
+	end)
 	O.ingenierie.bouton.Activated:Connect(function()
 		fermer()
 		joueur:SetAttribute("TardisTabletteTech", def.Nom)
@@ -538,6 +568,170 @@ return function(contexte)
 	ReplicatedStorage:GetAttributeChangedSignal("TardisRegenerations"):Connect(function()
 		if V.actif == "regenerations" then afficherRegenerations() end
 	end)
+
+	--------------------------------------------------------------------
+	-- Maintenance (V6.9.4) : immobiliser le TARDIS (plus de voyage ni de vol) ou lever la maintenance
+	--------------------------------------------------------------------
+	local afficherMaintenance
+	afficherMaintenance = function()
+		local c = ouvrirSurcouche("maintenance", "MAINTENANCE")
+		local raisonActuelle = exterieur:GetAttribute("Maintenance")
+		local function rafraichir() task.delay(0.6, function() if V.actif == "maintenance" then afficherMaintenance() end end) end
+		ligneTexte(c, "En maintenance, le TARDIS ne peut plus voyager ni voler : démat, remat, vol libre, rappel, minuterie, téléportation, taille. "
+			.. "Les réparations, les portes, les boucliers et l'ambiance restent possibles. Les techniciens peuvent aussi la lever.", 1, C.texte2, 11)
+		if raisonActuelle then
+			ligneTexte(c, "▲ EN MAINTENANCE · " .. tostring(raisonActuelle) .. (exterieur:GetAttribute("MaintenancePar") and ("  ·  par " .. tostring(exterieur:GetAttribute("MaintenancePar"))) or ""),
+				2, C.orange, 13)
+			boutonSurcouche(c, "Lever la maintenance", 3, Color3.fromRGB(30, 100, 60), function()
+				remote:FireServer("Maintenance", { actif = false })
+				rafraichir()
+			end)
+			return
+		end
+		ligneTexte(c, "RAISON  ·  clique pour mettre le TARDIS en maintenance", 2, C.texte2, 11)
+		for i, raison in (Config.Maintenance or {}).Raisons or { "Réparations en cours" } do
+			boutonSurcouche(c, raison, 2 + i, Color3.fromRGB(120, 70, 20), function()
+				remote:FireServer("Maintenance", { actif = true, raison = i })
+				rafraichir()
+			end)
+		end
+	end
+	O.maintenance.bouton.Activated:Connect(function()
+		if O.maintenance.bouton:GetAttribute("Disponible") == false then return end
+		afficherMaintenance()
+	end)
+
+	--------------------------------------------------------------------
+	-- Copilote (V6.9.1) : nommer ou relever le joueur à bord qui gère la navigation
+	--------------------------------------------------------------------
+	local afficherCopilote
+	afficherCopilote = function()
+		local c = ouvrirSurcouche("copilote", "COPILOTE")
+		ligneTexte(c, "Le copilote gère la navigation pendant que tu pilotes : destination, protocoles, démat et remat, camouflage, "
+			.. "et l'atterrissage du vol libre une fois dans le vortex. Il n'a aucun autre droit, et perd son poste s'il quitte le TARDIS.", 1, C.texte2, 11)
+		local ordre = 1
+		local actuel = exterieur:GetAttribute("Copilote")
+		local function rafraichir() task.delay(0.6, function() if V.actif == "copilote" then afficherCopilote() end end) end
+		if actuel then
+			ordre += 1
+			boutonSurcouche(c, "Relever " .. tostring(exterieur:GetAttribute("CopiloteNom") or "le copilote") .. " de son poste", ordre,
+				Color3.fromRGB(110, 40, 50), function() remote:FireServer("Copilote", {}) rafraichir() end)
+		end
+		ordre += 1
+		ligneTexte(c, "À BORD  ·  clique pour nommer", ordre, C.texte2, 11)
+		local n = 0
+		for _, autre in Players:GetPlayers() do
+			if autre ~= joueur and joueurDedans(autre) and autre:GetAttribute("TardisPilote_" .. def.Nom) ~= true then
+				n += 1
+				ordre += 1
+				local enPoste = actuel == autre.UserId
+				boutonSurcouche(c, autre.DisplayName .. (enPoste and "  ·  en poste" or ""), ordre, enPoste and C.bleu or nil, function()
+					remote:FireServer("Copilote", { joueur = autre.UserId })
+					rafraichir()
+				end)
+			end
+		end
+		if n == 0 then ligneTexte(c, "Personne à nommer : il n'y a pas de passager à bord (les pilotes ont déjà tous les droits).", ordre + 1, C.texte2) end
+	end
+	O.copilote.bouton.Activated:Connect(function()
+		if O.copilote.bouton:GetAttribute("Disponible") == false then return end
+		afficherCopilote()
+	end)
+
+	--------------------------------------------------------------------
+	-- Carnet de bord RP (V6.9.1) : écrire une note sur un lieu, relire les notes de l'équipage
+	--------------------------------------------------------------------
+	local afficherCarnet
+	afficherCarnet = function(lieuChoisi)
+		local c = ouvrirSurcouche("carnet", "CARNET DE BORD")
+		local ici = exterieur:GetAttribute("Position") or "Lieu inconnu"
+		local destination = S.choix and S.choix.type == "lieu" and S.choix.nom or nil
+		local lieu = lieuChoisi or ici
+		local ordre = 1
+		ligneTexte(c, "NOUVELLE NOTE  ·  " .. string.upper(lieu), ordre, C.ambre, 11)
+		-- Le lieu de la note : ici, ou la destination choisie dans la navigation
+		if destination and destination ~= ici then
+			ordre += 1
+			local rangee = creer("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, LayoutOrder = ordre, ZIndex = 62, Parent = c },
+			{ creer("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
+			for i, l in { ici, destination } do
+				local actif = l == lieu
+				local b = creer("TextButton", { Size = UDim2.new(0.5, -3, 1, 0), BackgroundColor3 = actif and C.bleu or C.panneauClair,
+					Text = (i == 1 and "Ici : " or "Destination : ") .. l, Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.texte,
+					TextTruncate = Enum.TextTruncate.AtEnd, LayoutOrder = i, ZIndex = 62, Parent = rangee }, { UI.coin(6) })
+				b.Activated:Connect(function() afficherCarnet(l) end)
+			end
+		end
+		ordre += 1
+		local longueur = (Config.Carnet or {}).LongueurMax or 200
+		local saisie = creer("TextBox", { Size = UDim2.new(1, 0, 0, 70), BackgroundColor3 = C.panneau, Text = "", PlaceholderText = "Ce qui s'est passé ici…",
+			Font = UI.POLICE, TextSize = 13, TextColor3 = C.texte, PlaceholderColor3 = C.texte2, TextWrapped = true, MultiLine = true, ClearTextOnFocus = false,
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = ordre, ZIndex = 62, Parent = c },
+		{ UI.coin(8), UI.contour(C.ambre, 1, 0.5), UI.marges(8) })
+		ordre += 1
+		local compteur = ligneTexte(c, "0 / " .. longueur .. " caractères  ·  filtrée par Roblox", ordre, C.texte2, 10)
+		saisie:GetPropertyChangedSignal("Text"):Connect(function()
+			local n = utf8.len(saisie.Text) or #saisie.Text
+			if n > longueur then saisie.Text = string.sub(saisie.Text, 1, utf8.offset(saisie.Text, longueur + 1) - 1) n = longueur end
+			compteur.Text = n .. " / " .. longueur .. " caractères  ·  filtrée par Roblox"
+		end)
+		ordre += 1
+		boutonSurcouche(c, "Écrire dans le carnet", ordre, C.bleu, function()
+			local n = utf8.len(saisie.Text) or 0
+			if n < 2 then notifier("Écris d'abord quelques mots.", false) return end
+			remote:FireServer("CarnetEcrire", { texte = saisie.Text, lieu = lieu })
+			task.delay(1.5, function() if V.actif == "carnet" then afficherCarnet(lieuChoisi) end end)
+		end)
+		-- Les notes : celles du lieu d'abord, puis les autres lieux
+		local notes = lireCarnet()
+		local function afficherNote(index, note)
+			ordre += 1
+			local carte = creer("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.panneau,
+				LayoutOrder = ordre, ZIndex = 62, Parent = c }, { UI.coin(8), UI.marges(8), UI.pile(2) })
+			-- En-tête : lieu, auteur, date, et le bouton pour effacer (dans un cadre : la pile ne le déplace pas)
+			local entete = creer("Frame", { Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, LayoutOrder = 0, ZIndex = 63, Parent = carte })
+			texte({ Text = string.format("%s  ·  %s  ·  %s", tostring(note.lieu), tostring(note.auteur), os.date("%d/%m %H:%M", tonumber(note.quand) or 0)),
+				TextSize = 10, TextColor3 = C.texte2, Size = UDim2.new(1, -28, 1, 0), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 63, Parent = entete })
+			texte({ Text = tostring(note.texte), TextSize = 13, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 16),
+				LayoutOrder = 1, ZIndex = 63, Parent = carte })
+			local effacer = creer("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(20, 20),
+				BackgroundColor3 = Color3.fromRGB(110, 40, 50), Text = "✕", Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.texte, ZIndex = 64, Parent = entete },
+			{ UI.coin(6) })
+			-- Deux clics : le premier arme (« ? » rouge vif pendant 3 s), le second efface
+			local arme = false
+			effacer.Activated:Connect(function()
+				if not arme then
+					arme = true
+					effacer.Text, effacer.BackgroundColor3 = "?", C.rouge
+					task.delay(3, function()
+						if arme and effacer.Parent then arme = false effacer.Text, effacer.BackgroundColor3 = "✕", Color3.fromRGB(110, 40, 50) end
+					end)
+					return
+				end
+				arme = false
+				remote:FireServer("CarnetEffacer", { index = index, quand = note.quand })
+				task.delay(1, function() if V.actif == "carnet" then afficherCarnet(lieuChoisi) end end)
+			end)
+		end
+		ordre += 1
+		ligneTexte(c, "NOTES  ·  " .. string.upper(lieu), ordre, C.texte2, 11)
+		local nIci, autres = 0, {}
+		for index, note in notes do
+			if type(note) == "table" then
+				if note.lieu == lieu then nIci += 1 afficherNote(index, note) else table.insert(autres, { index, note }) end
+			end
+		end
+		if nIci == 0 then ordre += 1 ligneTexte(c, "Aucune note sur ce lieu pour l'instant.", ordre, C.texte2, 12) end
+		if #autres > 0 then
+			ordre += 1
+			ligneTexte(c, "AUTRES LIEUX", ordre, C.texte2, 11)
+			for i, paire in autres do
+				if i > 30 then break end
+				afficherNote(paire[1], paire[2])
+			end
+		end
+	end
+	O.carnet.bouton.Activated:Connect(function() afficherCarnet(nil) end)
 
 	-- Commandes rapides : ces outils quittent le volet et prennent place directement sur la tablette
 	do

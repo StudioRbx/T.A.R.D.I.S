@@ -517,15 +517,15 @@ exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
 	direAuxPilotes("Paradoxe : la cabine a encaissé le choc (intégrité " .. tostring(exterieur:GetAttribute("PointsDeVie") or "?") .. " %).", false)
 end)
 
--- Spawn de l'équipe dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis) : un SpawnLocation réservé à l'équipe,
--- sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
-if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis[1].Nom then
-	task.spawn(function()
-		local Teams = game:GetService("Teams")
-		local nom = Config.nomEquipe()
+-- Spawns dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis ; V6.9.5 : aussi la C.T.A.T.) : un SpawnLocation
+-- réservé à chaque équipe, sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
+-- La C.T.A.T. (Config.EquipeTechnique) est créée dans Teams si elle n'existe pas ; elle ne se régénère pas.
+if def.Nom == Config.Tardis[1].Nom then
+	local Teams = game:GetService("Teams")
+	local function placerSpawn(nom, decalage)
 		local equipe = Teams:FindFirstChild(nom) or Teams:WaitForChild(nom, 30)
 		if not equipe then
-			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams (Config.Equipe.Nom).")
+			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams.")
 			return
 		end
 		local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
@@ -539,9 +539,9 @@ if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis
 			cf = interieur:GetPivot()
 		end
 		local spawn = Instance.new("SpawnLocation")
-		spawn.Name = "TardisSpawn_" .. def.Nom
+		spawn.Name = "TardisSpawn_" .. def.Nom .. "_" .. nom
 		spawn.Size = Vector3.new(6, 1, 6)
-		spawn.CFrame = cf
+		spawn.CFrame = cf * CFrame.new(decalage, 0, 0)
 		spawn.Anchored, spawn.CanCollide, spawn.CanQuery, spawn.CanTouch = true, false, false, false
 		spawn.Transparency = 1
 		spawn.Neutral = false
@@ -550,7 +550,25 @@ if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis
 		spawn.Duration = 0
 		spawn.Parent = interieur
 		print("[TARDIS] " .. def.Nom .. " : spawn de l'équipe « " .. nom .. " » placé dans l'intérieur.")
-	end)
+	end
+	if (Config.Equipe or {}).SpawnDansLeTardis ~= false then
+		task.spawn(placerSpawn, Config.nomEquipe(), 0)
+	end
+	local technique = Config.EquipeTechnique
+	if technique then
+		local nom = technique.Nom or "C.T.A.T."
+		if technique.Creer ~= false and not Teams:FindFirstChild(nom) then
+			local equipe = Instance.new("Team")
+			equipe.Name = nom
+			equipe.TeamColor = technique.Couleur or BrickColor.new("Deep orange")
+			equipe.AutoAssignable = false
+			equipe.Parent = Teams
+			print("[TARDIS] Équipe « " .. nom .. " » (Cellule Technique d'Autorité Temporelle) créée.")
+		end
+		if technique.SpawnDansLeTardis ~= false then
+			task.spawn(placerSpawn, nom, 7) -- 7 studs à côté de celui de la C.A.T.
+		end
+	end
 end
 -- Main qui repousse : après une régénération, un membre perdu repousse pendant quelques minutes (R6)
 local MEMBRES = { ["Right Arm"] = "Right Shoulder", ["Left Arm"] = "Left Shoulder", ["Right Leg"] = "Right Hip", ["Left Leg"] = "Left Hip" }
@@ -901,12 +919,12 @@ local function donnerOutil(joueur, cle)
 		end
 	end)
 end
-local function retirerOutils(joueur)
+local function retirerOutils(joueur, garderCle)
 	for _, conteneur in { joueur:FindFirstChildOfClass("Backpack"), joueur.Character } do
 		if conteneur then
-			for cle in OUTILS do
+			for cle, infos in OUTILS do
 				local outil = conteneur:FindFirstChild(cle)
-				if outil then outil:Destroy() end
+				if outil and not (garderCle and infos.garder) then outil:Destroy() end
 			end
 		end
 	end
@@ -1203,7 +1221,39 @@ task.spawn(function()
 	end
 end)
 
+local derniereMaintenance = {}
+Players.PlayerRemoving:Connect(function(joueur) derniereMaintenance[joueur] = nil end)
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
+	if action == "Maintenance" then
+		-- Mode maintenance (V6.9.4) : un pilote ou un technicien de ce TARDIS l'active ou le lève
+		if not (estTechnicien(joueur) or estPilote(joueur)) or typeof(donnees) ~= "table" then return end
+		local maintenant = os.clock()
+		if derniereMaintenance[joueur] and maintenant - derniereMaintenance[joueur] < 2 then return end
+		derniereMaintenance[joueur] = maintenant
+		local activer = donnees.actif == true
+		if activer == (exterieur:GetAttribute("Maintenance") ~= nil) then return end
+		if activer then
+			if (exterieur:GetAttribute("Etat") or E.Pose) ~= E.Pose or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then
+				dire(joueur, "Impossible : le TARDIS doit être posé pour passer en maintenance.", false)
+				return
+			end
+			local raisons = (Config.Maintenance or {}).Raisons or { "Réparations en cours" }
+			local raison = raisons[tonumber(donnees.raison) or 1] or raisons[1]
+			exterieur:SetAttribute("Maintenance", raison)
+			exterieur:SetAttribute("MaintenancePar", joueur.DisplayName)
+			dire(joueur, "TARDIS en maintenance (" .. raison .. ") : plus de voyage ni de vol jusqu'à la levée.", true)
+		else
+			exterieur:SetAttribute("Maintenance", nil)
+			exterieur:SetAttribute("MaintenancePar", nil)
+			dire(joueur, "Maintenance levée : le TARDIS peut de nouveau voyager.", true)
+		end
+		local bus = ServerStorage:FindFirstChild("TardisEvenements")
+		if bus then
+			bus:Fire("Journal", { categorie = "Maintenance", tardis = def.Nom, message = string.format("%s : maintenance %s par %s%s.", def.Nom,
+				activer and "commencée" or "levée", joueur.Name, activer and (" (" .. tostring(exterieur:GetAttribute("Maintenance")) .. ")") or "") })
+		end
+		return
+	end
 	if action == "Tech" then
 		-- Techniciens et pilotes (les pilotes l'ouvrent depuis l'outil Ingénierie de leur tablette)
 		if not (estTechnicien(joueur) or estPilote(joueur)) then return end

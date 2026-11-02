@@ -317,12 +317,22 @@ return function(contexte)
 	local B = {}
 	do
 		local _, contenu = panneau(726, 292, 286, 138, "COMMANDES", "■", C.ambre)
-		creer("UIGridLayout", { CellSize = UDim2.new(0.5, -4, 0, 40), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = contenu })
+		-- (V6.9.4 : 3 colonnes, pour le bouton MAINTENANCE)
+		creer("UIGridLayout", { CellSize = UDim2.new(1 / 3, -6, 0, 40), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = contenu })
 		B.energie = bouton(contenu, "ÉNERGIE", C.panneauClair, UDim2.new())
 		B.redemarrer = bouton(contenu, "REDÉMARRER À DISTANCE", C.panneauClair, UDim2.new())
 		B.purger = bouton(contenu, "PURGER L'AIR", C.panneauClair, UDim2.new())
 		B.diagnostic = bouton(contenu, "DIAGNOSTIC", C.panneauClair, UDim2.new())
-		for i, cle in { "energie", "redemarrer", "purger", "diagnostic" } do B[cle].LayoutOrder = i end
+		B.maintenance = bouton(contenu, "MAINTENANCE", C.panneauClair, UDim2.new())
+		for i, cle in { "energie", "redemarrer", "purger", "diagnostic", "maintenance" } do B[cle].LayoutOrder = i B[cle].TextSize = 11 end
+		-- Maintenance (V6.9.4) : immobilise le TARDIS posé (raison : la première de Config.Maintenance.Raisons) ; un second appui la lève
+		B.maintenance.Activated:Connect(function()
+			if exterieur:GetAttribute("Maintenance") then
+				remote:FireServer("Maintenance", { actif = false })
+			else
+				UI.confirmer(B.maintenance, function() remote:FireServer("Maintenance", { actif = true, raison = 1 }) end)
+			end
+		end)
 		B.energie.Activated:Connect(function() UI.confirmer(B.energie, function() envoyer("Energie") end) end)
 		B.redemarrer.Activated:Connect(function() envoyer("Redemarrer") end)
 		B.purger.Activated:Connect(function() envoyer("Purger") end)
@@ -331,8 +341,9 @@ return function(contexte)
 	do
 		local _, contenu = panneau(726, 442, 286, 74, "OUTILS", "◆", C.vert)
 		UI.pile(5, true).Parent = contenu
-		for i, info in { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Clé" }, { "Extincteur", "Extinct." }, { "Retirer", "Ranger" } } do
-			local b = bouton(contenu, info[2], info[1] == "Retirer" and C.fond or C.panneauClair, UDim2.new(0.2, -4, 1, 0))
+		for i, info in { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Molette" }, { "Extincteur", "Extinct." },
+			{ "Retirer", "Ranger" } } do
+			local b = bouton(contenu, info[2], info[1] == "Retirer" and C.fond or C.panneauClair, UDim2.new(1 / 5, -5, 1, 0))
 			b.LayoutOrder = i
 			b.TextSize = 11
 			b.Activated:Connect(function() remote:FireServer("Outil", { outil = info[1] }) end)
@@ -662,6 +673,11 @@ return function(contexte)
 		UI.colorer(B.energie, alimente and Color3.fromRGB(110, 40, 50) or Color3.fromRGB(30, 100, 60))
 		local finRedemarrage = exterieur:GetAttribute("TechRedemarrageFin")
 		local requis = exterieur:GetAttribute("RedemarrageRequis") == true
+		if not B.maintenance:GetAttribute("EnAttenteConfirmation") then
+			local enMaintenance = exterieur:GetAttribute("Maintenance") ~= nil
+			B.maintenance.Text = enMaintenance and "LEVER LA MAINTENANCE" or "MAINTENANCE"
+			UI.colorer(B.maintenance, enMaintenance and Color3.fromRGB(120, 70, 20) or C.panneauClair)
+		end
 		B.redemarrer.Text = finRedemarrage and string.format("REDÉMARRAGE… %d s", math.max(0, math.ceil(finRedemarrage - workspace:GetServerTimeNow())))
 			or "REDÉMARRER À DISTANCE"
 		UI.setDisponible(B.redemarrer, requis and not finRedemarrage, C.panneauClair)
@@ -732,6 +748,28 @@ return function(contexte)
 		if mien and mien.Nom ~= def.Nom then return end
 		if ouvert then fermer() else ouvrir() end
 	end)
+	-- Appareil sans clavier (V6.8.1) : un bouton au bord gauche pour le technicien qui n'est pas pilote
+	if Config.BoutonsTactiles ~= false and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		local guiTactile = creer("ScreenGui", { Name = "TardisBoutonTechnicien_" .. def.Nom, ResetOnSpawn = false, Enabled = false,
+			Parent = joueur:WaitForChild("PlayerGui") })
+		local b = creer("TextButton", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.38, 0), Size = UDim2.fromOffset(52, 52),
+			BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Text = "", Parent = guiTactile }, { UI.coin(99), UI.contour(C.ambre, 1.5, 0.2) })
+		texte({ Text = "Y", Font = UI.POLICE_TITRE, TextSize = 18, TextColor3 = C.ambre, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 22), Parent = b })
+		texte({ Text = "ingénierie", TextSize = 9, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 31), Size = UDim2.new(1, 0, 0, 12), Parent = b })
+		b:SetAttribute("CouleurBase", C.fond)
+		UI.rendreVivant(b)
+		b.Activated:Connect(function() if ouvert then fermer() else ouvrir() end end)
+		local function majBouton()
+			local mien = Config.tardisDuJoueur(joueur)
+			guiTactile.Enabled = joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true and joueur:GetAttribute("TardisPilote_" .. def.Nom) ~= true
+				and (mien == nil or mien.Nom == def.Nom)
+		end
+		joueur:GetAttributeChangedSignal("TardisTechnicien_" .. def.Nom):Connect(majBouton)
+		joueur:GetAttributeChangedSignal("TardisPilote_" .. def.Nom):Connect(majBouton)
+		majBouton()
+	end
 	joueur:GetAttributeChangedSignal("TardisTabletteTech"):Connect(function()
 		if joueur:GetAttribute("TardisTabletteTech") == def.Nom then ouvrir() end
 	end)

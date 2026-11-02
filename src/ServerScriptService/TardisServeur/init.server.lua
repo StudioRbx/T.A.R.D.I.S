@@ -116,6 +116,7 @@ end
 -- raccourci en express (voir jouerExpress)
 local function jouerVoyage(etat, mode, dehorsAussi)
 	mode = Config.normaliserMode(mode)
+	if Config.Modes[mode].Discret then return end -- Silencieux (V6.9) : aucun son
 	local groupe = sons[Config.Son(etat, mode)]
 	if groupe and (groupe.int or groupe.ext) then
 		return jouer(Config.Son(etat, mode), dehorsAussi)
@@ -241,6 +242,12 @@ local function majEcran(alerte)
 	texte.TextColor3 = alerte and Color3.fromRGB(255, 90, 90) or Color3.fromRGB(120, 220, 255)
 end
 
+-- Journal du TARDIS (V6.8) : TardisSupervision l'envoie au journal du jeu (Config.Journal)
+local function journal(categorie, message)
+	local evenements = game:GetService("ServerStorage"):FindFirstChild("TardisEvenements")
+	if evenements then evenements:Fire("Journal", { categorie = categorie, message = message, tardis = def.Nom }) end
+end
+
 local function alerter(message)
 	majEcran(message)
 	task.delay(2, majEcran)
@@ -273,6 +280,7 @@ end
 local function setEtat(etat)
 	exterieur:SetAttribute("DebutEtat", workspace:GetServerTimeNow())
 	exterieur:SetAttribute("Etat", etat)
+	if etat ~= E.Pose and exterieur:GetAttribute("Siege") then exterieur:SetAttribute("Siege", false) end -- V6.9 : le siège prend fin au départ
 	majPortailInterieur()
 	majEcran()
 end
@@ -341,7 +349,8 @@ local function marquerActivite()
 end
 -- Les rôles temporaires (pilote promu, bannissement) viennent de TardisExtras, sous forme d'attributs du joueur
 local function verifierJoueur(joueur)
-	local autorise = estPilote(joueur) or joueur:GetAttribute("TardisPiloteTemp_" .. def.Nom) == true
+	-- Pilote : config, rôle temporaire, ou accès donné par le jeu (Adonis, WL : TardisSupervision, V6.8)
+	local autorise = estPilote(joueur) or joueur:GetAttribute("TardisPiloteTemp_" .. def.Nom) == true or joueur:GetAttribute("TardisAccesPilote") == true
 	-- Un bannissement ne touche jamais un pilote de la config (pour ne pas s'enfermer dehors)
 	if joueur:GetAttribute("TardisBanni_" .. def.Nom) == true and not Config.estPiloteDe(def, joueur.UserId) then
 		autorise = false
@@ -358,6 +367,7 @@ local function suivreRoles(joueur)
 	verifierJoueur(joueur)
 	joueur:GetAttributeChangedSignal("TardisPiloteTemp_" .. def.Nom):Connect(function() verifierJoueur(joueur) end)
 	joueur:GetAttributeChangedSignal("TardisBanni_" .. def.Nom):Connect(function() verifierJoueur(joueur) end)
+	joueur:GetAttributeChangedSignal("TardisAccesPilote"):Connect(function() verifierJoueur(joueur) end)
 end
 Players.PlayerAdded:Connect(suivreRoles)
 for _, joueur in Players:GetPlayers() do
@@ -1057,6 +1067,7 @@ end)
 
 promptLevier.Triggered:Connect(function(joueur)
 	if not pilotes[joueur] then return end
+	if Config.bloqueParMaintenance(exterieur, "Demat") then alerter("EN MAINTENANCE") return end
 	marquerActivite()
 	if not disponible() then return end
 	local dest = destinationChoisie()
@@ -1665,6 +1676,62 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 	return ok, erreur
 end
 
+--------------------------------------------------------------------
+-- Copilote (V6.9.1, ajout C2) : un pilote nomme un joueur à bord qui gère la navigation (destination, protocoles,
+-- démat / remat, camouflage, atterrissage du vol libre) pendant qu'il pilote. Le copilote n'a aucun autre droit,
+-- et il perd son poste dès qu'il quitte le TARDIS.
+--------------------------------------------------------------------
+local ACTIONS_COPILOTE = { Demat = true, Remat = true, Camouflage = true, NavAtterrir = true }
+local function relacherCopilote(raison)
+	local id = exterieur:GetAttribute("Copilote")
+	if not id then return end
+	exterieur:SetAttribute("Copilote", nil)
+	exterieur:SetAttribute("CopiloteNom", nil)
+	local ancien = Players:GetPlayerByUserId(id)
+	if ancien then
+		ancien:SetAttribute("TardisCopilote_" .. def.Nom, nil)
+		if raison then remote:FireClient(ancien, "Tu n'es plus copilote du " .. def.Nom .. " : " .. raison .. ".", false) end
+	end
+end
+local function designerCopilote(par, id)
+	if (Config.Copilote or {}).Actif == false then return false, "COPILOTE DÉSACTIVÉ" end
+	if id == nil or id == exterieur:GetAttribute("Copilote") then
+		relacherCopilote("relevé par " .. par.DisplayName)
+		return true, nil, "Copilote relevé."
+	end
+	local cible = typeof(id) == "number" and Players:GetPlayerByUserId(id)
+	if not cible then return false, "JOUEUR INTROUVABLE" end
+	if cible == par then return false, "TU PILOTES DÉJÀ" end
+	if pilotes[cible] then return false, "DÉJÀ PILOTE" end
+	local racine = cible.Character and cible.Character:FindFirstChild("HumanoidRootPart")
+	if not racine or not dansInterieur(racine.Position) then return false, "PAS À BORD" end
+	relacherCopilote("remplacé par " .. cible.DisplayName)
+	exterieur:SetAttribute("Copilote", cible.UserId)
+	exterieur:SetAttribute("CopiloteNom", cible.DisplayName)
+	cible:SetAttribute("TardisCopilote_" .. def.Nom, true)
+	remote:FireClient(cible, par.DisplayName .. " te nomme copilote du " .. def.Nom .. " : à toi la navigation et les protocoles.", true)
+	journal("Équipage", string.format("%s : %s nomme %s copilote.", def.Nom, par.Name, cible.Name))
+	return true, nil, cible.DisplayName .. " est copilote."
+end
+-- Le copilote doit rester à bord (et dans le jeu)
+task.spawn(function()
+	while true do
+		task.wait(2)
+		local id = exterieur:GetAttribute("Copilote")
+		if id then
+			local cible = Players:GetPlayerByUserId(id)
+			local racine = cible and cible.Character and cible.Character:FindFirstChild("HumanoidRootPart")
+			if not cible then
+				relacherCopilote(nil)
+			elseif not racine or not dansInterieur(racine.Position) then
+				relacherCopilote("tu as quitté le TARDIS")
+			elseif cible:GetAttribute("TardisBanni_" .. def.Nom) == true then
+				relacherCopilote("accès retiré")
+			end
+		end
+	end
+end)
+
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	-- Le serveur ne fait jamais confiance au client : permission, type et fréquence vérifiés ici
 	if typeof(action) ~= "string" then return end
@@ -1751,7 +1818,16 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		return
 	end
 
-	if not pilotes[joueur] then return end
+	-- Copilote (V6.9.1) : seulement la navigation
+	local copilote = not pilotes[joueur] and exterieur:GetAttribute("Copilote") == joueur.UserId
+	if not pilotes[joueur] and not (copilote and ACTIONS_COPILOTE[action]) then return end
+	-- Maintenance (V6.9.4) : plus de voyage ni de vol (un vol libre déjà commencé peut se terminer). Ce script prévient
+	-- le joueur pour toutes les actions refusées, celles de TardisExtras comprises (qui les ignore sans rien dire).
+	local maintenance = Config.bloqueParMaintenance(exterieur, action)
+	if maintenance then
+		remote:FireClient(joueur, "Impossible : TARDIS en maintenance (" .. maintenance .. ").", false)
+		return
+	end
 	marquerActivite()
 	-- Détruit (auto-destruction) ou compte à rebours en cours : plus aucune commande
 	if exterieur:GetAttribute("Detruit") or exterieur:GetAttribute("AutoDestructionDebut") then
@@ -1777,6 +1853,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	if action == "Demat" then
 		task.spawn(function()
 			local ok, erreur = decoller(mode)
+			if ok then journal("Voyage", string.format("%s : décollage demandé par %s.", def.Nom, joueur.Name)) end
 			local modeReel = Config.modeDe(exterieur)
 			repondre(ok, erreur, (modeReel == "Urgence" and "Décollage d'urgence réussi : le TARDIS est en vol.")
 				or (modeReel == "Express" and "Décollage rapide : le TARDIS est en vol.") or "Le TARDIS est en vol.")
@@ -1819,6 +1896,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		task.spawn(function()
 			if joueurAFiger then figerJoueur(joueurAFiger, true) end
 			local ok, erreur, urgenceForcee = atterrir(cible, nom, invisible, partDestination, mode)
+			if ok then journal("Voyage", string.format("%s : atterrissage à %s demandé par %s%s.", def.Nom, nom, joueur.Name, invisible and " (invisible)" or "")) end
 			if joueurAFiger then figerJoueur(joueurAFiger, false) end
 
 			local texte = (invisible and "Atterri en secret : " or "Atterri : ") .. nom .. "."
@@ -1915,6 +1993,56 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		local nom = (type == "Balles" and "Bouclier anti-balles") or (type == "Complet" and "Bouclier complet") or "Bouclier anti-joueurs"
 		repondre(ok, erreur, nom .. (actif and " activé." or " désactivé."))
 
+	elseif action == "Siege" then
+		-- Mode Siège (V6.9) : bouclier, verrou et alerte d'un seul geste ; un second appui les relâche
+		task.spawn(function()
+			local reglages = Config.Siege or {}
+			local lever = not exterieur:GetAttribute("Siege")
+			local typeBouclier = reglages.Bouclier or "Complet"
+			local refus = {}
+			if lever and etatActuel() ~= E.Pose then repondre(false, "PAS POSÉ") return end
+			if reglages.Verrou ~= false and (exterieur:GetAttribute("PortesVerrouillees") == true) ~= lever then
+				local ok, erreur = basculerVerrou()
+				if not ok then table.insert(refus, "verrou : " .. string.lower(erreur or "?")) end
+			end
+			if typeBouclier and (exterieur:GetAttribute("Bouclier" .. typeBouclier) == true) ~= lever then
+				local ok, erreur = basculerBouclier(typeBouclier)
+				if not ok then table.insert(refus, "bouclier : " .. string.lower(erreur or "?")) end
+			end
+			if reglages.Alerte ~= false and (exterieur:GetAttribute("Alerte") == true) ~= lever then
+				local ok, erreur = basculerAlerte()
+				if not ok then table.insert(refus, "alerte : " .. string.lower(erreur or "?")) end
+			end
+			exterieur:SetAttribute("Siege", lever)
+			if lever then alerter("MODE SIÈGE") end
+			journal("Sécurité", string.format("%s : mode Siège %s par %s.", def.Nom, lever and "levé" or "relâché", joueur.Name))
+			remote:FireClient(joueur, (lever and "Mode Siège : bouclier levé, portes verrouillées, alerte générale." or "Siège levé : bouclier, verrou et alerte relâchés.")
+				.. (#refus > 0 and ("  (Non appliqué : " .. table.concat(refus, ", ") .. ")") or ""), #refus == 0)
+		end)
+
+	elseif action == "Copilote" then
+		-- Nommer (joueur = UserId) ou relever (joueur absent, ou le copilote actuel) le copilote
+		local id = typeof(donnees) == "table" and tonumber(donnees.joueur) or nil
+		local ok, erreur, message = designerCopilote(joueur, id)
+		repondre(ok, erreur, message)
+
+	elseif action == "NavAtterrir" then
+		-- Vol libre : atterrir à la destination choisie par la navigation (pilote ou copilote), une fois dans le vortex
+		if not exterieur:GetAttribute("VolLibre") then repondre(false, "PAS EN VOL LIBRE") return end
+		if exterieur:GetAttribute("VolPhase") ~= "Invisible" or volLibre.enDescente then repondre(false, "LE PILOTE DOIT D'ABORD PASSER DANS LE VORTEX") return end
+		if typeof(donnees) ~= "table" then return end
+		local cible, nom, _, _, erreur = resoudreDestination(donnees, false)
+		if not cible then repondre(false, erreur or "DESTINATION INVALIDE") return end
+		task.spawn(function()
+			local ok = teleAtterrir(cible.Position)
+			if ok then
+				journal("Voyage", string.format("%s : atterrissage du vol libre à %s demandé par %s%s.", def.Nom, nom, joueur.Name, copilote and " (copilote)" or ""))
+				local pilote = Players:GetPlayerByUserId(exterieur:GetAttribute("VolLibre") or 0)
+				if pilote and pilote ~= joueur then remote:FireClient(pilote, joueur.DisplayName .. " pose le TARDIS : " .. nom .. ".", true) end
+			end
+			repondre(ok, "ATTERRISSAGE IMPOSSIBLE ICI", "Atterrissage vers " .. tostring(nom) .. ".")
+		end)
+
 	elseif action == "VolLibreDebut" then
 		task.spawn(function()
 			local ok, erreur = demarrerVolLibre(joueur)
@@ -1933,6 +2061,7 @@ end)
 
 promptRamasser.Triggered:Connect(function(joueur)
 	if not pilotes[joueur] then return end -- réservé aux joueurs autorisés (Config.Pilotes)
+	if Config.bloqueParMaintenance(exterieur, "Ramasser") then alerter("EN MAINTENANCE") return end
 	ramasser(joueur)
 end)
 
@@ -1956,24 +2085,25 @@ end
 --------------------------------------------------------------------
 do
 	local reglagesSave = Config.Sauvegarde or {}
+	-- Sauvegarde versionnée (V6.8.1) : nouveau magasin, l'ancien n'est que lu (migration sans perte)
 	local store = nil
 	if reglagesSave.Actif ~= false then
-		local ok, resultat = pcall(function()
-			return game:GetService("DataStoreService"):GetDataStore((reglagesSave.NomStore or "TardisSauvegarde_v1") .. "_" .. def.Nom)
-		end)
-		if ok then store = resultat else warn("[TARDIS] Sauvegarde indisponible : " .. tostring(resultat)) end
+		local Sauvegarde = require(script.Parent:WaitForChild("TardisSauvegarde"))
+		store = Sauvegarde.ouvrir((reglagesSave.NomStore or "TardisSauvegarde_v2") .. "_" .. def.Nom,
+			(reglagesSave.AncienStore or "TardisSauvegarde_v1") .. "_" .. def.Nom)
+		if not store:disponible() then store = nil end
 	end
 	local CLE = "place_" .. tostring(game.PlaceId)
+	local chargementReussi = false -- tant que la lecture a échoué, on n'écrase pas la sauvegarde
 
 	local function versTable(cf) return { cf:GetComponents() } end
 	local function versCFrame(t) return CFrame.new(table.unpack(t)) end
 
 	local function sauvegarder()
-		if not store then return end
+		if not store or not chargementReussi then return end
 		-- On ne sauvegarde qu'un état stable (posé, pas en vol libre, pas porté)
 		if etatActuel() ~= E.Pose or partage.occupe or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then return end
 		local donnees = {
-			version = 1,
 			cf = versTable(exterieur:GetPivot()),
 			position = exterieur:GetAttribute("Position"),
 			echelle = exterieur:GetAttribute("Echelle") or 1,
@@ -1984,21 +2114,17 @@ do
 			precedent = precedent and { cf = versTable(precedent.cf), nom = precedent.nom } or nil,
 			historique = historique,
 		}
-		local ok, erreur = pcall(function() store:SetAsync(CLE, donnees) end)
-		if ok then
-			partage.sauvegardeModifiee = false
-		else
-			warn("[TARDIS] Échec de la sauvegarde : " .. tostring(erreur))
-		end
+		if store:ecrire(CLE, donnees) then partage.sauvegardeModifiee = false end
 	end
 
 	local function charger()
 		if not store then return end
-		local ok, donnees = pcall(function() return store:GetAsync(CLE) end)
-		if not ok then
-			warn("[TARDIS] Échec du chargement de la sauvegarde : " .. tostring(donnees))
+		local donnees, lu = store:lire(CLE)
+		if not lu then
+			warn("[TARDIS] Sauvegarde illisible pour l'instant : elle ne sera pas écrasée pendant cette session.")
 			return
 		end
+		chargementReussi = true
 		if type(donnees) ~= "table" or type(donnees.cf) ~= "table" then return end
 
 		-- Au lancement, le TARDIS reste là où il est placé dans Studio.
@@ -2053,6 +2179,10 @@ do
 	game:BindToClose(sauvegarder)
 end
 
+if (Config.Maintenance or {}).AuDemarrage then
+	exterieur:SetAttribute("Maintenance", ((Config.Maintenance or {}).Raisons or {})[1] or "Réparations en cours")
+end
+
 --------------------------------------------------------------------
 -- Pont interne : TardisExtras (balise, rappel, minuterie, leurre, zones interdites...) utilise ces fonctions
 --------------------------------------------------------------------
@@ -2077,6 +2207,7 @@ do
 		elseif action == "destinationChoisie" then return destinationChoisie()
 		elseif action == "reglerAlimentation" then reglerAlimentation(...) return true
 		elseif action == "basculerAlimentation" then return basculerAlimentation()
+		elseif action == "basculerVerrou" then return basculerVerrou()
 		elseif action == "ouvrirPortes" then return ouvrirPortesSimple()
 		elseif action == "emmener" then emmenerALInterieur() return true
 		end

@@ -22,23 +22,23 @@
 
 ### Pilotage et interface
 11. **Interrupteurs synchronisés** : Urgence, Express et Invisible ont le même état dans le menu (T) et la tablette (Y). Ils sont indépendants aujourd'hui.
-12. **Compte à rebours dans la salle** avant un départ (« Départ dans 3… 2… 1… »), surtout utile en Express.
+12. ✅ *(V6.9.3)* **Compte à rebours dans la salle** avant un départ (« Départ dans 3… 2… 1… »), surtout utile en Express.
 13. **Historique marqué par mode** : une icône Urgence ou Express à côté de chaque voyage.
-14. **Statistiques par mode** : voyages normaux, d'urgence et express, et temps gagné.
+14. ✅ *(V6.9.3)* **Statistiques par mode** : voyages normaux, d'urgence et express, et temps gagné.
 15. **Tablette technicien** (prévue depuis la V6.0) : toutes les infos, aucune commande de vol, et les commandes RP.
 16. **Option « réduire les effets »** pour les joueurs sensibles : saccades d'urgence, flash, thème Flashbang.
 
 ### Intégration au jeu ZONE-TSADE
 17. **Permissions par rang Adonis ou WL** : le jeu utilise déjà Adonis et `WLConfig`, alors que la liste des UserIds est écrite en dur.
 18. **Journaux du TARDIS envoyés dans `RoSysLog`** (déjà présent dans ServerStorage) : décollages, auto-destruction, bannissements.
-19. **Commande staff `/tardis statut`** : état, position, pilotes en ligne et dernière erreur.
+19. ✅ *(V6.8, retirée en V6.9.4)* **Commande staff `/tardis statut`** : état, position, pilotes en ligne et dernière erreur.
 20. **Détection par la Fondation** : une alerte sécurité quand un TARDIS se matérialise dans le site (idée de la V3.11 jamais réalisée).
 
 ### Contenu et RP
 21. **Jukebox rempli** : `Config.Jukebox` est vide.
 22. **Sons optionnels manquants** : `Camouflage`, `Cloitre`, `Moteur_*`, `Chute`, `Impact` et `Regeneration`.
-23. **Crise post-régénération** : vision floue et démarche titubante pendant 1 min (idée de la V6.5.7 non retenue).
-24. **Clé du TARDIS** : un outil donné aux techniciens pour ouvrir ou verrouiller à distance.
+23. ✖ *(V6.9, retirée en V6.9.5)* **Crise post-régénération** : vision floue et démarche titubante pendant 1 min (idée de la V6.5.7 non retenue).
+24. ✖ *(V6.9, retirée en V6.9.5 : remplacée plus tard)* **Clé du TARDIS** : un outil donné aux techniciens pour ouvrir ou verrouiller à distance.
 25. **Sauvegarde versionnée** (`TardisSauvegarde_v2` avec migration) pour pouvoir changer le format sans perdre les données.
 
 ---
@@ -100,6 +100,15 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.7.1** | Modes Sauvetage et Catastrophe (paradoxe confirmé), zones REFUSE → urgence, méthode de voyage unifiée, Rapide sans couleur dehors, corps gardé entier à la régénération, spawn de l'équipe dans le TARDIS | ✅ livrée (dépôt), à installer dans Studio |
 | **V6.7.2** | Modification 15 : tablette technicien (systèmes, régulation énergie / air / vapeur, redémarrage à distance, purge, diagnostic, interventions guidées) | ✅ livrée (dépôt), à installer dans Studio |
 | **V6.7.3** | Modification 20 (intercom « faille spatio-temporelle » : événement TardisEvenements + script TardisPontFondation, annonce intégrée tant que l'OS Fondation n'est pas branché, rappel aux pilotes toutes les 10 min), 21 (jukebox audible seulement à bord, playlist Action), 3 et 22 (Config.Sons, Cloitre et Reparation enfin joués) | ✅ livrée (dépôt), à installer dans Studio · reste à brancher `Config.Intercom.Cible` et à remplir `Config.Jukebox` |
+| **V6.8** | Modifications 17 (accès Adonis / WL), 18 (journal vers RoSysLog), 19 (`/tardis statut`, `journal`, `erreurs`) et ajout C13 (remontée des erreurs des joueurs) | ✅ livrée (branche `v6.8-integration-staff`) · reste à brancher Adonis, WLConfig et RoSysLog |
+| **V6.8.1** | Modifications 25 (sauvegarde versionnée avec migration) et 8 (boutons tactiles sur mobile) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9** | Ajouts C1 (protocole Silencieux) et C6 (mode Siège), modifications 23 (crise post-régénération) et 24 (clé du TARDIS) ; sélecteur de mode dans la tablette | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.1** | Ajouts C2 (copilote : poste de navigation pour un joueur à bord) et C7 (carnet de bord RP) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.2** | Ajouts C11 (mode maintenance) et C12 (recette automatique) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.3** | Modifications 12 (compte à rebours) et 14 (statistiques par mode) · ajouts C15 (traînée du Rapide), C16 (enseigne), C17 (annonce de bord), C18 (ambiance par thème) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.4** | Retrait des commandes du staff (`/tardis statut`, `journal`, `erreurs`, `maintenance`, `recette`) et du rôle staff ; mode maintenance déplacé dans la tablette (pilotes et techniciens) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.5** | Retouches : sans « Départ dans 3, 2, 1 », sans clé du TARDIS ni crise post-régénération ; phare du Sauvetage ; équipe C.T.A.T. des techniciens | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.6** | Simulations sans Roblox (`outils/simulation`) ; intercom en pause | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
@@ -109,27 +118,27 @@ Décisions prises avec toi : intercom par **module pont** dans `OSFondation › 
 ## C. Ajouts proposés (nouveaux, 29/10/2026)
 
 ### Gameplay et RP
-1. **Protocole Silencieux** : démat et remat sans son ni lumière, pour les infiltrations (un 4ᵉ mode à côté de Normal, Urgence et Express).
-2. **Copilote** : un second joueur gère la navigation (destination, protocoles) pendant que le pilote est en vol libre.
-3. **Signaux de détresse aléatoires** : un point apparaît sur la mini-carte ; l'équipage qui s'y rend gagne une entrée au journal.
+1. ✅ *(V6.9)* **Protocole Silencieux** : démat et remat sans son ni lumière, pour les infiltrations (un 4ᵉ mode à côté de Normal, Urgence et Express).
+2. ✅ *(V6.9.1)* **Copilote** : un second joueur gère la navigation (destination, protocoles) pendant que le pilote est en vol libre.
+3. ✖ *(abandonné le 02/11)* **Signaux de détresse aléatoires** : un point apparaît sur la mini-carte ; l'équipage qui s'y rend gagne une entrée au journal.
 4. ✅ *(V6.6.2)* **Empreinte temporelle** : après un départ, une silhouette translucide du TARDIS reste 30 s à l'ancien emplacement.
-5. **Équipage scanné** : les portes s'ouvrent seulement pour les joueurs ajoutés à l'équipage du jour (liste tenue par le pilote).
-6. **Mode Siège** : un bouton qui active d'un coup boucliers, verrou des portes et alerte.
-7. **Carnet de bord RP** : les pilotes écrivent des notes par destination, sauvegardées.
+5. ✖ *(abandonné le 02/11)* **Équipage scanné** : les portes s'ouvrent seulement pour les joueurs ajoutés à l'équipage du jour (liste tenue par le pilote).
+6. ✅ *(V6.9)* **Mode Siège** : un bouton qui active d'un coup boucliers, verrou des portes et alerte.
+7. ✅ *(V6.9.1)* **Carnet de bord RP** : les pilotes écrivent des notes par destination, sauvegardées.
 
-### Intégration OS Fondation (en plus de l'intercom)
+### Intégration OS Fondation (en plus de l'intercom) — ⏸ en pause, à revoir à la prochaine refonte
 8. **Application « TARDIS » sur les postes** : la sécurité voit les dernières matérialisations détectées (heure, lieu).
 9. **Niveau d'alerte du site → TARDIS** : quand l'OS passe le site en alerte, le TARDIS passe lui aussi en alerte.
 10. **Panne de courant de l'OS → TARDIS** : le blackout du site met hors tension un TARDIS posé dans le site.
 
 ### Staff et technique
-11. **Mode maintenance** : le TARDIS est bloqué pour tous sauf le staff pendant une mise à jour.
-12. **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
+11. ✅ *(V6.9.2, revu en V6.9.4)* **Mode maintenance** : le TARDIS est immobilisé (plus de voyage ni de vol) ; activé et levé dans la tablette, par les pilotes et les techniciens.
+12. ✖ *(V6.9.2, retirée en V6.9.4 avec les commandes du staff)* **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
 13. **Remontée d'erreurs client** : les erreurs des scripts joueurs sont comptées et visibles dans le diagnostic du serveur.
 
 ### Visuel et son
 14. ✅ *(V6.6.2)* **Rotor coloré selon le mode** : vert en Express, orange en urgence, bleu en normal.
-15. **Traînée au sol après un Express** : des lignes lumineuses qui s'effacent en quelques secondes.
-16. **Enseigne « POLICE BOX » qui clignote** différemment selon le mode.
-17. **Annonce de bord** : « Matérialisation dans 3… 2… 1… » sur l'écran de la console et en son (option).
-18. **Ambiance sonore par thème** d'intérieur (Classique, Nuit, Alerte…).
+15. ✅ *(V6.9.3)* **Traînée au sol après un Express** : des lignes lumineuses qui s'effacent en quelques secondes.
+16. ✅ *(V6.9.3)* **Enseigne « POLICE BOX » qui clignote** différemment selon le mode.
+17. ✅ *(V6.9.3)* **Annonce de bord** : « Matérialisation dans 3… 2… 1… » sur l'écran de la console et en son (option).
+18. ✅ *(V6.9.3)* **Ambiance sonore par thème** d'intérieur (Classique, Nuit, Alerte…).

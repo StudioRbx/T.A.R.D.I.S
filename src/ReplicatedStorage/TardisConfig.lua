@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.7.3"
+Config.Version = "6.9.6"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -96,6 +96,18 @@ Config.Modes = {
 		CouleurRotor = Color3.fromRGB(90, 220, 230),
 		Sons = { Demat = "Demat", Remat = "Remat" },
 	},
+	-- Silencieux (V6.9, ajout C1) : pour les infiltrations. Ni son, ni lumière, ni poussière, ni empreinte, ni
+	-- annonce à l'intercom ; la cabine s'efface et revient en souffles lents et réguliers.
+	Silencieux = {
+		Libelle = "Silencieux",
+		Demat = { Duree = 9, Decalage = 0 },
+		Remat = { Duree = 9, Decalage = 0 },
+		Pulsations = 3,
+		Discret = true,        -- aucun son, aucune lumière, aucun effet au sol, pas d'empreinte ni d'intercom
+		CouleurRotor = Color3.fromRGB(150, 120, 230), -- à l'intérieur seulement
+		CouleurDehors = false,
+		Sons = {},
+	},
 	-- Catastrophe (V6.7.1) : la destination est À L'INTÉRIEUR du TARDIS (un joueur à bord, un lieu dans la salle).
 	-- Première tentative : la matérialisation commence puis est repoussée dans le vortex (paradoxe). Le pilote doit
 	-- confirmer (deuxième clic sur REMAT) pour forcer l'atterrissage : saccades violentes, console qui crache des
@@ -120,6 +132,16 @@ Config.LevierEnExpress = false -- true : le levier de la console fait des voyage
 Config.Equipe = {
 	Nom = "C.A.T.", -- nom exact de la Team dans Studio › Teams (Cellule d'Autorité Temporelle)
 	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
+}
+
+-- L'équipe C.T.A.T. — Cellule Technique d'Autorité Temporelle (ajoutée le 02/11, V6.9.5) : l'équipe officielle des
+-- techniciens. Ses joueurs NE se régénèrent PAS (la régénération reste réservée à la C.A.T.).
+Config.EquipeTechnique = {
+	Nom = "C.T.A.T.",                        -- nom exact de la Team (Studio › Teams)
+	Couleur = BrickColor.new("Deep orange"), -- couleur de la Team si le script la crée (doit être différente de celle de la C.A.T.)
+	Creer = true,                            -- crée la Team dans Teams si elle n'existe pas encore
+	DonneLeRoleTechnicien = true,            -- ses joueurs sont techniciens du TARDIS (tablette technicien, outils, maintenance)
+	SpawnDansLeTardis = true,                -- ses joueurs apparaissent dans le TARDIS, à côté du spawn de la C.A.T.
 }
 
 -- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
@@ -263,7 +285,11 @@ Config.Sentinelle = {
 -- (dans Studio, il faut activer "Enable Studio Access to API Services" dans les paramètres du jeu)
 Config.Sauvegarde = {
 	Actif = true,
-	NomStore = "TardisSauvegarde_v1",
+	-- V6.8.1 : sauvegarde versionnée (module TardisSauvegarde). Les anciens magasins « _v1 » sont lus une fois pour
+	-- migrer, jamais modifiés : pour revenir à une version d'avant la V6.8.1, rien n'est perdu.
+	NomStore = "TardisSauvegarde_v2",
+	AncienStore = "TardisSauvegarde_v1",
+	NomStoreExtras = "TardisExtras_v2",
 	Intervalle = 60,           -- sauvegarde automatique (secondes), si quelque chose a changé
 }
 
@@ -438,19 +464,116 @@ Config.Sons = {
 	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
 }
 
+-- Accès venant du jeu (V6.8) : en plus des listes de UserIds (Config.Pilotes, Config.Techniciens), un joueur peut être
+-- pilote ou technicien selon son niveau Adonis ou une liste blanche (WL) du jeu. Vérifié par le serveur.
+--   Adonis : il faut G_API = true dans les réglages d'Adonis. Niveaux usuels : 0 joueur, 100 modérateur, 200 admin,
+--            300 head admin, 900 créateur. 0 = ce rôle n'est jamais donné par Adonis.
+--   WL     : Module = chemin d'un ModuleScript du jeu (ex. "ServerScriptService.WLConfig") ; Pilotes / Techniciens = nom
+--            de la liste dans ce module (une liste de UserIds ou de pseudos, ou une fonction(joueur) qui renvoie vrai).
+Config.Acces = {
+	Adonis = { NiveauPilote = 0, NiveauTechnicien = 0 },
+	WL = { Module = nil, Pilotes = nil, Techniciens = nil },
+	Verification = 60,        -- secondes entre deux vérifications (un rang peut changer en cours de partie)
+}
+
+-- Journal du TARDIS (V6.8) : décollages, atterrissages, paradoxes, auto-destructions, pannes, rôles, erreurs.
+-- Cible : chemin d'un objet du journal du jeu (RoSysLog), BindableEvent / BindableFunction / ModuleScript avec une fonction
+-- log / Log / ajouter / Ajouter, par exemple "ServerStorage.RoSysLog". Vide : journal interne seulement (/tardis journal).
+Config.Journal = {
+	Cible = nil,
+	Taille = 200,       -- lignes gardées en mémoire pour /tardis journal
+	Output = false,     -- true : chaque ligne est aussi écrite dans l'Output
+}
+
+-- Appareils sans clavier (V6.8.1) : boutons tactiles au bord gauche pour ouvrir le menu (T), la tablette (Y)
+-- et la tablette technicien. N'apparaissent jamais sur ordinateur.
+Config.BoutonsTactiles = true
+
+-- Supervision (V6.8) : les erreurs des scripts du TARDIS chez les joueurs remontent au serveur (/tardis erreurs, journal)
+Config.Supervision = {
+	ErreursClients = true,
+	CommandeChat = "/tardis", -- /tardis (ou /tardis help) = balise de détresse ; les commandes du staff ont été retirées en V6.9.4
+}
+
+-- Retrouve un objet par son chemin "Service.Dossier.Objet" (nil s'il n'existe pas)
+function Config.trouverChemin(chemin)
+	if type(chemin) ~= "string" or chemin == "" then return nil end
+	local objet = nil
+	for nom in string.gmatch(chemin, "[^%.]+") do
+		if not objet then
+			local ok, service = pcall(game.GetService, game, nom)
+			objet = (ok and service) or game:FindFirstChild(nom)
+		else
+			objet = objet:FindFirstChild(nom)
+		end
+		if not objet then return nil end
+	end
+	return objet
+end
+
+-- (Clé du TARDIS, V6.9 : retirée en V6.9.5, elle sera remplacée plus tard.)
+
+-- Mode Siège (V6.9, ajout C6) : un seul bouton lève le bouclier complet, verrouille les portes et déclenche l'alerte.
+-- Un second appui lève le siège. Il prend fin tout seul si le TARDIS décolle.
+Config.Siege = { Bouclier = "Complet", Verrou = true, Alerte = true }
+
+-- Copilote (V6.9.1, ajout C2) : un pilote nomme un joueur à bord (tablette › Outils › Copilote). Le copilote a son
+-- propre poste (navigation, protocoles, démat / remat, camouflage, atterrissage du vol libre, carnet de bord) et
+-- aucun autre droit. Il perd son poste dès qu'il quitte le TARDIS.
+Config.Copilote = { Actif = true }
+
+-- Mode maintenance (V6.9.2, revu en V6.9.4) : un pilote (tablette › Outils › Maintenance) ou un technicien (tablette
+-- technicien › Commandes) immobilise le TARDIS posé : plus de voyage ni de vol tant qu'il n'est pas levé. Les réparations,
+-- les portes, les boucliers et l'ambiance restent permis. AuDemarrage : le serveur démarre avec le TARDIS en maintenance.
+Config.Maintenance = {
+	AuDemarrage = false,
+	Raisons = { "Réparations en cours", "Révision des systèmes", "Mise à jour", "Inspection de la Fondation" },
+	-- Actions refusées pendant la maintenance (voyages, vol, déplacements de la cabine)
+	Bloquees = { Demat = true, Remat = true, DematPorte = true, Repositionner = true, VolLibreDebut = true, NavAtterrir = true, Taille = true,
+		Rappel = true, Minuterie = true, BaliseAller = true, Leurre = true, AutoDestruction = true, Ramasser = true },
+}
+
+-- Annonce de bord (V6.9.3, ajout C17) : « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, à l'écran des joueurs
+-- à bord (bips sauf en Silencieux). Le « Départ dans 3… 2… 1… » a été retiré en V6.9.5.
+Config.AnnonceBord = { Actif = true, Bip = true, Secondes = 3 }
+
+-- Signalisation (V6.9.3) : traînée lumineuse au sol après un Rapide (ajout C15), enseigne « POLICE BOX » qui clignote
+-- selon le mode pendant la démat et la remat (ajout C16).
+Config.Signalisation = { Trainee = true, Enseigne = true }
+
+-- Ambiance sonore par thème d'intérieur (V6.9.3, ajout C18) : Vitesse = hauteur du bourdonnement du moteur (1 = normale) ;
+-- Son = boucle d'ambiance du thème (id d'un son Roblox, 0 ou nil = aucune), jouée à bord seulement ; Volume de la boucle.
+-- L'alerte générale impose l'ambiance « Alerte ».
+Config.AmbianceThemes = {
+	Classique = { Vitesse = 1, Son = 0, Volume = 0.3 },
+	Nuit = { Vitesse = 0.86, Son = 0, Volume = 0.3 },
+	Alerte = { Vitesse = 1.15, Son = 0, Volume = 0.35 },
+	Flashbang = { Vitesse = 1.3, Son = 0, Volume = 0.3 },
+	Festive = { Vitesse = 1.06, Son = 0, Volume = 0.3 },
+	Ambre = { Vitesse = 0.94, Son = 0, Volume = 0.3 },
+}
+
+-- Carnet de bord RP (V6.9.1, ajout C7) : notes des pilotes et du copilote par lieu, filtrées par Roblox et sauvegardées.
+Config.Carnet = {
+	Max = 80,            -- nombre de notes gardées (les plus anciennes partent)
+	LongueurMax = 200,   -- caractères par note
+}
+
 -- Intercom du site (V6.7.3) : la première matérialisation visible d'un TARDIS pendant la session est annoncée à tout
 -- le serveur (« faille spatio-temporelle »), puis les pilotes reçoivent un rappel toutes les RappelMinutes.
 -- Cible : chemin d'un objet de l'OS Fondation qui fait l'annonce (BindableEvent, BindableFunction ou ModuleScript
 -- avec une fonction annoncer / Annoncer), par exemple "ServerScriptService.OSFondation.OSAppsServeur.Intercom".
 -- Vide : le TARDIS fait l'annonce lui-même (bandeau en haut de l'écran, alarme, message dans le chat).
-Config.Intercom = {
-	Actif = true,
-	Cible = nil,
-	RappelMinutes = 10,
-	Titre = "INTERCOM DU SITE",
-	Message = "Alerte : faille spatio-temporelle détectée. Lieu : %s. Personnel de sécurité, restez vigilants.",
-	Rappel = "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
-}
+-- ⏸ MIS EN COMMENTAIRE le 02/11/2026 (pas utile pour le moment) : tant que ce bloc est commenté, il n'y a AUCUNE annonce
+-- ni aucun rappel. Pour le réactiver, enlève les « -- » devant les 8 lignes ci-dessous.
+-- Config.Intercom = {
+-- 	Actif = true,
+-- 	Cible = nil,
+-- 	RappelMinutes = 10,
+-- 	Titre = "INTERCOM DU SITE",
+-- 	Message = "Alerte : faille spatio-temporelle détectée. Lieu : %s. Personnel de sécurité, restez vigilants.",
+-- 	Rappel = "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
+-- }
 
 -- Vapeur de refroidissement : plaques nommées "Grille" (ou dans un dossier "Grilles") de l'intérieur
 Config.Vapeur = { Intensite = 1, IntervalleMin = 4, IntervalleMax = 14 } -- intensité 0 = aucune vapeur
@@ -698,6 +821,14 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 		alpha += (bruit(ecoule, 28) - 0.5) * 0.12 * souffle * (1 - fond)
 	end
 	return math.clamp(alpha, 0, 1)
+end
+
+-- Maintenance (V6.9.4) : la raison si cette action est refusée parce que le TARDIS est en maintenance, sinon nil
+function Config.bloqueParMaintenance(exterieur, action)
+	local raison = exterieur and exterieur:GetAttribute("Maintenance")
+	if raison == nil or raison == false then return nil end
+	if not ((Config.Maintenance or {}).Bloquees or {})[action] then return nil end
+	return type(raison) == "string" and raison or "maintenance"
 end
 
 return Config

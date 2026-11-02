@@ -1,6 +1,6 @@
 -- ReplicatedStorage > TardisCommandes (ModuleScript)
 -- Commandes de voyage partagées par le menu rapide (T) et la tablette (Y) :
---   • protocoles (mode Normal / Urgence / Rapide / Sauvetage, atterrissage invisible) : un seul état pour les deux
+--   • protocoles (mode Normal / Urgence / Rapide / Sauvetage / Silencieux, atterrissage invisible) : un seul état pour les deux
 --     interfaces, donc leurs interrupteurs restent synchronisés ;
 --   • construction de la destination envoyée au serveur ;
 --   • Démat / Remat, téléportation de poche et rematérialisation automatique (un seul minuteur) ;
@@ -40,6 +40,8 @@ local function rafraichirInterrupteurs()
 		if groupe.urgence then groupe.urgence.regler(protocoles.mode == "Urgence") end
 		if groupe.express then groupe.express.regler(protocoles.mode == "Express") end
 		if groupe.sauvetage then groupe.sauvetage.regler(protocoles.mode == "Sauvetage") end
+		if groupe.silencieux then groupe.silencieux.regler(protocoles.mode == "Silencieux") end
+		if groupe.classique then groupe.classique.regler(protocoles.mode == "Normal") end
 		if groupe.invisible then groupe.invisible.regler(protocoles.invisible) end
 	end
 end
@@ -62,13 +64,16 @@ end
 -- Branche les interrupteurs d'une interface sur l'état partagé. Urgence, Rapide et Sauvetage s'excluent.
 function Commandes.lierInterrupteurs(groupe)
 	table.insert(interrupteursLies, groupe)
-	for cle, mode in { urgence = "Urgence", express = "Express", sauvetage = "Sauvetage" } do
+	for cle, mode in { urgence = "Urgence", express = "Express", sauvetage = "Sauvetage", silencieux = "Silencieux" } do
 		local inter = groupe[cle]
 		if inter then
 			inter.surChangement = function(actif)
 				Commandes.reglerMode(actif and mode or (protocoles.mode == mode and "Normal" or protocoles.mode))
 			end
 		end
+	end
+	if groupe.classique then
+		groupe.classique.surChangement = function() Commandes.reglerMode("Normal") end
 	end
 	if groupe.invisible then
 		groupe.invisible.surChangement = function(actif) Commandes.reglerInvisible(actif) end

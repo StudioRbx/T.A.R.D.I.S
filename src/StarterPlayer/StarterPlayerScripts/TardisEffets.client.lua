@@ -186,6 +186,7 @@ end
 
 local alphaActuel = 0
 local secousseActive = false
+local dernierModeAnime = "Normal" -- mode de la dernière animation (le serveur le remet à Normal en posant le TARDIS)
 local courseRotor = 0 -- hauteur actuelle du rotor (lissée)
 local choc = 0        -- secousse d'arrivée (atterrissage), décroît
 local flashLampe = 0  -- éclat de la lampe au départ et à l'arrivée, décroît
@@ -242,11 +243,13 @@ RunService.RenderStepped:Connect(function(dt)
 	local reduit = UI.effetsReduits()
 
 	-- 0) Changement d'état : départ (la cabine vient de disparaître) et arrivée (elle vient de se poser)
+	-- (Silencieux, V6.9 : aucun éclat ; le serveur remet Mode à Normal en posant le TARDIS, d'où dernierModeAnime)
+	local modeDiscret = (Config.Modes[dernierModeAnime] or {}).Discret == true
 	if etat ~= etatPrecedent then
 		if etat == E.Vol and etatPrecedent == E.Demat then
-			flashLampe = 1
+			if not modeDiscret then flashLampe = 1 end
 		elseif etat == E.Pose and etatPrecedent == E.Remat then
-			flashLampe = 1
+			if not modeDiscret then flashLampe = 1 end
 			if EFFETS.Choc ~= false then
 				local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
 				if racine and dansInterieur(racine.Position) then
@@ -277,6 +280,8 @@ RunService.RenderStepped:Connect(function(dt)
 	local souffle, progression, fond, etatAnime, modeAnime = 0, 0, 0, nil, nil
 	proteger("souffle", function() souffle, progression, fond, etatAnime, modeAnime = respiration() end)
 	local enVoyage = etatAnime ~= nil
+	if modeAnime then dernierModeAnime = modeAnime end
+	local discret = enVoyage and (Config.Modes[modeAnime] or {}).Discret == true -- Silencieux : ni lumière ni effet dehors
 	local camoufle = exterieur:GetAttribute("Camouflage") == true
 	local visible = (1 - alphaActuel) * (1 - camouflage)
 
@@ -294,6 +299,7 @@ RunService.RenderStepped:Connect(function(dt)
 			end
 		end
 		brillance += brillanceBase * 2.5 * flashLampe
+		if discret then brillance = 0 end -- Silencieux : la lampe reste éteinte
 		if exterieur:GetAttribute("Alimentation") == false then
 			brillance = 0 -- plus de courant
 		end
@@ -307,7 +313,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if lueur then
 		proteger("lueur", function()
 			local alimente = exterieur:GetAttribute("Alimentation") ~= false
-			local intensite = (enVoyage and alimente) and souffle * visible or 0
+			local intensite = (enVoyage and alimente and not discret) and souffle * visible or 0
 			-- Couleur du mode dehors (le Rapide garde sa couleur pour l'intérieur : lumière neutre ici)
 			local couleur = Color3.fromRGB(255, 240, 210):Lerp(Config.couleurDehors(modeAnime or mode), 0.45)
 			local pivot = exterieur:GetPivot()
@@ -386,7 +392,7 @@ RunService.RenderStepped:Connect(function(dt)
 		-- Contre-jour (V6.7) : à bord, chaque souffle éclaire doucement l'image (la salle respire avec le moteur)
 		local contrejour = 0
 		if EFFETS.Contrejour ~= false and dedans and enVoyage and not horsTension then
-			contrejour = souffle * (reduit and 0.02 or 0.07) + choc * 0.05
+			contrejour = (discret and 0 or souffle * (reduit and 0.02 or 0.07)) + choc * 0.05
 		end
 		teinte.TintColor = Color3.new(1, 1 - 0.45 * intensite, 1 - 0.45 * intensite)
 		teinte.Saturation = -0.2 * noirActuel
@@ -554,6 +560,7 @@ do
 	local dernierSouffle = 0
 	local etatSol = nil    -- état animé à l'image précédente (pour l'arrivée)
 	local arcsPart = nil   -- étincelles de la lampe en urgence
+	local modeSol = "Normal" -- mode de la dernière animation (pour l'arrivée)
 
 	local function exclusionsSol()
 		local liste = { exterieur, interieur }
@@ -695,7 +702,9 @@ do
 		dernierSouffle = s
 		local couleurMode = Config.couleurDehors(modeAnime or "Normal") -- Rapide : neutre dehors
 
-		if etatAnime and not camoufle then
+		local discretSol = etatAnime ~= nil and (Config.Modes[modeAnime] or {}).Discret == true
+		if etatAnime and modeAnime then modeSol = modeAnime end
+		if etatAnime and not camoufle and not discretSol then
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = exclusionsSol()
@@ -767,7 +776,7 @@ do
 
 		-- 3) Arrivée : la cabine vient de se poser (fin d'une remat) : bouffée de poussière et onde d'arrivée
 		local etatMaintenant = exterieur:GetAttribute("Etat") or E.Pose
-		if etatSol == E.Remat and etatMaintenant == E.Pose and not camoufle and EFFETS.Choc ~= false then
+		if etatSol == E.Remat and etatMaintenant == E.Pose and not camoufle and EFFETS.Choc ~= false and not (Config.Modes[modeSol] or {}).Discret then
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = exclusionsSol()
@@ -925,8 +934,9 @@ do
 		local etat = exterieur:GetAttribute("Etat")
 		if etat == E.Demat then
 			if enAttente then enAttente:Destroy() enAttente = nil end
-			-- Pas d'empreinte pour un départ discret : camouflé, porté (téléportation de poche) ou en vol libre
-			if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") or exterieur:GetAttribute("VolLibre") then return end
+			-- Pas d'empreinte pour un départ discret : camouflé, porté (téléportation de poche), en vol libre ou Silencieux
+			if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") or exterieur:GetAttribute("VolLibre")
+				or (Config.Modes[Config.modeDe(exterieur)] or {}).Discret then return end
 			enAttente = preparer()
 		elseif etat == E.Vol and enAttente then
 			local modele = enAttente
@@ -942,7 +952,8 @@ end
 -- Effets propres aux modes (V6.7.1)
 --  • Rapide : sa couleur ne se voit qu'à l'intérieur : un éclair vert dans la salle de contrôle au départ et à
 --    l'arrivée (plus d'éclair vert dehors : l'ancien Éclair Express de la V6.6.4 est remplacé par les ondes neutres)
---  • Sauvetage : la lampe devient un projecteur braqué vers le sol pendant la descente, avec son cône de lumière
+--  • Sauvetage (V6.9.5) : pendant la descente en tournant, quatre lumières aux fenêtres (une par côté) éclairent vers
+--    l'extérieur, à l'horizontale, et balaient les alentours comme un phare ; le sol sous la cabine n'est pas éclairé
 --  • Catastrophe : à bord, la console crache des étincelles et la salle bat en rouge pendant la matérialisation
 --------------------------------------------------------------------
 do
@@ -957,25 +968,42 @@ do
 	lumiereRotor.Parent = supportRotor
 	local eclat, couleurEclat = 0, COULEUR_RAPIDE -- éclair intérieur (décroît)
 
-	-- Projecteur de sauvetage : sous la lampe, braqué vers le bas, avec un cône visible
-	local projecteur = piece({ Name = "TardisProjecteur_" .. def.Nom, Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
-	local spot = Instance.new("SpotLight")
-	spot.Angle, spot.Range, spot.Brightness, spot.Face, spot.Shadows = 58, 70, 0, Enum.NormalId.Bottom, true
-	spot.Color = Color3.fromRGB(255, 245, 215)
-	spot.Parent = projecteur
-	local a0 = Instance.new("Attachment")
-	a0.Parent = projecteur
-	local a1 = Instance.new("Attachment")
-	a1.Position = Vector3.new(0, -45, 0)
-	a1.Parent = projecteur
-	local cone = Instance.new("Beam")
-	cone.Attachment0, cone.Attachment1 = a0, a1
-	cone.Width0, cone.Width1 = 1, 22
-	cone.LightEmission, cone.LightInfluence = 1, 0
-	cone.Color = ColorSequence.new(Color3.fromRGB(255, 245, 215))
-	cone.Transparency = NumberSequence.new(1)
-	cone.FaceCamera = true
-	cone.Parent = projecteur
+	-- Phare de sauvetage (V6.9.5) : une pièce invisible un peu plus large que la cabine, à hauteur des fenêtres, qui suit
+	-- la cabine (et donc sa rotation) ; une SurfaceLight sur chacune de ses 4 faces latérales éclaire vers l'extérieur
+	-- (faisceau étroit, pas d'ombre : il traverse les vitres), et un faisceau visible part de chaque côté
+	local COULEUR_PHARE = Color3.fromRGB(255, 246, 220)
+	local boiteCabine, tailleCabine = exterieur:GetBoundingBox()
+	local relatifPhare = exterieur:GetPivot():ToObjectSpace(boiteCabine * CFrame.new(0, tailleCabine.Y * 0.22, 0)) -- vers 72 % de la hauteur
+	local phare = piece({ Name = "TardisPhare_" .. def.Nom, Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false,
+		Size = Vector3.new(tailleCabine.X * 1.04, math.max(tailleCabine.Y * 0.12, 0.5), tailleCabine.Z * 1.04), CFrame = exterieur:GetPivot() * relatifPhare })
+	local lumieresPhare, faisceauxPhare = {}, {}
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right } do
+		local lumiere = Instance.new("SurfaceLight")
+		lumiere.Face, lumiere.Angle, lumiere.Range, lumiere.Brightness, lumiere.Shadows = face, 28, 60, 0, false
+		lumiere.Color = COULEUR_PHARE
+		lumiere.Parent = phare
+		table.insert(lumieresPhare, lumiere)
+		-- Faisceau visible : de la fenêtre vers l'extérieur, de plus en plus large et pâle
+		local direction = Vector3.FromNormalId(face)
+		local demiLargeur = math.abs(direction.X) > 0 and phare.Size.X / 2 or phare.Size.Z / 2
+		local a0 = Instance.new("Attachment")
+		a0.Position = direction * demiLargeur
+		a0.Parent = phare
+		local a1 = Instance.new("Attachment")
+		a1.Position = direction * (demiLargeur + 40)
+		a1.Parent = phare
+		local faisceau = Instance.new("Beam")
+		faisceau.Attachment0, faisceau.Attachment1 = a0, a1
+		faisceau.Width0, faisceau.Width1 = phare.Size.Y * 1.5, 14
+		faisceau.LightEmission, faisceau.LightInfluence = 1, 0
+		faisceau.Color = ColorSequence.new(COULEUR_PHARE)
+		faisceau.Transparency = NumberSequence.new(1)
+		faisceau.FaceCamera = true
+		faisceau.Enabled = false
+		faisceau.Parent = phare
+		table.insert(faisceauxPhare, faisceau)
+	end
+	local intensitePhare = 0
 
 	-- Étincelles de la console (catastrophe) : préparées à la demande
 	local pointsConsole = nil
@@ -1049,17 +1077,23 @@ do
 			end
 		end
 
-		-- Projecteur de sauvetage : allumé pendant la descente (pas camouflé, avec du courant)
+		-- Phare de sauvetage : allumé pendant la descente en tournant (pas camouflé, avec du courant), il suit la cabine
 		local sauvetage = etat == E.Remat and mode == "Sauvetage" and exterieur:GetAttribute("Camouflage") ~= true
 			and exterieur:GetAttribute("Alimentation") ~= false
-		spot.Brightness += ((sauvetage and 7 or 0) - spot.Brightness) * math.min(dt * 4, 1)
-		if sauvetage or spot.Brightness > 0.05 then
-			projecteur.CFrame = CFrame.new(positionLampe())
-			local part = spot.Brightness / 7
-			cone.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.18 * part), NumberSequenceKeypoint.new(1, 1 - 0.03 * part) })
-			cone.Enabled = true
+		intensitePhare += ((sauvetage and 1 or 0) - intensitePhare) * math.min(dt * 4, 1)
+		if sauvetage or intensitePhare > 0.01 then
+			phare.CFrame = exterieur:GetPivot() * relatifPhare
+			-- La lumière suit l'apparition de la cabine (elle sort des fenêtres à mesure que la cabine se matérialise)
+			local dureePhare, decalagePhare = Config.Timing(E.Remat, "Sauvetage")
+			local p = sauvetage and math.clamp((workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0) - decalagePhare) / math.max(dureePhare, 0.1), 0, 1) or 1
+			local force = intensitePhare * math.clamp(p * 1.4, 0, 1)
+			for _, lumiere in lumieresPhare do lumiere.Brightness = 8 * force end
+			for _, faisceau in faisceauxPhare do
+				faisceau.Enabled = force > 0.01
+				faisceau.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.32 * force), NumberSequenceKeypoint.new(1, 1) })
+			end
 		else
-			cone.Enabled = false
+			for _, faisceau in faisceauxPhare do faisceau.Enabled = false end
 		end
 	end)
 end

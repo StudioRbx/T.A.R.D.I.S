@@ -155,6 +155,8 @@ local B = {
 	express = UI.badge(badges, "RAPIDE", C.vert, 9),
 	sauvetage = UI.badge(badges, "SAUVETAGE", UI.couleurMode("Sauvetage"), 10),
 	catastrophe = UI.badge(badges, "PARADOXE", C.rouge, 11),
+	silencieux = UI.badge(badges, "SILENCIEUX", UI.couleurMode("Silencieux"), 12),
+	siege = UI.badge(badges, "SIÈGE", C.rouge, 13),
 }
 local zoneProgression = creer("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = 4,
 	Visible = false, Parent = carteStatut })
@@ -215,12 +217,14 @@ local protocoles = UI.carte(contenu, 5, 4)
 local interrupteurUrgence = UI.interrupteur(protocoles, "Urgence", "Sons d'urgence et vol instable", C.orange, 1)
 local interrupteurExpress = UI.interrupteur(protocoles, "Rapide", "Démat et remat en 2 secondes", C.vert, 2)
 local interrupteurSauvetage = UI.interrupteur(protocoles, "Sauvetage", "Arrive en hauteur, descend en tournant, ouvre les portes", UI.couleurMode("Sauvetage"), 3)
-local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 4)
--- État partagé avec la tablette (Urgence, Rapide et Sauvetage s'excluent)
-Commandes.lierInterrupteurs({ urgence = interrupteurUrgence, express = interrupteurExpress, sauvetage = interrupteurSauvetage, invisible = interrupteurInvisible })
+local interrupteurSilencieux = UI.interrupteur(protocoles, "Silencieux", "Ni son, ni lumière, ni annonce : infiltration", UI.couleurMode("Silencieux"), 4)
+local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisible", "Il se pose déjà camouflé", C.cyan, 5)
+-- État partagé avec la tablette (Urgence, Rapide, Sauvetage et Silencieux s'excluent)
+Commandes.lierInterrupteurs({ urgence = interrupteurUrgence, express = interrupteurExpress, sauvetage = interrupteurSauvetage,
+	silencieux = interrupteurSilencieux, invisible = interrupteurInvisible })
 texte({ Text = "Zone REFUSE au départ ou à l'arrivée : urgence imposée. Destination choisie avant DÉMAT : " .. tostring(Config.DureeVortexAuto or 10)
 	.. " s de vortex puis REMAT automatique ; sinon, choisis dans le vortex et clique REMAT.", TextSize = 10, TextColor3 = C.texte2, TextWrapped = true,
-	AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 5, Parent = protocoles })
+	AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 6, Parent = protocoles })
 
 -- 4) Actions
 local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 58), BackgroundTransparency = 1, LayoutOrder = 6,
@@ -243,7 +247,7 @@ local function jauge(nom, ordre, couleur)
 end
 local jaugeIntegrite = jauge("INTÉGRITÉ", 1, C.vert)
 local jaugeBouclier = jauge("BOUCLIER", 2, C.cyan)
-local raccourcis = creer("Frame", { Size = UDim2.new(1, 0, 0, 128), BackgroundTransparency = 1, LayoutOrder = 3, Parent = carteSystemes },
+local raccourcis = creer("Frame", { Size = UDim2.new(1, 0, 0, 196), BackgroundTransparency = 1, LayoutOrder = 3, Parent = carteSystemes },
 { creer("UIGridLayout", { CellSize = UDim2.new(0.5, -5, 0, 60), CellPadding = UDim2.fromOffset(10, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
 local function tuile(nom, icone, ordre)
 	local bouton = creer("TextButton", { BackgroundColor3 = C.fond, Text = "", LayoutOrder = ordre, Parent = raccourcis },
@@ -266,6 +270,7 @@ local T = {
 	portes = tuile("Portes", "■", 2),
 	verrou = tuile("Verrou", "⊘", 3),
 	taille = tuile("Taille", "◢", 4),
+	siege = tuile("Siège", "▲", 5),        -- V6.9 : bouclier + verrou + alerte
 }
 
 -- Pied de page : les touches
@@ -441,11 +446,14 @@ local function majInterface()
 	B.express.Visible = modeEnCours == "Express" and etat ~= E.Pose
 	B.sauvetage.Visible = modeEnCours == "Sauvetage" and etat ~= E.Pose
 	B.catastrophe.Visible = modeEnCours == "Catastrophe" and etat ~= E.Pose
+	B.silencieux.Visible = modeEnCours == "Silencieux" and etat ~= E.Pose
+	B.siege.Visible = exterieur:GetAttribute("Siege") == true
 	B.horsTension.Visible = not alimente
 	B.alerte.Visible = alerte
 	B.bloque.Visible = bloque
 	B.volLibre.Visible = volLibre
 	badges.Visible = camoufle or verrouille or petit or urgenceEnCours or B.express.Visible or B.sauvetage.Visible or B.catastrophe.Visible
+		or B.silencieux.Visible or B.siege.Visible
 		or not alimente or alerte or bloque or volLibre
 
 	-- Actions principales
@@ -473,6 +481,8 @@ local function majInterface()
 	majTuile(T.portes, porteOuverte, porteOuverte and "Ouvertes · fermer" or "Fermées · ouvrir", C.vert, portesPossibles)
 	majTuile(T.verrou, verrouille, verrouille and "VERROUILLÉ" or "Ouvert", C.rouge, true)
 	majTuile(T.taille, petit, petit and "PETIT · agrandir" or "Grand · rapetisser", C.ambre, pose and alimente and not porte)
+	local siege = exterieur:GetAttribute("Siege") == true
+	majTuile(T.siege, siege, siege and "EN SIÈGE · lever" or "Bouclier · verrou · alerte", C.rouge, siege or (pose and alimente))
 	-- Intégrité (points de vie) et bouclier
 	local integrite = exterieur:GetAttribute("PointsDeVie")
 	if integrite then
@@ -673,6 +683,11 @@ end)
 T.verrou.bouton.Activated:Connect(function()
 	remote:FireServer("Verrou")
 end)
+T.siege.bouton.Activated:Connect(function()
+	if T.siege.bouton:GetAttribute("Disponible") == false then return end
+	if exterieur:GetAttribute("Siege") then remote:FireServer("Siege") return end
+	UI.confirmer(T.siege.etat, function() remote:FireServer("Siege") end)
+end)
 T.taille.bouton.Activated:Connect(function()
 	if T.taille.bouton:GetAttribute("Disponible") == false then return end
 	local petit = (exterieur:GetAttribute("Echelle") or 1) < 0.999
@@ -690,6 +705,34 @@ UserInputService.InputBegan:Connect(function(input, traite)
 	if traite or not gui.Enabled then return end
 	if input.KeyCode == UI.touche("menu", TOUCHE) then basculerMenu() end
 end)
+
+--------------------------------------------------------------------
+-- Boutons tactiles (V6.8.1, modification 8) : sur un appareil sans clavier, deux boutons au bord gauche ouvrent
+-- le menu rapide (T) et la tablette (Y). Rien ne change sur ordinateur.
+--------------------------------------------------------------------
+if Config.BoutonsTactiles ~= false and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+	local barre = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.38, 0), Size = UDim2.fromOffset(52, 0),
+		AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 30, Parent = gui }, { UI.pile(10) })
+	local function boutonTactile(lettre, legende, ordre, action)
+		local b = creer("TextButton", { Size = UDim2.fromOffset(52, 52), BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Text = "",
+			LayoutOrder = ordre, ZIndex = 30, Parent = barre }, { UI.coin(99), UI.contour(C.ambre, 1.5, 0.2) })
+		texte({ Text = lettre, Font = UI.POLICE_TITRE, TextSize = 18, TextColor3 = C.ambre, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 22), ZIndex = 31, Parent = b })
+		texte({ Text = legende, TextSize = 9, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 31), Size = UDim2.new(1, 0, 0, 12), ZIndex = 31, Parent = b })
+		b:SetAttribute("CouleurBase", C.fond)
+		UI.rendreVivant(b)
+		b.Activated:Connect(action)
+		return b
+	end
+	boutonTactile("T", "menu", 1, basculerMenu)
+	boutonTactile("Y", "tablette", 2, function() joueur:SetAttribute("TardisTablette", not joueur:GetAttribute("TardisTablette")) end)
+	-- Le menu ouvert recouvre le bord gauche : les boutons se décalent à sa droite
+	RunService.Heartbeat:Connect(function()
+		local cible = ouvert and UDim2.new(0, 12 + LARGEUR * echelleTiroir.Scale + 10, 0.38, 0) or UDim2.new(0, 8, 0.38, 0)
+		if barre.Position ~= cible then barre.Position = barre.Position:Lerp(cible, 0.25) end
+	end)
+end
 
 --------------------------------------------------------------------
 -- Animations
@@ -797,7 +840,7 @@ majTaille()
 --------------------------------------------------------------------
 -- Mises à jour automatiques
 --------------------------------------------------------------------
-for _, attribut in { "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Mode", "PorteOuverte",
+for _, attribut in { "Siege", "Etat", "Camouflage", "Position", "PortesVerrouillees", "Retreci", "Porteur", "Mode", "PorteOuverte",
 	"Echelle", "Alimentation", "Alerte", "DemarrageBloque", "VolLibre", "BouclierJoueurs", "BouclierBalles", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "Enseigne", "Detruit", "AutoDestructionDebut", "StyleInterieur", "StyleConsole", "CouleurMurs", "Jukebox", "BouclierComplet", "BouclierEnergie", "PointsDeVie", "Avarie", "Stabilisateur", "Decoration", "Reflets" } do
 	exterieur:GetAttributeChangedSignal(attribut):Connect(majInterface)
 end
@@ -806,7 +849,7 @@ exterieur:GetAttributeChangedSignal("PrecedentNom"):Connect(construireListe)
 Players.PlayerAdded:Connect(construireListe)
 Players.PlayerRemoving:Connect(function() task.defer(construireListe) end)
 -- Les protocoles changent (ici ou dans la tablette) : le mode affiché et le temps de trajet suivent
-for _, inter in { interrupteurUrgence, interrupteurExpress, interrupteurSauvetage, interrupteurInvisible } do
+for _, inter in { interrupteurUrgence, interrupteurExpress, interrupteurSauvetage, interrupteurSilencieux, interrupteurInvisible } do
 	local ancien = inter.surChangement
 	inter.surChangement = function(actif)
 		if ancien then ancien(actif) end

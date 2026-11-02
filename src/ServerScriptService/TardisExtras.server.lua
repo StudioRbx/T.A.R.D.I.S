@@ -40,6 +40,11 @@ local function direAuxPilotes(message, ok)
 		if estPilote(autre) then dire(autre, message, ok) end
 	end
 end
+-- Journal du TARDIS (V6.8) : TardisSupervision l'envoie au journal du jeu (Config.Journal)
+local function journal(categorie, message)
+	local evenements = ServerStorage:FindFirstChild("TardisEvenements")
+	if evenements then evenements:Fire("Journal", { categorie = categorie, message = message, tardis = def.Nom }) end
+end
 local function heure()
 	return os.date("%H:%M")
 end
@@ -50,16 +55,18 @@ end
 --------------------------------------------------------------------
 -- Sauvegarde légère des réglages du TARDIS (thème, couleur, enseigne) et des préférences des joueurs
 --------------------------------------------------------------------
-local store = nil
-pcall(function() store = game:GetService("DataStoreService"):GetDataStore("TardisExtras_v1_" .. def.Nom) end)
+-- (V6.8.1 : sauvegarde versionnée, voir TardisSauvegarde ; l'ancien magasin TardisExtras_v1_* n'est que lu)
+local magasin = require(script.Parent:WaitForChild("TardisSauvegarde")).ouvrir(
+	((Config.Sauvegarde or {}).NomStoreExtras or "TardisExtras_v2") .. "_" .. def.Nom, "TardisExtras_v1_" .. def.Nom)
+local illisibles = {} -- clés dont la lecture a échoué : on ne les écrase pas pendant la session
 local function charger(cle)
-	if not store then return nil end
-	local ok, valeur = pcall(function() return store:GetAsync(cle) end)
-	return ok and valeur or nil
+	local valeur, lu = magasin:lire(cle)
+	if not lu then illisibles[cle] = true end
+	return valeur
 end
 local function enregistrer(cle, valeur)
-	if not store then return end
-	pcall(function() store:SetAsync(cle, valeur) end)
+	if illisibles[cle] then return end
+	magasin:ecrire(cle, valeur) -- attend la fin (comme avant) : à la fermeture du serveur, rien n'est perdu
 end
 
 --------------------------------------------------------------------
@@ -99,7 +106,8 @@ pcall(function()
 		local commande = Instance.new("TextChatCommand")
 		commande.Name = "TardisBalise"
 		commande.PrimaryAlias = (Config.Balise or {}).Commande or "/balisehelp"
-		commande.SecondaryAlias = "/tardis" -- "/tardis help" fait la même chose
+		-- (V6.8 : "/tardis" et "/tardis help" passent par TardisSupervision, qui prévient la balise ; les autres "/tardis …"
+		-- sont des commandes du staff et n'allument plus de balise)
 		commande.Parent = TextChatService
 		commande.Triggered:Connect(function(source)
 			local joueur = Players:GetPlayerByUserId(source.UserId)
@@ -111,7 +119,7 @@ end)
 local function surMessage(joueur, message)
 	local alias = string.lower((Config.Balise or {}).Commande or "/balisehelp")
 	local texte = string.lower(message)
-	if texte == alias or texte == "/balise" or string.sub(texte, 1, 7) == "/tardis" then allumerBalise(joueur) end
+	if texte == alias or texte == "/balise" then allumerBalise(joueur) end
 end
 task.spawn(function()
 	-- Balises expirées, ou atteintes par le TARDIS
@@ -647,7 +655,8 @@ local function appliquerRoles(joueur)
 	local id = tostring(joueur.UserId)
 	joueur:SetAttribute("TardisPiloteTemp_" .. def.Nom, entreeActive(roles.pilotes[id]))
 	joueur:SetAttribute("TardisBanni_" .. def.Nom, entreeActive(roles.bans[id]))
-	joueur:SetAttribute("TardisTechnicien_" .. def.Nom, Config.estTechnicienDe(def, joueur.UserId))
+	-- Technicien : liste de la config, ou accès donné par le jeu (Adonis, WL : TardisSupervision, V6.8)
+	joueur:SetAttribute("TardisTechnicien_" .. def.Nom, Config.estTechnicienDe(def, joueur.UserId) or joueur:GetAttribute("TardisAccesTechnicien") == true)
 	local technicien_quelque_part = false
 	for _, autre in Config.Tardis do
 		if joueur:GetAttribute("TardisTechnicien_" .. autre.Nom) == true then technicien_quelque_part = true end
@@ -697,7 +706,11 @@ local function definirRole(type_, cible, donnees, auteur)
 	sauverRoles()
 	return true
 end
-Players.PlayerAdded:Connect(function(joueur) appliquerRoles(joueur) end)
+local function suivreAccesTechnicien(joueur)
+	joueur:GetAttributeChangedSignal("TardisAccesTechnicien"):Connect(function() appliquerRoles(joueur) end)
+end
+Players.PlayerAdded:Connect(function(joueur) appliquerRoles(joueur) suivreAccesTechnicien(joueur) end)
+for _, joueur in Players:GetPlayers() do suivreAccesTechnicien(joueur) end
 Players.PlayerRemoving:Connect(function() task.delay(0.5, publierRoles) end) -- fin des sessions du joueur qui part
 task.spawn(function()
 	while true do task.wait(30) publierRoles() end
@@ -719,6 +732,18 @@ local function publierStats(joueur)
 	local st = stats[joueur.UserId]
 	if st then joueur:SetAttribute("TardisStats", HttpService:JSONEncode(st)) end
 	exterieur:SetAttribute("StatsServeur", statsServeur.voyages or 0)
+	exterieur:SetAttribute("StatsModes", HttpService:JSONEncode({ parMode = statsServeur.parMode or {}, tempsGagne = statsServeur.tempsGagne or 0 }))
+end
+-- Statistiques par mode (V6.9.3, modification 14) : secondes gagnées par rapport à un voyage Classique (jamais négatif)
+local function dureeVoyage(mode)
+	local d, dd = Config.Timing(E.Demat, mode)
+	local r, rr = Config.Timing(E.Remat, mode)
+	return d + dd + r + rr
+end
+local function compterMode(table_, mode)
+	table_.parMode = type(table_.parMode) == "table" and table_.parMode or {}
+	table_.parMode[mode] = (table_.parMode[mode] or 0) + 1
+	table_.tempsGagne = (table_.tempsGagne or 0) + math.max(0, dureeVoyage("Normal") - dureeVoyage(mode))
 end
 local function chargerStats(joueur)
 	local st = charger("stats_" .. joueur.UserId)
@@ -749,20 +774,25 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 -- Un voyage compte quand le TARDIS se pose après une matérialisation
 local etatPrecedent = exterieur:GetAttribute("Etat")
+local modeDuVoyage = "Normal"
 exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	local etat = exterieur:GetAttribute("Etat")
+	if etat == E.Remat then modeDuVoyage = Config.modeDe(exterieur) end
 	if etat == E.Pose and etatPrecedent == E.Remat then
 		statsServeur.voyages = (statsServeur.voyages or 0) + 1
+		compterMode(statsServeur, modeDuVoyage)
 		local pilote = dernierPilote and Players:GetPlayerByUserId(dernierPilote)
 		local st = pilote and stats[pilote.UserId]
 		if st then
 			st.voyages = (st.voyages or 0) + 1
+			compterMode(st, modeDuVoyage)
 			for autre in dedans do
 				if autre ~= pilote then st.passagers[autre.DisplayName] = true end
 			end
 			publierStats(pilote)
 		end
 		exterieur:SetAttribute("StatsServeur", statsServeur.voyages)
+		exterieur:SetAttribute("StatsModes", HttpService:JSONEncode({ parMode = statsServeur.parMode or {}, tempsGagne = statsServeur.tempsGagne or 0 }))
 		statsModifiees = true
 	end
 	etatPrecedent = etat
@@ -969,6 +999,7 @@ local function lancerAutoDestruction(pilote)
 	exterieur:SetAttribute("AutoDestructionDebut", workspace:GetServerTimeNow())
 	interne("alerter", "AUTO-DESTRUCTION ENGAGÉE")
 	direAuxPilotes("AUTO-DESTRUCTION engagée par " .. pilote.DisplayName .. " : explosion dans 20 secondes.", false)
+	journal("Sécurité", def.Nom .. " : auto-destruction engagée par " .. pilote.Name .. ".")
 	interne("jouer", "Demat_Urg", true)
 	task.delay(19, function()
 		-- Les occupants sont éjectés dehors, dans la zone de l'explosion
@@ -1050,6 +1081,35 @@ game:BindToClose(function()
 end)
 
 --------------------------------------------------------------------
+-- Carnet de bord RP (V6.9.1, ajout C7) : les pilotes et le copilote écrivent des notes par lieu.
+-- Notes filtrées par Roblox, publiées dans l'attribut « Carnet » (JSON, la plus récente d'abord), sauvegardées.
+--------------------------------------------------------------------
+local REGLAGES_CARNET = Config.Carnet or {}
+local carnet = {} -- { { lieu, auteur, id, texte, quand }, ... }
+local dernierCarnet = {}
+local carnetCharge = false
+local function publierCarnet()
+	exterieur:SetAttribute("Carnet", HttpService:JSONEncode(carnet))
+end
+local function sauverCarnet()
+	if carnetCharge then enregistrer("carnet", carnet) end -- jamais avant d'avoir lu : on n'écrase pas les notes
+end
+task.spawn(function()
+	local lu = charger("carnet")
+	if type(lu) == "table" then
+		for _, n in lu do
+			if type(n) == "table" and type(n.lieu) == "string" and type(n.texte) == "string" then table.insert(carnet, n) end
+		end
+	end
+	carnetCharge = not illisibles.carnet
+	publierCarnet()
+end)
+Players.PlayerRemoving:Connect(function(joueur) dernierCarnet[joueur] = nil end)
+local function peutEcrireCarnet(joueur)
+	return estPilote(joueur) or exterieur:GetAttribute("Copilote") == joueur.UserId
+end
+
+--------------------------------------------------------------------
 -- Commandes (le menu et la tablette envoient le même RemoteEvent que TardisServeur)
 --------------------------------------------------------------------
 local dernier = {}
@@ -1119,10 +1179,50 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		return
 	end
 
+	if action == "CarnetEcrire" or action == "CarnetEffacer" then
+		-- Carnet de bord (V6.9.1) : pilotes et copilote
+		if not peutEcrireCarnet(joueur) or typeof(donnees) ~= "table" then return end
+		local maintenant = os.clock()
+		if dernierCarnet[joueur] and maintenant - dernierCarnet[joueur] < 3 then
+			dire(joueur, "Une note toutes les 3 secondes au plus.", false)
+			return
+		end
+		dernierCarnet[joueur] = maintenant
+		if action == "CarnetEffacer" then
+			-- Effacer : l'auteur ou un pilote ; la date évite d'effacer une autre note si la liste a bougé
+			local index = tonumber(donnees.index)
+			local note = index and carnet[index]
+			if not note or note.quand ~= donnees.quand then dire(joueur, "Note introuvable (le carnet a changé).", false) return end
+			if note.id ~= joueur.UserId and not estPilote(joueur) then dire(joueur, "Seul l'auteur ou un pilote peut effacer cette note.", false) return end
+			table.remove(carnet, index)
+			publierCarnet()
+			task.spawn(sauverCarnet)
+			dire(joueur, "Note effacée du carnet de bord.", true)
+			return
+		end
+		local texte, lieu = donnees.texte, donnees.lieu
+		local longueur = REGLAGES_CARNET.LongueurMax or 200
+		if typeof(texte) ~= "string" or #texte < 2 or #texte > longueur * 2 or utf8.len(texte) == nil or utf8.len(texte) > longueur then return end
+		if typeof(lieu) ~= "string" or #lieu == 0 then lieu = exterieur:GetAttribute("Position") or "Lieu inconnu" end
+		lieu = string.sub(lieu, 1, 60)
+		task.spawn(function()
+			local filtre, lieuFiltre = filtrer(joueur, texte), filtrer(joueur, lieu)
+			if not filtre or not lieuFiltre then dire(joueur, "Note refusée par le filtre de Roblox.", false) return end
+			table.insert(carnet, 1, { lieu = lieuFiltre, auteur = joueur.DisplayName, id = joueur.UserId, texte = filtre, quand = os.time() })
+			while #carnet > (REGLAGES_CARNET.Max or 80) do table.remove(carnet) end
+			publierCarnet()
+			sauverCarnet()
+			journal("Carnet", string.format("%s : note de %s sur « %s ».", def.Nom, joueur.Name, lieuFiltre))
+			dire(joueur, "Note ajoutée au carnet de bord : " .. lieuFiltre .. ".", true)
+		end)
+		return
+	end
 	if not estPilote(joueur) then
 		if Config.Debug then print("[TARDIS] Extras : commande refusée, " .. joueur.Name .. " n'est pas pilote.") end
 		return
 	end
+	-- Maintenance (V6.9.4) : voyages et déplacements refusés ; TardisServeur prévient déjà le joueur
+	if Config.bloqueParMaintenance(exterieur, action) then return end
 	derniereActionPilote = os.clock() -- pour la saisie
 	if action == "Demat" or action == "Remat" or action == "Repositionner" or action == "Rappel" or action == "DematPorte" then
 		dernierPilote = joueur.UserId -- pour les statistiques
@@ -1142,6 +1242,10 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			return
 		end
 		local ok = definirRole(action == "Promouvoir" and "pilotes" or "bans", cible, donnees, joueur)
+		if ok then
+			journal("Rôles", string.format("%s : %s %s %s.", def.Nom, joueur.Name, donnees.retirer and "retire" or "donne",
+				(action == "Promouvoir" and "le rôle de pilote à " or "un bannissement à ") .. cible.Name))
+		end
 		if ok then
 			local verbe = donnees.retirer and (action == "Promouvoir" and "n'est plus pilote" or "n'est plus banni")
 				or (action == "Promouvoir" and "est pilote" or "est banni")
@@ -1375,7 +1479,8 @@ end
 -- reçoivent un rappel toutes les Config.Intercom.RappelMinutes minutes.
 --------------------------------------------------------------------
 do
-	local INTERCOM = Config.Intercom or {}
+	-- Config.Intercom absent (bloc mis en commentaire) : intercom coupé, ni annonce ni rappel
+	local INTERCOM = Config.Intercom or { Actif = false, RappelMinutes = 0 }
 	local evenements = ServerStorage:FindFirstChild("TardisEvenements")
 	if not evenements then
 		evenements = Instance.new("BindableEvent")
@@ -1384,11 +1489,14 @@ do
 	end
 	local signalee = nil -- { lieu, heure } : la faille de cette session
 	local etatAvant = exterieur:GetAttribute("Etat")
+	local modeRemat = "Normal"
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 		local etat = exterieur:GetAttribute("Etat")
 		local avant = etatAvant
 		etatAvant = etat
+		if etat == E.Remat then modeRemat = Config.modeDe(exterieur) end
 		if INTERCOM.Actif == false or signalee then return end
+		if etat == E.Pose and (Config.Modes[modeRemat] or {}).Discret then return end -- Silencieux (V6.9) : pas d'annonce
 		-- Posé après une matérialisation, et visible (ni camouflé, ni porté)
 		if etat ~= E.Pose or avant ~= E.Remat then return end
 		if exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end
@@ -1403,7 +1511,7 @@ do
 	end)
 	task.spawn(function()
 		local minutes = INTERCOM.RappelMinutes or 10
-		if minutes <= 0 then return end
+		if INTERCOM.Actif == false or minutes <= 0 then return end
 		while true do
 			task.wait(minutes * 60)
 			if signalee then
