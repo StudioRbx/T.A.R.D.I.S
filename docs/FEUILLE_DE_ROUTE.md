@@ -35,14 +35,14 @@
   | `Systemes` | énergie, air, pannes, boucliers, siège |
   | `Equipage` | pilotes, techniciens, copilote, rôles, bannissements |
   | `Bord` | carnet, jukebox, intercom, ambiance |
-  | `Staff` | supervision, maintenance, recette, journal |
+  | `Supervision` | accès Adonis / WL, journal, erreurs, maintenance |
   | `Sauvegarde` | sauvegarde |
   | `Interface` | menus, tablette, poste du copilote |
   | `Effets` | effets visuels et sonores |
 
 - **Un seul point d'entrée** par côté : un Script serveur et un LocalScript client, qui chargent les modules de chaque domaine. On n'a plus de scripts qui se parlent par RemoteEvent et BindableFunction « parce qu'ils sont séparés ».
 - **`TardisConfig` découpée** en un module par domaine, avec les réglages de chaque TARDIS à part. Cela prépare la V8.
-- **Comportement identique en jeu** : aucune nouveauté dans la V7, seulement des déplacements. La recette automatique (`/tardis recette`, V6.9.2) sert à vérifier que tout marche comme avant.
+- **Comportement identique en jeu** : aucune nouveauté dans la V7, seulement des déplacements. Les tableaux « À tester » des patch notes servent à vérifier que tout marche comme avant.
 - `outils/synchro_studio.luau` et le README mis à jour pour la nouvelle arborescence.
 
 À décider : les noms exacts des dossiers, et si on garde la convention Rojo actuelle (`.server.lua`, `.client.lua`, dossier + `init`).
@@ -94,7 +94,6 @@
 Questions ouvertes :
 - le **vol libre** (piloté aujourd'hui depuis la tablette) ;
 - les **joueurs sur mobile** ;
-- le **poste du copilote** et la **tablette technicien** ;
-- les **commandes du staff**.
+- le **poste du copilote** et la **tablette technicien**.
 
 Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?

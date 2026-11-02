@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.9.3** (annonce de bord, traînée du Rapide, enseigne qui clignote, ambiance par thème, statistiques par mode ; V6.9.2 : mode maintenance et recette automatique pour le staff ; V6.9.1 : copilote et carnet de bord RP ; V6.9 : protocole Silencieux, mode Siège, clé du TARDIS, crise post-régénération ; V6.8.1 : sauvegarde versionnée, boutons tactiles sur mobile ; V6.8 : accès Adonis / WL, journal vers RoSysLog, commandes du staff `/tardis statut`, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md), les [propositions](docs/PROPOSITIONS.md) et la [feuille de route V7 → V9](docs/FEUILLE_DE_ROUTE.md).
+**Version actuelle : V6.9.4** (commandes du staff retirées, mode maintenance dans la tablette des pilotes et des techniciens ; V6.9.3 : annonce de bord, traînée du Rapide, enseigne qui clignote, ambiance par thème, statistiques par mode ; V6.9.2 : mode maintenance ; V6.9.1 : copilote et carnet de bord RP ; V6.9 : protocole Silencieux, mode Siège, clé du TARDIS, crise post-régénération ; V6.8.1 : sauvegarde versionnée, boutons tactiles sur mobile ; V6.8 : accès Adonis / WL, journal vers RoSysLog, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md), les [propositions](docs/PROPOSITIONS.md) et la [feuille de route V7 → V9](docs/FEUILLE_DE_ROUTE.md).
 
 **À venir :** V7 · refonte de l'organisation des fichiers ; V8 · les 3 TARDIS, un par pilote ; V9 · plus de menu, tout sur la console (V9.1 → V9.4 : TARDIS_1).
 
@@ -24,7 +24,7 @@ src/
 │  ├─ TardisSystemes.server.lua         Script : PV, boucliers, pannes, régénération, techniciens
 │  ├─ TardisLiaisonPortes.server.lua    Script : pont entre les portes du kit et le système
 │  ├─ TardisPontFondation.server.lua    Script : annonce les failles spatio-temporelles (OS Fondation ou annonce intégrée)
-│  ├─ TardisSupervision.server.lua      Script : accès Adonis / WL, journal, commandes du staff (/tardis statut), erreurs
+│  ├─ TardisSupervision.server.lua      Script : accès Adonis / WL, journal, erreurs, balise /tardis
 │  ├─ TardisDiagnostic.lua              ModuleScript : diagnostic au démarrage (une ligne dans l'Output)
 │  └─ TardisSauvegarde.lua              ModuleScript : sauvegarde versionnée (enveloppe, migration, réessais)
 ├─ StarterPlayer/StarterPlayerScripts/
@@ -97,7 +97,7 @@ Au lancement, l'Output (côté Server) doit afficher, pour chaque TARDIS actif :
 | T | Menu rapide |
 | Y | Tablette (technicien : tablette technicien) |
 | E | Portes, commandes de la console, ramassage |
-| `/tardis statut` · `journal` · `erreurs` | Commandes de chat du staff (lecture seule) ; `/tardis help` : balise de détresse |
+| `/tardis` · `/tardis help` | Balise de détresse (tout le monde) |
 | V / G / X | Porter : changer de mode / poser / téléportation de poche |
 
 En vol libre : ZQSD et caméra pour se diriger, F pour la vitesse, V pour le vortex, U pour l'urgence, X pour démat / remat, B pour le saut, Espace ×2 pour la chute, G pour se poser, et H, I, N, P, J, L, M, C, R, O, K pour les modes avancés. Toutes les touches sont modifiables dans les réglages de la tablette.

@@ -1,7 +1,7 @@
--- StarterPlayerScripts > TardisExtrasClient > Maintenance (ModuleScript) — V6.9.2, ajout C11
--- Bandeau « EN MAINTENANCE » en haut de l'écran, tant que le staff a bloqué ce TARDIS (/tardis maintenance on),
--- pour ceux que ça concerne : pilotes, techniciens, copilote de ce TARDIS, et joueurs à bord.
--- Le staff le voit aussi, avec un rappel que ses commandes restent actives. Le blocage lui-même est fait par le serveur.
+-- StarterPlayerScripts > TardisExtrasClient > Maintenance (ModuleScript) — V6.9.2, revu en V6.9.4
+-- Bandeau « EN MAINTENANCE » en haut de l'écran, tant qu'un pilote ou un technicien a mis ce TARDIS en maintenance
+-- (tablette), pour ceux que ça concerne : pilotes, techniciens, copilote de ce TARDIS, et joueurs à bord.
+-- Le blocage lui-même (plus de voyage ni de vol) est fait par le serveur.
 
 return function(contexte)
 	local C, Config, UI, creer, texte, animer = contexte.C, contexte.Config, contexte.UI, contexte.creer, contexte.texte, contexte.animer
@@ -30,7 +30,7 @@ return function(contexte)
 
 	local function concerne()
 		return joueur:GetAttribute("TardisPilote_" .. def.Nom) == true or joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true
-			or joueur:GetAttribute("TardisCopilote_" .. def.Nom) == true or joueur:GetAttribute("TardisStaff") == true or jeSuisDedans()
+			or joueur:GetAttribute("TardisCopilote_" .. def.Nom) == true or jeSuisDedans()
 	end
 	local function maj()
 		local raison = exterieur:GetAttribute("Maintenance")
@@ -38,7 +38,7 @@ return function(contexte)
 		if visible then
 			titre.Text = string.format("%s EN MAINTENANCE  ·  %s", def.Nom, tostring(raison))
 			local par = exterieur:GetAttribute("MaintenancePar")
-			detail.Text = (joueur:GetAttribute("TardisStaff") == true and "Tu es du staff : tes commandes restent actives." or "Commandes réservées au staff pour le moment.")
+			detail.Text = "Voyages et vol bloqués ; réparations, portes et boucliers restent possibles."
 				.. (par and ("  ·  par " .. tostring(par)) or "")
 		end
 		if visible and not gui.Enabled then
@@ -51,7 +51,7 @@ return function(contexte)
 		end
 	end
 	for _, attribut in { "Maintenance", "MaintenancePar" } do exterieur:GetAttributeChangedSignal(attribut):Connect(maj) end
-	for _, attribut in { "TardisPilote_" .. def.Nom, "TardisTechnicien_" .. def.Nom, "TardisCopilote_" .. def.Nom, "TardisStaff" } do
+	for _, attribut in { "TardisPilote_" .. def.Nom, "TardisTechnicien_" .. def.Nom, "TardisCopilote_" .. def.Nom } do
 		joueur:GetAttributeChangedSignal(attribut):Connect(maj)
 	end
 	-- Monter à bord ou sortir change aussi qui voit le bandeau

@@ -57,6 +57,7 @@ return function(contexte)
 	O.ingenierie = tuileOutil(fSecurite, "Ingénierie", "◆", 8) -- V6.7.2 : ouvre la tablette technicien
 	O.siege = tuileOutil(fSecurite, "Siège", "▲", 9) -- V6.9 : bouclier + verrou + alerte d'un seul geste
 	O.cle = tuileOutil(fSecurite, "Clé du TARDIS", "◆", 10) -- V6.9 : verrou à distance
+	O.maintenance = tuileOutil(fSecurite, "Maintenance", "▲", 11) -- V6.9.4 : immobilise le TARDIS (plus de voyage ni de vol)
 	O.theme = tuileOutil(fAmbiance, "Thème", "◆", 1)
 	O.jukebox = tuileOutil(fAmbiance, "Jukebox", "●", 2)
 	O.projecteur = tuileOutil(fAmbiance, "Projecteur", "▲", 3)
@@ -123,6 +124,9 @@ return function(contexte)
 		local siege = exterieur:GetAttribute("Siege") == true
 		majTuile(O.siege, siege, siege and "EN SIÈGE · lever" or "Bouclier · verrou · alerte", C.rouge, siege or (pose and alimente))
 		majTuile(O.cle, false, "Verrou à distance", Color3.fromRGB(214, 170, 60), (Config.Cle or {}).Pilotes ~= false)
+		local maintenance = exterieur:GetAttribute("Maintenance")
+		majTuile(O.maintenance, maintenance ~= nil, maintenance and ("EN COURS · " .. tostring(maintenance)) or "Immobiliser le TARDIS", C.orange,
+			maintenance ~= nil or pose)
 		majTuile(O.ingenierie, pannes > 0, pannes > 0 and (pannes .. " intervention(s)") or "Systèmes nominaux", C.orange, true)
 		majTuile(O.regenerations, nbRegen > 0, (nbRegen > 0 and (nbRegen .. " au journal") or "Aucune") .. (lien and " · lien actif" or ""), C.ambre, true)
 		majTuile(O.theme, exterieur:GetAttribute("Theme") ~= nil, exterieur:GetAttribute("Theme") or "Classique", C.ambre, alimente)
@@ -135,7 +139,7 @@ return function(contexte)
 	end
 	-- Mise à jour avec l'interface, et sur les attributs des outils
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function() if S.ouvert then majOutils(lireEtat()) end end)
-	for _, attribut in { "CopiloteNom", "Carnet", "Position", "Siege", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "StyleInterieur", "Jukebox", "Stabilisateur", "Roles", "BouclierEnergie",
+	for _, attribut in { "Maintenance", "CopiloteNom", "Carnet", "Position", "Siege", "MinuterieFin", "Intrusion", "Theme", "Projecteur", "Couleur", "StyleInterieur", "Jukebox", "Stabilisateur", "Roles", "BouclierEnergie",
 		"BouclierJoueurs", "BouclierBalles", "BouclierComplet", "AutoDestructionDebut", "Alimentation", "Porteur", "VolLibre", "DemarrageBloque" } do
 		exterieur:GetAttributeChangedSignal(attribut):Connect(function() if S.ouvert then majOutils(lireEtat()) end end)
 	end
@@ -570,6 +574,38 @@ return function(contexte)
 	O.regenerations.bouton.Activated:Connect(afficherRegenerations)
 	ReplicatedStorage:GetAttributeChangedSignal("TardisRegenerations"):Connect(function()
 		if V.actif == "regenerations" then afficherRegenerations() end
+	end)
+
+	--------------------------------------------------------------------
+	-- Maintenance (V6.9.4) : immobiliser le TARDIS (plus de voyage ni de vol) ou lever la maintenance
+	--------------------------------------------------------------------
+	local afficherMaintenance
+	afficherMaintenance = function()
+		local c = ouvrirSurcouche("maintenance", "MAINTENANCE")
+		local raisonActuelle = exterieur:GetAttribute("Maintenance")
+		local function rafraichir() task.delay(0.6, function() if V.actif == "maintenance" then afficherMaintenance() end end) end
+		ligneTexte(c, "En maintenance, le TARDIS ne peut plus voyager ni voler : démat, remat, vol libre, rappel, minuterie, téléportation, taille. "
+			.. "Les réparations, les portes, les boucliers et l'ambiance restent possibles. Les techniciens peuvent aussi la lever.", 1, C.texte2, 11)
+		if raisonActuelle then
+			ligneTexte(c, "▲ EN MAINTENANCE · " .. tostring(raisonActuelle) .. (exterieur:GetAttribute("MaintenancePar") and ("  ·  par " .. tostring(exterieur:GetAttribute("MaintenancePar"))) or ""),
+				2, C.orange, 13)
+			boutonSurcouche(c, "Lever la maintenance", 3, Color3.fromRGB(30, 100, 60), function()
+				remote:FireServer("Maintenance", { actif = false })
+				rafraichir()
+			end)
+			return
+		end
+		ligneTexte(c, "RAISON  ·  clique pour mettre le TARDIS en maintenance", 2, C.texte2, 11)
+		for i, raison in (Config.Maintenance or {}).Raisons or { "Réparations en cours" } do
+			boutonSurcouche(c, raison, 2 + i, Color3.fromRGB(120, 70, 20), function()
+				remote:FireServer("Maintenance", { actif = true, raison = i })
+				rafraichir()
+			end)
+		end
+	end
+	O.maintenance.bouton.Activated:Connect(function()
+		if O.maintenance.bouton:GetAttribute("Disponible") == false then return end
+		afficherMaintenance()
 	end)
 
 	--------------------------------------------------------------------

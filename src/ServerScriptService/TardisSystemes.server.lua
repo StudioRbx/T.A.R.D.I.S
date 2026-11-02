@@ -1218,11 +1218,37 @@ task.spawn(function()
 	end
 end)
 
+local derniereMaintenance = {}
+Players.PlayerRemoving:Connect(function(joueur) derniereMaintenance[joueur] = nil end)
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
-	-- Maintenance (V6.9.2) : commandes des techniciens et des pilotes bloquées, sauf pour le staff
-	local maintenance = (action == "Tech" or action == "Outil" or action == "LienTimeLord") and Config.bloqueParMaintenance(exterieur, joueur)
-	if maintenance then
-		remote:FireClient(joueur, "Impossible : TARDIS en maintenance (" .. maintenance .. ").", false)
+	if action == "Maintenance" then
+		-- Mode maintenance (V6.9.4) : un pilote ou un technicien de ce TARDIS l'active ou le lève
+		if not (estTechnicien(joueur) or estPilote(joueur)) or typeof(donnees) ~= "table" then return end
+		local maintenant = os.clock()
+		if derniereMaintenance[joueur] and maintenant - derniereMaintenance[joueur] < 2 then return end
+		derniereMaintenance[joueur] = maintenant
+		local activer = donnees.actif == true
+		if activer == (exterieur:GetAttribute("Maintenance") ~= nil) then return end
+		if activer then
+			if (exterieur:GetAttribute("Etat") or E.Pose) ~= E.Pose or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then
+				dire(joueur, "Impossible : le TARDIS doit être posé pour passer en maintenance.", false)
+				return
+			end
+			local raisons = (Config.Maintenance or {}).Raisons or { "Réparations en cours" }
+			local raison = raisons[tonumber(donnees.raison) or 1] or raisons[1]
+			exterieur:SetAttribute("Maintenance", raison)
+			exterieur:SetAttribute("MaintenancePar", joueur.DisplayName)
+			dire(joueur, "TARDIS en maintenance (" .. raison .. ") : plus de voyage ni de vol jusqu'à la levée.", true)
+		else
+			exterieur:SetAttribute("Maintenance", nil)
+			exterieur:SetAttribute("MaintenancePar", nil)
+			dire(joueur, "Maintenance levée : le TARDIS peut de nouveau voyager.", true)
+		end
+		local bus = ServerStorage:FindFirstChild("TardisEvenements")
+		if bus then
+			bus:Fire("Journal", { categorie = "Maintenance", tardis = def.Nom, message = string.format("%s : maintenance %s par %s%s.", def.Nom,
+				activer and "commencée" or "levée", joueur.Name, activer and (" (" .. tostring(exterieur:GetAttribute("Maintenance")) .. ")") or "") })
+		end
 		return
 	end
 	if action == "Tech" then

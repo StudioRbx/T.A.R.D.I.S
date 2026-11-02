@@ -31,7 +31,7 @@
 ### Intégration au jeu ZONE-TSADE
 17. **Permissions par rang Adonis ou WL** : le jeu utilise déjà Adonis et `WLConfig`, alors que la liste des UserIds est écrite en dur.
 18. **Journaux du TARDIS envoyés dans `RoSysLog`** (déjà présent dans ServerStorage) : décollages, auto-destruction, bannissements.
-19. **Commande staff `/tardis statut`** : état, position, pilotes en ligne et dernière erreur.
+19. ✅ *(V6.8, retirée en V6.9.4)* **Commande staff `/tardis statut`** : état, position, pilotes en ligne et dernière erreur.
 20. **Détection par la Fondation** : une alerte sécurité quand un TARDIS se matérialise dans le site (idée de la V3.11 jamais réalisée).
 
 ### Contenu et RP
@@ -106,6 +106,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.9.1** | Ajouts C2 (copilote : poste de navigation pour un joueur à bord) et C7 (carnet de bord RP) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.2** | Ajouts C11 (mode maintenance) et C12 (recette automatique) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.3** | Modifications 12 (compte à rebours) et 14 (statistiques par mode) · ajouts C15 (traînée du Rapide), C16 (enseigne), C17 (annonce de bord), C18 (ambiance par thème) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.4** | Retrait des commandes du staff (`/tardis statut`, `journal`, `erreurs`, `maintenance`, `recette`) et du rôle staff ; mode maintenance déplacé dans la tablette (pilotes et techniciens) | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
@@ -129,8 +130,8 @@ Décisions prises avec toi : intercom par **module pont** dans `OSFondation › 
 10. **Panne de courant de l'OS → TARDIS** : le blackout du site met hors tension un TARDIS posé dans le site.
 
 ### Staff et technique
-11. ✅ *(V6.9.2)* **Mode maintenance** : le TARDIS est bloqué pour tous sauf le staff pendant une mise à jour.
-12. ✅ *(V6.9.2)* **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
+11. ✅ *(V6.9.2, revu en V6.9.4)* **Mode maintenance** : le TARDIS est immobilisé (plus de voyage ni de vol) ; activé et levé dans la tablette, par les pilotes et les techniciens.
+12. ✖ *(V6.9.2, retirée en V6.9.4 avec les commandes du staff)* **Recette automatique** : une commande staff qui lance les tests de voyage (comme ceux faits ici) et affiche les chronos.
 13. **Remontée d'erreurs client** : les erreurs des scripts joueurs sont comptées et visibles dans le diagnostic du serveur.
 
 ### Visuel et son

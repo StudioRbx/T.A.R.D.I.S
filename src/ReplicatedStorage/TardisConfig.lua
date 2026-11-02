@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.3"
+Config.Version = "6.9.4"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -455,16 +455,14 @@ Config.Sons = {
 }
 
 -- Accès venant du jeu (V6.8) : en plus des listes de UserIds (Config.Pilotes, Config.Techniciens), un joueur peut être
--- pilote, technicien ou staff selon son niveau Adonis ou une liste blanche (WL) du jeu. Vérifié par le serveur.
+-- pilote ou technicien selon son niveau Adonis ou une liste blanche (WL) du jeu. Vérifié par le serveur.
 --   Adonis : il faut G_API = true dans les réglages d'Adonis. Niveaux usuels : 0 joueur, 100 modérateur, 200 admin,
 --            300 head admin, 900 créateur. 0 = ce rôle n'est jamais donné par Adonis.
 --   WL     : Module = chemin d'un ModuleScript du jeu (ex. "ServerScriptService.WLConfig") ; Pilotes / Techniciens = nom
 --            de la liste dans ce module (une liste de UserIds ou de pseudos, ou une fonction(joueur) qui renvoie vrai).
---   Staff  : peut utiliser les commandes de chat /tardis statut, journal, erreurs (lecture seule, aucun pilotage).
 Config.Acces = {
-	Adonis = { NiveauPilote = 0, NiveauTechnicien = 0, NiveauStaff = 100 },
+	Adonis = { NiveauPilote = 0, NiveauTechnicien = 0 },
 	WL = { Module = nil, Pilotes = nil, Techniciens = nil },
-	Staff = { UserIds = {} }, -- les pilotes de Config.Pilotes et le propriétaire du jeu sont toujours staff
 	Verification = 60,        -- secondes entre deux vérifications (un rang peut changer en cours de partie)
 }
 
@@ -484,7 +482,7 @@ Config.BoutonsTactiles = true
 -- Supervision (V6.8) : les erreurs des scripts du TARDIS chez les joueurs remontent au serveur (/tardis erreurs, journal)
 Config.Supervision = {
 	ErreursClients = true,
-	CommandeChat = "/tardis", -- /tardis statut · /tardis journal · /tardis erreurs · /tardis commandes ; /tardis help = balise de détresse
+	CommandeChat = "/tardis", -- /tardis (ou /tardis help) = balise de détresse ; les commandes du staff ont été retirées en V6.9.4
 }
 
 -- Retrouve un objet par son chemin "Service.Dossier.Objet" (nil s'il n'existe pas)
@@ -519,16 +517,15 @@ Config.Siege = { Bouclier = "Complet", Verrou = true, Alerte = true }
 -- aucun autre droit. Il perd son poste dès qu'il quitte le TARDIS.
 Config.Copilote = { Actif = true }
 
--- Mode maintenance (V6.9.2, ajout C11) : « /tardis maintenance on [TARDIS_x] [raison] » bloque le TARDIS pour tous
--- sauf le staff (Config.Acces.Staff) ; « /tardis maintenance off » le rend. AuDemarrage : le serveur démarre en maintenance.
-Config.Maintenance = { AuDemarrage = false, Raison = "Mise à jour en cours" }
-
--- Recette automatique (V6.9.2, ajout C12) : « /tardis recette [TARDIS_x] [complete] » fait des allers-retours sur place
--- dans chaque mode et compare les chronos aux durées de Config.Modes (écart toléré : Tolerance secondes, ou 5 %).
-Config.Recette = {
-	Rapide = { "Normal", "Express" },
-	Complete = { "Normal", "Urgence", "Express", "Sauvetage", "Silencieux" },
-	Tolerance = 0.6,
+-- Mode maintenance (V6.9.2, revu en V6.9.4) : un pilote (tablette › Outils › Maintenance) ou un technicien (tablette
+-- technicien › Commandes) immobilise le TARDIS posé : plus de voyage ni de vol tant qu'il n'est pas levé. Les réparations,
+-- les portes, les boucliers et l'ambiance restent permis. AuDemarrage : le serveur démarre avec le TARDIS en maintenance.
+Config.Maintenance = {
+	AuDemarrage = false,
+	Raisons = { "Réparations en cours", "Révision des systèmes", "Mise à jour", "Inspection de la Fondation" },
+	-- Actions refusées pendant la maintenance (voyages, vol, déplacements de la cabine)
+	Bloquees = { Demat = true, Remat = true, DematPorte = true, Repositionner = true, VolLibreDebut = true, NavAtterrir = true, Taille = true,
+		Rappel = true, Minuterie = true, BaliseAller = true, Leurre = true, AutoDestruction = true, Ramasser = true },
 }
 
 -- Annonce de bord (V6.9.3, ajout C17 et modification 12) : « Départ dans 3… 2… 1… » pendant le son de départ, et
@@ -822,11 +819,11 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 	return math.clamp(alpha, 0, 1)
 end
 
--- Maintenance (V6.9.2) : la raison si ce joueur est bloqué (le staff ne l'est jamais), sinon nil
-function Config.bloqueParMaintenance(exterieur, joueur)
+-- Maintenance (V6.9.4) : la raison si cette action est refusée parce que le TARDIS est en maintenance, sinon nil
+function Config.bloqueParMaintenance(exterieur, action)
 	local raison = exterieur and exterieur:GetAttribute("Maintenance")
 	if raison == nil or raison == false then return nil end
-	if joueur and joueur:GetAttribute("TardisStaff") == true then return nil end
+	if not ((Config.Maintenance or {}).Bloquees or {})[action] then return nil end
 	return type(raison) == "string" and raison or "maintenance"
 end
 

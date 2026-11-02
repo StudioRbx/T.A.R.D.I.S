@@ -84,6 +84,7 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | **V6.9.1** | 02/11 | **Copilote** (un pilote nomme un joueur à bord, qui a son propre poste : protocole, destination, démat / remat, camouflage, atterrissage du vol libre) et **carnet de bord RP** (notes par lieu, filtrées par Roblox, sauvegardées). |
 | **V6.9.2** | 02/11 | **Mode maintenance** (`/tardis maintenance on|off` : TARDIS bloqué pour tous sauf le staff, bandeau à l'écran) et **recette automatique** (`/tardis recette` : allers-retours chronométrés dans chaque mode, rapport au staff). |
 | **V6.9.3** | 02/11 | **Annonce de bord** (« Départ dans 3… 2… 1… », « Matérialisation dans 3… 2… 1… »), **traînée au sol** après un Rapide, **enseigne POLICE BOX** qui clignote selon le mode, **ambiance sonore par thème**, **statistiques par mode** et temps gagné. |
+| **V6.9.4** | 02/11 | **Commandes du staff retirées** (`/tardis statut`, `journal`, `erreurs`, `maintenance`, `recette`) ainsi que le rôle staff et la recette automatique ; **mode maintenance dans la tablette** : les pilotes (Outils › Maintenance) et les techniciens (Commandes › Maintenance) immobilisent le TARDIS. `/tardis help` reste la balise de détresse. |
 | *V7* | *à venir* | *Refonte presque totale de l'organisation des fichiers* ([feuille de route](docs/FEUILLE_DE_ROUTE.md)) |
 | *V8* | *à venir* | *Les 3 TARDIS officialisés, un TARDIS attribué à chaque pilote* |
 | *V9* | *à venir* | *Plus de menu : boutons et écrans sur la console (V9.1 → V9.4 : TARDIS_1 ; V9.5 → V9.12 : ne seront pas faites)* |
