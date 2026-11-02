@@ -205,6 +205,21 @@ return function(contexte)
 				st.voyages or 0, UI.formatTemps(st.tempsVol or 0), exterieur:GetAttribute("StatsServeur") or 0), ordre, C.texte, 12)
 			ordre += 1
 			ligne("Ont voyagé avec moi : " .. (#passagers > 0 and table.concat(passagers, ", ") or "personne pour l'instant"), ordre, C.texte2, 12)
+			-- Par mode (V6.9.3) : mes voyages et ceux du serveur, et le temps gagné sur des voyages Classiques
+			local function parMode(liste)
+				local morceaux = {}
+				for _, mode in { "Normal", "Urgence", "Express", "Sauvetage", "Silencieux", "Catastrophe" } do
+					local n = type(liste) == "table" and tonumber(liste[mode]) or 0
+					if n and n > 0 then table.insert(morceaux, Config.libelleMode(mode) .. " " .. n) end
+				end
+				return #morceaux > 0 and table.concat(morceaux, " · ") or "aucun"
+			end
+			local okS, serveur = pcall(function() return game:GetService("HttpService"):JSONDecode(exterieur:GetAttribute("StatsModes") or "{}") end)
+			serveur = okS and type(serveur) == "table" and serveur or {}
+			ordre += 1
+			ligne(string.format("Mes voyages par mode : %s   ·   temps gagné : %s", parMode(st.parMode), UI.formatTemps(st.tempsGagne or 0)), ordre, C.texte, 12)
+			ordre += 1
+			ligne(string.format("Serveur par mode : %s   ·   temps gagné : %s", parMode(serveur.parMode), UI.formatTemps(serveur.tempsGagne or 0)), ordre, C.texte2, 12)
 			ordre += 1
 			ligne("THÈME DE L'INTERFACE", ordre, C.texte2, 11)
 			-- (le volet est déjà visible)

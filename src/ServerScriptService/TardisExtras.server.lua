@@ -732,6 +732,18 @@ local function publierStats(joueur)
 	local st = stats[joueur.UserId]
 	if st then joueur:SetAttribute("TardisStats", HttpService:JSONEncode(st)) end
 	exterieur:SetAttribute("StatsServeur", statsServeur.voyages or 0)
+	exterieur:SetAttribute("StatsModes", HttpService:JSONEncode({ parMode = statsServeur.parMode or {}, tempsGagne = statsServeur.tempsGagne or 0 }))
+end
+-- Statistiques par mode (V6.9.3, modification 14) : secondes gagnées par rapport à un voyage Classique (jamais négatif)
+local function dureeVoyage(mode)
+	local d, dd = Config.Timing(E.Demat, mode)
+	local r, rr = Config.Timing(E.Remat, mode)
+	return d + dd + r + rr
+end
+local function compterMode(table_, mode)
+	table_.parMode = type(table_.parMode) == "table" and table_.parMode or {}
+	table_.parMode[mode] = (table_.parMode[mode] or 0) + 1
+	table_.tempsGagne = (table_.tempsGagne or 0) + math.max(0, dureeVoyage("Normal") - dureeVoyage(mode))
 end
 local function chargerStats(joueur)
 	local st = charger("stats_" .. joueur.UserId)
@@ -762,20 +774,26 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 -- Un voyage compte quand le TARDIS se pose après une matérialisation
 local etatPrecedent = exterieur:GetAttribute("Etat")
+local modeDuVoyage = "Normal"
 exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	local etat = exterieur:GetAttribute("Etat")
-	if etat == E.Pose and etatPrecedent == E.Remat then
+	if etat == E.Remat then modeDuVoyage = Config.modeDe(exterieur) end
+	-- (la recette automatique du staff, V6.9.2, ne compte pas)
+	if etat == E.Pose and etatPrecedent == E.Remat and not exterieur:GetAttribute("Recette") then
 		statsServeur.voyages = (statsServeur.voyages or 0) + 1
+		compterMode(statsServeur, modeDuVoyage)
 		local pilote = dernierPilote and Players:GetPlayerByUserId(dernierPilote)
 		local st = pilote and stats[pilote.UserId]
 		if st then
 			st.voyages = (st.voyages or 0) + 1
+			compterMode(st, modeDuVoyage)
 			for autre in dedans do
 				if autre ~= pilote then st.passagers[autre.DisplayName] = true end
 			end
 			publierStats(pilote)
 		end
 		exterieur:SetAttribute("StatsServeur", statsServeur.voyages)
+		exterieur:SetAttribute("StatsModes", HttpService:JSONEncode({ parMode = statsServeur.parMode or {}, tempsGagne = statsServeur.tempsGagne or 0 }))
 		statsModifiees = true
 	end
 	etatPrecedent = etat

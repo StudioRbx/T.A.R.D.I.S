@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.2"
+Config.Version = "6.9.3"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -529,6 +529,26 @@ Config.Recette = {
 	Rapide = { "Normal", "Express" },
 	Complete = { "Normal", "Urgence", "Express", "Sauvetage", "Silencieux" },
 	Tolerance = 0.6,
+}
+
+-- Annonce de bord (V6.9.3, ajout C17 et modification 12) : « Départ dans 3… 2… 1… » pendant le son de départ, et
+-- « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, à l'écran des joueurs à bord (bips sauf en Silencieux).
+Config.AnnonceBord = { Actif = true, Bip = true, Secondes = 3 }
+
+-- Signalisation (V6.9.3) : traînée lumineuse au sol après un Rapide (ajout C15), enseigne « POLICE BOX » qui clignote
+-- selon le mode pendant la démat et la remat (ajout C16).
+Config.Signalisation = { Trainee = true, Enseigne = true }
+
+-- Ambiance sonore par thème d'intérieur (V6.9.3, ajout C18) : Vitesse = hauteur du bourdonnement du moteur (1 = normale) ;
+-- Son = boucle d'ambiance du thème (id d'un son Roblox, 0 ou nil = aucune), jouée à bord seulement ; Volume de la boucle.
+-- L'alerte générale impose l'ambiance « Alerte ».
+Config.AmbianceThemes = {
+	Classique = { Vitesse = 1, Son = 0, Volume = 0.3 },
+	Nuit = { Vitesse = 0.86, Son = 0, Volume = 0.3 },
+	Alerte = { Vitesse = 1.15, Son = 0, Volume = 0.35 },
+	Flashbang = { Vitesse = 1.3, Son = 0, Volume = 0.3 },
+	Festive = { Vitesse = 1.06, Son = 0, Volume = 0.3 },
+	Ambre = { Vitesse = 0.94, Son = 0, Volume = 0.3 },
 }
 
 -- Carnet de bord RP (V6.9.1, ajout C7) : notes des pilotes et du copilote par lieu, filtrées par Roblox et sauvegardées.

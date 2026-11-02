@@ -138,6 +138,11 @@ require(script:WaitForChild("Intercom"))({ C = C, Config = Config, ReplicatedSto
 require(script:WaitForChild("Copilote"))({ C = C, Config = Config, E = E, Players = Players, UI = UI, animer = animer, creer = creer, def = def, exterieur = exterieur, joueur = joueur, remote = remote, texte = texte })
 
 --------------------------------------------------------------------
+-- Annonce de bord, traînée du Rapide, enseigne, ambiance par thème (V6.9.3) : module Signalisation
+--------------------------------------------------------------------
+require(script:WaitForChild("Signalisation"))({ C = C, Config = Config, E = E, RunService = RunService, UI = UI, animer = animer, creer = creer, def = def, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, partTemporaire = partTemporaire, texte = texte })
+
+--------------------------------------------------------------------
 -- Bandeau « en maintenance » (V6.9.2) : module Maintenance
 --------------------------------------------------------------------
 require(script:WaitForChild("Maintenance"))({ C = C, Config = Config, UI = UI, animer = animer, creer = creer, def = def, exterieur = exterieur, jeSuisDedans = jeSuisDedans, joueur = joueur, texte = texte })

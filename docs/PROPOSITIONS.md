@@ -22,9 +22,9 @@
 
 ### Pilotage et interface
 11. **Interrupteurs synchronisés** : Urgence, Express et Invisible ont le même état dans le menu (T) et la tablette (Y). Ils sont indépendants aujourd'hui.
-12. **Compte à rebours dans la salle** avant un départ (« Départ dans 3… 2… 1… »), surtout utile en Express.
+12. ✅ *(V6.9.3)* **Compte à rebours dans la salle** avant un départ (« Départ dans 3… 2… 1… »), surtout utile en Express.
 13. **Historique marqué par mode** : une icône Urgence ou Express à côté de chaque voyage.
-14. **Statistiques par mode** : voyages normaux, d'urgence et express, et temps gagné.
+14. ✅ *(V6.9.3)* **Statistiques par mode** : voyages normaux, d'urgence et express, et temps gagné.
 15. **Tablette technicien** (prévue depuis la V6.0) : toutes les infos, aucune commande de vol, et les commandes RP.
 16. **Option « réduire les effets »** pour les joueurs sensibles : saccades d'urgence, flash, thème Flashbang.
 
@@ -105,6 +105,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.9** | Ajouts C1 (protocole Silencieux) et C6 (mode Siège), modifications 23 (crise post-régénération) et 24 (clé du TARDIS) ; sélecteur de mode dans la tablette | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.1** | Ajouts C2 (copilote : poste de navigation pour un joueur à bord) et C7 (carnet de bord RP) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.2** | Ajouts C11 (mode maintenance) et C12 (recette automatique) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.3** | Modifications 12 (compte à rebours) et 14 (statistiques par mode) · ajouts C15 (traînée du Rapide), C16 (enseigne), C17 (annonce de bord), C18 (ambiance par thème) | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
@@ -134,7 +135,7 @@ Décisions prises avec toi : intercom par **module pont** dans `OSFondation › 
 
 ### Visuel et son
 14. ✅ *(V6.6.2)* **Rotor coloré selon le mode** : vert en Express, orange en urgence, bleu en normal.
-15. **Traînée au sol après un Express** : des lignes lumineuses qui s'effacent en quelques secondes.
-16. **Enseigne « POLICE BOX » qui clignote** différemment selon le mode.
-17. **Annonce de bord** : « Matérialisation dans 3… 2… 1… » sur l'écran de la console et en son (option).
-18. **Ambiance sonore par thème** d'intérieur (Classique, Nuit, Alerte…).
+15. ✅ *(V6.9.3)* **Traînée au sol après un Express** : des lignes lumineuses qui s'effacent en quelques secondes.
+16. ✅ *(V6.9.3)* **Enseigne « POLICE BOX » qui clignote** différemment selon le mode.
+17. ✅ *(V6.9.3)* **Annonce de bord** : « Matérialisation dans 3… 2… 1… » sur l'écran de la console et en son (option).
+18. ✅ *(V6.9.3)* **Ambiance sonore par thème** d'intérieur (Classique, Nuit, Alerte…).
