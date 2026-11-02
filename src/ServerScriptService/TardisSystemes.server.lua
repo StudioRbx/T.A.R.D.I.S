@@ -517,15 +517,15 @@ exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
 	direAuxPilotes("Paradoxe : la cabine a encaissé le choc (intégrité " .. tostring(exterieur:GetAttribute("PointsDeVie") or "?") .. " %).", false)
 end)
 
--- Spawn de l'équipe dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis) : un SpawnLocation réservé à l'équipe,
--- sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
-if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis[1].Nom then
-	task.spawn(function()
-		local Teams = game:GetService("Teams")
-		local nom = Config.nomEquipe()
+-- Spawns dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis ; V6.9.5 : aussi la C.T.A.T.) : un SpawnLocation
+-- réservé à chaque équipe, sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
+-- La C.T.A.T. (Config.EquipeTechnique) est créée dans Teams si elle n'existe pas ; elle ne se régénère pas.
+if def.Nom == Config.Tardis[1].Nom then
+	local Teams = game:GetService("Teams")
+	local function placerSpawn(nom, decalage)
 		local equipe = Teams:FindFirstChild(nom) or Teams:WaitForChild(nom, 30)
 		if not equipe then
-			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams (Config.Equipe.Nom).")
+			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams.")
 			return
 		end
 		local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
@@ -539,9 +539,9 @@ if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis
 			cf = interieur:GetPivot()
 		end
 		local spawn = Instance.new("SpawnLocation")
-		spawn.Name = "TardisSpawn_" .. def.Nom
+		spawn.Name = "TardisSpawn_" .. def.Nom .. "_" .. nom
 		spawn.Size = Vector3.new(6, 1, 6)
-		spawn.CFrame = cf
+		spawn.CFrame = cf * CFrame.new(decalage, 0, 0)
 		spawn.Anchored, spawn.CanCollide, spawn.CanQuery, spawn.CanTouch = true, false, false, false
 		spawn.Transparency = 1
 		spawn.Neutral = false
@@ -550,7 +550,25 @@ if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis
 		spawn.Duration = 0
 		spawn.Parent = interieur
 		print("[TARDIS] " .. def.Nom .. " : spawn de l'équipe « " .. nom .. " » placé dans l'intérieur.")
-	end)
+	end
+	if (Config.Equipe or {}).SpawnDansLeTardis ~= false then
+		task.spawn(placerSpawn, Config.nomEquipe(), 0)
+	end
+	local technique = Config.EquipeTechnique
+	if technique then
+		local nom = technique.Nom or "C.T.A.T."
+		if technique.Creer ~= false and not Teams:FindFirstChild(nom) then
+			local equipe = Instance.new("Team")
+			equipe.Name = nom
+			equipe.TeamColor = technique.Couleur or BrickColor.new("Deep orange")
+			equipe.AutoAssignable = false
+			equipe.Parent = Teams
+			print("[TARDIS] Équipe « " .. nom .. " » (Cellule Technique d'Autorité Temporelle) créée.")
+		end
+		if technique.SpawnDansLeTardis ~= false then
+			task.spawn(placerSpawn, nom, 7) -- 7 studs à côté de celui de la C.A.T.
+		end
+	end
 end
 -- Main qui repousse : après une régénération, un membre perdu repousse pendant quelques minutes (R6)
 local MEMBRES = { ["Right Arm"] = "Right Shoulder", ["Left Arm"] = "Left Shoulder", ["Right Leg"] = "Right Hip", ["Left Leg"] = "Left Hip" }
@@ -843,7 +861,6 @@ Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = ni
 --------------------------------------------------------------------
 local OUTILS = {
 	Chiffon = { nom = "Chiffon", couleur = Color3.fromRGB(230, 225, 210), taille = Vector3.new(1, 0.3, 1) },
-	Cle = { nom = "Clé du TARDIS", couleur = Color3.fromRGB(214, 170, 60), taille = Vector3.new(0.3, 1.1, 0.12), garder = true }, -- V6.9
 	Visseuse = { nom = "Visseuse / Dévisseuse", couleur = Color3.fromRGB(240, 170, 40), taille = Vector3.new(0.5, 0.5, 1.6) },
 	CleMolette = { nom = "Clé à molette", couleur = Color3.fromRGB(160, 165, 175), taille = Vector3.new(0.4, 1.8, 0.3) },
 	Extincteur = { nom = "Extincteur", couleur = Color3.fromRGB(200, 30, 30), taille = Vector3.new(0.7, 1.6, 0.7) },
@@ -869,21 +886,7 @@ local function donnerOutil(joueur, cle)
 	outil.Activated:Connect(function()
 		local racine = racineDe(joueur)
 		if not racine then return end
-		if cle == "Cle" then
-			-- Clé du TARDIS (V6.9) : verrouille ou déverrouille les portes à distance
-			local portee = (Config.Cle or {}).Portee or 80
-			local aBord = interne("dansInterieur", racine.Position)
-			if not aBord and (racine.Position - exterieur:GetPivot().Position).Magnitude > portee then
-				dire(joueur, string.format("Trop loin : la clé porte à %d studs.", portee), false)
-				return
-			end
-			local ok, erreur = interne("basculerVerrou")
-			if not ok then dire(joueur, "Impossible : " .. string.lower(erreur or "erreur"), false) return end
-			local verrouille = exterieur:GetAttribute("PortesVerrouillees") == true
-			exterieur:SetAttribute("CleSignal", workspace:GetServerTimeNow()) -- la lampe clignote chez tous
-			dire(joueur, verrouille and "Portes verrouillées." or "Portes déverrouillées.", true)
-			return
-		elseif cle == "Chiffon" then
+		if cle == "Chiffon" then
 			if (racine.Position - exterieur:GetPivot().Position).Magnitude > 10 then dire(joueur, "Approche-toi de la cabine pour la nettoyer.", false) return end
 			local salete = math.max((exterieur:GetAttribute("Salete") or 0) - 15, 0)
 			exterieur:SetAttribute("Salete", salete)
@@ -1278,9 +1281,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		return
 	end
 	if action == "Outil" then
-		local cleDemandee = typeof(donnees) == "table" and donnees.outil
-		-- La clé du TARDIS peut aussi être prise par un pilote (Config.Cle.Pilotes)
-		if not (estTechnicien(joueur) or (cleDemandee == "Cle" and (Config.Cle or {}).Pilotes ~= false and estPilote(joueur))) then return end
+		if not estTechnicien(joueur) then return end
 		local mon = Config.tardisDuJoueur(joueur)
 		if mon and mon.Nom ~= def.Nom then return end -- les outils viennent de l'exemplaire de son TARDIS principal
 		local cle = typeof(donnees) == "table" and donnees.outil
@@ -1307,7 +1308,7 @@ task.spawn(function()
 			if estTechnicien(joueur) then
 				local racine = racineDe(joueur)
 				if racine and not interne("dansInterieur", racine.Position) and (racine.Position - exterieur:GetPivot().Position).Magnitude > 20 then
-					retirerOutils(joueur, true) -- la clé du TARDIS reste : elle sert dehors
+					retirerOutils(joueur)
 				end
 			end
 		end

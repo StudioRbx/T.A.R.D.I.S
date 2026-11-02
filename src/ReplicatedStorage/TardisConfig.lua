@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.4"
+Config.Version = "6.9.5"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -132,6 +132,16 @@ Config.LevierEnExpress = false -- true : le levier de la console fait des voyage
 Config.Equipe = {
 	Nom = "C.A.T.", -- nom exact de la Team dans Studio › Teams (Cellule d'Autorité Temporelle)
 	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
+}
+
+-- L'équipe C.T.A.T. — Cellule Technique d'Autorité Temporelle (ajoutée le 02/11, V6.9.5) : l'équipe officielle des
+-- techniciens. Ses joueurs NE se régénèrent PAS (la régénération reste réservée à la C.A.T.).
+Config.EquipeTechnique = {
+	Nom = "C.T.A.T.",                        -- nom exact de la Team (Studio › Teams)
+	Couleur = BrickColor.new("Deep orange"), -- couleur de la Team si le script la crée (doit être différente de celle de la C.A.T.)
+	Creer = true,                            -- crée la Team dans Teams si elle n'existe pas encore
+	DonneLeRoleTechnicien = true,            -- ses joueurs sont techniciens du TARDIS (tablette technicien, outils, maintenance)
+	SpawnDansLeTardis = true,                -- ses joueurs apparaissent dans le TARDIS, à côté du spawn de la C.A.T.
 }
 
 -- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
@@ -501,12 +511,7 @@ function Config.trouverChemin(chemin)
 	return objet
 end
 
--- Clé du TARDIS (V6.9, modification 24) : outil des techniciens (et des pilotes) qui verrouille ou déverrouille
--- les portes à distance, comme une clé de voiture. La lampe clignote deux fois.
-Config.Cle = {
-	Portee = 80,            -- distance maximale à la cabine (studs) ; à bord, elle marche toujours
-	Pilotes = true,         -- les pilotes peuvent aussi la prendre (menu Systèmes)
-}
+-- (Clé du TARDIS, V6.9 : retirée en V6.9.5, elle sera remplacée plus tard.)
 
 -- Mode Siège (V6.9, ajout C6) : un seul bouton lève le bouclier complet, verrouille les portes et déclenche l'alerte.
 -- Un second appui lève le siège. Il prend fin tout seul si le TARDIS décolle.
@@ -528,8 +533,8 @@ Config.Maintenance = {
 		Rappel = true, Minuterie = true, BaliseAller = true, Leurre = true, AutoDestruction = true, Ramasser = true },
 }
 
--- Annonce de bord (V6.9.3, ajout C17 et modification 12) : « Départ dans 3… 2… 1… » pendant le son de départ, et
--- « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, à l'écran des joueurs à bord (bips sauf en Silencieux).
+-- Annonce de bord (V6.9.3, ajout C17) : « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, à l'écran des joueurs
+-- à bord (bips sauf en Silencieux). Le « Départ dans 3… 2… 1… » a été retiré en V6.9.5.
 Config.AnnonceBord = { Actif = true, Bip = true, Secondes = 3 }
 
 -- Signalisation (V6.9.3) : traînée lumineuse au sol après un Rapide (ajout C15), enseigne « POLICE BOX » qui clignote
@@ -615,9 +620,6 @@ Config.Regeneration = {
 	DelaiChoix = 3,          -- ...pendant ce temps (secondes)
 	DegatsTardis = 400,      -- une régénération à bord abîme le TARDIS (intégrité), avec étincelles et alarme
 	RepousseDuree = 300,     -- après une régénération, un membre perdu repousse pendant ce temps (secondes)
-	-- Crise post-régénération (V6.9, modification 23) : vision trouble et démarche titubante pour celui qui vient de
-	-- se régénérer. 0 = aucune crise.
-	CriseDuree = 60,
 	-- Le lien Time Lord (les membres de la C.A.T. ressentent les régénérations des autres) s'active dans la tablette : outil Régénérations
 }
 

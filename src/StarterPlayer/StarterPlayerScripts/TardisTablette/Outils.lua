@@ -56,8 +56,7 @@ return function(contexte)
 	O.regenerations = tuileOutil(fSecurite, "Régénérations", "◆", 7)
 	O.ingenierie = tuileOutil(fSecurite, "Ingénierie", "◆", 8) -- V6.7.2 : ouvre la tablette technicien
 	O.siege = tuileOutil(fSecurite, "Siège", "▲", 9) -- V6.9 : bouclier + verrou + alerte d'un seul geste
-	O.cle = tuileOutil(fSecurite, "Clé du TARDIS", "◆", 10) -- V6.9 : verrou à distance
-	O.maintenance = tuileOutil(fSecurite, "Maintenance", "▲", 11) -- V6.9.4 : immobilise le TARDIS (plus de voyage ni de vol)
+	O.maintenance = tuileOutil(fSecurite, "Maintenance", "▲", 10) -- V6.9.4 : immobilise le TARDIS (plus de voyage ni de vol)
 	O.theme = tuileOutil(fAmbiance, "Thème", "◆", 1)
 	O.jukebox = tuileOutil(fAmbiance, "Jukebox", "●", 2)
 	O.projecteur = tuileOutil(fAmbiance, "Projecteur", "▲", 3)
@@ -123,7 +122,6 @@ return function(contexte)
 		if (exterieur:GetAttribute("RegulAir") or 100) < ((Config.Technicien or {}).SeuilAirVicie or 25) then pannes += 1 end
 		local siege = exterieur:GetAttribute("Siege") == true
 		majTuile(O.siege, siege, siege and "EN SIÈGE · lever" or "Bouclier · verrou · alerte", C.rouge, siege or (pose and alimente))
-		majTuile(O.cle, false, "Verrou à distance", Color3.fromRGB(214, 170, 60), (Config.Cle or {}).Pilotes ~= false)
 		local maintenance = exterieur:GetAttribute("Maintenance")
 		majTuile(O.maintenance, maintenance ~= nil, maintenance and ("EN COURS · " .. tostring(maintenance)) or "Immobiliser le TARDIS", C.orange,
 			maintenance ~= nil or pose)
@@ -473,11 +471,6 @@ return function(contexte)
 		if O.siege.bouton:GetAttribute("Disponible") == false then return end
 		if exterieur:GetAttribute("Siege") then remote:FireServer("Siege") return end
 		UI.confirmer(O.siege.etat, function() remote:FireServer("Siege") end)
-	end)
-	O.cle.bouton.Activated:Connect(function()
-		if O.cle.bouton:GetAttribute("Disponible") == false then return end
-		remote:FireServer("Outil", { outil = "Cle" })
-		notifier("Clé du TARDIS dans ton inventaire : clique avec, à moins de " .. tostring((Config.Cle or {}).Portee or 80) .. " studs.", true)
 	end)
 	O.ingenierie.bouton.Activated:Connect(function()
 		fermer()

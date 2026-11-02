@@ -20,49 +20,6 @@ return function(contexte)
 		local FUMEE = "rbxasset://textures/particles/smoke_main.dds"
 		local ETINCELLE = "rbxasset://textures/particles/sparkles_main.dds"
 
-		-- Crise post-régénération (V6.9, modification 23) : celui qui vient de se régénérer voit trouble, la caméra tangue,
-		-- et sa démarche titube quand il marche ; tout s'apaise peu à peu (Config.Regeneration.CriseDuree)
-		local criseEnCours = nil
-		local function crisePostRegeneration(dureeCrise)
-			if criseEnCours then criseEnCours.fin = os.clock() + dureeCrise return end
-			local reduit = UI.effetsReduits()
-			local flou = creer("BlurEffect", { Name = "TardisCriseFlou", Size = 0, Parent = Lighting })
-			local teinte = creer("ColorCorrectionEffect", { Name = "TardisCriseTeinte", Parent = Lighting })
-			local crise = { debut = os.clock(), fin = os.clock() + dureeCrise }
-			criseEnCours = crise
-			pcall(function()
-				game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Après la régénération",
-					Text = "Ta vision se trouble et tes jambes flanchent : le nouveau corps doit s'habituer.", Duration = 6 })
-			end)
-			local prochainTitube = os.clock() + 2
-			RunService:BindToRenderStep("TardisCrise", Enum.RenderPriority.Camera.Value + 4, function()
-				local maintenant = os.clock()
-				local reste = crise.fin - maintenant
-				if reste <= 0 then
-					RunService:UnbindFromRenderStep("TardisCrise")
-					flou:Destroy()
-					teinte:Destroy()
-					criseEnCours = nil
-					return
-				end
-				local force = (math.clamp(reste / dureeCrise, 0, 1) ^ 0.7) * (reduit and 0.35 or 1) -- s'apaise peu à peu
-				local t = maintenant - crise.debut
-				flou.Size = force * (4 + 4 * (0.5 + 0.5 * math.sin(t * 1.7)))
-				teinte.Saturation = -0.25 * force
-				teinte.TintColor = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(255, 236, 200), 0.5 * force)
-				camera.CFrame = camera.CFrame * CFrame.Angles(math.sin(t * 0.9) * 0.012 * force, 0, math.sin(t * 0.7) * 0.03 * force)
-				-- Démarche titubante : de temps en temps, le corps part de côté pendant qu'on marche
-				local personnage = joueur.Character
-				local humanoid = personnage and personnage:FindFirstChildOfClass("Humanoid")
-				local racine = personnage and personnage:FindFirstChild("HumanoidRootPart")
-				if humanoid and racine and humanoid.MoveDirection.Magnitude > 0.1 and not humanoid.Sit and maintenant >= prochainTitube then
-					prochainTitube = maintenant + 1.2 + math.random() * 2
-					local cote = humanoid.MoveDirection:Cross(Vector3.yAxis) * (math.random() < 0.5 and -1 or 1)
-					racine.AssemblyLinearVelocity += cote * 14 * force
-				end
-			end)
-		end
-
 		local function surveillerRegeneration(personnage)
 			local dejaJoue = nil -- une régénération n'est jouée qu'une fois (signal ou rattrapage)
 			local function effets()
@@ -751,10 +708,6 @@ return function(contexte)
 
 				-- Après : un souffle doré s'échappe du nouveau visage, les mains fument, des braises s'échappent encore pendant
 				-- une quinzaine de secondes, et le sol brûlant refroidit lentement
-				-- Crise post-régénération pour celui qui vient de se régénérer
-				if moi and (REG.CriseDuree or 60) > 0 then
-					task.delay(duree + 0.6, function() crisePostRegeneration(REG.CriseDuree or 60) end)
-				end
 				task.delay(duree, function()
 					rendreCamera()
 					if tete.Parent then

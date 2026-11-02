@@ -37,8 +37,8 @@
 ### Contenu et RP
 21. **Jukebox rempli** : `Config.Jukebox` est vide.
 22. **Sons optionnels manquants** : `Camouflage`, `Cloitre`, `Moteur_*`, `Chute`, `Impact` et `Regeneration`.
-23. **Crise post-régénération** : vision floue et démarche titubante pendant 1 min (idée de la V6.5.7 non retenue).
-24. **Clé du TARDIS** : un outil donné aux techniciens pour ouvrir ou verrouiller à distance.
+23. ✖ *(V6.9, retirée en V6.9.5)* **Crise post-régénération** : vision floue et démarche titubante pendant 1 min (idée de la V6.5.7 non retenue).
+24. ✖ *(V6.9, retirée en V6.9.5 : remplacée plus tard)* **Clé du TARDIS** : un outil donné aux techniciens pour ouvrir ou verrouiller à distance.
 25. **Sauvegarde versionnée** (`TardisSauvegarde_v2` avec migration) pour pouvoir changer le format sans perdre les données.
 
 ---
@@ -107,6 +107,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.9.2** | Ajouts C11 (mode maintenance) et C12 (recette automatique) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.3** | Modifications 12 (compte à rebours) et 14 (statistiques par mode) · ajouts C15 (traînée du Rapide), C16 (enseigne), C17 (annonce de bord), C18 (ambiance par thème) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.4** | Retrait des commandes du staff (`/tardis statut`, `journal`, `erreurs`, `maintenance`, `recette`) et du rôle staff ; mode maintenance déplacé dans la tablette (pilotes et techniciens) | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.5** | Retouches : sans « Départ dans 3, 2, 1 », sans clé du TARDIS ni crise post-régénération ; phare du Sauvetage ; équipe C.T.A.T. des techniciens | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.

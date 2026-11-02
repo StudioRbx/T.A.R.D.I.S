@@ -236,12 +236,6 @@ if EFFETS.Lueur ~= false then
 	halo = piece({ Name = "TardisHalo_" .. def.Nom, Shape = Enum.PartType.Ball, Transparency = 1, Size = Vector3.one, Color = couleurLampe })
 end
 
--- Clé du TARDIS (V6.9) : la lampe clignote deux fois, comme une voiture qu'on verrouille
-exterieur:GetAttributeChangedSignal("CleSignal"):Connect(function()
-	flashLampe = 0.9
-	task.delay(0.35, function() flashLampe = 0.9 end)
-end)
-
 RunService.RenderStepped:Connect(function(dt)
 	local etat = exterieur:GetAttribute("Etat") or E.Pose
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
@@ -958,7 +952,8 @@ end
 -- Effets propres aux modes (V6.7.1)
 --  • Rapide : sa couleur ne se voit qu'à l'intérieur : un éclair vert dans la salle de contrôle au départ et à
 --    l'arrivée (plus d'éclair vert dehors : l'ancien Éclair Express de la V6.6.4 est remplacé par les ondes neutres)
---  • Sauvetage : la lampe devient un projecteur braqué vers le sol pendant la descente, avec son cône de lumière
+--  • Sauvetage (V6.9.5) : pendant la descente en tournant, quatre lumières aux fenêtres (une par côté) éclairent vers
+--    l'extérieur, à l'horizontale, et balaient les alentours comme un phare ; le sol sous la cabine n'est pas éclairé
 --  • Catastrophe : à bord, la console crache des étincelles et la salle bat en rouge pendant la matérialisation
 --------------------------------------------------------------------
 do
@@ -973,25 +968,42 @@ do
 	lumiereRotor.Parent = supportRotor
 	local eclat, couleurEclat = 0, COULEUR_RAPIDE -- éclair intérieur (décroît)
 
-	-- Projecteur de sauvetage : sous la lampe, braqué vers le bas, avec un cône visible
-	local projecteur = piece({ Name = "TardisProjecteur_" .. def.Nom, Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
-	local spot = Instance.new("SpotLight")
-	spot.Angle, spot.Range, spot.Brightness, spot.Face, spot.Shadows = 58, 70, 0, Enum.NormalId.Bottom, true
-	spot.Color = Color3.fromRGB(255, 245, 215)
-	spot.Parent = projecteur
-	local a0 = Instance.new("Attachment")
-	a0.Parent = projecteur
-	local a1 = Instance.new("Attachment")
-	a1.Position = Vector3.new(0, -45, 0)
-	a1.Parent = projecteur
-	local cone = Instance.new("Beam")
-	cone.Attachment0, cone.Attachment1 = a0, a1
-	cone.Width0, cone.Width1 = 1, 22
-	cone.LightEmission, cone.LightInfluence = 1, 0
-	cone.Color = ColorSequence.new(Color3.fromRGB(255, 245, 215))
-	cone.Transparency = NumberSequence.new(1)
-	cone.FaceCamera = true
-	cone.Parent = projecteur
+	-- Phare de sauvetage (V6.9.5) : une pièce invisible un peu plus large que la cabine, à hauteur des fenêtres, qui suit
+	-- la cabine (et donc sa rotation) ; une SurfaceLight sur chacune de ses 4 faces latérales éclaire vers l'extérieur
+	-- (faisceau étroit, pas d'ombre : il traverse les vitres), et un faisceau visible part de chaque côté
+	local COULEUR_PHARE = Color3.fromRGB(255, 246, 220)
+	local boiteCabine, tailleCabine = exterieur:GetBoundingBox()
+	local relatifPhare = exterieur:GetPivot():ToObjectSpace(boiteCabine * CFrame.new(0, tailleCabine.Y * 0.22, 0)) -- vers 72 % de la hauteur
+	local phare = piece({ Name = "TardisPhare_" .. def.Nom, Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false,
+		Size = Vector3.new(tailleCabine.X * 1.04, math.max(tailleCabine.Y * 0.12, 0.5), tailleCabine.Z * 1.04), CFrame = exterieur:GetPivot() * relatifPhare })
+	local lumieresPhare, faisceauxPhare = {}, {}
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right } do
+		local lumiere = Instance.new("SurfaceLight")
+		lumiere.Face, lumiere.Angle, lumiere.Range, lumiere.Brightness, lumiere.Shadows = face, 28, 60, 0, false
+		lumiere.Color = COULEUR_PHARE
+		lumiere.Parent = phare
+		table.insert(lumieresPhare, lumiere)
+		-- Faisceau visible : de la fenêtre vers l'extérieur, de plus en plus large et pâle
+		local direction = Vector3.FromNormalId(face)
+		local demiLargeur = math.abs(direction.X) > 0 and phare.Size.X / 2 or phare.Size.Z / 2
+		local a0 = Instance.new("Attachment")
+		a0.Position = direction * demiLargeur
+		a0.Parent = phare
+		local a1 = Instance.new("Attachment")
+		a1.Position = direction * (demiLargeur + 40)
+		a1.Parent = phare
+		local faisceau = Instance.new("Beam")
+		faisceau.Attachment0, faisceau.Attachment1 = a0, a1
+		faisceau.Width0, faisceau.Width1 = phare.Size.Y * 1.5, 14
+		faisceau.LightEmission, faisceau.LightInfluence = 1, 0
+		faisceau.Color = ColorSequence.new(COULEUR_PHARE)
+		faisceau.Transparency = NumberSequence.new(1)
+		faisceau.FaceCamera = true
+		faisceau.Enabled = false
+		faisceau.Parent = phare
+		table.insert(faisceauxPhare, faisceau)
+	end
+	local intensitePhare = 0
 
 	-- Étincelles de la console (catastrophe) : préparées à la demande
 	local pointsConsole = nil
@@ -1065,17 +1077,23 @@ do
 			end
 		end
 
-		-- Projecteur de sauvetage : allumé pendant la descente (pas camouflé, avec du courant)
+		-- Phare de sauvetage : allumé pendant la descente en tournant (pas camouflé, avec du courant), il suit la cabine
 		local sauvetage = etat == E.Remat and mode == "Sauvetage" and exterieur:GetAttribute("Camouflage") ~= true
 			and exterieur:GetAttribute("Alimentation") ~= false
-		spot.Brightness += ((sauvetage and 7 or 0) - spot.Brightness) * math.min(dt * 4, 1)
-		if sauvetage or spot.Brightness > 0.05 then
-			projecteur.CFrame = CFrame.new(positionLampe())
-			local part = spot.Brightness / 7
-			cone.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.18 * part), NumberSequenceKeypoint.new(1, 1 - 0.03 * part) })
-			cone.Enabled = true
+		intensitePhare += ((sauvetage and 1 or 0) - intensitePhare) * math.min(dt * 4, 1)
+		if sauvetage or intensitePhare > 0.01 then
+			phare.CFrame = exterieur:GetPivot() * relatifPhare
+			-- La lumière suit l'apparition de la cabine (elle sort des fenêtres à mesure que la cabine se matérialise)
+			local dureePhare, decalagePhare = Config.Timing(E.Remat, "Sauvetage")
+			local p = sauvetage and math.clamp((workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0) - decalagePhare) / math.max(dureePhare, 0.1), 0, 1) or 1
+			local force = intensitePhare * math.clamp(p * 1.4, 0, 1)
+			for _, lumiere in lumieresPhare do lumiere.Brightness = 8 * force end
+			for _, faisceau in faisceauxPhare do
+				faisceau.Enabled = force > 0.01
+				faisceau.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.32 * force), NumberSequenceKeypoint.new(1, 1) })
+			end
 		else
-			cone.Enabled = false
+			for _, faisceau in faisceauxPhare do faisceau.Enabled = false end
 		end
 	end)
 end

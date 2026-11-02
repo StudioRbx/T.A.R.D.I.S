@@ -1,7 +1,7 @@
 -- StarterPlayerScripts > TardisExtrasClient > Signalisation (ModuleScript) — V6.9.3
 -- Visuel et son des voyages :
---   1. Annonce de bord (ajout C17, modification 12) : « Départ dans 3… 2… 1… » pendant le son de départ, puis
---      « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, pour les joueurs à bord (bips en option).
+--   1. Annonce de bord (ajout C17) : « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, pour les joueurs à bord
+--      (bips en option). (Le « Départ dans 3… 2… 1… » de la V6.9.3 a été retiré en V6.9.5.)
 --   2. Traînée au sol après un Rapide (ajout C15) : des lignes lumineuses vertes qui filent sur le sol, au départ et à
 --      l'arrivée, et s'effacent en quelques secondes. Visibles par tous.
 --   3. Enseigne « POLICE BOX » (ajout C16) : elle clignote pendant la démat et la remat, à un rythme propre au mode
@@ -62,18 +62,7 @@ return function(contexte)
 		local couleur = (mode == "Normal") and C.ambre or UI.couleurMode(mode)
 		local debut = exterieur:GetAttribute("DebutEtat") or 0
 		local t = maintenant() - debut
-		if e == E.Demat then
-			local _, decalage = Config.Timing(E.Demat, mode)
-			local reste = decalage - t
-			if reste > 0 then
-				afficher("DÉPART DANS", tostring(math.ceil(reste)), couleur, discret)
-				return
-			elseif reste > -1.2 then
-				afficher(Config.libelleMode(mode):upper(), "DÉMATÉRIALISATION", couleur, discret)
-				chiffre.TextSize = 30
-				return
-			end
-		elseif e == E.Remat then
+		if e == E.Remat then
 			local duree, decalage = Config.Timing(E.Remat, mode)
 			local reste = decalage + duree - t
 			if reste > 0 and reste <= (ANNONCE.Secondes or 3) then

@@ -88,14 +88,21 @@ local function verifierAcces(joueur)
 	local adonis = ACCES.Adonis or {}
 	local function parNiveau(seuil) return niveau ~= nil and (seuil or 0) > 0 and niveau >= seuil end
 	local pilote = parNiveau(adonis.NiveauPilote) or dansListeWL(joueur, (ACCES.WL or {}).Pilotes)
-	local technicien = parNiveau(adonis.NiveauTechnicien) or dansListeWL(joueur, (ACCES.WL or {}).Techniciens)
+	local technique = Config.EquipeTechnique or {}
+	local dansLaCTAT = technique.DonneLeRoleTechnicien ~= false and joueur.Team ~= nil and joueur.Team.Name == (technique.Nom or "C.T.A.T.")
+	local technicien = parNiveau(adonis.NiveauTechnicien) or dansListeWL(joueur, (ACCES.WL or {}).Techniciens) or dansLaCTAT
 	-- On n'écrit que ce qui change (TardisServeur et TardisExtras écoutent ces attributs)
 	if (joueur:GetAttribute("TardisAccesPilote") == true) ~= pilote then joueur:SetAttribute("TardisAccesPilote", pilote) end
 	if (joueur:GetAttribute("TardisAccesTechnicien") == true) ~= technicien then joueur:SetAttribute("TardisAccesTechnicien", technicien) end
 	if niveau ~= nil then joueur:SetAttribute("TardisNiveauAdonis", niveau) end
 end
-Players.PlayerAdded:Connect(function(joueur) task.defer(verifierAcces, joueur) end)
-for _, joueur in Players:GetPlayers() do task.spawn(verifierAcces, joueur) end
+local function suivreAcces(joueur)
+	task.defer(verifierAcces, joueur)
+	-- Changer d'équipe (entrer dans la C.T.A.T. ou en sortir) change le rôle de technicien tout de suite
+	joueur:GetPropertyChangedSignal("Team"):Connect(function() task.spawn(verifierAcces, joueur) end)
+end
+Players.PlayerAdded:Connect(suivreAcces)
+for _, joueur in Players:GetPlayers() do suivreAcces(joueur) end
 task.spawn(function()
 	while true do
 		task.wait(math.max(ACCES.Verification or 60, 10))

@@ -271,7 +271,6 @@ local T = {
 	verrou = tuile("Verrou", "⊘", 3),
 	taille = tuile("Taille", "◢", 4),
 	siege = tuile("Siège", "▲", 5),        -- V6.9 : bouclier + verrou + alerte
-	cle = tuile("Clé", "◆", 6),            -- V6.9 : clé du TARDIS (verrou à distance)
 }
 
 -- Pied de page : les touches
@@ -484,7 +483,6 @@ local function majInterface()
 	majTuile(T.taille, petit, petit and "PETIT · agrandir" or "Grand · rapetisser", C.ambre, pose and alimente and not porte)
 	local siege = exterieur:GetAttribute("Siege") == true
 	majTuile(T.siege, siege, siege and "EN SIÈGE · lever" or "Bouclier · verrou · alerte", C.rouge, siege or (pose and alimente))
-	majTuile(T.cle, false, "Verrou à distance", Color3.fromRGB(214, 170, 60), (Config.Cle or {}).Pilotes ~= false)
 	-- Intégrité (points de vie) et bouclier
 	local integrite = exterieur:GetAttribute("PointsDeVie")
 	if integrite then
@@ -689,11 +687,6 @@ T.siege.bouton.Activated:Connect(function()
 	if T.siege.bouton:GetAttribute("Disponible") == false then return end
 	if exterieur:GetAttribute("Siege") then remote:FireServer("Siege") return end
 	UI.confirmer(T.siege.etat, function() remote:FireServer("Siege") end)
-end)
-T.cle.bouton.Activated:Connect(function()
-	if T.cle.bouton:GetAttribute("Disponible") == false then return end
-	remote:FireServer("Outil", { outil = "Cle" })
-	notifier("Clé du TARDIS dans ton inventaire : clique avec, à moins de " .. tostring((Config.Cle or {}).Portee or 80) .. " studs.", true)
 end)
 T.taille.bouton.Activated:Connect(function()
 	if T.taille.bouton:GetAttribute("Disponible") == false then return end
