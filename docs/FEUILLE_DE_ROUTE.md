@@ -1,20 +1,56 @@
-# Feuille de route — V7, V8, V9
+# Feuille de route — V7 à V11
 
-> Fixée le 02/11/2026. Les sous-versions V6.9.x continuent d'ici là (modifications et ajouts de [PROPOSITIONS.md](PROPOSITIONS.md)).
-> Pour chaque version : **le sujet** (décidé) puis **ce que ça implique** dans le code actuel (lecture du dépôt, à valider ensemble avant de commencer).
+> Fixée le 02/11/2026, revue le même jour : la **sécurisation** (V7) et le **nettoyage** (V8) passent devant ; les versions prévues avant
+> deviennent V9, V10 et V11. Les sous-versions V6.9.x continuent d'ici là. **Avant la V7 : tri des 200 propositions** (page dédiée).
+> Pour chaque version : **le sujet** (décidé) puis **ce que ça implique** dans le code actuel (à valider ensemble avant de commencer).
 
 | Version | Sujet | État |
 |---|---|---|
-| **V7** | Refonte presque totale de l'organisation des fichiers | 🔜 prévue |
-| **V8** | Les 3 TARDIS officialisés, un TARDIS attribué à chacun des trois pilotes | 🔜 prévue |
-| **V9** | Plus de menu : tout passe par la console de commande et ses écrans | 🔜 prévue |
-| V9.1 → V9.4 | TARDIS_1 | 🔜 prévue |
-| V9.5 → V9.8 | TARDIS_3 | ✖ ne sera pas fait |
-| V9.9 → V9.12 | TARDIS_2 | ✖ ne sera pas fait |
+| **V7** | Sécurisation des scripts | 🔜 prévue |
+| **V8** | Optimisation et nettoyage du code | 🔜 prévue |
+| **V9** | Refonte presque totale de l'organisation des fichiers | 🔜 prévue |
+| **V10** | Les 3 TARDIS officialisés, un TARDIS attribué à chacun des trois pilotes | 🔜 prévue |
+| **V11** | Plus de menu : tout passe par la console de commande et ses écrans | 🔜 prévue |
+| V11.1 → V11.4 | TARDIS_1 | 🔜 prévue |
+| V11.5 → V11.8 | TARDIS_3 | ✖ ne sera pas fait |
+| V11.9 → V11.12 | TARDIS_2 | ✖ ne sera pas fait |
 
 ---
 
-## V7 — Refonte de l'organisation des fichiers
+## V7 — Sécurisation des scripts
+
+**Sujet :** sécuriser les scripts.
+
+**Aujourd'hui :**
+- le serveur vérifie déjà les droits de chaque commande (pilote, copilote, technicien), la fréquence (`Config.Cooldown`) et les types principaux ;
+- mais chaque script serveur (`TardisServeur`, `TardisExtras`, `TardisSystemes`) a son propre `OnServerEvent` sur le même RemoteEvent, avec ses propres contrôles, écrits à la main action par action ;
+- le vol libre accepte environ 15 positions par seconde venues du client.
+
+**Ce que ça implique (proposition) :**
+- **Un seul garde-barrière** pour le RemoteEvent : une liste des actions permises avec, pour chacune, qui peut l'envoyer, le **schéma des données** (types, bornes, longueur des textes) et une **limite de fréquence par joueur**. Tout ce qui sort du schéma est refusé et noté.
+- **Vol libre** : vitesse et distance maximales vérifiées côté serveur (pas de téléportation par un client modifié), positions hors carte refusées.
+- **Contrôles de distance** : les actions qui demandent d'être à bord ou près de la cabine (outils, carnet, interphone…) revérifiées sur le serveur.
+- **Textes** : tous les textes de joueurs filtrés par Roblox, longueur bornée (déjà fait pour le carnet, l'enseigne, l'interphone : à généraliser).
+- **Attributs** : le client n'écrit jamais d'attribut qui compte ; vérification que rien de ce qui est lu par le serveur ne vient d'un client.
+- **Exploits courants** : spam de RemoteEvent, valeurs `NaN` ou infinies, tables énormes, chaînes géantes, UserId inventés. Un compteur de refus par joueur, noté au journal.
+- **DataStore** : limites de taille, pas d'écriture tant que la lecture a échoué (déjà fait), données relues avec un schéma.
+- **Tests** : de nouvelles simulations (`outils/simulation`) qui envoient de fausses requêtes de « tricheur » et vérifient qu'elles sont toutes refusées.
+
+---
+
+## V8 — Optimisation et nettoyage du code
+
+**Sujet :** optimisation et nettoyage du code (contenu laissé à mon choix).
+
+**Ce que je prévois :**
+- **Nettoyage** (simplifications restantes de PROPOSITIONS.md) : un seul utilitaire pour les raycasts, le pont interne écrit en table au lieu d'une chaîne de `elseif`, une liste des sons partagée entre serveur et client, un seul format de réponse et d'alerte, un journal à niveaux (info, avertissement, debug), les réglages morts et le code mort supprimés (paramètres et outils qui ne servent plus depuis les retraits de la V6.9.4 et de la V6.9.5), les fonctions « définies plus bas » réordonnées.
+- **Optimisation** : regrouper les boucles qui tournent à chaque image (Heartbeat, RenderStepped) par TARDIS, ne rien faire quand le joueur est loin ou que l'effet est invisible, moins de créations d'objets par image, moins de changements d'attributs répliqués, des effets qui s'allègent automatiquement quand les images par seconde baissent.
+- **Mesures** : un compteur de temps par module (en debug) pour voir ce qui coûte, avant et après.
+- **Comportement identique en jeu** : vérifié par les simulations et les tableaux « À tester ».
+
+---
+
+## V9 — Refonte de l'organisation des fichiers
 
 **Sujet :** refonte presque totale de l'organisation des fichiers.
 
@@ -41,15 +77,15 @@
   | `Effets` | effets visuels et sonores |
 
 - **Un seul point d'entrée** par côté : un Script serveur et un LocalScript client, qui chargent les modules de chaque domaine. On n'a plus de scripts qui se parlent par RemoteEvent et BindableFunction « parce qu'ils sont séparés ».
-- **`TardisConfig` découpée** en un module par domaine, avec les réglages de chaque TARDIS à part. Cela prépare la V8.
-- **Comportement identique en jeu** : aucune nouveauté dans la V7, seulement des déplacements. Les tableaux « À tester » des patch notes servent à vérifier que tout marche comme avant.
+- **`TardisConfig` découpée** en un module par domaine, avec les réglages de chaque TARDIS à part. Cela prépare la V10.
+- **Comportement identique en jeu** : aucune nouveauté dans la V9, seulement des déplacements. Les simulations (`outils/simulation`) et les tableaux « À tester » des patch notes servent à vérifier que tout marche comme avant.
 - `outils/synchro_studio.luau` et le README mis à jour pour la nouvelle arborescence.
 
 À décider : les noms exacts des dossiers, et si on garde la convention Rojo actuelle (`.server.lua`, `.client.lua`, dossier + `init`).
 
 ---
 
-## V8 — Les 3 TARDIS, un par pilote
+## V10 — Les 3 TARDIS, un par pilote
 
 **Sujet :** création des 3 TARDIS pour les officialiser ; chacun des trois pilotes a **son** TARDIS attribué, sans possibilité d'en choisir un autre.
 
@@ -69,7 +105,7 @@
 
 ---
 
-## V9 — La console remplace le menu
+## V11 — La console remplace le menu
 
 **Sujet :** retrait du menu principal (options). Tous les boutons du menu sont **sur la console de commande**. Les affichages (radar, vie du TARDIS, etc.) sont sur des **écrans de la console**.
 
@@ -84,12 +120,12 @@
 **Découpage :**
 | Sous-version | TARDIS | Contenu (proposition) |
 |---|---|---|
-| V9.1 | TARDIS_1 | Écrans d'affichage (lecture seule) |
-| V9.2 | TARDIS_1 | Boutons de navigation : destinations, modes, DÉMAT / REMAT |
-| V9.3 | TARDIS_1 | Boutons des systèmes : portes, verrou, camouflage, boucliers, siège, alerte, énergie |
-| V9.4 | TARDIS_1 | Retrait du menu T et de la tablette Y, derniers réglages |
-| V9.5 → V9.8 | TARDIS_3 | ✖ ne sera pas fait |
-| V9.9 → V9.12 | TARDIS_2 | ✖ ne sera pas fait |
+| V11.1 | TARDIS_1 | Écrans d'affichage (lecture seule) |
+| V11.2 | TARDIS_1 | Boutons de navigation : destinations, modes, DÉMAT / REMAT |
+| V11.3 | TARDIS_1 | Boutons des systèmes : portes, verrou, camouflage, boucliers, siège, alerte, énergie |
+| V11.4 | TARDIS_1 | Retrait du menu T et de la tablette Y, derniers réglages |
+| V11.5 → V11.8 | TARDIS_3 | ✖ ne sera pas fait |
+| V11.9 → V11.12 | TARDIS_2 | ✖ ne sera pas fait |
 
 Questions ouvertes :
 - le **vol libre** (piloté aujourd'hui depuis la tablette) ;

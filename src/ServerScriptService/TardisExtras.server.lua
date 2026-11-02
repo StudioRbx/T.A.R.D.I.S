@@ -1479,7 +1479,8 @@ end
 -- reçoivent un rappel toutes les Config.Intercom.RappelMinutes minutes.
 --------------------------------------------------------------------
 do
-	local INTERCOM = Config.Intercom or {}
+	-- Config.Intercom absent (bloc mis en commentaire) : intercom coupé, ni annonce ni rappel
+	local INTERCOM = Config.Intercom or { Actif = false, RappelMinutes = 0 }
 	local evenements = ServerStorage:FindFirstChild("TardisEvenements")
 	if not evenements then
 		evenements = Instance.new("BindableEvent")
@@ -1510,7 +1511,7 @@ do
 	end)
 	task.spawn(function()
 		local minutes = INTERCOM.RappelMinutes or 10
-		if minutes <= 0 then return end
+		if INTERCOM.Actif == false or minutes <= 0 then return end
 		while true do
 			task.wait(minutes * 60)
 			if signalee then

@@ -108,6 +108,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.9.3** | Modifications 12 (compte à rebours) et 14 (statistiques par mode) · ajouts C15 (traînée du Rapide), C16 (enseigne), C17 (annonce de bord), C18 (ambiance par thème) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.4** | Retrait des commandes du staff (`/tardis statut`, `journal`, `erreurs`, `maintenance`, `recette`) et du rôle staff ; mode maintenance déplacé dans la tablette (pilotes et techniciens) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9.5** | Retouches : sans « Départ dans 3, 2, 1 », sans clé du TARDIS ni crise post-régénération ; phare du Sauvetage ; équipe C.T.A.T. des techniciens | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.6** | Simulations sans Roblox (`outils/simulation`) ; intercom en pause | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
@@ -119,13 +120,13 @@ Décisions prises avec toi : intercom par **module pont** dans `OSFondation › 
 ### Gameplay et RP
 1. ✅ *(V6.9)* **Protocole Silencieux** : démat et remat sans son ni lumière, pour les infiltrations (un 4ᵉ mode à côté de Normal, Urgence et Express).
 2. ✅ *(V6.9.1)* **Copilote** : un second joueur gère la navigation (destination, protocoles) pendant que le pilote est en vol libre.
-3. **Signaux de détresse aléatoires** : un point apparaît sur la mini-carte ; l'équipage qui s'y rend gagne une entrée au journal.
+3. ✖ *(abandonné le 02/11)* **Signaux de détresse aléatoires** : un point apparaît sur la mini-carte ; l'équipage qui s'y rend gagne une entrée au journal.
 4. ✅ *(V6.6.2)* **Empreinte temporelle** : après un départ, une silhouette translucide du TARDIS reste 30 s à l'ancien emplacement.
-5. **Équipage scanné** : les portes s'ouvrent seulement pour les joueurs ajoutés à l'équipage du jour (liste tenue par le pilote).
+5. ✖ *(abandonné le 02/11)* **Équipage scanné** : les portes s'ouvrent seulement pour les joueurs ajoutés à l'équipage du jour (liste tenue par le pilote).
 6. ✅ *(V6.9)* **Mode Siège** : un bouton qui active d'un coup boucliers, verrou des portes et alerte.
 7. ✅ *(V6.9.1)* **Carnet de bord RP** : les pilotes écrivent des notes par destination, sauvegardées.
 
-### Intégration OS Fondation (en plus de l'intercom)
+### Intégration OS Fondation (en plus de l'intercom) — ⏸ en pause, à revoir à la prochaine refonte
 8. **Application « TARDIS » sur les postes** : la sécurité voit les dernières matérialisations détectées (heure, lieu).
 9. **Niveau d'alerte du site → TARDIS** : quand l'OS passe le site en alerte, le TARDIS passe lui aussi en alerte.
 10. **Panne de courant de l'OS → TARDIS** : le blackout du site met hors tension un TARDIS posé dans le site.

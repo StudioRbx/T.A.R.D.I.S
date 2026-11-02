@@ -87,6 +87,9 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | **V6.9.3** | 02/11 | **Annonce de bord** (« Départ dans 3… 2… 1… », « Matérialisation dans 3… 2… 1… »), **traînée au sol** après un Rapide, **enseigne POLICE BOX** qui clignote selon le mode, **ambiance sonore par thème**, **statistiques par mode** et temps gagné. |
 | **V6.9.4** | 02/11 | **Commandes du staff retirées** (`/tardis statut`, `journal`, `erreurs`, `maintenance`, `recette`) ainsi que le rôle staff et la recette automatique ; **mode maintenance dans la tablette** : les pilotes (Outils › Maintenance) et les techniciens (Commandes › Maintenance) immobilisent le TARDIS. `/tardis help` reste la balise de détresse. |
 | **V6.9.5** | 02/11 | **Retouches** : V6.9.3 sans « Départ dans 3, 2, 1 » (l'annonce d'arrivée reste) ; V6.9 sans la clé du TARDIS (remplacée plus tard) ni la crise post-régénération ; V6.7.1 : le Sauvetage n'éclaire plus le sol, quatre lumières aux fenêtres balaient les alentours comme un phare ; **équipe C.T.A.T.** (Cellule Technique d'Autorité Temporelle) pour les techniciens, sans régénération. |
-| *V7* | *à venir* | *Refonte presque totale de l'organisation des fichiers* ([feuille de route](docs/FEUILLE_DE_ROUTE.md)) |
-| *V8* | *à venir* | *Les 3 TARDIS officialisés, un TARDIS attribué à chaque pilote* |
-| *V9* | *à venir* | *Plus de menu : boutons et écrans sur la console (V9.1 → V9.4 : TARDIS_1 ; V9.5 → V9.12 : ne seront pas faites)* |
+| **V6.9.6** | 02/11 | **Simulations sans Roblox** (`outils/simulation` : analyse statique des 50 scripts, petit interpréteur Luau, 122 tests de la configuration, de la sauvegarde, des commandes de voyage et de la supervision : tout passe) ; **intercom mis en pause** (bloc `Config.Intercom` en commentaire). |
+| *V7* | *à venir* | *Sécurisation des scripts* ([feuille de route](docs/FEUILLE_DE_ROUTE.md)) |
+| *V8* | *à venir* | *Optimisation et nettoyage du code* |
+| *V9* | *à venir* | *Refonte presque totale de l'organisation des fichiers* |
+| *V10* | *à venir* | *Les 3 TARDIS officialisés, un TARDIS attribué à chaque pilote* |
+| *V11* | *à venir* | *Plus de menu : boutons et écrans sur la console (V11.1 → V11.4 : TARDIS_1 ; V11.5 → V11.12 : ne seront pas faites)* |

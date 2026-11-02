@@ -13,7 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("TardisConfig"))
-local INTERCOM = Config.Intercom or {}
+local INTERCOM = Config.Intercom or { Actif = false } -- bloc commenté dans la configuration : intercom coupé
 
 local annonce = ReplicatedStorage:FindFirstChild("TardisAnnonceSite")
 if not annonce then

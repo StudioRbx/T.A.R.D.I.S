@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.5"
+Config.Version = "6.9.6"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -564,14 +564,16 @@ Config.Carnet = {
 -- Cible : chemin d'un objet de l'OS Fondation qui fait l'annonce (BindableEvent, BindableFunction ou ModuleScript
 -- avec une fonction annoncer / Annoncer), par exemple "ServerScriptService.OSFondation.OSAppsServeur.Intercom".
 -- Vide : le TARDIS fait l'annonce lui-même (bandeau en haut de l'écran, alarme, message dans le chat).
-Config.Intercom = {
-	Actif = true,
-	Cible = nil,
-	RappelMinutes = 10,
-	Titre = "INTERCOM DU SITE",
-	Message = "Alerte : faille spatio-temporelle détectée. Lieu : %s. Personnel de sécurité, restez vigilants.",
-	Rappel = "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
-}
+-- ⏸ MIS EN COMMENTAIRE le 02/11/2026 (pas utile pour le moment) : tant que ce bloc est commenté, il n'y a AUCUNE annonce
+-- ni aucun rappel. Pour le réactiver, enlève les « -- » devant les 8 lignes ci-dessous.
+-- Config.Intercom = {
+-- 	Actif = true,
+-- 	Cible = nil,
+-- 	RappelMinutes = 10,
+-- 	Titre = "INTERCOM DU SITE",
+-- 	Message = "Alerte : faille spatio-temporelle détectée. Lieu : %s. Personnel de sécurité, restez vigilants.",
+-- 	Rappel = "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
+-- }
 
 -- Vapeur de refroidissement : plaques nommées "Grille" (ou dans un dossier "Grilles") de l'intérieur
 Config.Vapeur = { Intensite = 1, IntervalleMin = 4, IntervalleMax = 14 } -- intensité 0 = aucune vapeur
