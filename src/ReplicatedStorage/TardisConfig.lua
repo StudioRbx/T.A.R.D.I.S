@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.8"
+Config.Version = "6.8.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -263,7 +263,11 @@ Config.Sentinelle = {
 -- (dans Studio, il faut activer "Enable Studio Access to API Services" dans les paramètres du jeu)
 Config.Sauvegarde = {
 	Actif = true,
-	NomStore = "TardisSauvegarde_v1",
+	-- V6.8.1 : sauvegarde versionnée (module TardisSauvegarde). Les anciens magasins « _v1 » sont lus une fois pour
+	-- migrer, jamais modifiés : pour revenir à une version d'avant la V6.8.1, rien n'est perdu.
+	NomStore = "TardisSauvegarde_v2",
+	AncienStore = "TardisSauvegarde_v1",
+	NomStoreExtras = "TardisExtras_v2",
 	Intervalle = 60,           -- sauvegarde automatique (secondes), si quelque chose a changé
 }
 
@@ -460,6 +464,10 @@ Config.Journal = {
 	Taille = 200,       -- lignes gardées en mémoire pour /tardis journal
 	Output = false,     -- true : chaque ligne est aussi écrite dans l'Output
 }
+
+-- Appareils sans clavier (V6.8.1) : boutons tactiles au bord gauche pour ouvrir le menu (T), la tablette (Y)
+-- et la tablette technicien. N'apparaissent jamais sur ordinateur.
+Config.BoutonsTactiles = true
 
 -- Supervision (V6.8) : les erreurs des scripts du TARDIS chez les joueurs remontent au serveur (/tardis erreurs, journal)
 Config.Supervision = {

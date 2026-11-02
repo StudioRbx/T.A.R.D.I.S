@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.8** (accès Adonis / WL, journal vers RoSysLog, commandes du staff `/tardis statut`, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.8.1** (sauvegarde versionnée, boutons tactiles sur mobile ; V6.8 : accès Adonis / WL, journal vers RoSysLog, commandes du staff `/tardis statut`, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 
@@ -23,7 +23,8 @@ src/
 │  ├─ TardisLiaisonPortes.server.lua    Script : pont entre les portes du kit et le système
 │  ├─ TardisPontFondation.server.lua    Script : annonce les failles spatio-temporelles (OS Fondation ou annonce intégrée)
 │  ├─ TardisSupervision.server.lua      Script : accès Adonis / WL, journal, commandes du staff (/tardis statut), erreurs
-│  └─ TardisDiagnostic.lua              ModuleScript : diagnostic au démarrage (une ligne dans l'Output)
+│  ├─ TardisDiagnostic.lua              ModuleScript : diagnostic au démarrage (une ligne dans l'Output)
+│  └─ TardisSauvegarde.lua              ModuleScript : sauvegarde versionnée (enveloppe, migration, réessais)
 ├─ StarterPlayer/StarterPlayerScripts/
 │  ├─ TardisEffets.client.lua           (dé)matérialisation, lampe, rotor, lumières, secousses
 │  ├─ TardisPortail.client.lua          vues à travers la porte et passage
@@ -71,7 +72,7 @@ Puis, dans Studio (mode Édition), coller le contenu de `outils/synchro_studio.l
 ## Installation dans Studio
 
 1. **ReplicatedStorage** : `TardisConfig`, `TardisUI` et `TardisCommandes` (ModuleScripts), plus le dossier `TardisAssets › Sons` (`Demat`, `Remat`, `Demat_Urg`, `Remat_Urg`, `Alarme`…).
-2. **ServerScriptService** : les 6 **Script** (`TardisServeur`, `TardisExtras`, `TardisSystemes`, `TardisLiaisonPortes`, `TardisPontFondation`, `TardisSupervision`) et le ModuleScript `TardisDiagnostic`. ⚠️ Ce sont des Script, pas des LocalScript.
+2. **ServerScriptService** : les 6 **Script** (`TardisServeur`, `TardisExtras`, `TardisSystemes`, `TardisLiaisonPortes`, `TardisPontFondation`, `TardisSupervision`) et les ModuleScripts `TardisDiagnostic` et `TardisSauvegarde`. ⚠️ Ce sont des Script, pas des LocalScript.
 3. **StarterPlayer › StarterPlayerScripts** : les 9 **LocalScript**.
 4. Dans **chaque** TARDIS : un `Shut` (Script) dans `TARDISDoors › LeftDoor` et un autre dans `RightDoor`.
 5. Workspace :

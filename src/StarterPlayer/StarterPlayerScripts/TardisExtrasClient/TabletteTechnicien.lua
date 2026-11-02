@@ -732,6 +732,28 @@ return function(contexte)
 		if mien and mien.Nom ~= def.Nom then return end
 		if ouvert then fermer() else ouvrir() end
 	end)
+	-- Appareil sans clavier (V6.8.1) : un bouton au bord gauche pour le technicien qui n'est pas pilote
+	if Config.BoutonsTactiles ~= false and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		local guiTactile = creer("ScreenGui", { Name = "TardisBoutonTechnicien_" .. def.Nom, ResetOnSpawn = false, Enabled = false,
+			Parent = joueur:WaitForChild("PlayerGui") })
+		local b = creer("TextButton", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.38, 0), Size = UDim2.fromOffset(52, 52),
+			BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Text = "", Parent = guiTactile }, { UI.coin(99), UI.contour(C.ambre, 1.5, 0.2) })
+		texte({ Text = "Y", Font = UI.POLICE_TITRE, TextSize = 18, TextColor3 = C.ambre, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 22), Parent = b })
+		texte({ Text = "ingénierie", TextSize = 9, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 31), Size = UDim2.new(1, 0, 0, 12), Parent = b })
+		b:SetAttribute("CouleurBase", C.fond)
+		UI.rendreVivant(b)
+		b.Activated:Connect(function() if ouvert then fermer() else ouvrir() end end)
+		local function majBouton()
+			local mien = Config.tardisDuJoueur(joueur)
+			guiTactile.Enabled = joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true and joueur:GetAttribute("TardisPilote_" .. def.Nom) ~= true
+				and (mien == nil or mien.Nom == def.Nom)
+		end
+		joueur:GetAttributeChangedSignal("TardisTechnicien_" .. def.Nom):Connect(majBouton)
+		joueur:GetAttributeChangedSignal("TardisPilote_" .. def.Nom):Connect(majBouton)
+		majBouton()
+	end
 	joueur:GetAttributeChangedSignal("TardisTabletteTech"):Connect(function()
 		if joueur:GetAttribute("TardisTabletteTech") == def.Nom then ouvrir() end
 	end)

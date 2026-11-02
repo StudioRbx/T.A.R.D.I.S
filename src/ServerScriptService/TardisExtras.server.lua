@@ -55,16 +55,18 @@ end
 --------------------------------------------------------------------
 -- Sauvegarde légère des réglages du TARDIS (thème, couleur, enseigne) et des préférences des joueurs
 --------------------------------------------------------------------
-local store = nil
-pcall(function() store = game:GetService("DataStoreService"):GetDataStore("TardisExtras_v1_" .. def.Nom) end)
+-- (V6.8.1 : sauvegarde versionnée, voir TardisSauvegarde ; l'ancien magasin TardisExtras_v1_* n'est que lu)
+local magasin = require(script.Parent:WaitForChild("TardisSauvegarde")).ouvrir(
+	((Config.Sauvegarde or {}).NomStoreExtras or "TardisExtras_v2") .. "_" .. def.Nom, "TardisExtras_v1_" .. def.Nom)
+local illisibles = {} -- clés dont la lecture a échoué : on ne les écrase pas pendant la session
 local function charger(cle)
-	if not store then return nil end
-	local ok, valeur = pcall(function() return store:GetAsync(cle) end)
-	return ok and valeur or nil
+	local valeur, lu = magasin:lire(cle)
+	if not lu then illisibles[cle] = true end
+	return valeur
 end
 local function enregistrer(cle, valeur)
-	if not store then return end
-	pcall(function() store:SetAsync(cle, valeur) end)
+	if illisibles[cle] then return end
+	magasin:ecrire(cle, valeur) -- attend la fin (comme avant) : à la fermeture du serveur, rien n'est perdu
 end
 
 --------------------------------------------------------------------

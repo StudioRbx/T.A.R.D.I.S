@@ -101,6 +101,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.7.2** | Modification 15 : tablette technicien (systèmes, régulation énergie / air / vapeur, redémarrage à distance, purge, diagnostic, interventions guidées) | ✅ livrée (dépôt), à installer dans Studio |
 | **V6.7.3** | Modification 20 (intercom « faille spatio-temporelle » : événement TardisEvenements + script TardisPontFondation, annonce intégrée tant que l'OS Fondation n'est pas branché, rappel aux pilotes toutes les 10 min), 21 (jukebox audible seulement à bord, playlist Action), 3 et 22 (Config.Sons, Cloitre et Reparation enfin joués) | ✅ livrée (dépôt), à installer dans Studio · reste à brancher `Config.Intercom.Cible` et à remplir `Config.Jukebox` |
 | **V6.8** | Modifications 17 (accès Adonis / WL), 18 (journal vers RoSysLog), 19 (`/tardis statut`, `journal`, `erreurs`) et ajout C13 (remontée des erreurs des joueurs) | ✅ livrée (branche `v6.8-integration-staff`) · reste à brancher Adonis, WLConfig et RoSysLog |
+| **V6.8.1** | Modifications 25 (sauvegarde versionnée avec migration) et 8 (boutons tactiles sur mobile) | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.

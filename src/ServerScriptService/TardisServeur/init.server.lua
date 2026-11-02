@@ -1966,24 +1966,25 @@ end
 --------------------------------------------------------------------
 do
 	local reglagesSave = Config.Sauvegarde or {}
+	-- Sauvegarde versionnée (V6.8.1) : nouveau magasin, l'ancien n'est que lu (migration sans perte)
 	local store = nil
 	if reglagesSave.Actif ~= false then
-		local ok, resultat = pcall(function()
-			return game:GetService("DataStoreService"):GetDataStore((reglagesSave.NomStore or "TardisSauvegarde_v1") .. "_" .. def.Nom)
-		end)
-		if ok then store = resultat else warn("[TARDIS] Sauvegarde indisponible : " .. tostring(resultat)) end
+		local Sauvegarde = require(script.Parent:WaitForChild("TardisSauvegarde"))
+		store = Sauvegarde.ouvrir((reglagesSave.NomStore or "TardisSauvegarde_v2") .. "_" .. def.Nom,
+			(reglagesSave.AncienStore or "TardisSauvegarde_v1") .. "_" .. def.Nom)
+		if not store:disponible() then store = nil end
 	end
 	local CLE = "place_" .. tostring(game.PlaceId)
+	local chargementReussi = false -- tant que la lecture a échoué, on n'écrase pas la sauvegarde
 
 	local function versTable(cf) return { cf:GetComponents() } end
 	local function versCFrame(t) return CFrame.new(table.unpack(t)) end
 
 	local function sauvegarder()
-		if not store then return end
+		if not store or not chargementReussi then return end
 		-- On ne sauvegarde qu'un état stable (posé, pas en vol libre, pas porté)
 		if etatActuel() ~= E.Pose or partage.occupe or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then return end
 		local donnees = {
-			version = 1,
 			cf = versTable(exterieur:GetPivot()),
 			position = exterieur:GetAttribute("Position"),
 			echelle = exterieur:GetAttribute("Echelle") or 1,
@@ -1994,21 +1995,17 @@ do
 			precedent = precedent and { cf = versTable(precedent.cf), nom = precedent.nom } or nil,
 			historique = historique,
 		}
-		local ok, erreur = pcall(function() store:SetAsync(CLE, donnees) end)
-		if ok then
-			partage.sauvegardeModifiee = false
-		else
-			warn("[TARDIS] Échec de la sauvegarde : " .. tostring(erreur))
-		end
+		if store:ecrire(CLE, donnees) then partage.sauvegardeModifiee = false end
 	end
 
 	local function charger()
 		if not store then return end
-		local ok, donnees = pcall(function() return store:GetAsync(CLE) end)
-		if not ok then
-			warn("[TARDIS] Échec du chargement de la sauvegarde : " .. tostring(donnees))
+		local donnees, lu = store:lire(CLE)
+		if not lu then
+			warn("[TARDIS] Sauvegarde illisible pour l'instant : elle ne sera pas écrasée pendant cette session.")
 			return
 		end
+		chargementReussi = true
 		if type(donnees) ~= "table" or type(donnees.cf) ~= "table" then return end
 
 		-- Au lancement, le TARDIS reste là où il est placé dans Studio.

@@ -692,6 +692,34 @@ UserInputService.InputBegan:Connect(function(input, traite)
 end)
 
 --------------------------------------------------------------------
+-- Boutons tactiles (V6.8.1, modification 8) : sur un appareil sans clavier, deux boutons au bord gauche ouvrent
+-- le menu rapide (T) et la tablette (Y). Rien ne change sur ordinateur.
+--------------------------------------------------------------------
+if Config.BoutonsTactiles ~= false and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+	local barre = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.38, 0), Size = UDim2.fromOffset(52, 0),
+		AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 30, Parent = gui }, { UI.pile(10) })
+	local function boutonTactile(lettre, legende, ordre, action)
+		local b = creer("TextButton", { Size = UDim2.fromOffset(52, 52), BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Text = "",
+			LayoutOrder = ordre, ZIndex = 30, Parent = barre }, { UI.coin(99), UI.contour(C.ambre, 1.5, 0.2) })
+		texte({ Text = lettre, Font = UI.POLICE_TITRE, TextSize = 18, TextColor3 = C.ambre, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 22), ZIndex = 31, Parent = b })
+		texte({ Text = legende, TextSize = 9, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.fromOffset(0, 31), Size = UDim2.new(1, 0, 0, 12), ZIndex = 31, Parent = b })
+		b:SetAttribute("CouleurBase", C.fond)
+		UI.rendreVivant(b)
+		b.Activated:Connect(action)
+		return b
+	end
+	boutonTactile("T", "menu", 1, basculerMenu)
+	boutonTactile("Y", "tablette", 2, function() joueur:SetAttribute("TardisTablette", not joueur:GetAttribute("TardisTablette")) end)
+	-- Le menu ouvert recouvre le bord gauche : les boutons se décalent à sa droite
+	RunService.Heartbeat:Connect(function()
+		local cible = ouvert and UDim2.new(0, 12 + LARGEUR * echelleTiroir.Scale + 10, 0.38, 0) or UDim2.new(0, 8, 0.38, 0)
+		if barre.Position ~= cible then barre.Position = barre.Position:Lerp(cible, 0.25) end
+	end)
+end
+
+--------------------------------------------------------------------
 -- Animations
 --------------------------------------------------------------------
 local derniereSecondeAuto = nil
