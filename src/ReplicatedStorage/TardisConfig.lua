@@ -118,7 +118,7 @@ Config.LevierEnExpress = false -- true : le levier de la console fait des voyage
 -- L'équipe C.A.T. — Cellule d'Autorité Temporelle (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
 -- Nom : celui de la Team dans le service Teams de Studio (à renommer là aussi si tu changes ce nom).
 Config.Equipe = {
-	Nom = "Cellule d'Autorité Temporelle", -- nom exact de la Team dans Studio › Teams (sigle : C.A.T.)
+	Nom = "C.A.T.", -- nom exact de la Team dans Studio › Teams (Cellule d'Autorité Temporelle)
 	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
 }
 
@@ -526,7 +526,7 @@ end
 
 -- Nom de l'équipe (C.A.T.)
 function Config.nomEquipe()
-	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "Cellule d'Autorité Temporelle"
+	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "C.A.T."
 end
 
 -- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)
