@@ -1675,6 +1675,62 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 	return ok, erreur
 end
 
+--------------------------------------------------------------------
+-- Copilote (V6.9.1, ajout C2) : un pilote nomme un joueur à bord qui gère la navigation (destination, protocoles,
+-- démat / remat, camouflage, atterrissage du vol libre) pendant qu'il pilote. Le copilote n'a aucun autre droit,
+-- et il perd son poste dès qu'il quitte le TARDIS.
+--------------------------------------------------------------------
+local ACTIONS_COPILOTE = { Demat = true, Remat = true, Camouflage = true, NavAtterrir = true }
+local function relacherCopilote(raison)
+	local id = exterieur:GetAttribute("Copilote")
+	if not id then return end
+	exterieur:SetAttribute("Copilote", nil)
+	exterieur:SetAttribute("CopiloteNom", nil)
+	local ancien = Players:GetPlayerByUserId(id)
+	if ancien then
+		ancien:SetAttribute("TardisCopilote_" .. def.Nom, nil)
+		if raison then remote:FireClient(ancien, "Tu n'es plus copilote du " .. def.Nom .. " : " .. raison .. ".", false) end
+	end
+end
+local function designerCopilote(par, id)
+	if (Config.Copilote or {}).Actif == false then return false, "COPILOTE DÉSACTIVÉ" end
+	if id == nil or id == exterieur:GetAttribute("Copilote") then
+		relacherCopilote("relevé par " .. par.DisplayName)
+		return true, nil, "Copilote relevé."
+	end
+	local cible = typeof(id) == "number" and Players:GetPlayerByUserId(id)
+	if not cible then return false, "JOUEUR INTROUVABLE" end
+	if cible == par then return false, "TU PILOTES DÉJÀ" end
+	if pilotes[cible] then return false, "DÉJÀ PILOTE" end
+	local racine = cible.Character and cible.Character:FindFirstChild("HumanoidRootPart")
+	if not racine or not dansInterieur(racine.Position) then return false, "PAS À BORD" end
+	relacherCopilote("remplacé par " .. cible.DisplayName)
+	exterieur:SetAttribute("Copilote", cible.UserId)
+	exterieur:SetAttribute("CopiloteNom", cible.DisplayName)
+	cible:SetAttribute("TardisCopilote_" .. def.Nom, true)
+	remote:FireClient(cible, par.DisplayName .. " te nomme copilote du " .. def.Nom .. " : à toi la navigation et les protocoles.", true)
+	journal("Équipage", string.format("%s : %s nomme %s copilote.", def.Nom, par.Name, cible.Name))
+	return true, nil, cible.DisplayName .. " est copilote."
+end
+-- Le copilote doit rester à bord (et dans le jeu)
+task.spawn(function()
+	while true do
+		task.wait(2)
+		local id = exterieur:GetAttribute("Copilote")
+		if id then
+			local cible = Players:GetPlayerByUserId(id)
+			local racine = cible and cible.Character and cible.Character:FindFirstChild("HumanoidRootPart")
+			if not cible then
+				relacherCopilote(nil)
+			elseif not racine or not dansInterieur(racine.Position) then
+				relacherCopilote("tu as quitté le TARDIS")
+			elseif cible:GetAttribute("TardisBanni_" .. def.Nom) == true then
+				relacherCopilote("accès retiré")
+			end
+		end
+	end
+end)
+
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	-- Le serveur ne fait jamais confiance au client : permission, type et fréquence vérifiés ici
 	if typeof(action) ~= "string" then return end
@@ -1761,7 +1817,9 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		return
 	end
 
-	if not pilotes[joueur] then return end
+	-- Copilote (V6.9.1) : seulement la navigation
+	local copilote = not pilotes[joueur] and exterieur:GetAttribute("Copilote") == joueur.UserId
+	if not pilotes[joueur] and not (copilote and ACTIONS_COPILOTE[action]) then return end
 	marquerActivite()
 	-- Détruit (auto-destruction) ou compte à rebours en cours : plus aucune commande
 	if exterieur:GetAttribute("Detruit") or exterieur:GetAttribute("AutoDestructionDebut") then
@@ -1952,6 +2010,29 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			journal("Sécurité", string.format("%s : mode Siège %s par %s.", def.Nom, lever and "levé" or "relâché", joueur.Name))
 			remote:FireClient(joueur, (lever and "Mode Siège : bouclier levé, portes verrouillées, alerte générale." or "Siège levé : bouclier, verrou et alerte relâchés.")
 				.. (#refus > 0 and ("  (Non appliqué : " .. table.concat(refus, ", ") .. ")") or ""), #refus == 0)
+		end)
+
+	elseif action == "Copilote" then
+		-- Nommer (joueur = UserId) ou relever (joueur absent, ou le copilote actuel) le copilote
+		local id = typeof(donnees) == "table" and tonumber(donnees.joueur) or nil
+		local ok, erreur, message = designerCopilote(joueur, id)
+		repondre(ok, erreur, message)
+
+	elseif action == "NavAtterrir" then
+		-- Vol libre : atterrir à la destination choisie par la navigation (pilote ou copilote), une fois dans le vortex
+		if not exterieur:GetAttribute("VolLibre") then repondre(false, "PAS EN VOL LIBRE") return end
+		if exterieur:GetAttribute("VolPhase") ~= "Invisible" or volLibre.enDescente then repondre(false, "LE PILOTE DOIT D'ABORD PASSER DANS LE VORTEX") return end
+		if typeof(donnees) ~= "table" then return end
+		local cible, nom, _, _, erreur = resoudreDestination(donnees, false)
+		if not cible then repondre(false, erreur or "DESTINATION INVALIDE") return end
+		task.spawn(function()
+			local ok = teleAtterrir(cible.Position)
+			if ok then
+				journal("Voyage", string.format("%s : atterrissage du vol libre à %s demandé par %s%s.", def.Nom, nom, joueur.Name, copilote and " (copilote)" or ""))
+				local pilote = Players:GetPlayerByUserId(exterieur:GetAttribute("VolLibre") or 0)
+				if pilote and pilote ~= joueur then remote:FireClient(pilote, joueur.DisplayName .. " pose le TARDIS : " .. nom .. ".", true) end
+			end
+			repondre(ok, "ATTERRISSAGE IMPOSSIBLE ICI", "Atterrissage vers " .. tostring(nom) .. ".")
 		end)
 
 	elseif action == "VolLibreDebut" then

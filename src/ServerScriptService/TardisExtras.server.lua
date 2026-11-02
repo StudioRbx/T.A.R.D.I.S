@@ -1064,6 +1064,35 @@ game:BindToClose(function()
 end)
 
 --------------------------------------------------------------------
+-- Carnet de bord RP (V6.9.1, ajout C7) : les pilotes et le copilote écrivent des notes par lieu.
+-- Notes filtrées par Roblox, publiées dans l'attribut « Carnet » (JSON, la plus récente d'abord), sauvegardées.
+--------------------------------------------------------------------
+local REGLAGES_CARNET = Config.Carnet or {}
+local carnet = {} -- { { lieu, auteur, id, texte, quand }, ... }
+local dernierCarnet = {}
+local carnetCharge = false
+local function publierCarnet()
+	exterieur:SetAttribute("Carnet", HttpService:JSONEncode(carnet))
+end
+local function sauverCarnet()
+	if carnetCharge then enregistrer("carnet", carnet) end -- jamais avant d'avoir lu : on n'écrase pas les notes
+end
+task.spawn(function()
+	local lu = charger("carnet")
+	if type(lu) == "table" then
+		for _, n in lu do
+			if type(n) == "table" and type(n.lieu) == "string" and type(n.texte) == "string" then table.insert(carnet, n) end
+		end
+	end
+	carnetCharge = not illisibles.carnet
+	publierCarnet()
+end)
+Players.PlayerRemoving:Connect(function(joueur) dernierCarnet[joueur] = nil end)
+local function peutEcrireCarnet(joueur)
+	return estPilote(joueur) or exterieur:GetAttribute("Copilote") == joueur.UserId
+end
+
+--------------------------------------------------------------------
 -- Commandes (le menu et la tablette envoient le même RemoteEvent que TardisServeur)
 --------------------------------------------------------------------
 local dernier = {}
@@ -1133,6 +1162,44 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		return
 	end
 
+	if action == "CarnetEcrire" or action == "CarnetEffacer" then
+		-- Carnet de bord (V6.9.1) : pilotes et copilote
+		if not peutEcrireCarnet(joueur) or typeof(donnees) ~= "table" then return end
+		local maintenant = os.clock()
+		if dernierCarnet[joueur] and maintenant - dernierCarnet[joueur] < 3 then
+			dire(joueur, "Une note toutes les 3 secondes au plus.", false)
+			return
+		end
+		dernierCarnet[joueur] = maintenant
+		if action == "CarnetEffacer" then
+			-- Effacer : l'auteur ou un pilote ; la date évite d'effacer une autre note si la liste a bougé
+			local index = tonumber(donnees.index)
+			local note = index and carnet[index]
+			if not note or note.quand ~= donnees.quand then dire(joueur, "Note introuvable (le carnet a changé).", false) return end
+			if note.id ~= joueur.UserId and not estPilote(joueur) then dire(joueur, "Seul l'auteur ou un pilote peut effacer cette note.", false) return end
+			table.remove(carnet, index)
+			publierCarnet()
+			task.spawn(sauverCarnet)
+			dire(joueur, "Note effacée du carnet de bord.", true)
+			return
+		end
+		local texte, lieu = donnees.texte, donnees.lieu
+		local longueur = REGLAGES_CARNET.LongueurMax or 200
+		if typeof(texte) ~= "string" or #texte < 2 or #texte > longueur * 2 or utf8.len(texte) == nil or utf8.len(texte) > longueur then return end
+		if typeof(lieu) ~= "string" or #lieu == 0 then lieu = exterieur:GetAttribute("Position") or "Lieu inconnu" end
+		lieu = string.sub(lieu, 1, 60)
+		task.spawn(function()
+			local filtre, lieuFiltre = filtrer(joueur, texte), filtrer(joueur, lieu)
+			if not filtre or not lieuFiltre then dire(joueur, "Note refusée par le filtre de Roblox.", false) return end
+			table.insert(carnet, 1, { lieu = lieuFiltre, auteur = joueur.DisplayName, id = joueur.UserId, texte = filtre, quand = os.time() })
+			while #carnet > (REGLAGES_CARNET.Max or 80) do table.remove(carnet) end
+			publierCarnet()
+			sauverCarnet()
+			journal("Carnet", string.format("%s : note de %s sur « %s ».", def.Nom, joueur.Name, lieuFiltre))
+			dire(joueur, "Note ajoutée au carnet de bord : " .. lieuFiltre .. ".", true)
+		end)
+		return
+	end
 	if not estPilote(joueur) then
 		if Config.Debug then print("[TARDIS] Extras : commande refusée, " .. joueur.Name .. " n'est pas pilote.") end
 		return

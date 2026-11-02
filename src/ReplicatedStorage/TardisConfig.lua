@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9"
+Config.Version = "6.9.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -513,6 +513,17 @@ Config.Cle = {
 -- Mode Siège (V6.9, ajout C6) : un seul bouton lève le bouclier complet, verrouille les portes et déclenche l'alerte.
 -- Un second appui lève le siège. Il prend fin tout seul si le TARDIS décolle.
 Config.Siege = { Bouclier = "Complet", Verrou = true, Alerte = true }
+
+-- Copilote (V6.9.1, ajout C2) : un pilote nomme un joueur à bord (tablette › Outils › Copilote). Le copilote a son
+-- propre poste (navigation, protocoles, démat / remat, camouflage, atterrissage du vol libre, carnet de bord) et
+-- aucun autre droit. Il perd son poste dès qu'il quitte le TARDIS.
+Config.Copilote = { Actif = true }
+
+-- Carnet de bord RP (V6.9.1, ajout C7) : notes des pilotes et du copilote par lieu, filtrées par Roblox et sauvegardées.
+Config.Carnet = {
+	Max = 80,            -- nombre de notes gardées (les plus anciennes partent)
+	LongueurMax = 200,   -- caractères par note
+}
 
 -- Intercom du site (V6.7.3) : la première matérialisation visible d'un TARDIS pendant la session est annoncée à tout
 -- le serveur (« faille spatio-temporelle »), puis les pilotes reçoivent un rappel toutes les RappelMinutes.

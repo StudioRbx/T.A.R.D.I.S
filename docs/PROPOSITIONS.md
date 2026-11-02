@@ -103,6 +103,7 @@ Choix : modifications **1, 2, 3, 4, 5 (recharge très courte), 6, 7, 11, 13, 15,
 | **V6.8** | Modifications 17 (accès Adonis / WL), 18 (journal vers RoSysLog), 19 (`/tardis statut`, `journal`, `erreurs`) et ajout C13 (remontée des erreurs des joueurs) | ✅ livrée (branche `v6.8-integration-staff`) · reste à brancher Adonis, WLConfig et RoSysLog |
 | **V6.8.1** | Modifications 25 (sauvegarde versionnée avec migration) et 8 (boutons tactiles sur mobile) | ✅ livrée (branche `v6.8-integration-staff`) |
 | **V6.9** | Ajouts C1 (protocole Silencieux) et C6 (mode Siège), modifications 23 (crise post-régénération) et 24 (clé du TARDIS) ; sélecteur de mode dans la tablette | ✅ livrée (branche `v6.8-integration-staff`) |
+| **V6.9.1** | Ajouts C2 (copilote : poste de navigation pour un joueur à bord) et C7 (carnet de bord RP) | ✅ livrée (branche `v6.8-integration-staff`) |
 | à chaque étape | Modification 25 / simplification 25 : sous-version V6.6.x, tag et release GitHub | en continu |
 
 Décisions prises avec toi : intercom par **module pont** dans `OSFondation › OSAppsServeur` ; déclenché à la **1re matérialisation visible** de la session ; V6.5.13 et V6.5.14 **réécrites** d'après leur description.
@@ -113,12 +114,12 @@ Décisions prises avec toi : intercom par **module pont** dans `OSFondation › 
 
 ### Gameplay et RP
 1. ✅ *(V6.9)* **Protocole Silencieux** : démat et remat sans son ni lumière, pour les infiltrations (un 4ᵉ mode à côté de Normal, Urgence et Express).
-2. **Copilote** : un second joueur gère la navigation (destination, protocoles) pendant que le pilote est en vol libre.
+2. ✅ *(V6.9.1)* **Copilote** : un second joueur gère la navigation (destination, protocoles) pendant que le pilote est en vol libre.
 3. **Signaux de détresse aléatoires** : un point apparaît sur la mini-carte ; l'équipage qui s'y rend gagne une entrée au journal.
 4. ✅ *(V6.6.2)* **Empreinte temporelle** : après un départ, une silhouette translucide du TARDIS reste 30 s à l'ancien emplacement.
 5. **Équipage scanné** : les portes s'ouvrent seulement pour les joueurs ajoutés à l'équipage du jour (liste tenue par le pilote).
 6. ✅ *(V6.9)* **Mode Siège** : un bouton qui active d'un coup boucliers, verrou des portes et alerte.
-7. **Carnet de bord RP** : les pilotes écrivent des notes par destination, sauvegardées.
+7. ✅ *(V6.9.1)* **Carnet de bord RP** : les pilotes écrivent des notes par destination, sauvegardées.
 
 ### Intégration OS Fondation (en plus de l'intercom)
 8. **Application « TARDIS » sur les postes** : la sécurité voit les dernières matérialisations détectées (heure, lieu).
