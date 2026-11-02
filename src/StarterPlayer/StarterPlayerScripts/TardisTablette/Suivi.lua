@@ -5,6 +5,7 @@
 return function(contexte)
 	local C, Config, E, Players, R, RunService = contexte.C, contexte.Config, contexte.E, contexte.Players, contexte.R, contexte.RunService
 	local S, UI, W, animer, camera, def = contexte.S, contexte.UI, contexte.W, contexte.animer, contexte.camera, contexte.def
+	local Commandes = contexte.Commandes
 	local distanceDe, exterieur, interieur, joueur, journaliser, lireEtat = contexte.distanceDe, contexte.exterieur, contexte.interieur, contexte.joueur, contexte.journaliser, contexte.lireEtat
 	local majCarte, majDisposition, majFiche, majScanner, notifier, remote = contexte.majCarte, contexte.majDisposition, contexte.majFiche, contexte.majScanner, contexte.notifier, contexte.remote
 
@@ -184,27 +185,36 @@ return function(contexte)
 		W.cadranFond.Rotation += dt * 2 * vitesse
 		W.horloge.Text = os.date("%H:%M:%S")
 
-		-- Anneau de statut
+		-- Anneau de statut (il respire avec le moteur : Config.Souffle), et progression sur les grands boutons
 		local n = R.SEGMENTS
+		local souffle = Config.Souffle(e.etat, ecoule, Config.modeDe(exterieur))
 		if not e.alimente then
 			for i = 1, n do W.segments[i].BackgroundColor3 = C.gris end
 			W.anneauTexte.Text = "—"
 			W.anneauSous.Text = "HORS TENSION"
 			W.chrono.Text = ""
+			UI.progressionBouton(W.demat, 0)
+			UI.progressionBouton(W.remat, 0)
 		elseif e.etat == E.Demat or e.etat == E.Remat then
 			local urgence = e.urgence
 			local duree, decalage = Config.Timing(e.etat, Config.modeDe(exterieur))
 			local total = duree + decalage
 			local p = math.clamp(ecoule / total, 0, 1)
 			local couleur = (urgence and C.orange) or (e.express and C.vert) or C.ambre
+			local couleurVive = couleur:Lerp(C.blanc, 0.5 * souffle)
 			for i = 1, n do
 				local allume = (i - 1) / n < p
-				W.segments[i].BackgroundColor3 = allume and couleur or C.gris
+				W.segments[i].BackgroundColor3 = allume and couleurVive or C.gris
 			end
 			W.anneauTexte.Text = math.floor(p * 100) .. "%"
 			W.anneauSous.Text = e.etat == E.Demat and "DÉCOLLAGE" or "ATTERRISSAGE"
 			W.chrono.Text = "T-" .. UI.formatTemps(total - ecoule + 0.99)
+			UI.progressionBouton(e.etat == E.Demat and W.demat or W.remat, p, couleur)
+			UI.progressionBouton(e.etat == E.Demat and W.remat or W.demat, 0)
 		elseif e.etat == E.Vol then
+			UI.progressionBouton(W.demat, 1, C.cyan)
+			local secondesAuto = Commandes.secondesAutoRemat()
+			UI.progressionBouton(W.remat, secondesAuto and (1 - secondesAuto / Commandes.DELAI_AUTO_REMAT) or 0, C.ambre)
 			local tete = (t * 22) % n
 			for i = 1, n do
 				local d = (tete - i) % n
@@ -223,6 +233,8 @@ return function(contexte)
 			W.anneauTexte.Text = e.alerte and "!" or "OK"
 			W.anneauSous.Text = e.alerte and "ALERTE" or "POSÉ"
 			W.chrono.Text = ""
+			UI.progressionBouton(W.demat, 0)
+			UI.progressionBouton(W.remat, 0)
 		end
 		W.anneauTexte.TextColor3 = (not e.alimente and C.gris) or (e.alerte and C.rouge) or C.texte
 
@@ -239,10 +251,16 @@ return function(contexte)
 			or (e.etat == E.Vol and "VORTEX") or (enMouvement and "TRANSITION") or "STABLE"
 		W.stabilite.TextColor3 = couleurBarres == C.cyan and C.vert or couleurBarres
 
-		-- Grands boutons qui luisent
+		-- Grands boutons qui luisent ; en confirmation de paradoxe, MATÉRIALISER clignote en rouge
 		local lueur = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3))
 		W.demat.Lueur.Transparency = W.demat:GetAttribute("Disponible") and lueur or 0.7
-		W.remat.Lueur.Transparency = W.remat:GetAttribute("Disponible") and lueur or 0.7
+		local arme = Commandes.paradoxeArme()
+		if arme ~= S.confirmationAffichee then
+			S.confirmationAffichee = arme
+			UI.confirmationBouton(W.remat, arme)
+			if not arme then task.defer(majFiche) end
+		end
+		W.remat.Lueur.Transparency = arme and (0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 8))) or (W.remat:GetAttribute("Disponible") and lueur or 0.7)
 
 		-- Scanner
 		if S.modeScanner == "carte" then

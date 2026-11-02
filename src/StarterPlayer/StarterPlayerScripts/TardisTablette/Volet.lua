@@ -164,9 +164,8 @@ return function(contexte)
 			boutonLigne(UI.debutant() and "Mode débutant : activé (l'essentiel seulement)" or "Mode débutant : désactivé", ordre,
 				UI.debutant() and C.bleu or nil, function() UI.setPref("debutant", not UI.debutant()) afficherReglages() end)
 			ordre += 1
-			boutonLigne(UI.pref("modeVoyage", "auto") == "auto" and "Mode de voyage : automatique (destination, DEMAT, 15 s de vortex, REMAT seul)"
-				or "Mode de voyage : manuel (DEMAT, choix dans le vortex, REMAT)", ordre, nil,
-				function() UI.setPref("modeVoyage", UI.pref("modeVoyage", "auto") == "auto" and "manuel" or "auto") Commandes.annulerAutoRemat() afficherReglages() end)
+			ligne("Méthode de voyage : destination choisie avant DÉMAT → " .. tostring(Config.DureeVortexAuto or 10) .. " s de vortex puis REMAT automatique ; "
+				.. "sans destination → choisis-la dans le vortex et clique REMAT. Zone REFUSE au départ ou à l'arrivée : urgence imposée.", ordre, C.texte2, 11)
 			ordre += 1
 			boutonLigne(UI.pref("tri", "nom") == "distance" and "Tri des lieux : par distance" or "Tri des lieux : par nom", ordre, nil,
 				function() UI.setPref("tri", UI.pref("tri", "nom") == "distance" and "nom" or "distance") afficherReglages() end)

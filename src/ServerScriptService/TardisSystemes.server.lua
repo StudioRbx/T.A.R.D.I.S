@@ -254,6 +254,7 @@ exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	local etat = exterieur:GetAttribute("Etat")
 	if etat == E.Pose and etatPrecedent == E.Remat then
 		voyagesConsecutifs += 1
+		exterieur:SetAttribute("VoyagesConsecutifs", voyagesConsecutifs) -- lu par la tablette technicien
 		-- Saleté : la cabine se salit à chaque atterrissage
 		exterieur:SetAttribute("Salete", math.clamp((exterieur:GetAttribute("Salete") or 0) + (S.SaleteParVoyage or 8), 0, 100))
 		if voyagesConsecutifs >= (S.VoyagesAvantCoupure or 5) and not exterieur:GetAttribute("RedemarrageRequis") then
@@ -293,6 +294,7 @@ do
 		prompt.Triggered:Connect(function(joueur)
 			if not (estPilote(joueur) or estTechnicien(joueur)) then return end
 			voyagesConsecutifs = 0
+			exterieur:SetAttribute("VoyagesConsecutifs", 0)
 			exterieur:SetAttribute("RedemarrageRequis", false)
 			interne("reglerAlimentation", true)
 			interne("jouer", "Reparation", false)
@@ -317,7 +319,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------
--- Régénération (Config.Regeneration) : les joueurs de l'équipe "Le Voyageur" ne meurent pas, ils se régénèrent.
+-- Régénération (Config.Regeneration) : les joueurs de l'équipe C.A.T. (Config.Equipe) ne meurent pas, ils se régénèrent.
 -- Pendant la régénération, rien ne peut les tuer. Ils prennent l'apparence d'un des avatars sauvegardés sur leur compte
 -- (sinon une tenue de Config.Tenues), sont soignés et gagnent des PV en plus pendant quelques minutes.
 -- (Un seul exemplaire du script s'en occupe : celui du premier TARDIS.)
@@ -328,7 +330,7 @@ local tenuesCompte = {}    -- [UserId] = { identifiants des avatars sauvegardés
 local derniereTenue = {}   -- [UserId] = dernier avatar porté, pour ne pas reprendre le même
 local descriptionsChargees = {} -- [clé] = HumanoidDescription (gardée pour la session) : "tenue:123" ou "joueur:456"
 local function estRegenerateur(joueur)
-	return joueur.Team ~= nil and joueur.Team.Name == (REGEN.Equipe or "Le Voyageur")
+	return joueur.Team ~= nil and joueur.Team.Name == Config.nomEquipe()
 end
 -- Le joueur a-t-il partagé ses avatars ?
 local function aPartageSesAvatars(joueur)
@@ -506,6 +508,50 @@ evenementABord.Event:Connect(function(nomTardis)
 	interne("alerter", "RÉGÉNÉRATION À BORD")
 	interne("jouer", "Cloitre", false)
 end)
+-- Catastrophe (V6.7.1) : le TARDIS s'est matérialisé dans lui-même (TardisServeur pose l'attribut) : la cabine encaisse
+exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
+	if not exterieur:GetAttribute("Catastrophe") then return end
+	degats((Config.Modes.Catastrophe or {}).Degats or 1500, "Paradoxe : TARDIS dans le TARDIS")
+	exterieur:SetAttribute("RegenerationABord", workspace:GetServerTimeNow()) -- la console crache des étincelles
+	interne("jouer", "Cloitre", false)
+	direAuxPilotes("Paradoxe : la cabine a encaissé le choc (intégrité " .. tostring(exterieur:GetAttribute("PointsDeVie") or "?") .. " %).", false)
+end)
+
+-- Spawn de l'équipe dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis) : un SpawnLocation réservé à l'équipe,
+-- sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
+if (Config.Equipe or {}).SpawnDansLeTardis ~= false and def.Nom == Config.Tardis[1].Nom then
+	task.spawn(function()
+		local Teams = game:GetService("Teams")
+		local nom = Config.nomEquipe()
+		local equipe = Teams:FindFirstChild(nom) or Teams:WaitForChild(nom, 30)
+		if not equipe then
+			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams (Config.Equipe.Nom).")
+			return
+		end
+		local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
+		local portail = interieur:FindFirstChild(Config.NomPortailInt or "Portail")
+		local cf
+		if arrivee and arrivee:IsA("BasePart") then
+			cf = arrivee.CFrame * CFrame.new(0, arrivee.Size.Y / 2 + 0.5, 0)
+		elseif portail and portail:IsA("BasePart") then
+			cf = portail.CFrame * CFrame.new(0, -portail.Size.Y / 2 + 0.5, 5) * CFrame.Angles(0, math.pi, 0)
+		else
+			cf = interieur:GetPivot()
+		end
+		local spawn = Instance.new("SpawnLocation")
+		spawn.Name = "TardisSpawn_" .. def.Nom
+		spawn.Size = Vector3.new(6, 1, 6)
+		spawn.CFrame = cf
+		spawn.Anchored, spawn.CanCollide, spawn.CanQuery, spawn.CanTouch = true, false, false, false
+		spawn.Transparency = 1
+		spawn.Neutral = false
+		spawn.TeamColor = equipe.TeamColor
+		spawn.AllowTeamChangeOnTouch = false
+		spawn.Duration = 0
+		spawn.Parent = interieur
+		print("[TARDIS] " .. def.Nom .. " : spawn de l'équipe « " .. nom .. " » placé dans l'intérieur.")
+	end)
+end
 -- Main qui repousse : après une régénération, un membre perdu repousse pendant quelques minutes (R6)
 local MEMBRES = { ["Right Arm"] = "Right Shoulder", ["Left Arm"] = "Left Shoulder", ["Right Leg"] = "Right Hip", ["Left Leg"] = "Left Hip" }
 local function surveillerMembres(joueur, personnage, duree)
@@ -534,7 +580,7 @@ local function surveillerMembres(joueur, personnage, duree)
 						local ancien = personnage:FindFirstChild(membre)
 						if ancien then ancien:Destroy() end
 						local ancienMoteur = torse:FindFirstChild(modele.moteur)
-						if ancienMoteur then ancienMoteur:Destroy() end
+						if ancienMoteur then ancienMoteur:SetAttribute("TardisVolontaire", true) ancienMoteur:Destroy() end
 						local neuf = modele.part:Clone()
 						neuf.CFrame = torse.CFrame * modele.C0 * modele.C1:Inverse()
 						neuf.Parent = personnage
@@ -622,6 +668,29 @@ local function surveillerPersonnage(joueur, personnage)
 	majEligible()
 	local connexionEquipe = joueur:GetPropertyChangedSignal("Team"):Connect(majEligible)
 	personnage.AncestryChanged:Connect(function() if not personnage:IsDescendantOf(game) then connexionEquipe:Disconnect() end end)
+
+	-- Articulations gardées (V6.7.1) : une commande :kill (BreakJoints) ou une explosion casse toutes les articulations.
+	-- Pour un membre de la C.A.T., chacune est ressoudée à l'instant même : le corps ne tombe plus en miettes avant de se
+	-- régénérer. Les suppressions voulues (membre qui repousse) portent l'attribut TardisVolontaire.
+	personnage.DescendantRemoving:Connect(function(moteur)
+		if not moteur:IsA("Motor6D") or moteur:GetAttribute("TardisVolontaire") then return end
+		if not estRegenerateur(joueur) or personnage:GetAttribute("TardisMortReelle") == true then return end
+		if not personnage:IsDescendantOf(workspace) then return end
+		local fiche = { nom = moteur.Name, parent = moteur.Parent, part0 = moteur.Part0, part1 = moteur.Part1, c0 = moteur.C0, c1 = moteur.C1 }
+		if not (fiche.parent and fiche.part0 and fiche.part1) then return end
+		task.defer(function()
+			if not personnage.Parent or not fiche.parent.Parent or not fiche.part0.Parent or not fiche.part1.Parent then return end
+			if fiche.parent:FindFirstChild(fiche.nom) then return end
+			-- La pièce n'a bougé que d'une image au plus : on la remet exactement en place avant de la ressouder
+			fiche.part1.AssemblyLinearVelocity = Vector3.zero
+			fiche.part1.AssemblyAngularVelocity = Vector3.zero
+			fiche.part1.CFrame = fiche.part0.CFrame * fiche.c0 * fiche.c1:Inverse()
+			local neuf = Instance.new("Motor6D")
+			neuf.Name = fiche.nom
+			neuf.Part0, neuf.Part1, neuf.C0, neuf.C1 = fiche.part0, fiche.part1, fiche.c0, fiche.c1
+			neuf.Parent = fiche.parent
+		end)
+	end)
 
 	local enCours = false
 	local function derouler(changerTenue)
@@ -1014,7 +1083,133 @@ local function appliquerPose(personnage, pose)
 	end
 end
 
+--------------------------------------------------------------------
+-- Tablette technicien (V6.7.2) : régulation de l'énergie, de l'air et de la vapeur, marche / arrêt de l'énergie,
+-- redémarrage à distance, purge de l'air, diagnostic. Aucune commande de voyage, de vol, de portes ni de boucliers.
+-- Tout est publié en attributs de l'extérieur : Regul<Systeme>, TechRedemarrageFin, TechPurgeFin, TechDiagnostic, TechDernier.
+--------------------------------------------------------------------
+local TECH = Config.Technicien or {}
+local SYSTEMES_REGULES = { Energie = true, Air = true, Vapeur = true }
+local function intensiteVapeur(valeur)
+	return valeur / 50 * ((Config.Vapeur or {}).Intensite or 1)
+end
+for systeme in SYSTEMES_REGULES do
+	if exterieur:GetAttribute("Regul" .. systeme) == nil then
+		exterieur:SetAttribute("Regul" .. systeme, (TECH.Regulation or {})[systeme] or (systeme == "Vapeur" and 50 or 100))
+	end
+end
+exterieur:SetAttribute("VapeurIntensite", intensiteVapeur(exterieur:GetAttribute("RegulVapeur") or 50))
+
+local dernierTech = {}
+local function commandeTechnique(joueur, donnees)
+	if typeof(donnees) ~= "table" then return end
+	local maintenant = os.clock()
+	if dernierTech[joueur] and maintenant - dernierTech[joueur] < 0.25 then return end
+	dernierTech[joueur] = maintenant
+	local commande = donnees.commande
+
+	if commande == "Reguler" then
+		local systeme, valeur = donnees.systeme, tonumber(donnees.valeur)
+		if not SYSTEMES_REGULES[systeme] or not valeur or valeur ~= valeur then return end
+		valeur = math.clamp(math.floor(valeur + 0.5), 0, 100)
+		exterieur:SetAttribute("Regul" .. systeme, valeur)
+		if systeme == "Vapeur" then exterieur:SetAttribute("VapeurIntensite", intensiteVapeur(valeur)) end
+		exterieur:SetAttribute("TechDernier", string.format("%s\tRégulation %s : %d %%\t%.2f", joueur.DisplayName, string.lower(systeme), valeur, workspace:GetServerTimeNow()))
+
+	elseif commande == "Energie" then
+		local ok, erreur = interne("basculerAlimentation")
+		if ok then
+			local allume = exterieur:GetAttribute("Alimentation") ~= false
+			direAuxPilotes((allume and "Énergie rétablie par " or "Énergie coupée par ") .. joueur.DisplayName .. ".", allume)
+			exterieur:SetAttribute("TechDernier", string.format("%s\t%s\t%.2f", joueur.DisplayName, allume and "Énergie rétablie" or "Énergie coupée", workspace:GetServerTimeNow()))
+		else
+			dire(joueur, "Impossible : " .. string.lower(erreur or "erreur"), false)
+		end
+
+	elseif commande == "Redemarrer" then
+		if not exterieur:GetAttribute("RedemarrageRequis") then dire(joueur, "Aucun redémarrage requis.", false) return end
+		if exterieur:GetAttribute("TechRedemarrageFin") then return end
+		local duree = S.RedemarrageDuree or 10
+		exterieur:SetAttribute("TechRedemarrageFin", workspace:GetServerTimeNow() + duree)
+		interne("alerter", "REDÉMARRAGE À DISTANCE")
+		direAuxPilotes(joueur.DisplayName .. " lance le redémarrage à distance (" .. duree .. " s).", true)
+		task.delay(duree, function()
+			exterieur:SetAttribute("TechRedemarrageFin", nil)
+			if not exterieur:GetAttribute("RedemarrageRequis") then return end
+			voyagesConsecutifs = 0
+			exterieur:SetAttribute("VoyagesConsecutifs", 0)
+			exterieur:SetAttribute("RedemarrageRequis", false)
+			interne("reglerAlimentation", true)
+			interne("jouer", "Reparation", false)
+			direAuxPilotes("Système redémarré à distance par " .. joueur.DisplayName .. ".", true)
+		end)
+
+	elseif commande == "Purger" then
+		if exterieur:GetAttribute("TechPurgeFin") then return end
+		if exterieur:GetAttribute("Alimentation") == false then dire(joueur, "Impossible : hors tension.", false) return end
+		local duree = TECH.DureePurge or 6
+		exterieur:SetAttribute("TechPurgeFin", workspace:GetServerTimeNow() + duree)
+		interne("alerter", "PURGE DE L'AIR")
+		interne("jouer", "Reparation", false)
+		task.delay(duree, function()
+			exterieur:SetAttribute("TechPurgeFin", nil)
+			exterieur:SetAttribute("RegulAir", 100)
+			dire(joueur, "Purge terminée : air à 100 %.", true)
+		end)
+
+	elseif commande == "Diagnostic" then
+		exterieur:SetAttribute("TechDiagnostic", workspace:GetServerTimeNow())
+		local defauts = {}
+		if exterieur:GetAttribute("Avarie") then table.insert(defauts, "avarie (intégrité à 0 %)") end
+		if exterieur:GetAttribute("RedemarrageRequis") then table.insert(defauts, "redémarrage requis") end
+		if exterieur:GetAttribute("VapeurSurcharge") then table.insert(defauts, "fuite de vapeur") end
+		if exterieur:GetAttribute("Incendie") then table.insert(defauts, "incendie de console") end
+		if exterieur:GetAttribute("Alimentation") == false then table.insert(defauts, "hors tension") end
+		if (exterieur:GetAttribute("RegulAir") or 100) < (TECH.SeuilAirVicie or 25) then table.insert(defauts, "air vicié") end
+		if (exterieur:GetAttribute("RegulEnergie") or 0) > (TECH.SurtensionAuDessus or 90) then table.insert(defauts, "surtension") end
+		if (exterieur:GetAttribute("PointsDeVie") or 100) < 60 then table.insert(defauts, string.format("intégrité %d %%", exterieur:GetAttribute("PointsDeVie") or 0)) end
+		task.delay(2.5, function()
+			dire(joueur, #defauts == 0 and "Diagnostic : tous les systèmes sont nominaux." or ("Diagnostic : " .. table.concat(defauts, ", ") .. "."), #defauts == 0)
+		end)
+	end
+end
+Players.PlayerRemoving:Connect(function(joueur) dernierTech[joueur] = nil end)
+
+-- Usure de l'air (quand quelqu'un est à bord) et surtension (risque de fuite de vapeur)
+task.spawn(function()
+	while true do
+		task.wait(30)
+		local usure = TECH.UsureAir or 1
+		if usure > 0 and not exterieur:GetAttribute("TechPurgeFin") then
+			local occupants = 0
+			for _, autre in Players:GetPlayers() do
+				local racine = racineDe(autre)
+				if racine and interne("dansInterieur", racine.Position) then occupants += 1 end
+			end
+			if occupants > 0 then
+				local avant = exterieur:GetAttribute("RegulAir") or 100
+				local air = math.max(avant - usure, 0)
+				exterieur:SetAttribute("RegulAir", air)
+				local seuil = TECH.SeuilAirVicie or 25
+				if avant >= seuil and air < seuil then
+					direAuxPilotes("Air vicié dans la salle : purge ou régulation de l'air nécessaire (tablette technicien).", false)
+				end
+			end
+		end
+		if (exterieur:GetAttribute("RegulEnergie") or 0) > (TECH.SurtensionAuDessus or 90) and exterieur:GetAttribute("Alimentation") ~= false
+			and math.random() < 0.25 then
+			if panneVapeur() then direAuxPilotes("Surtension : une grille de vapeur a lâché. Baisse la régulation de l'énergie.", false) end
+		end
+	end
+end)
+
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
+	if action == "Tech" then
+		-- Techniciens et pilotes (les pilotes l'ouvrent depuis l'outil Ingénierie de leur tablette)
+		if not (estTechnicien(joueur) or estPilote(joueur)) then return end
+		commandeTechnique(joueur, donnees)
+		return
+	end
 	if action == "RefuserRegeneration" then
 		local refuser = choixEnAttente[joueur.UserId]
 		if refuser then refuser() end
@@ -1047,7 +1242,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	if action == "LienTimeLord" then
 		local actif = not ReplicatedStorage:GetAttribute("TardisLienTimeLord")
 		ReplicatedStorage:SetAttribute("TardisLienTimeLord", actif)
-		dire(joueur, actif and "Lien Time Lord activé : les Voyageurs ressentent les régénérations." or "Lien Time Lord désactivé.", true)
+		dire(joueur, actif and "Lien Time Lord activé : les membres de la C.A.T. ressentent les régénérations." or "Lien Time Lord désactivé.", true)
 		return
 	end
 	if action == "Stabilisateur" then

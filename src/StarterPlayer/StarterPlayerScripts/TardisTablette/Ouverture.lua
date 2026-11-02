@@ -67,17 +67,24 @@ return function(contexte)
 		local base = echelleBase()
 		W.echelle.Scale = base * 0.86
 		W.tablette.Position = UDim2.fromScale(0.5, 0.57)
+		W.tablette.Rotation = -1.5
 		animer(W.echelle, 0.55, { Scale = base }, Enum.EasingStyle.Back)
-		animer(W.tablette, 0.55, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
-		-- Les panneaux arrivent les uns après les autres
+		animer(W.tablette, 0.55, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, Enum.EasingStyle.Back)
+		-- Allumage de l'écran : il part du noir et s'éclaire en un quart de seconde
+		W.ecran.BackgroundTransparency = 0
+		local ecranOrigine = W.ecran.BackgroundColor3
+		W.ecran.BackgroundColor3 = Color3.new(0, 0, 0)
+		animer(W.ecran, 0.3, { BackgroundColor3 = ecranOrigine }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.08)
+		-- Les panneaux s'allument les uns après les autres, par colonne
 		for i, cadre in panneaux do
 			local echelle = cadre:FindFirstChildOfClass("UIScale")
-			echelle.Scale = 0.9
-			animer(echelle, 0.45, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0.1 + i * 0.04)
+			echelle.Scale = 0.92
+			animer(echelle, 0.45, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0.12 + i * 0.045)
 		end
 		-- Ligne de balayage qui traverse l'écran
 		W.balayageEcran.Position = UDim2.new(0, 0, 0, -4)
 		animer(W.balayageEcran, 0.9, { Position = UDim2.new(0, 0, 1, 4) }, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 0.15)
+		UI.son("Notification")
 
 		joueur:SetAttribute("TardisTablette", true)
 		construireListe()

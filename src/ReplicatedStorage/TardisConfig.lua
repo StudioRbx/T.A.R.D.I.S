@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.6.6"
+Config.Version = "6.7.3"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -49,9 +49,11 @@ Config.NomDossierPortes = "TARDISDoors"   -- Model des battants extérieurs
 --   Duree    = durée de l'ANIMATION de (dé)matérialisation
 --   Decalage = le son démarre ce nombre de secondes AVANT l'animation (silence au début du fichier audio)
 --   Durée totale = Decalage + Duree. Pour que l'animation finisse pile avec le son : Duree = longueur du son - Decalage
--- L'urgence (demandée ou imposée : alerte, collision, zone REFUSE) l'emporte toujours sur l'express.
+-- L'urgence (demandée ou imposée : alerte, collision, zone REFUSE au départ ou à l'arrivée) l'emporte sur les autres.
+-- Libelle : le nom affiché dans les menus (la clé interne ne change pas, pour l'historique et les sauvegardes).
 Config.Modes = {
 	Normal = {
+		Libelle = "Classique",
 		Demat = { Duree = 17, Decalage = 3.25 },   -- 20,25 s au total
 		Remat = { Duree = 16.86, Decalage = 2.5 }, -- 19,36 s au total
 		Pulsations = 4,                            -- nombre de fondus pendant la (dé)matérialisation
@@ -60,6 +62,7 @@ Config.Modes = {
 	},
 	-- Urgence : il a du mal à décoller / atterrir (animation saccadée)
 	Urgence = {
+		Libelle = "Urgence",
 		Demat = { Duree = 14, Decalage = 2.25 },
 		Remat = { Duree = 23, Decalage = 2 },
 		Saccades = 0.75,       -- force des saccades : 0 = aucune, 1 = forte
@@ -67,19 +70,57 @@ Config.Modes = {
 		CouleurRotor = Color3.fromRGB(255, 130, 40),
 		Sons = { Demat = "Demat_Urg", Remat = "Remat_Urg" }, -- absents : sons du mode Normal
 	},
-	-- Express (V6.6, l'inverse de l'urgence) : voyage éclair, sans silence de départ ni saccades
+	-- Rapide (ex-Express, V6.6) : voyage éclair, sans silence de départ ni saccades.
+	-- Sa couleur (vert) ne se voit qu'à l'intérieur : dehors, les effets restent neutres (V6.7.1).
 	Express = {
+		Libelle = "Rapide",
 		Demat = { Duree = 2, Decalage = 0 },
 		Remat = { Duree = 2, Decalage = 0 },
 		Pulsations = 2,
-		Recharge = 5,          -- secondes après un voyage express avant d'en refaire un (sinon : voyage normal)
+		Recharge = 5,          -- secondes après un voyage rapide avant d'en refaire un (sinon : voyage classique)
 		CouleurRotor = Color3.fromRGB(74, 222, 128),
+		CouleurDehors = false, -- la couleur du mode ne colore pas les effets extérieurs
 		-- Absents : le son normal est joué sans son silence de départ, puis coupé en fondu à la fin
 		Sons = { Demat = "Demat_Express", Remat = "Remat_Express" },
 	},
+	-- Sauvetage (V6.7.1) : décollage classique ; à l'arrivée, la cabine apparaît en hauteur, tourne lentement sur
+	-- elle-même en se matérialisant et en descendant, puis ouvre ses portes toute seule.
+	Sauvetage = {
+		Libelle = "Sauvetage",
+		Demat = { Duree = 17, Decalage = 3.25 },
+		Remat = { Duree = 16.86, Decalage = 2.5 },
+		Pulsations = 4,
+		Hauteur = 22,          -- hauteur d'apparition au-dessus du point d'atterrissage (studs)
+		Tours = 1.25,          -- tours sur elle-même pendant la descente
+		OuvrirPortes = true,   -- portes ouvertes automatiquement une fois posée
+		CouleurRotor = Color3.fromRGB(90, 220, 230),
+		Sons = { Demat = "Demat", Remat = "Remat" },
+	},
+	-- Catastrophe (V6.7.1) : la destination est À L'INTÉRIEUR du TARDIS (un joueur à bord, un lieu dans la salle).
+	-- Première tentative : la matérialisation commence puis est repoussée dans le vortex (paradoxe). Le pilote doit
+	-- confirmer (deuxième clic sur REMAT) pour forcer l'atterrissage : saccades violentes, console qui crache des
+	-- étincelles, lumières rouges, intégrité abîmée, alerte générale.
+	Catastrophe = {
+		Libelle = "Catastrophe",
+		Demat = { Duree = 14, Decalage = 2.25 },
+		Remat = { Duree = 20, Decalage = 2 },
+		Saccades = 1,
+		Stabilisation = 3,
+		Degats = 1500,         -- intégrité perdue à l'atterrissage forcé
+		CouleurRotor = Color3.fromRGB(255, 40, 40),
+		Sons = { Demat = "Demat_Urg", Remat = "Remat_Urg" },
+	},
 }
 Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
-Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Express (V6.6.4)
+Config.DureeVortexAuto = 10 -- destination choisie avant la démat : secondes dans le vortex avant la remat automatique (V6.7.1)
+Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Rapides (V6.6.4)
+
+-- L'équipe C.A.T. — Cellule d'Autorité Temporelle (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
+-- Nom : celui de la Team dans le service Teams de Studio (à renommer là aussi si tu changes ce nom).
+Config.Equipe = {
+	Nom = "C.A.T.", -- nom exact de la Team dans Studio › Teams (Cellule d'Autorité Temporelle)
+	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
+}
 
 -- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
 -- à l'ancien emplacement, puis s'efface. Pas d'empreinte pour un départ camouflé, porté ou en vol libre.
@@ -96,6 +137,16 @@ Config.VitesseLampe = 6
 Config.VitesseRotor = 2
 Config.AmplitudeRotor = 1.5
 Config.ForceSecousse = 0.3
+-- Effets de (dé)matérialisation (V6.7) : chacun peut être coupé. Tout est calculé à partir du temps du serveur,
+-- donc identique chez tous les joueurs.
+Config.Effets = {
+	Tourbillon = true,   -- poussière (ou eau) qui tourbillonne autour de la cabine à chaque souffle, près du sol
+	Lueur = true,        -- la cabine irradie à chaque souffle (lumière qui fuit par les fenêtres, halo de la lampe)
+	Ondes = true,        -- un anneau court au sol à chaque souffle
+	Arcs = true,         -- urgence : arcs électriques sur la cabine, étincelles à la lampe
+	Choc = true,         -- atterrissage : secousse d'arrivée dans la salle, bouffée de poussière dehors
+	Contrejour = true,   -- intérieur : flash doux à chaque souffle pour ceux qui sont à bord (très atténué en « effets réduits »)
+}
 
 -- Vue de l'intérieur depuis l'extérieur
 Config.DistanceVueMax = 60
@@ -369,13 +420,51 @@ Config.StylesConsole = {
 	{ nom = "Obsidienne", couleur = Color3.fromRGB(25, 25, 30), materiau = Enum.Material.Glass },
 }
 
--- Jukebox (menu) : musiques proposées aux passagers (identifiants de sons Roblox)
+-- Jukebox (tablette › Ambiance) : musiques audibles SEULEMENT à bord (V6.7.3 : son local, en fondu quand on entre
+-- ou sort). categorie = "Action" : la piste fait partie de la playlist Action (lecture aléatoire, enchaînée).
+-- Les identifiants doivent être des sons publics (ou appartenant au jeu) : à vérifier dans la Toolbox de Studio.
 Config.Jukebox = {
-	-- { nom = "Nom de la musique", id = 1234567890 },
+	-- { nom = "Nom de la musique", id = 1234567890, categorie = "Action" },
+}
+
+-- Sons créés au démarrage s'ils n'existent pas déjà dans ReplicatedStorage › TardisAssets › Sons (V6.7.3).
+-- Valeur : un identifiant Roblox (nombre), un lien rbxasset://, ou { Id = ..., Volume = ..., Vitesse = ... } ; 0 = aucun.
+-- Un Sound placé à la main dans Studio avec le même nom est toujours prioritaire.
+Config.Sons = {
+	Camouflage = 0, Decamouflage = 0, Cloitre = 0, Reparation = 0, Regeneration = 0, Intercom = 0,
+	Moteur_Pose = 0, Moteur_Vol = 0, Moteur_Urgence = 0,
+	-- Replis intégrés à Roblox (toujours disponibles) : à remplacer par de vrais sons de TARDIS si tu en as
+	Chute = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.9 },
+	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
+}
+
+-- Intercom du site (V6.7.3) : la première matérialisation visible d'un TARDIS pendant la session est annoncée à tout
+-- le serveur (« faille spatio-temporelle »), puis les pilotes reçoivent un rappel toutes les RappelMinutes.
+-- Cible : chemin d'un objet de l'OS Fondation qui fait l'annonce (BindableEvent, BindableFunction ou ModuleScript
+-- avec une fonction annoncer / Annoncer), par exemple "ServerScriptService.OSFondation.OSAppsServeur.Intercom".
+-- Vide : le TARDIS fait l'annonce lui-même (bandeau en haut de l'écran, alarme, message dans le chat).
+Config.Intercom = {
+	Actif = true,
+	Cible = nil,
+	RappelMinutes = 10,
+	Titre = "INTERCOM DU SITE",
+	Message = "Alerte : faille spatio-temporelle détectée. Lieu : %s. Personnel de sécurité, restez vigilants.",
+	Rappel = "Rappel : la faille spatio-temporelle de %s (%s) a été signalée à tout le site.",
 }
 
 -- Vapeur de refroidissement : plaques nommées "Grille" (ou dans un dossier "Grilles") de l'intérieur
 Config.Vapeur = { Intensite = 1, IntervalleMin = 4, IntervalleMax = 14 } -- intensité 0 = aucune vapeur
+
+-- Tablette technicien (V6.7.2) : touche Y pour un technicien qui n'est pas pilote (les pilotes l'ouvrent par l'outil
+-- « Ingénierie » de leur tablette). Informations complètes et commandes RP, aucune commande de vol.
+Config.Technicien = {
+	Regulation = { Energie = 80, Air = 100, Vapeur = 50 }, -- valeurs de départ (%) ; Vapeur 50 = intensité normale
+	UsureAir = 1,            -- points d'air perdus toutes les 30 s tant que quelqu'un est à bord (0 = l'air ne s'use jamais)
+	SeuilAirVicie = 25,      -- en dessous : l'air est vicié (voile grisâtre pour les occupants)
+	SurtensionAuDessus = 90, -- au-dessus : une chance sur quatre, toutes les 30 s, qu'une grille de vapeur lâche
+	SousTension = 20,        -- en dessous : les lumières de la salle baissent
+	DureePurge = 6,          -- secondes d'une purge de l'air
+}
 
 -- Bourdonnement du moteur : Sound "Moteur_Pose", "Moteur_Vol", "Moteur_Urgence" dans TardisAssets > Sons (optionnels)
 
@@ -395,7 +484,7 @@ Config.Systemes = {
 
 -- Régénération : les joueurs de cette équipe ne meurent pas, ils se régénèrent (invulnérables pendant la régénération)
 Config.Regeneration = {
-	Equipe = "Le Voyageur",  -- nom exact de l'équipe (Team)
+	Equipe = nil,            -- nom exact de l'équipe (Team) ; vide = celui de Config.Equipe.Nom
 	Nombre = 0,              -- nombre de régénérations avant la vraie mort ; 0 = infini
 	Duree = 8,               -- durée de la régénération (secondes) : montée, éruption, changement, dissipation
 	CameraCinematique = true, -- celui qui se régénère voit la scène de l'extérieur (caméra qui tourne autour de lui)
@@ -410,7 +499,7 @@ Config.Regeneration = {
 	DelaiChoix = 3,          -- ...pendant ce temps (secondes)
 	DegatsTardis = 400,      -- une régénération à bord abîme le TARDIS (intégrité), avec étincelles et alarme
 	RepousseDuree = 300,     -- après une régénération, un membre perdu repousse pendant ce temps (secondes)
-	-- Le lien Time Lord (les Voyageurs ressentent les régénérations des autres) s'active dans la tablette : outil Régénérations
+	-- Le lien Time Lord (les membres de la C.A.T. ressentent les régénérations des autres) s'active dans la tablette : outil Régénérations
 }
 
 -- Découverte : message affiché la première fois qu'un joueur entre dans le TARDIS (une seule fois, sauvegardé)
@@ -445,12 +534,37 @@ function Config.Trouver(racine, cle)
 	return objet
 end
 
--- Nom de mode valide ("Normal", "Urgence" ou "Express"). Accepte aussi un booléen : true = "Urgence"
--- (c'est ainsi que le vol libre désigne sa démat / remat d'urgence).
+-- Nom de mode valide ("Normal", "Urgence", "Express", "Sauvetage", "Catastrophe"). Accepte aussi un booléen :
+-- true = "Urgence" (c'est ainsi que le vol libre désigne sa démat / remat d'urgence).
 function Config.normaliserMode(mode)
 	if mode == true then return "Urgence" end
 	if type(mode) == "string" and Config.Modes[mode] then return mode end
 	return "Normal"
+end
+
+-- Nom affiché d'un mode (Libelle), en majuscules si demandé
+function Config.libelleMode(mode, majuscules)
+	local reglages = Config.Modes[Config.normaliserMode(mode)]
+	local libelle = reglages.Libelle or Config.normaliserMode(mode)
+	return majuscules and string.upper(libelle) or libelle
+end
+
+-- Un mode « saccadé » (urgence ou catastrophe) : animation contrariée, sons d'urgence
+function Config.modeSaccade(mode)
+	return (Config.Modes[Config.normaliserMode(mode)].Saccades or 0) > 0
+end
+
+-- Couleur d'un mode pour les effets extérieurs : celle du mode, sauf si elle est réservée à l'intérieur
+-- (Rapide), auquel cas une lumière neutre
+function Config.couleurDehors(mode)
+	local reglages = Config.Modes[Config.normaliserMode(mode)]
+	if reglages.CouleurDehors == false then return Color3.fromRGB(235, 240, 255) end
+	return reglages.CouleurRotor or Color3.fromRGB(235, 240, 255)
+end
+
+-- Nom de l'équipe (C.A.T.)
+function Config.nomEquipe()
+	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "C.A.T."
 end
 
 -- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)
@@ -487,9 +601,10 @@ local function bruit(t, frequence)
 end
 Config.Bruit = bruit
 
--- Animation d'urgence : progression contrariée, reculs, grésillements, tremblements
+-- Animation saccadée (urgence, catastrophe) : progression contrariée, reculs, grésillements, tremblements
 -- (reduit = option « réduire les effets » du joueur : saccades à 30 %, sans les disparitions brèves)
-local function alphaUrgence(etat, p, t, duree, reduit)
+local function alphaUrgence(etat, p, t, duree, reduit, reglages)
+	reglages = reglages or Config.Modes.Urgence
 	if p <= 0 then return etat == Config.Etats.Remat and 1 or 0 end
 	if p >= 1 then return etat == Config.Etats.Remat and 0 or 1 end
 
@@ -499,10 +614,10 @@ local function alphaUrgence(etat, p, t, duree, reduit)
 	-- Stabilisation : pendant les dernières secondes, les perturbations s'apaisent progressivement
 	-- jusqu'à disparaître (le TARDIS "s'accroche" à l'atterrissage, ou lâche prise au décollage)
 	local restant = (1 - p) * duree
-	local fenetre = Config.Modes.Urgence.Stabilisation or 5
+	local fenetre = reglages.Stabilisation or 5
 	local calme = math.clamp(restant / fenetre, 0, 1)   -- 1 = loin de la fin, 0 = fin
 	calme = calme * calme * (3 - 2 * calme)              -- transition douce
-	local intensite = (Config.Modes.Urgence.Saccades or 0.75) * calme * (reduit and 0.3 or 1)
+	local intensite = (reglages.Saccades or 0.75) * calme * (reduit and 0.3 or 1)
 
 	-- Reculs : il gagne du terrain puis est repoussé, de façon irrégulière
 	local recul = math.max(0, math.sin(t * 2.3) * math.sin(t * 0.9 + 1))
@@ -520,6 +635,41 @@ local function alphaUrgence(etat, p, t, duree, reduit)
 	return 1 - math.clamp(v, 0, 1)
 end
 
+-- Un souffle (le « VWORP » de la série) : montée brusque, retombée lente. frac = position dans le souffle (0..1)
+local function formeSouffle(frac)
+	if frac < 0.3 then
+		local x = frac / 0.3
+		return x * x * (3 - 2 * x)
+	end
+	local x = (frac - 0.3) / 0.7
+	return 1 - x * x * (3 - 2 * x)
+end
+
+-- Respiration de la (dé)matérialisation (V6.7) : tout ce qui bat au rythme du son (fondu, lampe, lumières de la
+-- salle, poussière, ondes au sol) lit la même valeur, donc tout est synchronisé chez tous les joueurs.
+-- Renvoie : souffle (0 = creux, 1 = sommet du souffle), p (progression de l'animation, 0..1),
+-- fond (0 = le TARDIS est là, 1 = il n'est plus là : invisibilité « de fond », sans les souffles).
+-- Dans le vortex : une respiration lente ; posé : rien.
+function Config.Souffle(etat, ecoule, mode)
+	if etat == Config.Etats.Vol then return 0.5 + 0.5 * math.sin(ecoule * 1.3), 1, 1 end
+	if etat ~= Config.Etats.Demat and etat ~= Config.Etats.Remat then return 0, 0, 0 end
+	mode = Config.normaliserMode(mode)
+	local duree, decalage = Config.Timing(etat, mode)
+	local p = math.clamp((ecoule - math.max(decalage, 0)) / duree, 0, 1)
+	local avancee = (etat == Config.Etats.Remat) and (1 - p) or p
+	local fond = avancee ^ 1.4
+	local souffle
+	if Config.modeSaccade(mode) then
+		-- Urgence, catastrophe : les souffles sont irréguliers, le moteur peine
+		souffle = formeSouffle((p * 5 + 0.4 * math.sin(ecoule * 1.9)) % 1)
+	else
+		souffle = formeSouffle((p * (Config.Modes[mode].Pulsations or 4)) % 1)
+	end
+	-- Avant le décalage (le son commence par un silence), rien ne bouge
+	if p <= 0 or p >= 1 then souffle = 0 end
+	return souffle, p, fond
+end
+
 -- Transparence de l'extérieur (0 = visible, 1 = disparu) selon l'état, le temps écoulé et le mode
 -- (reduit : le joueur a choisi « réduire les effets »)
 function Config.Alpha(etat, ecoule, mode, reduit)
@@ -533,17 +683,21 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 	-- Ensuite l'animation dure sa durée complète.
 	local p = math.clamp((ecoule - decalage) / duree, 0, 1)
 
-	if mode == "Urgence" then
-		return alphaUrgence(etat, p, ecoule, duree, reduit)
+	if Config.modeSaccade(mode) then
+		return alphaUrgence(etat, p, ecoule, duree, reduit, Config.Modes[mode])
 	end
 
-	-- Animation normale (ou express, plus courte) : le TARDIS s'efface et revient plusieurs fois, de plus en plus fort
-	if etat == Config.Etats.Remat then
-		p = 1 - p
+	-- Animation normale (ou rapide, plus courte ; sauvetage : la même, en descendant) : à chaque souffle, la cabine s'efface d'un coup puis revient
+	-- lentement, de moins en moins (décollage) ou de plus en plus (atterrissage). Elle ne disparaît tout à fait
+	-- qu'aux derniers souffles.
+	local souffle, _, fond = Config.Souffle(etat, ecoule, mode)
+	local profondeur = 0.6 + 0.4 * fond
+	local alpha = fond + (1 - fond) * souffle * profondeur
+	-- Scintillement : l'image hésite au sommet de chaque souffle (pas en « effets réduits »)
+	if not reduit then
+		alpha += (bruit(ecoule, 28) - 0.5) * 0.12 * souffle * (1 - fond)
 	end
-	local pulsations = Config.Modes[mode].Pulsations or 4
-	local vague = (1 - math.cos(p * pulsations * 2 * math.pi)) / 2
-	return math.clamp(p + (1 - p) * vague * 0.8, 0, 1)
+	return math.clamp(alpha, 0, 1)
 end
 
 return Config

@@ -32,11 +32,6 @@ return function(contexte)
 		bouton:SetAttribute("CouleurBase", C.panneau)
 		UI.rendreVivant(bouton)
 		bouton.Activated:Connect(function()
-			if UI.pref("modeVoyage", "auto") == "manuel" and (exterieur:GetAttribute("Etat") or E.Pose) == E.Pose
-				and exterieur:GetAttribute("Porteur") ~= joueur.UserId then
-				notifier("Mode manuel : décolle d'abord, les destinations se débloquent dans le vortex.", false)
-				return
-			end
 			S.choix = c
 			majInterface()
 		end)
@@ -113,7 +108,7 @@ return function(contexte)
 					ordre += 1
 					ajouterElement(nom, { type = "historique", index = index, nom = nom, cframe = CFrame.new(tonumber(x), tonumber(y), tonumber(z)),
 						sous = string.format("Voyage n°%d  ·  %s%d, %d, %d", index,
-							(modeVoyage == "Express" and "EXPRESS  ·  ") or (modeVoyage == "Urgence" and "URGENCE  ·  ") or "",
+							(modeVoyage ~= "" and modeVoyage ~= "Normal" and Config.Modes[modeVoyage]) and (Config.libelleMode(modeVoyage, true) .. "  ·  ") or "",
 							tonumber(x), tonumber(y), tonumber(z)) }, ordre)
 				end
 			end

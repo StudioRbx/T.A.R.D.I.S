@@ -7,6 +7,7 @@ return function(contexte)
 	local V, W, animer, creer, donneesDestination, exterieur = contexte.V, contexte.W, contexte.animer, contexte.creer, contexte.donneesDestination, contexte.exterieur
 	local fermer, interieur, joueur, lireEtat, majInterface, majTuile = contexte.fermer, contexte.interieur, contexte.joueur, contexte.lireEtat, contexte.majInterface, contexte.majTuile
 	local notifier, remote, texte = contexte.notifier, contexte.remote, contexte.texte
+	local def = contexte.def
 
 	--------------------------------------------------------------------
 	-- OUTILS (volet latéral) : grille par familles, puis pages dans le même volet
@@ -51,6 +52,7 @@ return function(contexte)
 	O.fiche = tuileOutil(fSecurite, "Fiche", "■", 5)
 	O.autodestruction = tuileOutil(fSecurite, "Auto-destruction", "▲", 6)
 	O.regenerations = tuileOutil(fSecurite, "Régénérations", "◆", 7)
+	O.ingenierie = tuileOutil(fSecurite, "Ingénierie", "◆", 8) -- V6.7.2 : ouvre la tablette technicien
 	O.theme = tuileOutil(fAmbiance, "Thème", "◆", 1)
 	O.jukebox = tuileOutil(fAmbiance, "Jukebox", "●", 2)
 	O.projecteur = tuileOutil(fAmbiance, "Projecteur", "▲", 3)
@@ -92,10 +94,18 @@ return function(contexte)
 		local okJ, journalRegen = pcall(function() return game:GetService("HttpService"):JSONDecode(ReplicatedStorage:GetAttribute("TardisRegenerations") or "[]") end)
 		local nbRegen = okJ and type(journalRegen) == "table" and #journalRegen or 0
 		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
+		-- Ingénierie : nombre de pannes en cours (mêmes critères que la tablette technicien)
+		local pannes = 0
+		for _, attribut in { "Avarie", "RedemarrageRequis", "VapeurSurcharge", "Incendie" } do
+			if exterieur:GetAttribute(attribut) then pannes += 1 end
+		end
+		if (exterieur:GetAttribute("RegulAir") or 100) < ((Config.Technicien or {}).SeuilAirVicie or 25) then pannes += 1 end
+		majTuile(O.ingenierie, pannes > 0, pannes > 0 and (pannes .. " intervention(s)") or "Systèmes nominaux", C.orange, true)
 		majTuile(O.regenerations, nbRegen > 0, (nbRegen > 0 and (nbRegen .. " au journal") or "Aucune") .. (lien and " · lien actif" or ""), C.ambre, true)
 		majTuile(O.theme, exterieur:GetAttribute("Theme") ~= nil, exterieur:GetAttribute("Theme") or "Classique", C.ambre, alimente)
 		local piste = exterieur:GetAttribute("Jukebox")
-		majTuile(O.jukebox, piste ~= nil, piste and ((Config.Jukebox or {})[piste] or {}).nom or "Musique à bord", C.ambre, #(Config.Jukebox or {}) > 0)
+		local nomPiste = (type(piste) == "string" and ("Playlist " .. piste)) or (piste and ((Config.Jukebox or {})[piste] or {}).nom) or nil
+		majTuile(O.jukebox, piste ~= nil, nomPiste or (#(Config.Jukebox or {}) > 0 and "Musique à bord" or "Aucune piste (Config.Jukebox)"), C.ambre, #(Config.Jukebox or {}) > 0)
 		local projecteur = exterieur:GetAttribute("Projecteur") == true
 		majTuile(O.projecteur, projecteur, projecteur and "ALLUMÉ · vise caméra" or "Éteint", Color3.fromRGB(255, 240, 180), alimente)
 		majTuile(O.cabine, exterieur:GetAttribute("StyleInterieur") ~= nil or exterieur:GetAttribute("Couleur") ~= nil, "Intérieur · console · extérieur", C.cyan, alimente)
@@ -432,17 +442,39 @@ return function(contexte)
 			if #saisie.Text > 0 then remote:FireServer("Enseigne", { texte = string.sub(saisie.Text, 1, 24) }) end
 		end)
 	end)
+	O.ingenierie.bouton.Activated:Connect(function()
+		fermer()
+		joueur:SetAttribute("TardisTabletteTech", def.Nom)
+	end)
 	O.jukebox.bouton.Activated:Connect(function()
 		if O.jukebox.bouton:GetAttribute("Disponible") == false then return end
 		local c = ouvrirSurcouche("jukebox", "JUKEBOX")
-		ligneTexte(c, "La musique s'entend dans la salle de contrôle. Volume : réglages de la tablette.", 1, C.texte2, 11)
+		ligneTexte(c, "La musique ne s'entend qu'à bord (elle baisse en fondu quand on sort). Volume : réglages de la tablette.", 1, C.texte2, 11)
+		-- Playlists : une par catégorie (« Action » : musiques d'action, aléatoire et enchaînée)
+		local categories, ordreCategories = {}, {}
+		for _, piste in Config.Jukebox or {} do
+			if piste.categorie and not categories[piste.categorie] then
+				categories[piste.categorie] = 0
+				table.insert(ordreCategories, piste.categorie)
+			end
+			if piste.categorie then categories[piste.categorie] += 1 end
+		end
+		local ordre = 1
+		for _, categorie in ordreCategories do
+			ordre += 1
+			boutonSurcouche(c, string.format("►  Playlist %s  (%d, aléatoire)", categorie, categories[categorie]), ordre,
+				exterieur:GetAttribute("Jukebox") == categorie and C.bleu or Color3.fromRGB(120, 70, 30), function()
+				remote:FireServer("Jukebox", { liste = categorie })
+				fermerSurcouche()
+			end)
+		end
 		for i, piste in Config.Jukebox or {} do
-			boutonSurcouche(c, piste.nom, i + 1, exterieur:GetAttribute("Jukebox") == i and C.bleu or nil, function()
+			boutonSurcouche(c, piste.nom .. (piste.categorie and ("  ·  " .. piste.categorie) or ""), ordre + i, exterieur:GetAttribute("Jukebox") == i and C.bleu or nil, function()
 				remote:FireServer("Jukebox", { index = i })
 				fermerSurcouche()
 			end)
 		end
-		boutonSurcouche(c, "Arrêter la musique", #(Config.Jukebox or {}) + 2, Color3.fromRGB(110, 40, 50), function()
+		boutonSurcouche(c, "Arrêter la musique", ordre + #(Config.Jukebox or {}) + 1, Color3.fromRGB(110, 40, 50), function()
 			remote:FireServer("Jukebox", {})
 			fermerSurcouche()
 		end)
@@ -483,7 +515,7 @@ return function(contexte)
 	local function afficherRegenerations()
 		local c = ouvrirSurcouche("regenerations", "RÉGÉNÉRATIONS")
 		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
-		ligneTexte(c, "LIEN TIME LORD : les Voyageurs ressentent les régénérations des autres (notification et flash).", 1, C.texte2, 11)
+		ligneTexte(c, "LIEN TIME LORD : les membres de la C.A.T. ressentent les régénérations des autres (notification et flash).", 1, C.texte2, 11)
 		boutonSurcouche(c, lien and "●  Lien Time Lord : activé (désactiver)" or "○  Lien Time Lord : désactivé (activer)", 2, lien and C.bleu or nil, function()
 			remote:FireServer("LienTimeLord")
 			task.delay(0.4, afficherRegenerations)

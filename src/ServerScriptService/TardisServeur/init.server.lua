@@ -50,9 +50,26 @@ local function preparerSon(nom, parent, optionnel)
 	return son
 end
 
+-- Sons de Config.Sons (V6.7.3) : créés dans TardisAssets › Sons s'ils n'y sont pas déjà (un Sound placé à la main
+-- dans Studio reste prioritaire). Le premier exemplaire du script les crée, les autres les trouvent.
+for nom, reglage in Config.Sons or {} do
+	local id = type(reglage) == "table" and reglage.Id or reglage
+	local valide = (type(id) == "number" and id > 0) or (type(id) == "string" and id ~= "")
+	if valide and not dossierSons:FindFirstChild(nom) then
+		local son = Instance.new("Sound")
+		son.Name = nom
+		son.SoundId = type(id) == "number" and ("rbxassetid://" .. id) or id
+		son.Volume = type(reglage) == "table" and reglage.Volume or 0.8
+		son.PlaybackSpeed = type(reglage) == "table" and reglage.Vitesse or 1
+		son.RollOffMaxDistance = 140
+		son.Parent = dossierSons
+	end
+end
+
 -- [nom] = { son extérieur, son intérieur }
--- Sons des voyages, tirés de Config.Modes (ceux du mode Express sont optionnels)
-local LISTE_SONS = { { "Camouflage", true }, { "Decamouflage", true } }
+-- Sons des voyages, tirés de Config.Modes (ceux du mode Express sont optionnels), et sons de la salle joués par les
+-- autres scripts (V6.7.3 : Cloitre et Reparation n'étaient pas préparés, donc jamais joués)
+local LISTE_SONS = { { "Camouflage", true }, { "Decamouflage", true }, { "Cloitre", true }, { "Reparation", true } }
 for nomMode, reglages in Config.Modes do
 	for _, nomSon in reglages.Sons do
 		table.insert(LISTE_SONS, { nomSon, nomMode == "Express" })
@@ -378,6 +395,7 @@ end
 local dansInterieur -- définie plus bas (section des joueurs)
 local dansZoneRefusee -- définie plus bas (atterrissage)
 local dansZoneSansExpress -- définie plus bas (atterrissage)
+local ouvrirPortesSimple -- définie plus bas (portes) ; utilisée par l'atterrissage de sauvetage
 local clandestins = {} -- [joueur] = décalage par rapport au TARDIS
 local rotationCiel = nil
 local function reperer_clandestins()
@@ -459,7 +477,13 @@ local function decoller(mode)
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
 	-- Alerte générale : toujours en urgence
 	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
+	-- Zone refusée au départ (V6.7.1) : le décollage se fait en urgence
+	if not Config.modeSaccade(mode) and dansZoneRefusee and dansZoneRefusee(exterieur:GetPivot().Position) then
+		alerter("ZONE REFUSÉE : DÉCOLLAGE D'URGENCE")
+		mode = "Urgence"
+	end
 	mode = modeAutorise(mode, exterieur:GetPivot().Position)
+	if mode == "Catastrophe" then mode = "Urgence" end -- la catastrophe n'existe qu'à l'atterrissage
 
 	partage.occupe = true
 	exterieur:SetAttribute("Verrouille", true)
@@ -533,16 +557,26 @@ local function verifierEau()
 	exterieur:SetAttribute("SurEau", resultat ~= nil and resultat.Material == Enum.Material.Water)
 end
 
-local function cibleJoueur(joueurCible)
+-- autoriserInterieur : vrai seulement pour la commande Remat des menus (paradoxe confirmé par le pilote) ;
+-- les autres appels (balise, rappel, téléportation de poche, saisie) refusent un joueur à bord
+local function cibleJoueur(joueurCible, autoriserInterieur)
 	local personnage = joueurCible.Character
 	local racine = personnage and personnage:FindFirstChild("HumanoidRootPart")
 	if not racine then return nil, "JOUEUR SANS PERSONNAGE" end
-	if dansInterieur(racine.Position) then return nil, "JOUEUR DANS LE TARDIS" end
+	local devant = racine.CFrame.LookVector * Vector3.new(1, 0, 1)
+	devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
+	if dansInterieur(racine.Position) then
+		if not autoriserInterieur then return nil, "JOUEUR DANS LE TARDIS" end
+		-- Joueur à bord (V6.7.1) : la destination est le TARDIS lui-même (paradoxe, voir la commande Remat).
+		-- Le sol de la salle fait partie de l'intérieur (ignoré par chercherSol) : on pose la cabine aux pieds du joueur.
+		local humanoid = personnage:FindFirstChildOfClass("Humanoid")
+		local pieds = racine.Position - Vector3.new(0, (humanoid and humanoid.HipHeight or 2) + racine.Size.Y / 2, 0)
+		local sol = pieds + Vector3.new(0, exterieur.PrimaryPart.Size.Y / 2, 0)
+		return CFrame.lookAt(sol, sol + devant)
+	end
 
 	local sol = chercherSol(racine.Position)
 	if not sol then return nil, "PAS DE SOL SOUS LE JOUEUR" end
-	local devant = racine.CFrame.LookVector * Vector3.new(1, 0, 1)
-	devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
 	return CFrame.lookAt(sol, sol + devant)
 end
 
@@ -620,49 +654,53 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	-- Alerte générale : toujours en urgence
 	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
 
-	-- Une partie du TARDIS dans un mur : atterrissage d'urgence obligatoire (même en express)
+	-- Une partie du TARDIS dans un mur : atterrissage d'urgence obligatoire (même en rapide)
 	local urgenceForcee = false
 	local okCollision, collision = pcall(enCollision, cible)
-	if okCollision and collision and mode ~= "Urgence" then
+	if okCollision and collision and not Config.modeSaccade(mode) then
 		mode, urgenceForcee = "Urgence", true
 	end
-	-- Zone refusée (sous-dossier REFUSE des destinations) : la première tentative est repoussée à mi-chemin,
-	-- puis le TARDIS se matérialise en urgence, au même endroit
-	local zoneRefusee = mode ~= "Urgence" and dansZoneRefusee(cible.Position)
+	-- Zone refusée (sous-dossier REFUSE des destinations) : atterrissage d'urgence, directement (V6.7.1 ; avant,
+	-- la première tentative était repoussée dans le vortex)
+	if not Config.modeSaccade(mode) and dansZoneRefusee(cible.Position) then
+		alerter("ZONE REFUSÉE : ATTERRISSAGE D'URGENCE")
+		mode, urgenceForcee = "Urgence", true
+	end
 	mode = modeAutorise(mode, cible.Position)
+	local reglages = Config.Modes[mode]
 
 	partage.occupe = true
 
 	revenir_du_ciel()
-	exterieur:PivotTo(cible)
+	-- Sauvetage : la cabine apparaît en hauteur et descend en tournant pendant toute la matérialisation
+	local hauteurSauvetage = (mode == "Sauvetage" and reglages.Hauteur) or 0
+	exterieur:PivotTo(hauteurSauvetage > 0 and (cible + Vector3.new(0, hauteurSauvetage, 0)) or cible)
 	partage.positionActuelle = partDestination
 	exterieur:SetAttribute("Position", nom)
 	deposer_clandestins()
 
 	-- Le camouflage est posé AVANT l'état, pour qu'aucune image ne montre le TARDIS
 	setCamouflage(invisible, true)
-	if zoneRefusee then
-		-- Première tentative, en mode normal : à la moitié, le TARDIS est repoussé dans le vortex
-		exterieur:SetAttribute("Mode", "Normal")
-		setEtat(E.Remat)
-		jouerVoyage(E.Remat, "Normal", not invisible)
-		local dureeNormale, decalageNormal = Config.Timing(E.Remat, "Normal")
-		task.wait(decalageNormal + dureeNormale / 2)
-		alerter("ZONE REFUSÉE : MATÉRIALISATION REPOUSSÉE")
-		exterieur:SetAttribute("Mode", "Urgence")
-		setEtat(E.Demat) -- il redisparaît (démat d'urgence, courte)
-		jouerVoyage(E.Demat, "Urgence", not invisible)
-		local dureeDemat, decalageDemat = Config.Timing(E.Demat, "Urgence")
-		task.wait(decalageDemat + dureeDemat)
-		setEtat(E.Vol)
-		task.wait(1.5)
-		mode, urgenceForcee = "Urgence", true
-	end
 	exterieur:SetAttribute("Mode", mode) -- posé AVANT l'état : les clients choisissent la bonne animation
 	setEtat(E.Remat)
 	jouerVoyage(E.Remat, mode, not invisible) -- invisible : on ne l'entend que de l'intérieur
 	local duree, decalage = Config.Timing(E.Remat, mode)
-	task.wait(decalage + duree) -- son d'abord, puis l'animation complète
+	if hauteurSauvetage > 0 then
+		-- Descente : du sommet au sol pendant l'animation, en tournant sur elle-même (les clients lissent le mouvement)
+		local debut = os.clock()
+		local tours = reglages.Tours or 1
+		while os.clock() - debut < decalage + duree do
+			task.wait()
+			if etatActuel() ~= E.Remat then break end
+			local p = math.clamp((os.clock() - debut - decalage) / duree, 0, 1)
+			local douceur = 1 - (1 - p) * (1 - p) -- vite au début, lente à la fin
+			local hauteur = hauteurSauvetage * (1 - douceur)
+			exterieur:PivotTo(cible * CFrame.Angles(0, (1 - douceur) * tours * math.pi * 2, 0) + Vector3.new(0, hauteur, 0))
+		end
+		exterieur:PivotTo(cible)
+	else
+		task.wait(decalage + duree) -- son d'abord, puis l'animation complète
+	end
 
 	emmenerALInterieur() -- avant les collisions, sinon les joueurs seraient coincés dans la cabine
 	setCollisionsExterieur(true)
@@ -674,8 +712,52 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	verifierEau()
 	ajouterHistorique(nom, cible, mode)
 	if mode == "Express" then partage.expressPret = os.clock() + (Config.Modes.Express.Recharge or 0) end
-	-- Les portes restent fermées : elles s'ouvriront quand un joueur voudra sortir (voir plus bas)
+	if mode == "Catastrophe" then
+		-- Atterrissage forcé dans le TARDIS lui-même : la cabine encaisse (TardisSystemes lit cet attribut), alerte générale
+		exterieur:SetAttribute("Catastrophe", workspace:GetServerTimeNow())
+		if not exterieur:GetAttribute("Alerte") then exterieur:SetAttribute("Alerte", true) end
+		alerter("PARADOXE : TARDIS DANS LE TARDIS")
+	end
+	-- Sauvetage : les portes s'ouvrent toutes seules ; sinon elles restent fermées (ouvertes quand un joueur veut sortir)
+	if reglages.OuvrirPortes and not invisible then
+		task.spawn(function()
+			task.wait(0.6)
+			ouvrirPortesSimple()
+		end)
+	end
 	return true, nil, urgenceForcee
+end
+
+-- Atterrissage avorté (V6.7.1) : la destination est dans le TARDIS lui-même. La matérialisation commence en mode
+-- Catastrophe, puis la cabine est repoussée dans le vortex. Le pilote doit confirmer pour forcer (mode Catastrophe).
+local function atterrissageAvorte(cible, nom, invisible)
+	if partage.occupe then return false, "TARDIS OCCUPÉ" end
+	if etatActuel() ~= E.Vol then return false, "PAS EN VOL" end
+	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
+	partage.occupe = true
+	revenir_du_ciel()
+	exterieur:PivotTo(cible)
+	setCamouflage(invisible, true)
+	alerter("PARADOXE : DESTINATION DANS LE TARDIS")
+	exterieur:SetAttribute("Mode", "Catastrophe")
+	setEtat(E.Remat)
+	jouerVoyage(E.Remat, "Catastrophe", not invisible)
+	local duree, decalage = Config.Timing(E.Remat, "Catastrophe")
+	task.wait(decalage + duree * 0.45)
+	if etatActuel() == E.Remat then
+		alerter("MATÉRIALISATION REPOUSSÉE : CONFIRMER POUR FORCER")
+		exterieur:SetAttribute("Mode", "Urgence")
+		setEtat(E.Demat) -- il redisparaît (démat d'urgence, courte)
+		jouerVoyage(E.Demat, "Urgence", not invisible)
+		local dureeDemat, decalageDemat = Config.Timing(E.Demat, "Urgence")
+		task.wait(decalageDemat + dureeDemat)
+		setCollisionsExterieur(false)
+		setEtat(E.Vol)
+		exterieur:SetAttribute("Mode", "Normal")
+		partir_dans_le_ciel()
+	end
+	partage.occupe = false
+	return true
 end
 
 -- La position est-elle dans une zone d'un sous-dossier de TARDIS_DESTINATIONS (REFUSE, SANS_EXPRESS…) ?
@@ -722,7 +804,7 @@ local function fermerPortesSimple()
 end
 
 -- Ouverture des portes à la demande (menu) : les scripts Shut ouvrent les deux battants
-local function ouvrirPortesSimple()
+ouvrirPortesSimple = function()
 	if exterieur:GetAttribute("PorteOuverte") then return false, "PORTES DÉJÀ OUVERTES" end
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
@@ -1473,7 +1555,9 @@ end
 local dernierOrdre = {}
 -- Destination demandée par un menu (lieu, joueur, dernière destination ou coordonnées)
 -- Renvoie : cible, nom, partDestination, joueurAFiger, erreur
-local function resoudreDestination(donnees)
+-- autoriserInterieur (V6.7.1) : la commande Remat des menus accepte une destination dans le TARDIS (paradoxe) ;
+-- partout ailleurs, elle est refusée
+local function resoudreDestination(donnees, autoriserInterieur)
 	local cible, nom, partDestination
 	local joueurAFiger = nil
 	if typeof(donnees.destination) == "string" and #donnees.destination <= 100 then
@@ -1481,6 +1565,9 @@ local function resoudreDestination(donnees)
 		local dest = dossierDestinations:FindFirstChild(donnees.destination, true) -- sous-dossiers compris
 		if not (dest and dest:IsA("BasePart")) then
 			return nil, nil, nil, nil, "destination introuvable"
+		end
+		if not autoriserInterieur and dansInterieur(dest.Position) then
+			return nil, nil, nil, nil, "destination dans le TARDIS"
 		end
 		cible, nom, partDestination = dest.CFrame, dest.Name, dest
 
@@ -1491,7 +1578,7 @@ local function resoudreDestination(donnees)
 			return nil, nil, nil, nil, "joueur introuvable"
 		end
 		local erreur
-		cible, erreur = cibleJoueur(joueurCible)
+		cible, erreur = cibleJoueur(joueurCible, autoriserInterieur)
 		if not cible then
 			return nil, nil, nil, nil, erreur
 		end
@@ -1679,17 +1766,20 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		remote:FireClient(joueur, ok and messageOk or ("Impossible : " .. string.lower(erreur or "erreur")), ok)
 	end
 
-	-- Mode demandé : "Normal", "Urgence" ou "Express" (les anciens champs urgence / express restent acceptés)
+	-- Mode demandé : "Normal", "Urgence", "Express", "Sauvetage" (les anciens champs urgence / express restent acceptés) ;
+	-- "Catastrophe" n'est jamais demandé : il est imposé par une destination dans le TARDIS (confirmée)
 	local mode = "Normal"
 	if typeof(donnees) == "table" then
 		mode = Config.normaliserMode(donnees.mode or (donnees.urgence == true and "Urgence") or (donnees.express == true and "Express"))
+		if mode == "Catastrophe" then mode = "Normal" end
 	end
 
 	if action == "Demat" then
 		task.spawn(function()
 			local ok, erreur = decoller(mode)
-			repondre(ok, erreur, (mode == "Urgence" and "Décollage d'urgence réussi : le TARDIS est en vol.")
-				or (mode == "Express" and "Décollage express : le TARDIS est en vol.") or "Le TARDIS est en vol.")
+			local modeReel = Config.modeDe(exterieur)
+			repondre(ok, erreur, (modeReel == "Urgence" and "Décollage d'urgence réussi : le TARDIS est en vol.")
+				or (modeReel == "Express" and "Décollage rapide : le TARDIS est en vol.") or "Le TARDIS est en vol.")
 		end)
 
 	elseif action == "Remat" then
@@ -1704,9 +1794,24 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			partDestination = partage.positionActuelle
 		else
 			local erreur
-			cible, nom, partDestination, joueurAFiger, erreur = resoudreDestination(donnees)
+			cible, nom, partDestination, joueurAFiger, erreur = resoudreDestination(donnees, true)
 			if not cible then
 				if erreur then repondre(false, erreur) end
+				return
+			end
+		end
+
+		-- Paradoxe (V6.7.1) : la destination est dans le TARDIS lui-même. Première demande : atterrissage avorté et
+		-- demande de confirmation au menu ("__paradoxe", message caché) ; demande confirmée (forcer) : mode Catastrophe.
+		if dansInterieur(cible.Position) then
+			if donnees.forcer == true then
+				mode = "Catastrophe"
+			else
+				remote:FireClient(joueur, "__paradoxe", false)
+				task.spawn(function()
+					local ok, erreur = atterrissageAvorte(cible, nom, invisible)
+					repondre(ok, erreur, "Paradoxe : la destination est dans le TARDIS. Matérialisation repoussée. Clique encore sur REMAT pour forcer.")
+				end)
 				return
 			end
 		end
@@ -1717,12 +1822,16 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			if joueurAFiger then figerJoueur(joueurAFiger, false) end
 
 			local texte = (invisible and "Atterri en secret : " or "Atterri : ") .. nom .. "."
-			if urgenceForcee then
-				texte = "Collision détectée : atterrissage d'urgence. " .. texte
+			if mode == "Catastrophe" then
+				texte = "PARADOXE : le TARDIS s'est matérialisé dans lui-même. Intégrité abîmée, alerte générale. " .. texte
+			elseif urgenceForcee then
+				texte = "Atterrissage d'urgence imposé (collision ou zone refusée). " .. texte
 			elseif mode == "Urgence" then
 				texte = "Atterrissage d'urgence réussi. " .. texte
 			elseif mode == "Express" then
-				texte = "Atterrissage express. " .. texte
+				texte = "Atterrissage rapide. " .. texte
+			elseif mode == "Sauvetage" then
+				texte = "Sauvetage : descente terminée, portes ouvertes. " .. texte
 			end
 			repondre(ok, erreur, texte)
 		end)
@@ -1967,6 +2076,7 @@ do
 		elseif action == "listeDestinations" then return listeDestinations()
 		elseif action == "destinationChoisie" then return destinationChoisie()
 		elseif action == "reglerAlimentation" then reglerAlimentation(...) return true
+		elseif action == "basculerAlimentation" then return basculerAlimentation()
 		elseif action == "ouvrirPortes" then return ouvrirPortesSimple()
 		elseif action == "emmener" then emmenerALInterieur() return true
 		end

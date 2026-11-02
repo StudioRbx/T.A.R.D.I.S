@@ -21,8 +21,8 @@ local OPTIONNELLES = {
 }
 
 -- Sons optionnels (ceux des voyages viennent de Config.Modes)
-local SONS_OPTIONNELS = { "Camouflage", "Decamouflage", "Alarme", "Cloitre", "Chute", "Impact", "Moteur",
-	"Moteur_Pose", "Moteur_Vol", "Moteur_Urgence", "Regeneration" }
+local SONS_OPTIONNELS = { "Camouflage", "Decamouflage", "Alarme", "Cloitre", "Reparation", "Chute", "Impact",
+	"Moteur_Pose", "Moteur_Vol", "Moteur_Urgence", "Regeneration", "Intercom" }
 
 local function chercherDans(racine, nom)
 	return racine:FindFirstChild(nom, true) ~= nil
@@ -56,13 +56,15 @@ return function(def, exterieur, interieur)
 
 	-- Sons
 	local dossierSons = ReplicatedStorage:FindFirstChild("TardisAssets") and ReplicatedStorage.TardisAssets:FindFirstChild("Sons")
-	local noms, presents = {}, 0
+	-- (sans doublons : plusieurs modes partagent les mêmes sons)
+	local noms, vus, presents, sonsAbsents = {}, {}, 0, {}
+	local function ajouter(nom) if not vus[nom] then vus[nom] = true table.insert(noms, nom) end end
 	for _, reglages in Config.Modes do
-		for _, nom in reglages.Sons do table.insert(noms, nom) end
+		for _, nom in reglages.Sons do ajouter(nom) end
 	end
-	for _, nom in SONS_OPTIONNELS do table.insert(noms, nom) end
+	for _, nom in SONS_OPTIONNELS do ajouter(nom) end
 	for _, nom in noms do
-		if dossierSons and dossierSons:FindFirstChild(nom) then presents += 1 end
+		if dossierSons and dossierSons:FindFirstChild(nom) then presents += 1 else table.insert(sonsAbsents, nom) end
 	end
 
 	-- Destinations
@@ -85,6 +87,9 @@ return function(def, exterieur, interieur)
 	end
 	if #optionnellesAbsentes > 0 then
 		ligne ..= " · absentes : " .. table.concat(optionnellesAbsentes, ", ")
+	end
+	if #sonsAbsents > 0 then
+		ligne ..= " · sons absents (Config.Sons) : " .. table.concat(sonsAbsents, ", ")
 	end
 	return ligne
 end

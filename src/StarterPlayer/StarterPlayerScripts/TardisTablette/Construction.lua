@@ -18,20 +18,26 @@ return function(contexte)
 	local function panneau(parent, x, y, largeur, hauteur, titre, icone, couleur)
 		couleur = couleur or C.ambre
 		local cadre = creer("Frame", { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(largeur, hauteur),
-			BackgroundColor3 = C.panneau, BackgroundTransparency = 0.15, Parent = parent },
-		{ UI.coin(14), UI.contour(C.bleu, 1, 0.35) })
+			BackgroundColor3 = C.panneau, BackgroundTransparency = 0.1, Parent = parent },
+		{ UI.coin(14), UI.contour(C.bleu, 1, 0.35), creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(200, 208, 226)) }) })
 		if PANNEAUX_WIDGETS[titre] then
 			table.insert(W.panneauxListe, { cadre = cadre, x = x, y = y, hauteur = hauteur, widget = PANNEAUX_WIDGETS[titre] })
 		end
 		creer("UIScale", { Parent = cadre })
+		-- Bande de titre : une teinte de la couleur du panneau qui s'efface vers le bas, et un trait fin dessous
+		creer("Frame", { Name = "Bande", Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre },
+		{ UI.coin(14), creer("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.84),
+			NumberSequenceKeypoint.new(1, 1) }) }) })
+		creer("Frame", { Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -24, 0, 1), BackgroundColor3 = couleur, BackgroundTransparency = 0.7,
+			BorderSizePixel = 0, Parent = cadre })
 		-- Coin décoratif lumineux
 		creer("Frame", { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(26, 3), BackgroundColor3 = couleur,
 			BorderSizePixel = 0, Parent = cadre }, { UI.coin(2) })
 		creer("Frame", { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(3, 18), BackgroundColor3 = couleur,
 			BorderSizePixel = 0, Parent = cadre }, { UI.coin(2) })
 		texte({ Text = icone .. "  " .. titre, Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = couleur,
-			Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 16), Parent = cadre })
-		local contenu = creer("Frame", { Position = UDim2.fromOffset(12, 32), Size = UDim2.new(1, -24, 1, -42),
+			Position = UDim2.fromOffset(14, 7), Size = UDim2.new(1, -28, 0, 16), Parent = cadre })
+		local contenu = creer("Frame", { Position = UDim2.fromOffset(12, 34), Size = UDim2.new(1, -24, 1, -44),
 			BackgroundTransparency = 1, Parent = cadre })
 		table.insert(panneaux, cadre)
 		return cadre, contenu
@@ -71,10 +77,14 @@ return function(contexte)
 		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 160, 180)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 235, 245)),
 	}), Parent = W.tablette })
+	-- Boîtier : une bordure sombre extérieure, comme une vraie coque
+	creer("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 4, Transparency = 0.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = W.tablette })
 
 	-- Détails du cadre : caméra frontale et boutons latéraux
 	creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(7, 7),
 		BackgroundColor3 = Color3.fromRGB(20, 30, 50), Parent = W.tablette }, { UI.coin(99), UI.contour(Color3.fromRGB(50, 70, 110), 1, 0) })
+	creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(3, 3),
+		BackgroundColor3 = Color3.fromRGB(90, 130, 200), Parent = W.tablette }, { UI.coin(99) })
 	for _, x in { 120, 170 } do
 		creer("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromOffset(x, 0), Size = UDim2.fromOffset(36, 4),
 			BackgroundColor3 = Color3.fromRGB(40, 48, 66), Parent = W.tablette }, { UI.coin(2) })
@@ -82,7 +92,7 @@ return function(contexte)
 
 	-- L'écran lui-même
 	W.ecran = creer("Frame", { Position = UDim2.fromOffset(16, 16), Size = UDim2.new(1, -32, 1, -32),
-		BackgroundColor3 = C.ecran, ClipsDescendants = true, Parent = W.tablette }, { UI.coin(22) })
+		BackgroundColor3 = C.ecran, ClipsDescendants = true, Parent = W.tablette }, { UI.coin(22), UI.contour(Color3.new(0, 0, 0), 2, 0.4) })
 	creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 140, 175)),
 		Parent = W.ecran })
 
@@ -108,6 +118,14 @@ return function(contexte)
 				BackgroundTransparency = k % 5 == 0 and 0.8 or 0.9, BorderSizePixel = 0, Parent = W.cadranFond })
 		end
 	end
+
+	-- Matière de l'écran (V6.7) : lignes fines, vignette et reflet du verre, au-dessus des panneaux, sous les voiles
+	UI.lignesEcran(W.ecran, 44, 0.94).ZIndex = 30
+	UI.vignette(W.ecran, 0.38).ZIndex = 31
+	local reflet = creer("Frame", { Name = "Reflet", Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 0.5), BackgroundColor3 = C.blanc,
+		BorderSizePixel = 0, ZIndex = 32, Parent = W.ecran }, { UI.coin(22) })
+	creer("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.94), NumberSequenceKeypoint.new(0.35, 0.985),
+		NumberSequenceKeypoint.new(1, 1) }), Parent = reflet })
 
 	-- Ligne de balayage (animation d'ouverture)
 	W.balayageEcran = creer("Frame", { Position = UDim2.new(0, 0, 0, -4), Size = UDim2.new(1, 0, 0, 3),
@@ -162,52 +180,55 @@ return function(contexte)
 			BackgroundColor3 = C.ambre, Parent = embleme }, { UI.coin(99) })
 
 		texte({ Text = "T.A.R.D.I.S.", Font = UI.POLICE_TITRE, TextSize = 20, Position = UDim2.fromOffset(70, 8),
-			Size = UDim2.fromOffset(260, 24), Parent = barreHaut })
+			Size = UDim2.fromOffset(200, 24), Parent = barreHaut })
 		texte({ Text = "TABLETTE DE BORD  ·  V" .. tostring(Config.Version or "?"), Font = UI.POLICE_CODE, TextSize = 11,
-			TextColor3 = C.texte2, Position = UDim2.fromOffset(70, 33), Size = UDim2.fromOffset(260, 14), Parent = barreHaut })
+			TextColor3 = C.texte2, Position = UDim2.fromOffset(70, 33), Size = UDim2.fromOffset(200, 14), Parent = barreHaut })
+		UI.verre(barreHaut, 0.1, 22)
 
-		-- Pastille d'état au centre
-		W.pastille = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		-- Pastille d'état, à droite de la marque (V6.7 : elle ne chevauche plus les boutons, quelle que soit sa largeur)
+		W.pastille = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 290, 0.5, 0),
 			Size = UDim2.fromOffset(0, 32), AutomaticSize = Enum.AutomaticSize.X, BackgroundColor3 = C.fond,
-			BackgroundTransparency = 0.25, Parent = barreHaut },
-		{ UI.coin(99), creer("UIPadding", { PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 16) }), UI.pile(10, true) })
+			BackgroundTransparency = 0.25, ZIndex = 3, Parent = barreHaut },
+		{ UI.coin(99), creer("UIPadding", { PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 16) }), UI.pile(10, true),
+			creer("UISizeConstraint", { MaxSize = Vector2.new(420, 32) }) })
 		W.pastille:FindFirstChildOfClass("UIListLayout").VerticalAlignment = Enum.VerticalAlignment.Center
 		W.contourPastille = UI.contour(C.vert, 1.5, 0.3)
 		W.contourPastille.Parent = W.pastille
-		W.pointPastille = creer("Frame", { Size = UDim2.fromOffset(10, 10), BackgroundColor3 = C.vert, LayoutOrder = 1,
+		W.pointPastille = creer("Frame", { Size = UDim2.fromOffset(10, 10), BackgroundColor3 = C.vert, LayoutOrder = 1, ZIndex = 4,
 			Parent = W.pastille }, { UI.coin(99) })
 		W.textePastille = texte({ Text = "Posé", Font = UI.POLICE_GRAS, TextSize = 14, Size = UDim2.new(0, 0, 1, 0),
-			AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2, Parent = W.pastille })
+			AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2, ZIndex = 4, Parent = W.pastille })
 		W.lieuPastille = texte({ Text = "", TextSize = 12, TextColor3 = C.texte2, Size = UDim2.new(0, 0, 1, 0),
-			AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 3, Parent = W.pastille })
+			AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 3, ZIndex = 4, TextTruncate = Enum.TextTruncate.AtEnd, Parent = W.pastille })
 
-		-- Droite : horloge, jauge d'énergie, fermeture
-		W.horloge = texte({ Text = "00:00:00", Font = UI.POLICE_CODE, TextSize = 16, TextColor3 = C.cyan,
-			TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -150, 0.5, 0),
-			Size = UDim2.fromOffset(100, 20), Parent = barreHaut })
-		local jauge = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -66, 0.5, 0),
-			Size = UDim2.fromOffset(62, 20), BackgroundTransparency = 1, Parent = barreHaut }, { UI.pile(3, true) })
-		W.jauge = {}
-		for i = 1, 5 do
-			W.jauge[i] = creer("Frame", { Size = UDim2.fromOffset(9, 20), BackgroundColor3 = C.vert, LayoutOrder = i,
-				Parent = jauge }, { UI.coin(2) })
-		end
+		-- Droite, de droite à gauche : fermeture, jauge d'énergie, horloge, puis les boutons Outils / Réglages / Aide
 		W.fermer = creer("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0),
 			Size = UDim2.fromOffset(38, 38), BackgroundColor3 = Color3.fromRGB(90, 30, 40), Text = "×", Font = UI.POLICE_GRAS,
-			TextSize = 24, TextColor3 = C.texte, Parent = barreHaut }, { UI.coin(10), UI.contour(C.rouge, 1, 0.4) })
+			TextSize = 24, TextColor3 = C.texte, ZIndex = 3, Parent = barreHaut }, { UI.coin(10), UI.contour(C.rouge, 1, 0.4) })
 		W.fermer:SetAttribute("CouleurBase", Color3.fromRGB(90, 30, 40))
 		UI.rendreVivant(W.fermer)
-		local function boutonBarre(txt, x, largeur)
-			local b = creer("TextButton", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, x, 0.5, 0), Size = UDim2.fromOffset(largeur, 38),
-				BackgroundColor3 = C.panneauClair, Text = txt, Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.texte, Parent = barreHaut },
+		local jauge = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -66, 0.5, 0),
+			Size = UDim2.fromOffset(62, 20), BackgroundTransparency = 1, ZIndex = 3, Parent = barreHaut }, { UI.pile(3, true) })
+		W.jauge = {}
+		for i = 1, 5 do
+			W.jauge[i] = creer("Frame", { Size = UDim2.fromOffset(9, 20), BackgroundColor3 = C.vert, LayoutOrder = i, ZIndex = 4,
+				Parent = jauge }, { UI.coin(2) })
+		end
+		W.horloge = texte({ Text = "00:00:00", Font = UI.POLICE_CODE, TextSize = 16, TextColor3 = C.cyan,
+			TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -140, 0.5, 0),
+			Size = UDim2.fromOffset(90, 20), ZIndex = 3, Parent = barreHaut })
+		local function boutonBarre(txt, droite, largeur)
+			local b = creer("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -droite, 0.5, 0), Size = UDim2.fromOffset(largeur, 38),
+				BackgroundColor3 = C.panneauClair, Text = txt, Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.texte, ZIndex = 3, Parent = barreHaut },
 			{ UI.coin(10), UI.contour(C.cyan, 1, 0.5) })
+			UI.verre(b, 0.1, 10)
 			b:SetAttribute("CouleurBase", C.panneauClair)
 			UI.rendreVivant(b)
 			return b
 		end
-		W.btnOutils = boutonBarre("◆  OUTILS", 236, 96)
-		W.btnReglages = boutonBarre("RÉGLAGES", 340, 100)
-		W.btnAide = boutonBarre("?", 448, 38)
+		W.btnAide = boutonBarre("?", 242, 38)
+		W.btnReglages = boutonBarre("RÉGLAGES", 290, 100)
+		W.btnOutils = boutonBarre("◆  OUTILS", 400, 96)
 	end
 
 	-- TARDIS détruit : voile gris foncé sur toute la tablette, avec "TARDIS DÉTRUIT" en diagonale
@@ -302,7 +323,9 @@ return function(contexte)
 			petit = UI.badge(badges, "RÉDUIT", C.ambre, 3),
 			porte = UI.badge(badges, "PORTÉ", C.vert, 4),
 			urgence = UI.badge(badges, "URGENCE", C.orange, 5),
-			express = UI.badge(badges, "EXPRESS", C.vert, 9),
+			express = UI.badge(badges, "RAPIDE", C.vert, 9),
+			sauvetage = UI.badge(badges, "SAUVETAGE", UI.couleurMode("Sauvetage"), 11),
+			catastrophe = UI.badge(badges, "PARADOXE", C.rouge, 12),
 			horsTension = UI.badge(badges, "HORS TENSION", C.texte2, 6),
 			alerte = UI.badge(badges, "ALERTE", C.rouge, 7),
 			bloque = UI.badge(badges, "BLOQUÉ", C.orange, 8),
@@ -420,38 +443,27 @@ return function(contexte)
 			TextColor3 = C.texte2, BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0), Size = UDim2.fromScale(0.5, 1),
 			Parent = W.modeJoueur })
 
-		-- Protocoles côte à côte
+		-- Protocoles côte à côte (V6.7.1 : quatre, dont Sauvetage)
 		local protocoles = creer("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, LayoutOrder = 5,
-			Parent = contenu }, { UI.pile(16, true) })
-		local gauche = creer("Frame", { Size = UDim2.new(1 / 3, -11, 1, 0), BackgroundTransparency = 1, LayoutOrder = 1, Parent = protocoles })
-		local milieu = creer("Frame", { Size = UDim2.new(1 / 3, -11, 1, 0), BackgroundTransparency = 1, LayoutOrder = 2, Parent = protocoles })
-		local droite = creer("Frame", { Size = UDim2.new(1 / 3, -11, 1, 0), BackgroundTransparency = 1, LayoutOrder = 3, Parent = protocoles })
-		W.interUrgence = UI.interrupteur(gauche, "Urgence", "Vol instable", C.orange, 1)
-		W.interExpress = UI.interrupteur(milieu, "Express", "Voyage en 2 s", C.vert, 1)
-		W.interInvisible = UI.interrupteur(droite, "Invisible", "Déjà camouflé", C.cyan, 1)
-		-- État partagé avec le menu rapide (Urgence et Express s'excluent)
-		Commandes.lierInterrupteurs({ urgence = W.interUrgence, express = W.interExpress, invisible = W.interInvisible })
+			Parent = contenu }, { UI.pile(10, true) })
+		local colonnes = {}
+		for i = 1, 4 do
+			colonnes[i] = creer("Frame", { Size = UDim2.new(1 / 4, -8, 1, 0), BackgroundTransparency = 1, LayoutOrder = i, Parent = protocoles })
+		end
+		W.interUrgence = UI.interrupteur(colonnes[1], "Urgence", "Vol instable", C.orange, 1)
+		W.interExpress = UI.interrupteur(colonnes[2], "Rapide", "Voyage en 2 s", C.vert, 1)
+		W.interSauvetage = UI.interrupteur(colonnes[3], "Sauvetage", "Descente, portes", UI.couleurMode("Sauvetage"), 1)
+		W.interInvisible = UI.interrupteur(colonnes[4], "Invisible", "Déjà camouflé", C.cyan, 1)
+		-- État partagé avec le menu rapide (Urgence, Rapide et Sauvetage s'excluent)
+		Commandes.lierInterrupteurs({ urgence = W.interUrgence, express = W.interExpress, sauvetage = W.interSauvetage, invisible = W.interInvisible })
 
 		-- Grands boutons
 		local actions = creer("Frame", { Size = UDim2.new(1, 0, 0, 62), BackgroundTransparency = 1, LayoutOrder = 6,
 			Parent = contenu }, { UI.pile(12, true) })
-		local function grosBouton(nom, sousTitre, ordre)
-			local bouton = creer("TextButton", { Size = UDim2.new(0.5, -6, 1, 0), BackgroundColor3 = C.bleu, Text = "",
-				LayoutOrder = ordre, Parent = actions }, { UI.coin(12) })
-			local lueur = UI.contour(C.ambre, 2, 0.5)
-			lueur.Name = "Lueur"
-			lueur.Parent = bouton
-			texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Center,
-				Position = UDim2.fromOffset(0, 12), Size = UDim2.new(1, 0, 0, 20), Parent = bouton })
-			texte({ Name = "SousTitre", Text = sousTitre, TextSize = 11, TextColor3 = C.texte2,
-				TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 14),
-				Parent = bouton })
-			creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(170, 180, 205)), Parent = bouton })
-			UI.rendreVivant(bouton)
-			return bouton
-		end
-		W.demat = grosBouton("DÉMATÉRIALISER", "Décoller", 1)
-		W.remat = grosBouton("MATÉRIALISER", "Atterrir", 2)
+		-- Grands boutons partagés avec le menu rapide (UI.boutonPrincipal) : lueur, reflet, barre de progression du voyage
+		W.demat = UI.boutonPrincipal(actions, "DÉMATÉRIALISER", "Décoller", 1, UDim2.new(0.5, -6, 1, 0), 12)
+		W.remat = UI.boutonPrincipal(actions, "MATÉRIALISER", "Atterrir", 2, UDim2.new(0.5, -6, 1, 0), 12)
+		W.demat.Titre.TextSize, W.remat.Titre.TextSize = 15, 15
 	end
 
 	--------------------------------------------------------------------

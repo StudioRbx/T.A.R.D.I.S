@@ -115,7 +115,7 @@ local majCarte, majScanner = Scanner.majCarte, Scanner.majScanner
 --------------------------------------------------------------------
 -- Mises à jour lentes, balises de détresse, sentinelle et animations continues : module Suivi
 --------------------------------------------------------------------
-require(script:WaitForChild("Suivi"))({ C = C, Config = Config, E = E, Players = Players, R = R, RunService = RunService, S = S, UI = UI, W = W, animer = animer, camera = camera, def = def, distanceDe = distanceDe, exterieur = exterieur, interieur = interieur, joueur = joueur, journaliser = journaliser, lireEtat = lireEtat, majCarte = majCarte, majDisposition = majDisposition, majFiche = majFiche, majScanner = majScanner, notifier = notifier, remote = remote })
+require(script:WaitForChild("Suivi"))({ C = C, Commandes = Commandes, Config = Config, E = E, Players = Players, R = R, RunService = RunService, S = S, UI = UI, W = W, animer = animer, camera = camera, def = def, distanceDe = distanceDe, exterieur = exterieur, interieur = interieur, joueur = joueur, journaliser = journaliser, lireEtat = lireEtat, majCarte = majCarte, majDisposition = majDisposition, majFiche = majFiche, majScanner = majScanner, notifier = notifier, remote = remote })
 
 --------------------------------------------------------------------
 -- Journal automatique, statistiques et mises à jour d'accès : module Journal
@@ -125,4 +125,4 @@ require(script:WaitForChild("Journal"))({ C = C, Config = Config, E = E, Players
 --------------------------------------------------------------------
 -- Outils du volet latéral : grille par familles et pages : module Outils
 --------------------------------------------------------------------
-require(script:WaitForChild("Outils"))({ C = C, Config = Config, Players = Players, ReplicatedStorage = ReplicatedStorage, S = S, UI = UI, V = V, W = W, animer = animer, creer = creer, donneesDestination = donneesDestination, exterieur = exterieur, fermer = fermer, interieur = interieur, joueur = joueur, lireEtat = lireEtat, majInterface = majInterface, majTuile = majTuile, notifier = notifier, remote = remote, texte = texte })
+require(script:WaitForChild("Outils"))({ C = C, Config = Config, Players = Players, def = def, ReplicatedStorage = ReplicatedStorage, S = S, UI = UI, V = V, W = W, animer = animer, creer = creer, donneesDestination = donneesDestination, exterieur = exterieur, fermer = fermer, interieur = interieur, joueur = joueur, lireEtat = lireEtat, majInterface = majInterface, majTuile = majTuile, notifier = notifier, remote = remote, texte = texte })

@@ -29,12 +29,14 @@ return function(contexte)
 		end
 		if etat == E.Demat then
 			S.voyages += 1
-			journaliser((mode == "Urgence" and "Dématérialisation d'URGENCE.") or (mode == "Express" and "Dématérialisation EXPRESS.") or "Dématérialisation.", C.ambre)
+			journaliser((mode == "Urgence" and "Dématérialisation d'URGENCE.") or (mode ~= "Normal" and ("Dématérialisation " .. Config.libelleMode(mode, true) .. ".")) or "Dématérialisation.", C.ambre)
 		elseif etat == E.Vol then
 			S.debutVol = os.clock()
 			journaliser("Entrée dans le vortex.", C.cyan)
 		elseif etat == E.Remat then
-			journaliser((urgence and "Matérialisation d'URGENCE : " or "Matérialisation : ") .. position, C.ambre)
+			local prefixe = (mode == "Urgence" and "Matérialisation d'URGENCE : ") or (mode == "Catastrophe" and "PARADOXE, matérialisation dans le TARDIS : ")
+				or (mode ~= "Normal" and ("Matérialisation " .. Config.libelleMode(mode, true) .. " : ")) or "Matérialisation : "
+			journaliser(prefixe .. position, mode == "Catastrophe" and C.rouge or C.ambre)
 		elseif etat == E.Pose then
 			journaliser("Posé : " .. position, C.vert)
 		end

@@ -40,6 +40,10 @@ UI.LIBELLES = {
 	[E.Vol] = { "DANS LE VORTEX", C.cyan, "Dans le vortex" },
 	[E.Remat] = { "MATÉRIALISATION", C.ambre, "Matérialisation" },
 }
+-- Couleur d'interface d'un mode de voyage (interrupteurs, badges, texte du mode)
+function UI.couleurMode(mode)
+	return ({ Urgence = C.orange, Express = C.vert, Sauvetage = Color3.fromRGB(90, 220, 230), Catastrophe = C.rouge })[mode] or C.texte2
+end
 
 --------------------------------------------------------------------
 -- Construction
@@ -200,22 +204,132 @@ function UI.setDisponible(bouton, disponible, couleur)
 end
 
 --------------------------------------------------------------------
--- Éléments composés
+-- Matière (V6.7) : reflets de verre, bords, lignes d'écran, vignette. Tous ces calques laissent passer les clics
+-- (un Frame non « Active » ne capte pas la souris).
 --------------------------------------------------------------------
-function UI.carte(parent, ordre, espace, couleurContour)
-	return creer("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundColor3 = C.panneau, LayoutOrder = ordre or 0, Parent = parent },
-	{ UI.coin(10), UI.contour(couleurContour or C.bleu, 1, 0.45), UI.marges(12), UI.pile(espace or 8) })
+-- Reflet de verre : une lumière douce qui tombe du haut de l'élément
+function UI.verre(parent, force, rayon)
+	return creer("Frame", { Name = "Verre", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.blanc, BorderSizePixel = 0,
+		ZIndex = (parent.ZIndex or 1) + 1, Parent = parent },
+	{ UI.coin(rayon or 10), creer("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1 - (force or 0.08)), NumberSequenceKeypoint.new(0.45, 1), NumberSequenceKeypoint.new(1, 1) }) }) })
 end
 
-function UI.titreSection(parent, nom, ordre)
-	local cadre = creer("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = ordre or 0, Parent = parent })
-	UI.texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.ambre, Size = UDim2.new(0, 0, 1, 0),
-		AutomaticSize = Enum.AutomaticSize.X, Parent = cadre })
-	creer("Frame", { BackgroundColor3 = C.ambre, BackgroundTransparency = 0.75, BorderSizePixel = 0,
-		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(1, -(utf8.len(nom) * 8 + 14), 0, 1),
-		Parent = cadre })
+-- Bord d'ombre en bas de l'élément : donne de l'épaisseur aux cartes et aux boutons
+function UI.bordure(parent, rayon)
+	return creer("Frame", { Name = "Bordure", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 3),
+		BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.6, BorderSizePixel = 0, ZIndex = (parent.ZIndex or 1) + 1, Parent = parent },
+	{ UI.coin(rayon or 10) })
+end
+
+-- Lignes d'écran : de fines lignes horizontales, à peine visibles, comme sur un vrai écran
+function UI.lignesEcran(parent, nombre, transparence)
+	local calque = creer("Frame", { Name = "LignesEcran", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = parent })
+	for i = 1, nombre or 20 do
+		creer("Frame", { Position = UDim2.fromScale(0, (i - 0.5) / (nombre or 20)), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = transparence or 0.9, BorderSizePixel = 0, Parent = calque })
+	end
+	return calque
+end
+
+-- Vignette : les bords de l'écran s'assombrissent légèrement
+function UI.vignette(parent, force)
+	local calque = creer("Frame", { Name = "Vignette", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = (parent.ZIndex or 1) + 1, Parent = parent })
+	local f = force or 0.5
+	for _, info in { { Rotation = 90, Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 0.18), haut = true },
+		{ Rotation = 270, Position = UDim2.fromScale(0, 0.82), Size = UDim2.fromScale(1, 0.18) },
+		{ Rotation = 0, Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(0.1, 1) },
+		{ Rotation = 180, Position = UDim2.fromScale(0.9, 0), Size = UDim2.fromScale(0.1, 1) } } do
+		creer("Frame", { Position = info.Position, Size = info.Size, BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Parent = calque },
+		{ creer("UIGradient", { Rotation = info.Rotation, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - f), NumberSequenceKeypoint.new(1, 1) }) }) })
+	end
+	return calque
+end
+
+--------------------------------------------------------------------
+-- Éléments composés
+--------------------------------------------------------------------
+-- Carte : un panneau avec un reflet de verre en haut, une épaisseur en bas, et (optionnel) une barre de couleur à gauche
+function UI.carte(parent, ordre, espace, couleurContour, accent)
+	-- (la carte range ses enfants en pile : le relief vient d'un dégradé du fond, pas d'un calque)
+	local carte = creer("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = C.panneau, LayoutOrder = ordre or 0, Parent = parent },
+	{ UI.coin(10), UI.contour(accent or couleurContour or C.bleu, 1, accent and 0.3 or 0.45), UI.marges(12), UI.pile(espace or 8),
+		creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(205, 212, 228)) }) })
+	return carte
+end
+
+-- Titre de section : un repère de couleur, le nom, et une ligne qui file jusqu'au bord
+function UI.titreSection(parent, nom, ordre, couleur)
+	couleur = couleur or C.ambre
+	local cadre = creer("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 18), LayoutOrder = ordre or 0, Parent = parent })
+	creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(6, 6), BackgroundColor3 = couleur,
+		BorderSizePixel = 0, Parent = cadre }, { UI.coin(1) })
+	local etiquette = UI.texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = couleur, Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, Parent = cadre })
+	creer("Frame", { BackgroundColor3 = couleur, BackgroundTransparency = 0.78, BorderSizePixel = 0,
+		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(1, -(utf8.len(nom) * 8 + 26), 0, 1), Parent = cadre })
+	etiquette.Name = "Etiquette"
 	return cadre
+end
+
+-- Grand bouton d'action (DÉMATÉRIALISER / MATÉRIALISER) partagé par le menu rapide et la tablette :
+-- titre, sous-titre, lueur ambrée, reflet de verre, et une barre de remplissage pour la progression d'un voyage.
+-- Enfants nommés : Titre, SousTitre, Lueur (UIStroke), Remplissage (Frame, largeur en Scale)
+function UI.boutonPrincipal(parent, nom, sousTitre, ordre, taille, rayon)
+	taille = taille or UDim2.new(0.5, -5, 1, 0)
+	rayon = rayon or 10
+	local bouton = creer("TextButton", { Size = taille, BackgroundColor3 = C.bleu, Text = "", LayoutOrder = ordre or 0, Parent = parent }, { UI.coin(rayon) })
+	local lueur = UI.contour(C.ambre, 1.5, 0.5)
+	lueur.Name = "Lueur"
+	lueur.Parent = bouton
+	creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(170, 180, 205)), Parent = bouton })
+	-- Remplissage de progression (de gauche à droite), derrière le texte
+	creer("Frame", { Name = "Remplissage", Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.ambre, BackgroundTransparency = 0.72,
+		BorderSizePixel = 0, ZIndex = bouton.ZIndex + 1, Parent = bouton }, { UI.coin(rayon) })
+	UI.texte({ Name = "Titre", Text = nom, Font = UI.POLICE_GRAS, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Center,
+		Position = UDim2.new(0, 0, 0.5, -16), Size = UDim2.new(1, 0, 0, 18), ZIndex = bouton.ZIndex + 2, Parent = bouton })
+	UI.texte({ Name = "SousTitre", Text = sousTitre, TextSize = 11, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
+		Position = UDim2.new(0, 0, 0.5, 3), Size = UDim2.new(1, 0, 0, 14), ZIndex = bouton.ZIndex + 2, Parent = bouton })
+	UI.verre(bouton, 0.12, rayon)
+	UI.bordure(bouton, rayon)
+	UI.rendreVivant(bouton)
+	return bouton
+end
+
+-- Met à jour la progression d'un bouton principal (0..1, ou nil pour l'effacer)
+function UI.progressionBouton(bouton, p, couleur)
+	local remplissage = bouton:FindFirstChild("Remplissage")
+	if not remplissage then return end
+	remplissage.Size = UDim2.fromScale(p or 0, 1)
+	if couleur then remplissage.BackgroundColor3 = couleur end
+end
+
+-- Bouton principal en mode confirmation (V6.7.1, paradoxe) : rouge, « VOUS CONFIRMEZ ? », qui clignote ;
+-- arme = faux : retour au titre et au sous-titre d'origine
+function UI.confirmationBouton(bouton, arme, sousTitre)
+	local titre, sous = bouton:FindFirstChild("Titre"), bouton:FindFirstChild("SousTitre")
+	if not titre or not sous then return end
+	if arme then
+		if not bouton:GetAttribute("ConfirmationTitre") then
+			bouton:SetAttribute("ConfirmationTitre", titre.Text)
+			bouton:SetAttribute("ConfirmationSous", sous.Text)
+		end
+		titre.Text = "VOUS CONFIRMEZ ?"
+		sous.Text = sousTitre or "Destination dans le TARDIS"
+		bouton:SetAttribute("Disponible", true)
+		UI.colorer(bouton, Color3.fromRGB(150, 35, 40))
+		bouton.Lueur.Color = C.rouge
+		bouton.Lueur.Transparency = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(os.clock() * 8))
+		for _, enfant in bouton:GetDescendants() do
+			if enfant:IsA("TextLabel") then enfant.TextTransparency = 0 end
+		end
+	elseif bouton:GetAttribute("ConfirmationTitre") then
+		titre.Text = bouton:GetAttribute("ConfirmationTitre")
+		sous.Text = bouton:GetAttribute("ConfirmationSous") or sous.Text
+		bouton:SetAttribute("ConfirmationTitre", nil)
+		bouton:SetAttribute("ConfirmationSous", nil)
+	end
 end
 
 function UI.badge(parent, nom, couleur, ordre)
@@ -226,16 +340,21 @@ function UI.badge(parent, nom, couleur, ordre)
 end
 
 -- Interrupteur à bascule : renvoie { regler(valeur), valeur() }
+-- (V6.7 : piste creusée, bille avec reflet et point de couleur, le nom s'allume quand il est actif)
 function UI.interrupteur(parent, nom, description, couleur, ordre)
 	local ligne = creer("TextButton", { Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1, Text = "",
 		LayoutOrder = ordre or 0, Parent = parent })
-	UI.texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 14, Size = UDim2.new(1, -60, 0, 18), Parent = ligne })
+	local etiquette = UI.texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 14, Size = UDim2.new(1, -60, 0, 18), Parent = ligne })
 	UI.texte({ Text = description, TextSize = 11, TextColor3 = C.texte2, Position = UDim2.fromOffset(0, 18),
 		Size = UDim2.new(1, -60, 0, 16), Parent = ligne })
 	local piste = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0),
-		Size = UDim2.fromOffset(46, 24), BackgroundColor3 = C.gris, Parent = ligne }, { UI.coin(99) })
+		Size = UDim2.fromOffset(48, 26), BackgroundColor3 = C.gris, Parent = ligne }, { UI.coin(99), UI.contour(Color3.new(0, 0, 0), 1, 0.7) })
+	creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(150, 150, 150), C.blanc), Parent = piste })
 	local bille = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0),
-		Size = UDim2.fromOffset(18, 18), BackgroundColor3 = C.texte, Parent = piste }, { UI.coin(99) })
+		Size = UDim2.fromOffset(20, 20), BackgroundColor3 = C.texte, Parent = piste }, { UI.coin(99) })
+	creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(190, 195, 210)), Parent = bille })
+	local point = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(6, 6),
+		BackgroundColor3 = C.gris, Parent = bille }, { UI.coin(99) })
 	local lueur = creer("UIStroke", { Color = couleur, Thickness = 2, Transparency = 1, Parent = piste })
 
 	local etat = false
@@ -243,8 +362,10 @@ function UI.interrupteur(parent, nom, description, couleur, ordre)
 	function inter.regler(valeur)
 		etat = valeur
 		animer(piste, 0.2, { BackgroundColor3 = valeur and couleur or C.gris })
-		animer(lueur, 0.2, { Transparency = valeur and 0.5 or 1 })
-		animer(bille, 0.3, { Position = valeur and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0) }, Enum.EasingStyle.Back)
+		animer(lueur, 0.2, { Transparency = valeur and 0.4 or 1 })
+		animer(point, 0.2, { BackgroundColor3 = valeur and couleur or C.gris })
+		animer(etiquette, 0.2, { TextColor3 = valeur and UI.eclaircir(couleur, 0.45) or C.texte })
+		animer(bille, 0.3, { Position = valeur and UDim2.new(1, -23, 0.5, 0) or UDim2.new(0, 3, 0.5, 0) }, Enum.EasingStyle.Back)
 	end
 	function inter.valeur()
 		return etat
