@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.7.3"
+Config.Version = "6.8"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -437,6 +437,51 @@ Config.Sons = {
 	Chute = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.9 },
 	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
 }
+
+-- Accès venant du jeu (V6.8) : en plus des listes de UserIds (Config.Pilotes, Config.Techniciens), un joueur peut être
+-- pilote, technicien ou staff selon son niveau Adonis ou une liste blanche (WL) du jeu. Vérifié par le serveur.
+--   Adonis : il faut G_API = true dans les réglages d'Adonis. Niveaux usuels : 0 joueur, 100 modérateur, 200 admin,
+--            300 head admin, 900 créateur. 0 = ce rôle n'est jamais donné par Adonis.
+--   WL     : Module = chemin d'un ModuleScript du jeu (ex. "ServerScriptService.WLConfig") ; Pilotes / Techniciens = nom
+--            de la liste dans ce module (une liste de UserIds ou de pseudos, ou une fonction(joueur) qui renvoie vrai).
+--   Staff  : peut utiliser les commandes de chat /tardis statut, journal, erreurs (lecture seule, aucun pilotage).
+Config.Acces = {
+	Adonis = { NiveauPilote = 0, NiveauTechnicien = 0, NiveauStaff = 100 },
+	WL = { Module = nil, Pilotes = nil, Techniciens = nil },
+	Staff = { UserIds = {} }, -- les pilotes de Config.Pilotes et le propriétaire du jeu sont toujours staff
+	Verification = 60,        -- secondes entre deux vérifications (un rang peut changer en cours de partie)
+}
+
+-- Journal du TARDIS (V6.8) : décollages, atterrissages, paradoxes, auto-destructions, pannes, rôles, erreurs.
+-- Cible : chemin d'un objet du journal du jeu (RoSysLog), BindableEvent / BindableFunction / ModuleScript avec une fonction
+-- log / Log / ajouter / Ajouter, par exemple "ServerStorage.RoSysLog". Vide : journal interne seulement (/tardis journal).
+Config.Journal = {
+	Cible = nil,
+	Taille = 200,       -- lignes gardées en mémoire pour /tardis journal
+	Output = false,     -- true : chaque ligne est aussi écrite dans l'Output
+}
+
+-- Supervision (V6.8) : les erreurs des scripts du TARDIS chez les joueurs remontent au serveur (/tardis erreurs, journal)
+Config.Supervision = {
+	ErreursClients = true,
+	CommandeChat = "/tardis", -- /tardis statut · /tardis journal · /tardis erreurs · /tardis commandes ; /tardis help = balise de détresse
+}
+
+-- Retrouve un objet par son chemin "Service.Dossier.Objet" (nil s'il n'existe pas)
+function Config.trouverChemin(chemin)
+	if type(chemin) ~= "string" or chemin == "" then return nil end
+	local objet = nil
+	for nom in string.gmatch(chemin, "[^%.]+") do
+		if not objet then
+			local ok, service = pcall(game.GetService, game, nom)
+			objet = (ok and service) or game:FindFirstChild(nom)
+		else
+			objet = objet:FindFirstChild(nom)
+		end
+		if not objet then return nil end
+	end
+	return objet
+end
 
 -- Intercom du site (V6.7.3) : la première matérialisation visible d'un TARDIS pendant la session est annoncée à tout
 -- le serveur (« faille spatio-temporelle »), puis les pilotes reçoivent un rappel toutes les RappelMinutes.

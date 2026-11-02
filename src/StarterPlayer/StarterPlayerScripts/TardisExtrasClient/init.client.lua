@@ -133,6 +133,11 @@ require(script:WaitForChild("TabletteTechnicien"))({ C = C, Config = Config, E =
 require(script:WaitForChild("Intercom"))({ C = C, Config = Config, ReplicatedStorage = ReplicatedStorage, UI = UI, animer = animer, creer = creer, def = def, joueur = joueur, texte = texte })
 
 --------------------------------------------------------------------
+-- Remontée des erreurs et réponses du staff (V6.8) : module Supervision
+--------------------------------------------------------------------
+require(script:WaitForChild("Supervision"))({ Config = Config, ReplicatedStorage = ReplicatedStorage, def = def })
+
+--------------------------------------------------------------------
 -- Volume des sons et découverte : module Preferences
 --------------------------------------------------------------------
 require(script:WaitForChild("Preferences"))({ C = C, Config = Config, UI = UI, afficherInvitation = afficherInvitation, animer = animer, creer = creer, exterieur = exterieur, interieur = interieur, joueur = joueur, remote = remote, texte = texte })

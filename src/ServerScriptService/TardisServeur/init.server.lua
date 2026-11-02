@@ -241,6 +241,12 @@ local function majEcran(alerte)
 	texte.TextColor3 = alerte and Color3.fromRGB(255, 90, 90) or Color3.fromRGB(120, 220, 255)
 end
 
+-- Journal du TARDIS (V6.8) : TardisSupervision l'envoie au journal du jeu (Config.Journal)
+local function journal(categorie, message)
+	local evenements = game:GetService("ServerStorage"):FindFirstChild("TardisEvenements")
+	if evenements then evenements:Fire("Journal", { categorie = categorie, message = message, tardis = def.Nom }) end
+end
+
 local function alerter(message)
 	majEcran(message)
 	task.delay(2, majEcran)
@@ -341,7 +347,8 @@ local function marquerActivite()
 end
 -- Les rôles temporaires (pilote promu, bannissement) viennent de TardisExtras, sous forme d'attributs du joueur
 local function verifierJoueur(joueur)
-	local autorise = estPilote(joueur) or joueur:GetAttribute("TardisPiloteTemp_" .. def.Nom) == true
+	-- Pilote : config, rôle temporaire, ou accès donné par le jeu (Adonis, WL : TardisSupervision, V6.8)
+	local autorise = estPilote(joueur) or joueur:GetAttribute("TardisPiloteTemp_" .. def.Nom) == true or joueur:GetAttribute("TardisAccesPilote") == true
 	-- Un bannissement ne touche jamais un pilote de la config (pour ne pas s'enfermer dehors)
 	if joueur:GetAttribute("TardisBanni_" .. def.Nom) == true and not Config.estPiloteDe(def, joueur.UserId) then
 		autorise = false
@@ -358,6 +365,7 @@ local function suivreRoles(joueur)
 	verifierJoueur(joueur)
 	joueur:GetAttributeChangedSignal("TardisPiloteTemp_" .. def.Nom):Connect(function() verifierJoueur(joueur) end)
 	joueur:GetAttributeChangedSignal("TardisBanni_" .. def.Nom):Connect(function() verifierJoueur(joueur) end)
+	joueur:GetAttributeChangedSignal("TardisAccesPilote"):Connect(function() verifierJoueur(joueur) end)
 end
 Players.PlayerAdded:Connect(suivreRoles)
 for _, joueur in Players:GetPlayers() do
@@ -1777,6 +1785,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	if action == "Demat" then
 		task.spawn(function()
 			local ok, erreur = decoller(mode)
+			if ok then journal("Voyage", string.format("%s : décollage demandé par %s.", def.Nom, joueur.Name)) end
 			local modeReel = Config.modeDe(exterieur)
 			repondre(ok, erreur, (modeReel == "Urgence" and "Décollage d'urgence réussi : le TARDIS est en vol.")
 				or (modeReel == "Express" and "Décollage rapide : le TARDIS est en vol.") or "Le TARDIS est en vol.")
@@ -1819,6 +1828,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		task.spawn(function()
 			if joueurAFiger then figerJoueur(joueurAFiger, true) end
 			local ok, erreur, urgenceForcee = atterrir(cible, nom, invisible, partDestination, mode)
+			if ok then journal("Voyage", string.format("%s : atterrissage à %s demandé par %s%s.", def.Nom, nom, joueur.Name, invisible and " (invisible)" or "")) end
 			if joueurAFiger then figerJoueur(joueurAFiger, false) end
 
 			local texte = (invisible and "Atterri en secret : " or "Atterri : ") .. nom .. "."

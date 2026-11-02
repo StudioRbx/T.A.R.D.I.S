@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.7.3** (intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
+**Version actuelle : V6.8** (accès Adonis / WL, journal vers RoSysLog, commandes du staff `/tardis statut`, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md) et les [propositions](docs/PROPOSITIONS.md).
 
 ---
 
@@ -22,6 +22,7 @@ src/
 │  ├─ TardisSystemes.server.lua         Script : PV, boucliers, pannes, régénération, techniciens
 │  ├─ TardisLiaisonPortes.server.lua    Script : pont entre les portes du kit et le système
 │  ├─ TardisPontFondation.server.lua    Script : annonce les failles spatio-temporelles (OS Fondation ou annonce intégrée)
+│  ├─ TardisSupervision.server.lua      Script : accès Adonis / WL, journal, commandes du staff (/tardis statut), erreurs
 │  └─ TardisDiagnostic.lua              ModuleScript : diagnostic au démarrage (une ligne dans l'Output)
 ├─ StarterPlayer/StarterPlayerScripts/
 │  ├─ TardisEffets.client.lua           (dé)matérialisation, lampe, rotor, lumières, secousses
@@ -33,10 +34,10 @@ src/
 │  ├─ TardisPorter.client.lua           TARDIS porté (main, ceinture, épaule)
 │  ├─ TardisVolLibre.client.lua         vol libre à la 3ᵉ personne
 │  ├─ TardisRotation.client.lua         repositionnement fin
-│  └─ TardisExtrasClient/               effets et interfaces des extras et systèmes : init.client.lua + 13 modules
+│  └─ TardisExtrasClient/               effets et interfaces des extras et systèmes : init.client.lua + 14 modules
 │                                      (Ambiance, EffetsExterieurs, Replay, AutoDestruction, Interactions, Boucliers,
 │                                       Regeneration, Systemes, Decor, TabletteLecture, TabletteTechnicien, Intercom,
-│                                       Preferences)
+│                                       Supervision, Preferences)
 └─ Workspace/TARDIS/TARDIS_x/EXTERIEURE/TARDISDoors/
    ├─ LeftDoor/Shut.server.lua          battant gauche (dans chaque TARDIS)
    └─ RightDoor/Shut.server.lua         battant droit (dans chaque TARDIS)
@@ -70,7 +71,7 @@ Puis, dans Studio (mode Édition), coller le contenu de `outils/synchro_studio.l
 ## Installation dans Studio
 
 1. **ReplicatedStorage** : `TardisConfig`, `TardisUI` et `TardisCommandes` (ModuleScripts), plus le dossier `TardisAssets › Sons` (`Demat`, `Remat`, `Demat_Urg`, `Remat_Urg`, `Alarme`…).
-2. **ServerScriptService** : les 5 **Script** (`TardisServeur`, `TardisExtras`, `TardisSystemes`, `TardisLiaisonPortes`, `TardisPontFondation`) et le ModuleScript `TardisDiagnostic`. ⚠️ Ce sont des Script, pas des LocalScript.
+2. **ServerScriptService** : les 6 **Script** (`TardisServeur`, `TardisExtras`, `TardisSystemes`, `TardisLiaisonPortes`, `TardisPontFondation`, `TardisSupervision`) et le ModuleScript `TardisDiagnostic`. ⚠️ Ce sont des Script, pas des LocalScript.
 3. **StarterPlayer › StarterPlayerScripts** : les 9 **LocalScript**.
 4. Dans **chaque** TARDIS : un `Shut` (Script) dans `TARDISDoors › LeftDoor` et un autre dans `RightDoor`.
 5. Workspace :
@@ -92,6 +93,7 @@ Au lancement, l'Output (côté Server) doit afficher, pour chaque TARDIS actif :
 | T | Menu rapide |
 | Y | Tablette (technicien : tablette technicien) |
 | E | Portes, commandes de la console, ramassage |
+| `/tardis statut` · `journal` · `erreurs` | Commandes de chat du staff (lecture seule) ; `/tardis help` : balise de détresse |
 | V / G / X | Porter : changer de mode / poser / téléportation de poche |
 
 En vol libre : ZQSD et caméra pour se diriger, F pour la vitesse, V pour le vortex, U pour l'urgence, X pour démat / remat, B pour le saut, Espace ×2 pour la chute, G pour se poser, et H, I, N, P, J, L, M, C, R, O, K pour les modes avancés. Toutes les touches sont modifiables dans les réglages de la tablette.

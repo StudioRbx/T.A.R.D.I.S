@@ -30,20 +30,7 @@ if not evenements then
 end
 
 -- "ServerScriptService.OSFondation.OSAppsServeur.Intercom" → l'objet, ou nil
-local function trouver(chemin)
-	if type(chemin) ~= "string" or chemin == "" then return nil end
-	local objet = nil
-	for nom in string.gmatch(chemin, "[^%.]+") do
-		if not objet then
-			local ok, service = pcall(game.GetService, game, nom)
-			objet = ok and service or game:FindFirstChild(nom)
-		else
-			objet = objet:FindFirstChild(nom)
-		end
-		if not objet then return nil end
-	end
-	return objet
-end
+local trouver = Config.trouverChemin
 
 local function versOSFondation(message, donnees)
 	local cible = trouver(INTERCOM.Cible)

@@ -40,6 +40,11 @@ local function direAuxPilotes(message, ok)
 		if estPilote(autre) then dire(autre, message, ok) end
 	end
 end
+-- Journal du TARDIS (V6.8) : TardisSupervision l'envoie au journal du jeu (Config.Journal)
+local function journal(categorie, message)
+	local evenements = ServerStorage:FindFirstChild("TardisEvenements")
+	if evenements then evenements:Fire("Journal", { categorie = categorie, message = message, tardis = def.Nom }) end
+end
 local function heure()
 	return os.date("%H:%M")
 end
@@ -99,7 +104,8 @@ pcall(function()
 		local commande = Instance.new("TextChatCommand")
 		commande.Name = "TardisBalise"
 		commande.PrimaryAlias = (Config.Balise or {}).Commande or "/balisehelp"
-		commande.SecondaryAlias = "/tardis" -- "/tardis help" fait la même chose
+		-- (V6.8 : "/tardis" et "/tardis help" passent par TardisSupervision, qui prévient la balise ; les autres "/tardis …"
+		-- sont des commandes du staff et n'allument plus de balise)
 		commande.Parent = TextChatService
 		commande.Triggered:Connect(function(source)
 			local joueur = Players:GetPlayerByUserId(source.UserId)
@@ -111,7 +117,7 @@ end)
 local function surMessage(joueur, message)
 	local alias = string.lower((Config.Balise or {}).Commande or "/balisehelp")
 	local texte = string.lower(message)
-	if texte == alias or texte == "/balise" or string.sub(texte, 1, 7) == "/tardis" then allumerBalise(joueur) end
+	if texte == alias or texte == "/balise" then allumerBalise(joueur) end
 end
 task.spawn(function()
 	-- Balises expirées, ou atteintes par le TARDIS
@@ -647,7 +653,8 @@ local function appliquerRoles(joueur)
 	local id = tostring(joueur.UserId)
 	joueur:SetAttribute("TardisPiloteTemp_" .. def.Nom, entreeActive(roles.pilotes[id]))
 	joueur:SetAttribute("TardisBanni_" .. def.Nom, entreeActive(roles.bans[id]))
-	joueur:SetAttribute("TardisTechnicien_" .. def.Nom, Config.estTechnicienDe(def, joueur.UserId))
+	-- Technicien : liste de la config, ou accès donné par le jeu (Adonis, WL : TardisSupervision, V6.8)
+	joueur:SetAttribute("TardisTechnicien_" .. def.Nom, Config.estTechnicienDe(def, joueur.UserId) or joueur:GetAttribute("TardisAccesTechnicien") == true)
 	local technicien_quelque_part = false
 	for _, autre in Config.Tardis do
 		if joueur:GetAttribute("TardisTechnicien_" .. autre.Nom) == true then technicien_quelque_part = true end
@@ -697,7 +704,11 @@ local function definirRole(type_, cible, donnees, auteur)
 	sauverRoles()
 	return true
 end
-Players.PlayerAdded:Connect(function(joueur) appliquerRoles(joueur) end)
+local function suivreAccesTechnicien(joueur)
+	joueur:GetAttributeChangedSignal("TardisAccesTechnicien"):Connect(function() appliquerRoles(joueur) end)
+end
+Players.PlayerAdded:Connect(function(joueur) appliquerRoles(joueur) suivreAccesTechnicien(joueur) end)
+for _, joueur in Players:GetPlayers() do suivreAccesTechnicien(joueur) end
 Players.PlayerRemoving:Connect(function() task.delay(0.5, publierRoles) end) -- fin des sessions du joueur qui part
 task.spawn(function()
 	while true do task.wait(30) publierRoles() end
@@ -969,6 +980,7 @@ local function lancerAutoDestruction(pilote)
 	exterieur:SetAttribute("AutoDestructionDebut", workspace:GetServerTimeNow())
 	interne("alerter", "AUTO-DESTRUCTION ENGAGÉE")
 	direAuxPilotes("AUTO-DESTRUCTION engagée par " .. pilote.DisplayName .. " : explosion dans 20 secondes.", false)
+	journal("Sécurité", def.Nom .. " : auto-destruction engagée par " .. pilote.Name .. ".")
 	interne("jouer", "Demat_Urg", true)
 	task.delay(19, function()
 		-- Les occupants sont éjectés dehors, dans la zone de l'explosion
@@ -1142,6 +1154,10 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			return
 		end
 		local ok = definirRole(action == "Promouvoir" and "pilotes" or "bans", cible, donnees, joueur)
+		if ok then
+			journal("Rôles", string.format("%s : %s %s %s.", def.Nom, joueur.Name, donnees.retirer and "retire" or "donne",
+				(action == "Promouvoir" and "le rôle de pilote à " or "un bannissement à ") .. cible.Name))
+		end
 		if ok then
 			local verbe = donnees.retirer and (action == "Promouvoir" and "n'est plus pilote" or "n'est plus banni")
 				or (action == "Promouvoir" and "est pilote" or "est banni")
