@@ -265,6 +265,9 @@ return function(contexte)
 			local urgence = (Config.modeSaccade(Config.modeDe(exterieur)) and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
 				or exterieur:GetAttribute("Alerte") == true or exterieur:GetAttribute("AutoDestructionDebut") ~= nil
 			local alimente = exterieur:GetAttribute("Alimentation") ~= false and exterieur:GetAttribute("Detruit") ~= true
+			-- Silence à bord (V6.9.7, Config.Modes.Silencieux.SilenceABord) : moteur et jukebox se taisent pendant un voyage Silencieux
+			local silence = (Config.Modes.Silencieux or {}).SilenceABord == true and etat ~= E.Pose and Config.modeDe(exterieur) == "Silencieux"
+			if silence then alimente = false end
 			local cibles = {
 				Moteur_Pose = (alimente and not urgence and etat == E.Pose and not exterieur:GetAttribute("VolLibre")) and 1 or 0,
 				Moteur_Vol = (alimente and not urgence and (etat ~= E.Pose or exterieur:GetAttribute("VolLibre"))) and 1 or 0,

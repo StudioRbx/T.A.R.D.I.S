@@ -10,6 +10,8 @@ Outils écrits en Python, sans rien télécharger, pour vérifier le code avant 
 - `sim_config.py` : charge `TardisConfig` et teste ses fonctions (modes, durées, souffles, maintenance, pilotes, équipes).
 - `sim_modules.py` : `TardisSauvegarde` (enveloppe, migration, pannes) et `TardisCommandes` (vortex de 10 s, REMAT manuelle, paradoxe, modes, poche, petit TARDIS).
 - `sim_supervision.py` : `TardisSupervision` (rôle de technicien de la C.T.A.T., balise `/tardis help`, plus de commandes du staff).
+- `sim_v697.py` : corrections de la V6.9.7 (vol libre sans pilote, joueur visé parti, poche en Silencieux, chute dans le vide).
+- `sim_v698.py` : V6.9.8 (thème clair recoloré et lisible, réglages du vol en formation, écran de destination, recherche du menu T, outils de release et d'état des tests, glossaire).
 
 Lancer tout : `sh outils/simulation/lancer.sh` (depuis la racine du dépôt).
 

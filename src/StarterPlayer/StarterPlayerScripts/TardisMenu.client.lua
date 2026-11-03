@@ -194,7 +194,7 @@ local segmentLieux = creer("TextButton", { Text = "◆  Lieux", Font = UI.POLICE
 	BackgroundTransparency = 1, Size = UDim2.fromScale(0.5, 1), ZIndex = 3, Parent = segments })
 local segmentJoueurs = creer("TextButton", { Text = "●  Joueurs", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.texte2,
 	BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0), Size = UDim2.fromScale(0.5, 1), ZIndex = 3, Parent = segments })
-local liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 156), BackgroundColor3 = Color3.fromRGB(4, 10, 24),
+local liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 156), BackgroundColor3 = C.creux,
 	BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(),
 	AutomaticCanvasSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = destination },
 { UI.coin(8), UI.contour(C.bleu, 1, 0.5), UI.marges(6), UI.pile(4) })

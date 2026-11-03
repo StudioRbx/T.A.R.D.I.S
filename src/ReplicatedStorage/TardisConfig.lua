@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.6"
+Config.Version = "6.9.8"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -104,6 +104,7 @@ Config.Modes = {
 		Remat = { Duree = 9, Decalage = 0 },
 		Pulsations = 3,
 		Discret = true,        -- aucun son, aucune lumière, aucun effet au sol, pas d'empreinte ni d'intercom
+		SilenceABord = false,  -- V6.9.7 : vrai = à bord aussi, le moteur, le jukebox et l'ambiance se taisent pendant le voyage (pas l'alarme)
 		CouleurRotor = Color3.fromRGB(150, 120, 230), -- à l'intérieur seulement
 		CouleurDehors = false,
 		Sons = {},
@@ -126,6 +127,9 @@ Config.Modes = {
 Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
 Config.DureeVortexAuto = 10 -- destination choisie avant la démat : secondes dans le vortex avant la remat automatique (V6.7.1)
 Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Rapides (V6.6.4)
+-- Portée des sons du TARDIS (V6.9.7) : fort près de la cabine, puis de plus en plus faible, et muet au-delà de Max (studs).
+-- S'applique aussi aux Sound posés à la main dans TardisAssets › Sons (sinon Roblox les fait entendre à 10 000 studs).
+Config.PorteeSons = { Dehors = { Min = 12, Max = 220 }, Dedans = { Min = 8, Max = 90 } }
 
 -- L'équipe C.A.T. — Cellule d'Autorité Temporelle (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
 -- Nom : celui de la Team dans le service Teams de Studio (à renommer là aussi si tu changes ce nom).
@@ -274,6 +278,13 @@ Config.VolLibre = {
 	ChampDeVision = 22,        -- degrés de champ de vision ajoutés à pleine vitesse (pilote)
 	GraviteChute = 70,         -- gravité de la chute (double Espace) : plus petit = chute plus lente
 	VitesseDescente = 14,      -- vitesse de l'atterrissage en douceur (studs/s)
+	DelaiSansNouvelles = 8,    -- V6.9.7 : secondes sans position du pilote (figé, déconnecté) avant que le TARDIS se pose seul
+	-- Vol en formation (touche L, V6.9.8) : le TARDIS suit le joueur ou le véhicule visé
+	Formation = {
+		Distance = 14,         -- studs en arrière de la cible
+		Hauteur = 16,          -- studs au-dessus de la cible
+		Portee = 200,          -- distance max pour choisir une cible (studs)
+	},
 }
 
 -- Sentinelle : prévient les pilotes quand quelqu'un s'approche du TARDIS posé

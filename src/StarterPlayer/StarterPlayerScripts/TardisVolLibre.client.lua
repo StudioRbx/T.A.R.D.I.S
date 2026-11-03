@@ -59,6 +59,9 @@ local R = {
 	TOUCHE_PRECISION = Enum.KeyCode.P,
 	TOUCHE_CAP = Enum.KeyCode.M,
 	BOOST_DUREE = 1.5, BOOST_RECHARGE = 6,
+	FORMATION_DISTANCE = (reglages.Formation and reglages.Formation.Distance) or 14,
+	FORMATION_HAUTEUR = (reglages.Formation and reglages.Formation.Hauteur) or 16,
+	FORMATION_PORTEE = (reglages.Formation and reglages.Formation.Portee) or 200,
 }
 R.VITESSE_MAX = math.max(table.unpack(R.NIVEAUX))
 
@@ -461,9 +464,16 @@ exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
 	if phase ~= "Demat" and phase ~= "Remat" then return end
 	local base = exterieur.PrimaryPart
 	-- Son du mode (urgence, express ou normal), sinon le son normal
-	local modele = sonAsset(Config.Son(phase, Config.modeVolDe(exterieur))) or sonAsset(phase)
+	local nomSon = Config.Son(phase, Config.modeVolDe(exterieur))
+	local modele = (nomSon and sonAsset(nomSon)) or sonAsset(phase)
 	if base and modele then
 		local son = modele:Clone()
+		-- Portée (V6.9.7) : audible près de la cabine, muet au-delà de Config.PorteeSons.Dehors.Max
+		local portee = (Config.PorteeSons or {}).Dehors
+		if portee then
+			son.RollOffMode = Enum.RollOffMode.InverseTapered
+			son.RollOffMinDistance, son.RollOffMaxDistance = portee.Min or 12, portee.Max or 220
+		end
 		son.Parent = base -- le son suit le TARDIS en vol
 		son:Play()
 		son.Ended:Connect(function() son:Destroy() end)
@@ -1063,7 +1073,7 @@ basculerCible = function()
 		majBoutonsModes()
 		return
 	end
-	-- La cible : le joueur ou le véhicule le plus proche du centre de l'écran, à moins de 200 studs
+	-- La cible : le joueur ou le véhicule le plus proche du centre de l'écran, à portée (Config.VolLibre.Formation)
 	local meilleur, meilleurScore = nil, 0.92
 	local candidats = {}
 	for _, autre in Players:GetPlayers() do
@@ -1077,7 +1087,7 @@ basculerCible = function()
 	end
 	for _, c in candidats do
 		local vers = c.objet.Position - camera.CFrame.Position
-		if vers.Magnitude < 200 then
+		if vers.Magnitude < R.FORMATION_PORTEE then
 			local score = vers.Unit:Dot(camera.CFrame.LookVector)
 			if score > meilleurScore then meilleur, meilleurScore = c, score end
 		end
@@ -1086,7 +1096,7 @@ basculerCible = function()
 	if vol.cible then
 		vol.stationnaire, vol.planeur, vol.atterrissage = false, false, nil
 	else
-		H.infosSecondaires.Text = "Aucune cible : vise un autre joueur ou un véhicule occupé (moins de 200 studs)"
+		H.infosSecondaires.Text = string.format("Aucune cible : vise un autre joueur ou un véhicule occupé (moins de %d studs)", R.FORMATION_PORTEE)
 	end
 	majBoutonsModes()
 end
@@ -1148,7 +1158,7 @@ local function piloter(dt, t)
 		else
 			local regard = objet.CFrame.LookVector * Vector3.new(1, 0, 1)
 			regard = regard.Magnitude > 0.1 and regard.Unit or Vector3.new(0, 0, -1)
-			local voulu = objet.Position - regard * 14 + Vector3.new(0, 16, 0)
+			local voulu = objet.Position - regard * R.FORMATION_DISTANCE + Vector3.new(0, R.FORMATION_HAUTEUR, 0)
 			local ecart = voulu - vol.centre
 			direction = ecart.Magnitude > 0.5 and ecart.Unit * math.clamp(ecart.Magnitude / 12, 0, 1) or Vector3.zero
 			-- Évitement : si un obstacle est devant, on monte

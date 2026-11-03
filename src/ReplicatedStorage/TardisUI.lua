@@ -22,6 +22,7 @@ UI.C = {
 	texte = Color3.fromRGB(232, 238, 249),
 	texte2 = Color3.fromRGB(143, 163, 199),
 	gris = Color3.fromRGB(40, 48, 66),
+	creux = Color3.fromRGB(4, 10, 24), -- V6.9.8 : fond enfoncé des listes (suit le thème, clair en Gallifrey)
 	blanc = Color3.new(1, 1, 1),
 }
 local C = UI.C
@@ -51,7 +52,7 @@ end
 --------------------------------------------------------------------
 -- Thème d'interface : chaque élément créé ici mémorise le rôle de ses couleurs (cyan, ambre, panneau...)
 -- pour pouvoir être recoloré d'un coup quand le joueur change de thème.
-local ROLES_COULEUR = { "fond", "ecran", "panneau", "panneauClair", "bleu", "ambre", "cyan", "texte", "texte2", "gris" }
+local ROLES_COULEUR = { "fond", "ecran", "panneau", "panneauClair", "bleu", "ambre", "cyan", "texte", "texte2", "gris", "creux" }
 local registreCoins = setmetatable({}, { __mode = "k" })    -- [UICorner] = rayon de base
 local registreBordures = setmetatable({}, { __mode = "k" }) -- [UIStroke] = { epaisseur, transparence }
 local formeActuelle = { coins = 1, bordure = 1, transparence = 0 }
@@ -414,17 +415,17 @@ UI.THEMES = {
 	Gallifrey = { fond = Color3.fromRGB(238, 233, 222), ecran = Color3.fromRGB(246, 242, 234), panneau = Color3.fromRGB(252, 250, 246),
 		panneauClair = Color3.fromRGB(228, 220, 204), bleu = Color3.fromRGB(196, 150, 60), ambre = Color3.fromRGB(176, 120, 28),
 		cyan = Color3.fromRGB(200, 140, 40), texte = Color3.fromRGB(42, 38, 34), texte2 = Color3.fromRGB(120, 110, 96), gris = Color3.fromRGB(214, 206, 192),
-		coins = 1.7, bordure = 0.6, transparence = 0.3, nom = "Gallifrey (15e Docteur)" },
+		creux = Color3.fromRGB(226, 218, 202), coins = 1.7, bordure = 0.6, transparence = 0.3, nom = "Gallifrey (15e Docteur)" },
 	-- Le TARDIS du 13e Docteur : bleu nuit et cristaux ambrés
 	Cristal = { fond = Color3.fromRGB(6, 9, 24), ecran = Color3.fromRGB(9, 13, 32), panneau = Color3.fromRGB(16, 22, 52),
 		panneauClair = Color3.fromRGB(32, 40, 86), bleu = Color3.fromRGB(46, 60, 130), ambre = Color3.fromRGB(255, 160, 40),
 		cyan = Color3.fromRGB(255, 190, 90), texte = Color3.fromRGB(240, 236, 228), texte2 = Color3.fromRGB(170, 160, 150), gris = Color3.fromRGB(44, 48, 70),
-		coins = 0.7, bordure = 1.1, transparence = 0, nom = "Cristal (13e Docteur)" },
+		creux = Color3.fromRGB(4, 6, 18), coins = 0.7, bordure = 1.1, transparence = 0, nom = "Cristal (13e Docteur)" },
 	-- La cabine : bleu TARDIS, blanc crème, cyan pâle
 	PoliceBox = { fond = Color3.fromRGB(8, 24, 70), ecran = Color3.fromRGB(10, 30, 86), panneau = Color3.fromRGB(16, 44, 118),
 		panneauClair = Color3.fromRGB(28, 66, 156), bleu = Color3.fromRGB(0, 61, 165), ambre = Color3.fromRGB(245, 236, 210),
 		cyan = Color3.fromRGB(150, 220, 255), texte = Color3.fromRGB(250, 248, 240), texte2 = Color3.fromRGB(180, 200, 230), gris = Color3.fromRGB(26, 50, 110),
-		coins = 0.35, bordure = 1.6, transparence = 0, nom = "Police Box (la cabine)" },
+		creux = Color3.fromRGB(4, 12, 40), coins = 0.35, bordure = 1.6, transparence = 0, nom = "Police Box (la cabine)" },
 }
 UI.ORDRE_THEMES = { "Gallifrey", "Cristal", "PoliceBox" }
 

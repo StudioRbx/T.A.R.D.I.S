@@ -241,6 +241,8 @@ return function(contexte)
 		if boucle then
 			-- La musique du jukebox passe devant : l'ambiance baisse
 			local attenuation = exterieur:GetAttribute("Jukebox") ~= nil and 0.3 or 1
+			-- Silence à bord (V6.9.7) : l'ambiance se tait pendant un voyage Silencieux, si l'option est active
+			if (Config.Modes.Silencieux or {}).SilenceABord == true and etat() ~= E.Pose and Config.modeDe(exterieur) == "Silencieux" then attenuation = 0 end
 			boucle.Volume = (reglage.Volume or 0.3) * UI.volume() * presence * attenuation
 		end
 	end)

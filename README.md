@@ -2,7 +2,7 @@
 
 Système de TARDIS complet pour Roblox, développé pour la place **ZONE-TSADE** (serveur RP SCP) : intérieur plus grand que l'extérieur, (dé)matérialisation, menu et tablette de pilotage, vol libre, vortex, boucliers, régénération façon *Doctor Who*, et plusieurs TARDIS avec chacun ses accès.
 
-**Version actuelle : V6.9.6** (simulations du code sans Roblox dans `outils/simulation`, intercom mis en pause ; V6.9.5 : équipe C.T.A.T. des techniciens, phare du Sauvetage, clé du TARDIS et crise post-régénération retirées, plus de « Départ dans 3, 2, 1 » ; V6.9.4 : commandes du staff retirées, mode maintenance dans la tablette des pilotes et des techniciens ; V6.9.3 : annonce de bord, traînée du Rapide, enseigne qui clignote, ambiance par thème, statistiques par mode ; V6.9.2 : mode maintenance ; V6.9.1 : copilote et carnet de bord RP ; V6.9 : protocole Silencieux, mode Siège ; V6.8.1 : sauvegarde versionnée, boutons tactiles sur mobile ; V6.8 : accès Adonis / WL, journal vers RoSysLog, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md), les [propositions](docs/PROPOSITIONS.md) la [feuille de route V7 → V11](docs/FEUILLE_DE_ROUTE.md) et les [rappels après tests](docs/RAPPELS.md).
+**Version actuelle : V6.9.8** (vol en formation réglable, thème clair lisible, page d'[état des tests](docs/ETAT_DES_TESTS.md), textes de release, [glossaire](docs/GLOSSAIRE.md) ; V6.9.7 : corrections : poche en Silencieux, joueur visé parti, vol libre sans pilote, chute dans le vide, portée des sons ; V6.9.6 : simulations du code sans Roblox dans `outils/simulation`, intercom mis en pause ; V6.9.5 : équipe C.T.A.T. des techniciens, phare du Sauvetage, clé du TARDIS et crise post-régénération retirées, plus de « Départ dans 3, 2, 1 » ; V6.9.4 : commandes du staff retirées, mode maintenance dans la tablette des pilotes et des techniciens ; V6.9.3 : annonce de bord, traînée du Rapide, enseigne qui clignote, ambiance par thème, statistiques par mode ; V6.9.2 : mode maintenance ; V6.9.1 : copilote et carnet de bord RP ; V6.9 : protocole Silencieux, mode Siège ; V6.8.1 : sauvegarde versionnée, boutons tactiles sur mobile ; V6.8 : accès Adonis / WL, journal vers RoSysLog, remontée des erreurs ; V6.7.3 : intercom du site, jukebox à bord, sons ; V6.7.2 : tablette technicien ; V6.7.1 : modes Classique / Urgence / Rapide / Sauvetage, paradoxe « Catastrophe », zones REFUSE → urgence, méthode de voyage unifiée, spawn de la C.A.T. dans le TARDIS ; V6.7 : refonte visuelle). Voir le [journal des versions](CHANGELOG.md), l'[état des lieux](docs/ETAT_DES_LIEUX.md), les [propositions](docs/PROPOSITIONS.md) la [feuille de route V7 → V11](docs/FEUILLE_DE_ROUTE.md) avec le [plan des 110 propositions gardées](docs/FEUILLE_DE_ROUTE.md#plan-des-110-propositions-gardées) ([tri des 200](docs/PROPOSITIONS_200.md), [analyse détaillée](docs/ANALYSE_PROPOSITIONS.md)) et les [rappels après tests](docs/RAPPELS.md).
 
 **À venir :** V7 · sécurisation des scripts ; V8 · optimisation et nettoyage du code ; V9 · refonte de l'organisation des fichiers ; V10 · les 3 TARDIS, un par pilote ; V11 · plus de menu, tout sur la console (V11.1 → V11.4 : TARDIS_1).
 
@@ -47,6 +47,9 @@ src/
    └─ RightDoor/Shut.server.lua         battant droit (dans chaque TARDIS)
 docs/
 ├─ ETAT_DES_LIEUX.md                    reprise du 29/10/2026 et comparaison avec ZONE-TSADE
+├─ ETAT_DES_TESTS.md                    ce qui a été testé en jeu, version par version
+├─ GLOSSAIRE.md                         les mots du TARDIS
+├─ releases/                            textes des releases GitHub, prêts à coller
 ├─ PROPOSITIONS.md                      modifications, simplifications et ajouts proposés
 └─ patch-notes/V1.md … V6.md            notes détaillées par version et sous-version
 outils/
@@ -54,7 +57,10 @@ outils/
 ├─ synchro_studio.luau                  met Studio à jour depuis le dépôt et vérifie chaque empreinte
 ├─ remplacer.py                         remplacements exacts et vérifiés dans les fichiers
 ├─ analyse_luau.py                      variables de niveau principal par section (qui déclare, lit, réaffecte)
-└─ decouper.py                          découpe un script en modules, avec vérifications de sûreté
+├─ decouper.py                          découpe un script en modules, avec vérifications de sûreté
+├─ release.py                           prépare le texte de la release GitHub d'une version
+├─ etat_tests.py                        refait docs/ETAT_DES_TESTS.md sans perdre les résultats notés
+└─ simulation/                          le code joué sans Roblox (sh outils/simulation/lancer.sh)
 CHANGELOG.md                            index de toutes les versions
 ```
 
