@@ -35,6 +35,7 @@ return function(contexte)
 				local moi = personnage == joueur.Character
 				local humanoid = personnage:FindFirstChildOfClass("Humanoid")
 				local reduit = UI.effetsReduits()
+				local sansFlash = UI.sansFlash() -- « aucun flash » (V6.9.9) : ni éclat, ni explosion de lumière, ni voile blanc
 
 				-- Palette de la série : cœur blanc-jaune, flammes dorées, bords orange
 				local BLANC_OR, OR_CLAIR, OR, ORANGE = Color3.fromRGB(255, 250, 225), Color3.fromRGB(255, 225, 120), Color3.fromRGB(255, 170, 50), Color3.fromRGB(255, 105, 20)
@@ -226,6 +227,7 @@ return function(contexte)
 					-- Au moment du changement : une explosion de lumière et une vraie onde de choc
 					task.delay(duree * 0.55, function()
 						if not racine.Parent then return end
+						if sansFlash then ondeDeChoc(OR_CLAIR, 0.8) return end -- l'onde de choc seule, sans la boule de lumière
 						local boule = partTemporaire({ Name = "TardisRegenExplosion", Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = BLANC_OR,
 							Transparency = reduit and 0.6 or 0.1, Size = Vector3.new(3, 3, 3), CFrame = racine.CFrame })
 						animer(boule, 0.7, { Size = Vector3.new(34, 34, 34), Transparency = 1, Color = ORANGE }, Enum.EasingStyle.Quad)
@@ -601,6 +603,13 @@ return function(contexte)
 					if flashPour == false then return end
 					if not racine.Parent then return end
 					local couleur = flashPour or couleurFlash
+					if sansFlash then
+						-- Sans flash (V6.9.9) : l'anneau au sol et les étincelles seulement, sans boule de lumière ni lueur blanche
+						anneauSol(couleur, 9, 0.8, 0.3)
+						etincelles:Emit(60)
+						secouer(0.5)
+						return
+					end
 					local boule = partTemporaire({ Name = "TardisRegenEclatChangement", Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = BLANC,
 						Transparency = reduit and 0.6 or 0.05, Size = Vector3.one * 2.5, CFrame = racine.CFrame })
 					creer("PointLight", { Color = couleur, Brightness = 10, Range = 40, Shadows = true, Parent = boule })
@@ -677,7 +686,7 @@ return function(contexte)
 						eclatFait = true
 						eclatChangement()
 					end
-					if moi and not flashFait and p >= 0.5 then
+					if moi and not flashFait and p >= 0.5 and not sansFlash then
 						flashFait = true
 						local flash = creer("ScreenGui", { Name = "TardisRegenerationFlash", ResetOnSpawn = false, IgnoreGuiInset = true, Parent = joueur.PlayerGui })
 						local voile = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = couleurFlash, BackgroundTransparency = 1, BorderSizePixel = 0, Parent = flash })
@@ -695,10 +704,12 @@ return function(contexte)
 					local autre = Players:GetPlayerFromCharacter(personnage)
 					local maRacine_ = maRacine()
 					local distance = maRacine_ and math.floor((maRacine_.Position - racine.Position).Magnitude) or 0
-					local lien = creer("ScreenGui", { Name = "TardisLienTimeLord", ResetOnSpawn = false, IgnoreGuiInset = true, Parent = joueur.PlayerGui })
-					local voile = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = OR_CLAIR, BackgroundTransparency = 0.75, BorderSizePixel = 0, Parent = lien })
-					animer(voile, 1.5, { BackgroundTransparency = 1 })
-					task.delay(1.6, function() lien:Destroy() end)
+					if not sansFlash then -- (V6.9.9) le voile doré n'apparaît pas avec « aucun flash » ; la notification reste
+						local lien = creer("ScreenGui", { Name = "TardisLienTimeLord", ResetOnSpawn = false, IgnoreGuiInset = true, Parent = joueur.PlayerGui })
+						local voile = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = OR_CLAIR, BackgroundTransparency = 0.75, BorderSizePixel = 0, Parent = lien })
+						animer(voile, 1.5, { BackgroundTransparency = 1 })
+						task.delay(1.6, function() lien:Destroy() end)
+					end
 					secouer(0.15)
 					pcall(function()
 						game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Lien Time Lord",

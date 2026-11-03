@@ -427,7 +427,7 @@ end
 
 -- Éclair de lumière d'un saut temporel (au départ et à l'arrivée)
 local function flashTemporel(position)
-	if UI.effetsReduits() then return end
+	if UI.effetsReduits() or UI.sansFlash() then return end -- « aucun flash » (V6.9.9)
 	local boule = creer("Part", { Name = "TardisFlash", Shape = Enum.PartType.Ball, Anchored = true, CanCollide = false,
 		CanQuery = false, CanTouch = false, CastShadow = false, Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(190, 235, 255), Transparency = 0.1, Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(position),
@@ -448,7 +448,7 @@ local function alphaVol()
 	if phase == "Invisible" or exterieur:GetAttribute("Camouflage") == true then return 1 end
 	if phase == "Demat" or phase == "Remat" then
 		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
-		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur), UI.effetsReduits())
+		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur), UI.effetsReduits() or UI.sansFlash())
 	end
 	return 0
 end

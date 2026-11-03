@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.8"
+Config.Version = "6.9.9"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -172,6 +172,31 @@ Config.Effets = {
 	Arcs = true,         -- urgence : arcs électriques sur la cabine, étincelles à la lampe
 	Choc = true,         -- atterrissage : secousse d'arrivée dans la salle, bouffée de poussière dehors
 	Contrejour = true,   -- intérieur : flash doux à chaque souffle pour ceux qui sont à bord (très atténué en « effets réduits »)
+	-- Effets visuels du voyage (V6.9.9)
+	DistorsionUrgence = 1.8,     -- (V6.9.9) air qui ondule et distorsion d'écran en Urgence : force (1 = comme les autres modes)
+	DistorsionCatastrophe = 2.2, -- (V6.9.9) idem en Catastrophe ; en « effets réduits », seul l'excédent au-dessus de 1 est divisé par 2
+	MarquesSol = true,           -- (V6.9.9) trace carrée sombre laissée au sol là où la cabine s'est posée (tous les modes sauf Silencieux)
+	DureeMarques = 30,           -- (V6.9.9) secondes avant que la trace ait disparu
+	Nuit = 1.35,                 -- (V6.9.9) lueur, halo, lampe et ondes au sol : force la nuit (selon Lighting.ClockTime)
+	Jour = 0.7,                  -- (V6.9.9) force en plein jour (fondu entre 5 h et 7 h, et entre 17 h 30 et 19 h 30)
+	Catastrophe = true,          -- (V6.9.9) Catastrophe : fumée noire et étincelles autour de la cabine, éclats à l'atterrissage forcé
+	DureeFumeeCatastrophe = 20,  -- (V6.9.9) secondes de fumée qui traîne après l'atterrissage forcé
+	RetardVitres = 1,            -- (V6.9.9) en démat, les vitres s'éteignent ce nombre de secondes après le reste (0 = comme le reste)
+}
+-- Vitres de la cabine (V6.9.9) : rangées dans un dossier (ou Model) « Fenetres » de l'extérieur, ou nommées « Vitre… ».
+-- Sans l'un ni l'autre, détection automatique : pièces en verre (Glass) ou semi-transparentes.
+Config.NomFenetres = "Fenetres" -- (V6.9.9)
+Config.NomVitre = "Vitre"       -- (V6.9.9) préfixe du nom des vitres (« Vitre », « Vitre1 », « VitreAvant »…)
+-- Lumières de la salle selon l'état (V6.9.9) : la couleur d'origine de chaque lumière est mélangée (Force) avec la
+-- couleur de l'état. Les lumières du rotor, les LedsAlerte et la lumière de secours (hors tension) ne sont pas touchées.
+-- Mettre un état à false pour qu'il garde les couleurs d'origine (Pose = false : salle inchangée une fois posée).
+Config.CouleursSalle = { -- (V6.9.9)
+	Actif = true,
+	Force = 0.35,
+	Pose = Color3.fromRGB(120, 170, 255),   -- bleu : posé
+	Voyage = Color3.fromRGB(255, 176, 80),  -- ambre : démat, remat (et vol libre visible)
+	Vortex = Color3.fromRGB(90, 230, 255),  -- cyan : dans le vortex (vol, vol libre dans le vortex ou invisible)
+	Alerte = Color3.fromRGB(255, 50, 50),   -- rouge : alerte générale
 }
 
 -- Vue de l'intérieur depuis l'extérieur
@@ -832,6 +857,87 @@ function Config.Alpha(etat, ecoule, mode, reduit)
 		alpha += (bruit(ecoule, 28) - 0.5) * 0.12 * souffle * (1 - fond)
 	end
 	return math.clamp(alpha, 0, 1)
+end
+
+--------------------------------------------------------------------
+-- Effets visuels du voyage (V6.9.9) : petites fonctions sans effet de bord, testées dans outils/simulation
+--------------------------------------------------------------------
+-- Force de l'air qui ondule et de la distorsion d'écran selon le mode (36). reduit : « réduire les effets »
+-- (l'excédent au-dessus de 1 est divisé par 2)
+function Config.facteurDistorsion(mode, reduit)
+	local reglages = Config.Effets or {}
+	mode = Config.normaliserMode(mode)
+	local f = 1
+	if mode == "Catastrophe" then f = reglages.DistorsionCatastrophe or 2.2
+	elseif mode == "Urgence" then f = reglages.DistorsionUrgence or 1.8 end
+	f = math.max(tonumber(f) or 1, 0)
+	if reduit and f > 1 then f = 1 + (f - 1) / 2 end
+	return f
+end
+
+-- Force des lueurs du voyage selon l'heure du jeu (46) : Nuit la nuit, Jour en plein jour, avec un fondu doux
+-- entre 5 h et 7 h (lever) et entre 17 h 30 et 19 h 30 (coucher). clockTime : Lighting.ClockTime (0 à 24).
+function Config.facteurHeure(clockTime)
+	local reglages = Config.Effets or {}
+	local nuit, jour = tonumber(reglages.Nuit) or 1.35, tonumber(reglages.Jour) or 0.7
+	local heure = (tonumber(clockTime) or 12) % 24
+	local x -- 0 = nuit, 1 = jour
+	if heure < 5 or heure >= 19.5 then x = 0
+	elseif heure < 7 then x = (heure - 5) / 2
+	elseif heure < 17.5 then x = 1
+	else x = 1 - (heure - 17.5) / 2 end
+	x = x * x * (3 - 2 * x)
+	return nuit + (jour - nuit) * x
+end
+
+-- État de la salle pour ses lumières (53) : "Alerte", "Voyage" (démat, remat, vol libre visible),
+-- "Vortex" (vol, vol libre dans le vortex ou invisible) ou "Pose"
+function Config.etatSalle(etat, volPhase, volLibre, volVortex, alerte)
+	local E = Config.Etats
+	if alerte then return "Alerte" end
+	if etat == E.Demat or etat == E.Remat or volPhase == E.Demat or volPhase == E.Remat then return "Voyage" end
+	if etat == E.Vol or (volLibre and (volVortex or volPhase == "Invisible")) then return "Vortex" end
+	if volLibre then return "Voyage" end
+	return "Pose"
+end
+
+-- Couleur et force du mélange des lumières de la salle pour un état (53) ; nil, 0 si l'état garde ses couleurs
+function Config.teinteSalle(nomEtat)
+	local reglages = Config.CouleursSalle or {}
+	if reglages.Actif == false then return nil, 0 end
+	local couleur = reglages[nomEtat]
+	if typeof(couleur) ~= "Color3" then return nil, 0 end
+	return couleur, math.clamp(tonumber(reglages.Force) or 0.35, 0, 1)
+end
+
+-- Retard des vitres en démat (41), en secondes : il grandit avec la démat, pour atteindre RetardVitres à la fin
+-- (au plus la moitié de la démat : le Rapide ne dure que 2 s). Au passage en Vol, une copie lumineuse des vitres
+-- prend le relais pendant ce retard (TardisEffets), car le serveur emmène aussitôt la cabine dans le ciel.
+function Config.retardVitres(etat, ecoule, mode)
+	local retard = tonumber((Config.Effets or {}).RetardVitres) or 0
+	if etat ~= Config.Etats.Demat or retard <= 0 then return 0 end
+	local duree, decalage = Config.Timing(etat, mode)
+	if duree <= 0 then return 0 end
+	local p = math.clamp((ecoule - math.max(decalage, 0)) / duree, 0, 1)
+	return math.min(retard, duree * 0.5) * p
+end
+
+-- Lueur chaude des vitres (41), de 0 à 1 : elle monte pendant la fin de la démat (sur deux fois le retard), puis
+-- s'éteint pendant les premières secondes du Vol (ecoule = temps écoulé depuis le début de l'état). mode : celui de la démat.
+function Config.lueurVitres(etat, ecoule, mode)
+	local retard = tonumber((Config.Effets or {}).RetardVitres) or 0
+	if retard <= 0 then return 0 end
+	local duree, decalage = Config.Timing(Config.Etats.Demat, mode)
+	retard = math.min(retard, duree * 0.5)
+	local x = 0
+	if etat == Config.Etats.Demat then
+		local fin = math.max(decalage, 0) + duree
+		local debut = math.max(fin - 2 * retard, math.max(decalage, 0))
+		x = math.clamp((ecoule - debut) / math.max(fin - debut, 0.05), 0, 1)
+	elseif etat == Config.Etats.Vol then
+		x = math.clamp(1 - ecoule / math.max(retard, 0.05), 0, 1)
+	end
+	return x * x * (3 - 2 * x)
 end
 
 -- Maintenance (V6.9.4) : la raison si cette action est refusée parce que le TARDIS est en maintenance, sinon nil

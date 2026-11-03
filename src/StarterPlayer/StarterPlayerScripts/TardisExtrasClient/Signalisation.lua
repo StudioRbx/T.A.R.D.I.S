@@ -9,6 +9,8 @@
 --      en Silencieux, chaos rouge en Catastrophe).
 --   4. Ambiance sonore par thème d'intérieur (ajout C18) : chaque thème (Classique, Nuit, Alerte…) change la hauteur du
 --      bourdonnement du moteur et peut jouer sa propre boucle d'ambiance (Config.AmbianceThemes), à bord seulement.
+--   (V6.9.9) Marque au sol après chaque atterrissage, dans tous les modes sauf Silencieux : une trace carrée sombre
+--      reste Config.Effets.DureeMarques secondes là où la cabine s'est posée. Avec « aucun flash », l'enseigne reste fixe.
 -- Tout est local (chaque client calcule à partir des attributs Etat, DebutEtat, Mode, Theme).
 
 return function(contexte)
@@ -88,7 +90,7 @@ return function(contexte)
 		parametres.FilterType = Enum.RaycastFilterType.Exclude
 		parametres.FilterDescendantsInstances = { exterieur, interieur, joueur.Character }
 		local r = workspace:Raycast(position + Vector3.new(0, 4, 0), Vector3.new(0, -40, 0), parametres)
-		return r and r.Position, r and r.Normal
+		return r and r.Position, r and r.Normal, r
 	end
 	local function trainee()
 		if (Config.Signalisation or {}).Trainee == false then return end
@@ -123,10 +125,53 @@ return function(contexte)
 			task.delay(2.6, function() marque:Destroy() end)
 		end
 	end
+	--------------------------------------------------------------------
+	-- 2 bis. Marque au sol après l'atterrissage (V6.9.9) : tous les modes sauf Silencieux. Une trace carrée, sombre et
+	-- légère, un peu plus large que la cabine et tournée comme elle, qui s'efface en Config.Effets.DureeMarques secondes.
+	-- Une seule par TARDIS (un nouvel atterrissage remplace l'ancienne) ; rien sur l'eau. Locale à chaque joueur.
+	--------------------------------------------------------------------
+	local EFFETS = Config.Effets or {}
+	local marqueSol = nil
+	local function marqueAtterrissage()
+		if EFFETS.MarquesSol == false then return end
+		if exterieur:GetAttribute("SurEau") == true or exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end
+		local pivot = exterieur:GetPivot()
+		local point, _, resultat = sol(pivot.Position)
+		if not point or resultat.Material == Enum.Material.Water then return end
+		-- Couleur : celle du sol, assombrie (brûlée)
+		local couleurSol
+		if resultat.Instance and resultat.Instance:IsA("Terrain") then
+			couleurSol = workspace.Terrain:GetMaterialColor(resultat.Material)
+		elseif resultat.Instance and resultat.Instance:IsA("BasePart") then
+			couleurSol = resultat.Instance.Color
+		else
+			couleurSol = Color3.fromRGB(90, 90, 90)
+		end
+		local taille = exterieur:GetExtentsSize()
+		local devant = pivot.LookVector * Vector3.new(1, 0, 1)
+		devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
+		local centre = point + Vector3.new(0, 0.03, 0)
+		if marqueSol then marqueSol:Destroy() end
+		local duree = tonumber(EFFETS.DureeMarques) or 30
+		local marque = partTemporaire({ Name = "TardisMarqueSol_" .. def.Nom, Material = Enum.Material.SmoothPlastic, Color = couleurSol:Lerp(Color3.new(0, 0, 0), 0.65),
+			Transparency = 0.7, Size = Vector3.new(taille.X * 1.25, 0.05, taille.Z * 1.25), CFrame = CFrame.lookAt(centre, centre + devant) })
+		marqueSol = marque
+		animer(marque, duree, { Transparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		task.delay(duree + 0.2, function()
+			if marque.Parent then marque:Destroy() end
+			if marqueSol == marque then marqueSol = nil end
+		end)
+	end
+
 	local etatAvant = etat()
+	local modeArrivee = "Normal" -- mode de la remat en cours (le serveur remet Mode à Normal en posant le TARDIS)
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 		local e = etat()
 		local mode = Config.modeDe(exterieur)
+		if e == E.Remat then modeArrivee = mode end
+		if e == E.Pose and etatAvant == E.Remat and not (Config.Modes[modeArrivee] or {}).Discret then
+			task.defer(marqueAtterrissage) -- SurEau est posé par le serveur juste après l'état
+		end
 		if mode == "Express" then
 			if e == E.Demat then
 				-- Au départ : la traînée apparaît quand la cabine s'efface (après le son)
@@ -155,6 +200,12 @@ return function(contexte)
 	local function rythme(mode, t, reduit)
 		-- Renvoie l'intensité (0 éteinte .. 1 normale .. 1,6 vive) et une teinte éventuelle
 		if mode == "Silencieux" then return 0.08 end
+		-- « Aucun flash » (V6.9.9) : l'enseigne reste allumée, fixe (la teinte du mode est gardée)
+		if UI.sansFlash() then
+			if mode == "Catastrophe" then return 1, C.rouge end
+			if mode == "Sauvetage" then return 1, Color3.fromRGB(200, 245, 255) end
+			return 1
+		end
 		if mode == "Express" then
 			local frequence = reduit and 2 or 8
 			return (math.floor(t * frequence * 2) % 2 == 0) and 1.6 or 0.15

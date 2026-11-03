@@ -241,10 +241,58 @@ def constructeur(nom):
     t.mt = Table({"__index": Fonction(nom, py=lambda _t, k: Fonction(nom + "." + k, py=lambda *a: Valeur(nom, a)))})
     return t
 
+class Couleur(Valeur):
+    """Color3 calculable (V6.9.9) : R, G, B entre 0 et 1, Lerp, ToHSV. Les arguments d'origine restent dans args
+    (fromRGB(4, 10, 24).args == [4, 10, 24], comme avant) ; un Lerp donne des args sur 0..255."""
+    def __init__(s, r, g, b, args=None):
+        super().__init__("Color3", list(args) if args is not None else [r * 255, g * 255, b * 255])
+        s.r, s.g, s.b = float(r), float(g), float(b)
+    def rgb255(s): return tuple(int(round(x * 255)) for x in (s.r, s.g, s.b))
+    def __lua_index__(s, k):
+        if k == "R": return s.r
+        if k == "G": return s.g
+        if k == "B": return s.b
+        if k == "Lerp":
+            def lerp(_s, o, a):
+                if not isinstance(o, Couleur) or not isinstance(a, (int, float)): return Valeur("Color3.Lerp()")
+                return Couleur(s.r + (o.r - s.r) * a, s.g + (o.g - s.g) * a, s.b + (o.b - s.b) * a)
+            return Fonction("Lerp", py=lerp)
+        if k == "ToHSV":
+            import colorsys
+            return Fonction("ToHSV", py=lambda _s: list(colorsys.rgb_to_hsv(s.r, s.g, s.b)))
+        return Valeur.__lua_index__(s, k)
+    def __lua_eq__(s, o):
+        return isinstance(o, Couleur) and abs(s.r - o.r) < 1e-9 and abs(s.g - o.g) < 1e-9 and abs(s.b - o.b) < 1e-9
+def constructeur_couleur():
+    import colorsys
+    t = constructeur("Color3")
+    n = lambda x: float(x) if isinstance(x, (int, float)) else 0.0
+    t.h["new"] = Fonction("Color3.new", py=lambda r=0, g=0, b=0: Couleur(n(r), n(g), n(b), [r, g, b]))
+    t.h["fromRGB"] = Fonction("Color3.fromRGB", py=lambda r=0, g=0, b=0: Couleur(n(r) / 255, n(g) / 255, n(b) / 255, [r, g, b]))
+    t.h["fromHSV"] = Fonction("Color3.fromHSV", py=lambda h=0, sa=0, v=0: Couleur(*colorsys.hsv_to_rgb(n(h) % 1, n(sa), n(v))))
+    return t
+
+# Valeurs par défaut de quelques propriétés (V6.9.9), lues par les effets avant d'être écrites
+def _defauts(classe):
+    v3 = lambda x, y, z: Valeur("Vector3", [x, y, z])
+    if classe in ("Part", "MeshPart", "UnionOperation", "WedgePart"):
+        return {"Transparency": 0, "Size": v3(4, 1, 2), "Color": Couleur(0.64, 0.64, 0.64), "Material": Valeur("Enum.Material.Plastic"),
+                "CFrame": Valeur("CFrame"), "Position": v3(0, 0, 0), "Anchored": False, "CanCollide": True, "Reflectance": 0}
+    if classe in ("PointLight", "SpotLight", "SurfaceLight"):
+        return {"Brightness": 1, "Range": 8, "Color": Couleur(1, 1, 1), "Enabled": True, "Shadows": False}
+    if classe == "ColorCorrectionEffect": return {"Brightness": 0, "Contrast": 0, "Saturation": 0, "TintColor": Couleur(1, 1, 1), "Enabled": True}
+    if classe == "BlurEffect": return {"Size": 24, "Enabled": True}
+    if classe == "ParticleEmitter": return {"Rate": 5, "Enabled": True}
+    if classe in ("Beam", "Trail", "Fire", "Smoke", "Sparkles"): return {"Enabled": True}
+    return {}
+LUMIERES = ("PointLight", "SpotLight", "SurfaceLight")
+
 # ---------------------------------------------------------------- Instances
 class Instance:
     def __init__(s, classe, nom=None, parent=None):
         s.ClassName, s.props, s.attrs, s.enfants = classe, {"Name": nom or classe}, {}, []
+        s.props.update(_defauts(classe))
+        s.emis = 0  # particules émises par :Emit (ParticleEmitter)
         s.signaux_attr, s.parent, s.extra = {}, None, {}
         s.changed = Signal("Changed")
         if parent is not None: s.set_parent(parent)
@@ -307,15 +355,27 @@ class Instance:
         for e in s.enfants:
             if e.ClassName == c: return e
         return None
-    def m_FindFirstChildWhichIsA(s, c, rec=False): return s.m_FindFirstChildOfClass(c)
-    def m_FindFirstAncestorWhichIsA(s, c): return None
+    def m_FindFirstChildWhichIsA(s, c, rec=False):
+        for e in s.enfants:
+            if e.m_IsA(c): return e
+        if vrai(rec):
+            for e in s.enfants:
+                r = e.m_FindFirstChildWhichIsA(c, True)
+                if r: return r
+        return None
+    def m_FindFirstAncestorWhichIsA(s, c):
+        p = s.parent
+        while p is not None:
+            if p.m_IsA(c): return p
+            p = p.parent
+        return None
     def m_GetChildren(s): return Table({i + 1: e for i, e in enumerate(s.enfants)})
     def m_GetDescendants(s):
         res = []
         def visite(o):
             for e in o.enfants: res.append(e); visite(e)
         visite(s); return Table({i + 1: e for i, e in enumerate(res)})
-    def m_IsA(s, c): return s.ClassName == c or (c == "BasePart" and s.ClassName in ("Part", "MeshPart")) or c == "Instance"
+    def m_IsA(s, c): return s.ClassName == c or (c == "BasePart" and s.ClassName in ("Part", "MeshPart")) or (c == "Light" and s.ClassName in LUMIERES) or c == "Instance"
     def m_Destroy(s): s.set_parent(None); return []
     def m_IsDescendantOf(s, o):
         p = s.parent
@@ -358,6 +418,12 @@ class Instance:
     def m_Stop(s, *a): return []
     def m_Clone(s):
         c = Instance(s.ClassName, s.Name); c.props = dict(s.props); c.attrs = dict(s.attrs); return c
+    def m_ClearAllChildren(s):
+        for e in list(s.enfants): e.set_parent(None)
+        return []
+    def m_Emit(s, n=1): s.emis += int(n or 0); return []
+    def m_AddItem(s, objet, delai=10): H.plus_tard(float(delai or 0), lambda: objet.set_parent(None)); return []
+    def m_GetExtentsSize(s): return s.props.get("ExtentsSize", Valeur("Vector3", [4, 9, 4]))
     def m_GetDataStore(s, nom): return MAGASINS.setdefault(nom, FauxDataStore(nom))
     def m_BindToClose(s, f): s.extra.setdefault("fermeture", []).append(f); return []
     def m_PreloadAsync(s, *a): return []
@@ -419,7 +485,7 @@ def environnement(I, serveur=True):
                 "noise": Fonction("noise", py=lambda *a: math.sin(sum(a) * 12.9898) * 0.5), "round": Fonction("round", py=lambda x: math.floor(x + 0.5)),
                 "log": Fonction("log", py=lambda x, b=None: math.log(x) if b is None else math.log(x, b)), "atan2": Fonction("atan2", py=math.atan2),
                 "atan": Fonction("atan", py=lambda y, x=None: math.atan(y) if x is None else math.atan2(y, x)),
-                "fmod": Fonction("fmod", py=math.fmod), "lerp": Fonction("lerp", py=lambda a, b, t: a + (b - a) * t),
+                "fmod": Fonction("fmod", py=math.fmod), "rad": Fonction("rad", py=math.radians), "deg": Fonction("deg", py=math.degrees), "lerp": Fonction("lerp", py=lambda a, b, t: a + (b - a) * t),
                 "modf": Fonction("modf", py=lambda x: [float(int(x)), x - int(x)]), "pow": Fonction("pow", py=pow)})
     G["math"] = m
     o = Table({"clock": Fonction("clock", py=lambda: H.t), "time": Fonction("time", py=lambda t=None: 1_800_000_000 + int(H.t)),
@@ -475,9 +541,10 @@ def environnement(I, serveur=True):
                        "delay": Fonction("task.delay", py=lambda d, f, *a: H.plus_tard(d or 0, lambda: lancer(f, *a, nom="task.delay")) or []),
                        "cancel": Fonction("task.cancel", py=lambda t: [])})
     G["wait"] = G["task"].h["wait"]
-    for nom in ("Vector3", "Vector2", "Color3", "CFrame", "UDim", "UDim2", "ColorSequence", "ColorSequenceKeypoint", "NumberSequence", "NumberSequenceKeypoint",
+    for nom in ("Vector3", "Vector2", "CFrame", "UDim", "UDim2", "ColorSequence", "ColorSequenceKeypoint", "NumberSequence", "NumberSequenceKeypoint",
                 "NumberRange", "BrickColor", "TweenInfo", "RaycastParams", "OverlapParams", "Rect", "Region3", "PhysicalProperties", "Random", "DateTime", "Font", "Ray", "Axes", "Faces"):
         G[nom] = constructeur(nom)
+    G["Color3"] = constructeur_couleur()
     G["Vector3"].h.update({"zero": Valeur("Vector3", [0, 0, 0]), "one": Valeur("Vector3", [1, 1, 1]), "yAxis": Valeur("Vector3", [0, 1, 0]), "xAxis": Valeur("Vector3", [1, 0, 0])})
     G["Enum"] = Valeur("Enum")
     G["Instance"] = Table({"new": Fonction("Instance.new", py=lambda c, p=None: Instance(c, None, p))})

@@ -161,6 +161,15 @@ return function(contexte)
 			boutonLigne(UI.effetsReduits() and "Réduire les effets : activé (moins de flashs, de saccades et de secousses)" or "Réduire les effets : désactivé",
 				ordre, UI.effetsReduits() and C.bleu or nil, function() UI.setPref("effetsReduits", not UI.effetsReduits()) afficherReglages() end)
 			ordre += 1
+			-- Aucun flash (V6.9.9) : l'activer active aussi « réduire les effets » (qu'on peut ensuite couper à part)
+			boutonLigne(UI.sansFlash() and "Aucun flash : activé (ni éclat, ni stroboscope, ni voile blanc)" or "Aucun flash : désactivé",
+				ordre, UI.sansFlash() and C.bleu or nil, function()
+					local actif = not UI.sansFlash()
+					UI.setPref("sansFlash", actif)
+					if actif and not UI.effetsReduits() then UI.setPref("effetsReduits", true) end
+					afficherReglages()
+				end)
+			ordre += 1
 			boutonLigne(UI.debutant() and "Mode débutant : activé (l'essentiel seulement)" or "Mode débutant : désactivé", ordre,
 				UI.debutant() and C.bleu or nil, function() UI.setPref("debutant", not UI.debutant()) afficherReglages() end)
 			ordre += 1

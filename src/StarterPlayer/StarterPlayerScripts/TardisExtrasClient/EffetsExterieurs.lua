@@ -41,9 +41,13 @@ return function(contexte)
 
 	--------------------------------------------------------------------
 	-- 5) Ombre annonciatrice, air qui ondule, distorsion d'écran, givre d'urgence
+	-- (V6.9.9) En Urgence et en Catastrophe, l'air ondule plus fort et plus loin (Config.facteurDistorsion), aussi
+	-- pendant la démat ; en « effets réduits », seul l'excédent est divisé par 2.
 	--------------------------------------------------------------------
 	do
+		local UI_ = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI"))
 		local ombre, air, givre = nil, nil, nil
+		local facteurAir = nil -- force pour laquelle la transparence des volutes a été réglée
 		local flou = creer("BlurEffect", { Size = 0, Name = "TardisDistorsion", Parent = Lighting })
 		local teinte = creer("ColorCorrectionEffect", { Name = "TardisDistorsionTeinte", Parent = Lighting })
 		local function solSous(position)
@@ -61,19 +65,25 @@ return function(contexte)
 			local modeAnime = exterieur:GetAttribute("VolPhase") and Config.modeVolDe(exterieur) or Config.modeDe(exterieur)
 			if p and (Config.Modes[modeAnime] or {}).Discret then p = nil end
 			local base = exterieur:GetPivot().Position
-			-- Ombre au sol avant l'apparition, et air qui ondule pendant la matérialisation
-			if p and remat then
+			local facteur = Config.facteurDistorsion(modeAnime, UI_.effetsReduits())
+			-- Ombre au sol avant l'apparition, et air qui ondule pendant la matérialisation (et la démat d'urgence)
+			if p and (remat or facteur > 1) then
 				local sol = solSous(base)
 				if sol then
-					if not ombre then
-						ombre = partTemporaire({ Name = "TardisOmbre", Shape = Enum.PartType.Cylinder, Color = Color3.new(0, 0, 0), Material = Enum.Material.SmoothPlastic,
-							Transparency = 1, Size = Vector3.new(0.05, 1, 1) })
-					end
 					local taille = exterieur:GetExtentsSize()
-					local diametre = math.max(taille.X, taille.Z) * 1.3
-					ombre.Size = Vector3.new(0.05, diametre, diametre)
-					ombre.CFrame = CFrame.new(sol.Position + Vector3.new(0, 0.06, 0)) * CFrame.Angles(0, 0, math.pi / 2)
-					ombre.Transparency = 0.45 + 0.5 * math.clamp(p * 1.5, 0, 1) -- bien visible au début, s'efface quand le TARDIS apparaît
+					if remat then
+						if not ombre then
+							ombre = partTemporaire({ Name = "TardisOmbre", Shape = Enum.PartType.Cylinder, Color = Color3.new(0, 0, 0), Material = Enum.Material.SmoothPlastic,
+								Transparency = 1, Size = Vector3.new(0.05, 1, 1) })
+						end
+						local diametre = math.max(taille.X, taille.Z) * 1.3
+						ombre.Size = Vector3.new(0.05, diametre, diametre)
+						ombre.CFrame = CFrame.new(sol.Position + Vector3.new(0, 0.06, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+						ombre.Transparency = 0.45 + 0.5 * math.clamp(p * 1.5, 0, 1) -- bien visible au début, s'efface quand le TARDIS apparaît
+					elseif ombre then
+						ombre:Destroy()
+						ombre = nil
+					end
 					if not air then
 						air = partTemporaire({ Name = "TardisAir", Transparency = 1, Size = Vector3.new(taille.X * 1.6, 0.5, taille.Z * 1.6) })
 						local emetteur = creer("ParticleEmitter", { Texture = "rbxasset://textures/particles/smoke_main.dds", Color = ColorSequence.new(Color3.fromRGB(235, 245, 255)),
@@ -81,9 +91,17 @@ return function(contexte)
 							Size = NumberSequence.new(5, 9), Lifetime = NumberRange.new(1.2, 2), Speed = NumberRange.new(2, 4), Rate = 0, LightEmission = 0.4,
 							Rotation = NumberRange.new(0, 360), RotSpeed = NumberRange.new(-20, 20), Parent = air })
 						emetteur.Name = "Emetteur"
+						facteurAir = nil
+					end
+					-- Plus de force (V6.9.9) : des volutes plus nombreuses et plus opaques (réglées seulement quand la force change)
+					if facteurAir ~= facteur then
+						facteurAir = facteur
+						local opacite = math.clamp(facteur, 1, 2.5)
+						air.Emetteur.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.07 * opacite),
+							NumberSequenceKeypoint.new(0.5, 1 - 0.14 * opacite), NumberSequenceKeypoint.new(1, 1) })
 					end
 					air.CFrame = CFrame.new(sol.Position + Vector3.new(0, 1, 0))
-					air.Emetteur.Rate = 6 * math.sin(p * math.pi)
+					air.Emetteur.Rate = 6 * math.sin(p * math.pi) * facteur
 				end
 			else
 				if ombre then ombre:Destroy() ombre = nil end
@@ -98,10 +116,10 @@ return function(contexte)
 			local intensite = 0
 			if p then
 				local distance = (camera.CFrame.Position - base).Magnitude
-				intensite = math.sin(p * math.pi) * math.clamp(1 - distance / 45, 0, 1)
+				intensite = math.sin(p * math.pi) * math.clamp(1 - distance / (45 * facteur), 0, 1) * facteur
 			end
 			flou.Size += (intensite * 10 - flou.Size) * math.min(dt * 6, 1)
-			teinte.Saturation += (-0.35 * intensite - teinte.Saturation) * math.min(dt * 6, 1)
+			teinte.Saturation += (math.max(-0.35 * intensite, -0.8) - teinte.Saturation) * math.min(dt * 6, 1)
 			teinte.TintColor = teinte.TintColor:Lerp(Color3.new(1 - 0.08 * intensite, 1 - 0.04 * intensite, 1), math.min(dt * 6, 1))
 		end)
 

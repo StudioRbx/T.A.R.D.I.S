@@ -1,6 +1,8 @@
 -- StarterPlayer > StarterPlayerScripts > TardisEffets (LocalScript)
 -- (Dé)matérialisation de l'extérieur, lampe, rotor, lumières de la salle, secousses, et depuis la V6.7 :
--- lueur de la cabine, tourbillon de poussière, ondes au sol, arcs d'urgence, choc d'atterrissage.
+-- lueur de la cabine, tourbillon de poussière, ondes au sol, arcs d'urgence, choc d'atterrissage ; depuis la V6.9.9 :
+-- lueurs selon l'heure, lumières de la salle selon l'état, Catastrophe plus violente, vitres qui s'éteignent en dernier,
+-- et l'option « aucun flash » (UI.sansFlash).
 -- Tout est calculé à partir des attributs "Etat" et "DebutEtat" posés par le serveur (Config.Souffle),
 -- donc tous les joueurs voient la même chose au même moment (même ceux qui arrivent en cours de vol).
 
@@ -58,7 +60,28 @@ local PROPRIETES = {
 	{ "Sparkles",     {}, {}, { "Enabled" } },
 }
 
-local visuels = {} -- [objet] = { transparences = {...}, luminosites = {...}, actifs = {...} }
+local visuels = {} -- [objet] = { transparences = {...}, luminosites = {...}, actifs = {...}, vitre = vrai/faux }
+
+-- Vitres de la cabine (V6.9.9) : rangées dans un dossier « Fenetres » (Config.NomFenetres) ou nommées « Vitre… »
+-- (Config.NomVitre). Si rien n'est rangé ni nommé : détection automatique (verre, ou pièce semi-transparente), faite
+-- une seule fois au chargement (pas sur les pièces ajoutées ensuite, comme les bulles des boucliers).
+local dossierFenetres = exterieur:FindFirstChild(Config.NomFenetres or "Fenetres", true)
+local PREFIXE_VITRE = Config.NomVitre or "Vitre"
+local vitresNommees = false
+for _, objet in exterieur:GetDescendants() do
+	if objet:IsA("BasePart") and string.sub(objet.Name, 1, #PREFIXE_VITRE) == PREFIXE_VITRE then vitresNommees = true break end
+end
+local detectionAuto = true -- vrai pendant le chargement seulement
+local function estVitre(objet)
+	if not objet:IsA("BasePart") or objet == exterieur.PrimaryPart or objet.Name == Config.NomPortailExt then return false end
+	local boucliers = exterieur:FindFirstChild("Boucliers")
+	if boucliers and objet:IsDescendantOf(boucliers) then return false end
+	if dossierFenetres and objet:IsDescendantOf(dossierFenetres) then return true end
+	if string.sub(objet.Name, 1, #PREFIXE_VITRE) == PREFIXE_VITRE then return true end
+	if dossierFenetres or vitresNommees or not detectionAuto then return false end -- vitres rangées ou nommées : pas de détection automatique
+	return objet.Material == Enum.Material.Glass or (objet.Transparency > 0.1 and objet.Transparency < 0.95)
+end
+local nombreVitres = 0
 
 local function enregistrer(objet)
 	if visuels[objet] or objet == lumiere then return end -- la lumière de la Lampe est gérée à part
@@ -68,6 +91,10 @@ local function enregistrer(objet)
 			for _, prop in regle[2] do fiche.transparences[prop] = objet[prop] end
 			for _, prop in regle[3] do fiche.luminosites[prop] = objet[prop] end
 			for _, prop in regle[4] do fiche.actifs[prop] = objet[prop] end
+			if estVitre(objet) then
+				fiche.vitre = true
+				nombreVitres += 1
+			end
 			visuels[objet] = fiche
 			return
 		end
@@ -77,8 +104,10 @@ end
 for _, objet in exterieur:GetDescendants() do
 	enregistrer(objet)
 end
+detectionAuto = false
 exterieur.DescendantAdded:Connect(enregistrer)
 exterieur.DescendantRemoving:Connect(function(objet)
+	if visuels[objet] and visuels[objet].vitre then nombreVitres -= 1 end
 	visuels[objet] = nil
 end)
 
@@ -114,6 +143,7 @@ local listeLumieres = nil -- les Light de la salle, mémorisées
 local ambianceOrigine, exterieureOrigine = Lighting.Ambient, Lighting.OutdoorAmbient
 local themeActuel = 0 -- 0 = éclairage normal, 1 = thème appliqué (lissé)
 local ledsOrigine = {} -- [Light] = couleur d'origine (thèmes de l'intérieur)
+local couleurEtatSalle, forceEtatSalle = nil, 0 -- couleur de l'état de la salle (V6.9.9), lissée
 local function themeChoisi()
 	local nom = exterieur:GetAttribute("Theme")
 	for _, theme in Config.Themes or {} do
@@ -162,7 +192,7 @@ local function alphaVol()
 	if phase == "Invisible" or exterieur:GetAttribute("Detruit") == true then return 1 end
 	if phase == E.Demat or phase == E.Remat then
 		local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("VolPhaseDebut") or 0)
-		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur), UI.effetsReduits())
+		return Config.Alpha(phase, ecoule, Config.modeVolDe(exterieur), UI.effetsReduits() or UI.sansFlash())
 	end
 	return 0
 end
@@ -202,24 +232,95 @@ local function proteger(nom, fonction, ...)
 	end
 end
 
+local alphaVitreActuel = 0
 local function fondu(etat, ecoule, camouflage, mode)
-	local alpha = math.max(Config.Alpha(etat, ecoule, mode, UI.effetsReduits()), camouflage)
-	if alpha ~= alphaActuel then
-		alphaActuel = alpha
+	-- « Aucun flash » (V6.9.9) : la cabine s'efface sans grésillements, comme en « réduire les effets »
+	local adouci = UI.effetsReduits() or UI.sansFlash()
+	local alpha = math.max(Config.Alpha(etat, ecoule, mode, adouci), camouflage)
+	-- Vitres (V6.9.9) : en démat, la même animation avec un retard qui grandit jusqu'à Config.Effets.RetardVitres
+	local retard = (nombreVitres > 0 and etat == E.Demat) and Config.retardVitres(etat, ecoule, mode) or 0
+	local alphaVitre = retard > 0 and math.max(Config.Alpha(etat, ecoule - retard, mode, adouci), camouflage) or alpha
+	if alpha ~= alphaActuel or alphaVitre ~= alphaVitreActuel then
+		alphaActuel, alphaVitreActuel = alpha, alphaVitre
 		for objet, fiche in visuels do
 			if objet.Parent then
+				local a = fiche.vitre and alphaVitre or alpha
 				for prop, origine in fiche.transparences do
-					objet[prop] = origine + (1 - origine) * alpha
+					objet[prop] = origine + (1 - origine) * a
 				end
 				for prop, origine in fiche.luminosites do
-					objet[prop] = origine * (1 - alpha)
+					objet[prop] = origine * (1 - a)
 				end
 				for prop, origine in fiche.actifs do
-					objet[prop] = origine and alpha < 0.5
+					objet[prop] = origine and a < 0.5
 				end
 			end
 		end
 	end
+end
+
+--------------------------------------------------------------------
+-- Vitres qui s'éteignent en dernier (V6.9.9) : à la fin de la démat, une copie lumineuse et chaude des vitres
+-- s'allume à leur place, puis s'éteint pendant les premières secondes du Vol (Config.lueurVitres). C'est une copie
+-- locale, figée là où était la cabine : le serveur l'emmène dans le ciel dès le début du Vol.
+--------------------------------------------------------------------
+local COULEUR_VITRES = Color3.fromRGB(255, 214, 140)
+local lueurVitres = nil -- { modele, copies = { [copie] = { origine, decalage } }, lumiere, mode }
+local function eteindreLueurVitres()
+	if lueurVitres then
+		lueurVitres.modele:Destroy()
+		lueurVitres = nil
+	end
+end
+local function preparerLueurVitres(mode)
+	eteindreLueurVitres()
+	if nombreVitres <= 0 or (tonumber(EFFETS.RetardVitres) or 0) <= 0 then return end
+	local pivot = exterieur:GetPivot()
+	local modele = Instance.new("Model")
+	modele.Name = "TardisLueurVitres_" .. def.Nom
+	local copies = {}
+	for objet, fiche in visuels do
+		local origine = fiche.transparences.Transparency
+		if fiche.vitre and objet.Parent and origine and origine < 0.95 then
+			local copie = objet:Clone()
+			if copie then
+				copie:ClearAllChildren()
+				copie.Anchored, copie.CanCollide, copie.CanTouch, copie.CanQuery, copie.CastShadow = true, false, false, false, false
+				copie.Material = Enum.Material.Neon
+				copie.Color = COULEUR_VITRES
+				if copie:IsA("UnionOperation") then copie.UsePartColor = true end
+				if copie:IsA("MeshPart") then copie.TextureID = "" end
+				copie.Transparency = 1
+				copie.Parent = modele
+				copies[copie] = { origine = origine, decalage = pivot:ToObjectSpace(objet.CFrame) }
+			end
+		end
+	end
+	local support = Instance.new("Part")
+	support.Name = "Lumiere"
+	support.Anchored, support.CanCollide, support.CanTouch, support.CanQuery, support.CastShadow = true, false, false, false, false
+	support.Transparency, support.Size, support.CFrame = 1, Vector3.one, pivot
+	support.Parent = modele
+	local taille = exterieur:GetExtentsSize()
+	local lumiereVitres = Instance.new("PointLight")
+	lumiereVitres.Color, lumiereVitres.Brightness, lumiereVitres.Range, lumiereVitres.Shadows = COULEUR_VITRES, 0, math.max(taille.X, taille.Z) * 1.6, false
+	lumiereVitres.Parent = support
+	modele.Parent = workspace
+	lueurVitres = { modele = modele, copies = copies, lumiere = lumiereVitres, support = support, mode = mode }
+end
+-- Une image : la lueur suit la cabine pendant la démat, puis reste figée et s'éteint pendant le Vol
+local function majLueurVitres(etat, ecoule, facteur)
+	if not lueurVitres then return end
+	if etat ~= E.Demat and etat ~= E.Vol then eteindreLueurVitres() return end -- démat interrompue, ou déjà posé
+	local force = Config.lueurVitres(etat, ecoule, lueurVitres.mode)
+	if etat == E.Vol and force <= 0 then eteindreLueurVitres() return end
+	local pivot = etat == E.Demat and exterieur:GetPivot() or nil
+	for copie, infos in lueurVitres.copies do
+		if pivot then copie.CFrame = pivot * infos.decalage end
+		copie.Transparency = 1 - (1 - math.max(infos.origine, 0.3)) * force
+	end
+	if pivot then lueurVitres.support.CFrame = pivot end
+	lueurVitres.lumiere.Brightness = 2.5 * force * facteur
 end
 
 --------------------------------------------------------------------
@@ -241,15 +342,24 @@ RunService.RenderStepped:Connect(function(dt)
 	local ecoule = workspace:GetServerTimeNow() - (exterieur:GetAttribute("DebutEtat") or 0)
 	local t = os.clock()
 	local reduit = UI.effetsReduits()
+	local sansFlash = UI.sansFlash() -- « aucun flash » (V6.9.9)
+	-- Lueurs du voyage selon l'heure du jeu (V6.9.9) : plus fortes la nuit, plus discrètes le jour
+	local facteurHeure = Config.facteurHeure(Lighting.ClockTime)
 
 	-- 0) Changement d'état : départ (la cabine vient de disparaître) et arrivée (elle vient de se poser)
 	-- (Silencieux, V6.9 : aucun éclat ; le serveur remet Mode à Normal en posant le TARDIS, d'où dernierModeAnime)
 	local modeDiscret = (Config.Modes[dernierModeAnime] or {}).Discret == true
 	if etat ~= etatPrecedent then
-		if etat == E.Vol and etatPrecedent == E.Demat then
-			if not modeDiscret then flashLampe = 1 end
+		if etat == E.Demat then
+			-- Vitres (V6.9.9) : leur lueur est préparée au départ (pas en Silencieux, ni camouflé, ni porté)
+			local modeDepart = Config.modeDe(exterieur)
+			if not (Config.Modes[modeDepart] or {}).Discret and exterieur:GetAttribute("Camouflage") ~= true and not exterieur:GetAttribute("Porteur") then
+				proteger("vitres", preparerLueurVitres, modeDepart)
+			end
+		elseif etat == E.Vol and etatPrecedent == E.Demat then
+			if not modeDiscret and not sansFlash then flashLampe = 1 end
 		elseif etat == E.Pose and etatPrecedent == E.Remat then
-			if not modeDiscret then flashLampe = 1 end
+			if not modeDiscret and not sansFlash then flashLampe = 1 end
 			if EFFETS.Choc ~= false then
 				local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
 				if racine and dansInterieur(racine.Position) then
@@ -275,6 +385,7 @@ RunService.RenderStepped:Connect(function(dt)
 	-- Vortex temporel : pendant le vol, le TARDIS est visible dans le ciel (le vortex est dessiné par TardisVolLibre)
 	local etatFondu = (etat == E.Vol and exterieur:GetAttribute("Ciel") == true) and E.Pose or etat
 	proteger("fondu", fondu, etatFondu, ecoule, camouflage, mode)
+	if lueurVitres then proteger("vitres", majLueurVitres, etat, ecoule, facteurHeure) end
 
 	-- Respiration : le souffle en cours (voyage ou phase de vol libre), lu une fois par image
 	local souffle, progression, fond, etatAnime, modeAnime = 0, 0, 0, nil, nil
@@ -289,16 +400,17 @@ RunService.RenderStepped:Connect(function(dt)
 	if lumiere then
 		local brillance = brillanceBase
 		if etat ~= E.Pose or enVoyage then
-			if urgence or Config.modeSaccade(modeAnime) then
-				-- Urgence : la lampe vacille et coupe de façon irrégulière
+			if (urgence or Config.modeSaccade(modeAnime)) and not sansFlash then
+				-- Urgence : la lampe vacille et coupe de façon irrégulière (pas avec « aucun flash » : elle respire)
 				brillance *= (Config.Bruit(ecoule, 15) < 0.35) and 0.05 or (0.5 + 0.5 * Config.Bruit(ecoule + 1.3, 9)) * (0.7 + 0.8 * souffle)
 			elseif enVoyage then
 				brillance *= 0.3 + 1.6 * souffle -- un éclat à chaque souffle
 			else
 				brillance *= 0.5 + 0.5 * math.sin(t * Config.VitesseLampe)
 			end
+			brillance *= facteurHeure -- V6.9.9 : plus vive la nuit, plus discrète le jour
 		end
-		brillance += brillanceBase * 2.5 * flashLampe
+		brillance += brillanceBase * 2.5 * flashLampe * facteurHeure
 		if discret then brillance = 0 end -- Silencieux : la lampe reste éteinte
 		if exterieur:GetAttribute("Alimentation") == false then
 			brillance = 0 -- plus de courant
@@ -319,7 +431,7 @@ RunService.RenderStepped:Connect(function(dt)
 			local pivot = exterieur:GetPivot()
 			local taille = exterieur:GetExtentsSize()
 			lueur.CFrame = pivot
-			lueur.Lumiere.Brightness = 3.2 * intensite + 2 * flashLampe * (1 - camouflage)
+			lueur.Lumiere.Brightness = (3.2 * intensite + 2 * flashLampe * (1 - camouflage)) * facteurHeure
 			lueur.Lumiere.Range = math.max(taille.X, taille.Z) * 1.8 + 6 * souffle
 			lueur.Lumiere.Color = couleur
 			-- Halo : une sphère de lumière autour de la lampe, qui gonfle à chaque souffle
@@ -328,7 +440,7 @@ RunService.RenderStepped:Connect(function(dt)
 				halo.CFrame = CFrame.new(positionLampe())
 				halo.Size = Vector3.one * (0.9 + 2.2 * haloIntensite)
 				halo.Color = (exterieur:GetAttribute("Alerte") and (Config.CouleurAlerte or Color3.fromRGB(255, 30, 30)) or couleurLampe):Lerp(Color3.new(1, 1, 1), 0.5)
-				halo.Transparency = 1 - 0.55 * haloIntensite
+				halo.Transparency = 1 - math.clamp(0.55 * haloIntensite * facteurHeure, 0, 0.9)
 			else
 				halo.Transparency = 1
 			end
@@ -357,6 +469,7 @@ RunService.RenderStepped:Connect(function(dt)
 		if theme then
 			ambiance, exterieure, exposition = theme.ambiance, theme.exterieur, theme.exposition or 0
 			if reduit then exposition = math.min(exposition, 0.6) end -- Flashbang : beaucoup moins éblouissant
+			if sansFlash then exposition = math.min(exposition, 0) end -- « aucun flash » : exposition normale
 			if theme.festive then
 				-- Festive : les couleurs tournent
 				local teinteFestive = Color3.fromHSV((t * 0.08) % 1, 0.8, 0.9)
@@ -391,7 +504,7 @@ RunService.RenderStepped:Connect(function(dt)
 		local intensite = rougeActuel * pulsation
 		-- Contre-jour (V6.7) : à bord, chaque souffle éclaire doucement l'image (la salle respire avec le moteur)
 		local contrejour = 0
-		if EFFETS.Contrejour ~= false and dedans and enVoyage and not horsTension then
+		if EFFETS.Contrejour ~= false and dedans and enVoyage and not horsTension and not sansFlash then
 			contrejour = (discret and 0 or souffle * (reduit and 0.02 or 0.07)) + choc * 0.05
 		end
 		teinte.TintColor = Color3.new(1, 1 - 0.45 * intensite, 1 - 0.45 * intensite)
@@ -452,6 +565,16 @@ RunService.RenderStepped:Connect(function(dt)
 			local r = autre.Character and autre.Character:FindFirstChild("HumanoidRootPart")
 			if r then table.insert(racines, r.Position) end
 		end
+		-- Couleur de l'état (V6.9.9) : bleu posé, ambre en voyage, cyan dans le vortex, rouge en alerte (Config.CouleursSalle)
+		local nomEtatSalle = Config.etatSalle(etat, exterieur:GetAttribute("VolPhase"), exterieur:GetAttribute("VolLibre") ~= nil,
+			exterieur:GetAttribute("VolVortex") == true, exterieur:GetAttribute("Alerte") == true)
+		local cibleCouleurSalle, cibleForceSalle = Config.teinteSalle(nomEtatSalle)
+		local lissageSalle = math.min(dt * 1.5, 1)
+		if cibleCouleurSalle then
+			couleurEtatSalle = couleurEtatSalle and couleurEtatSalle:Lerp(cibleCouleurSalle, lissageSalle) or cibleCouleurSalle
+		end
+		forceEtatSalle += ((cibleCouleurSalle and cibleForceSalle or 0) - forceEtatSalle) * lissageSalle
+		if forceEtatSalle < 0.002 and not cibleCouleurSalle then forceEtatSalle = 0 end
 		-- Trois exemplaires tournent (un par TARDIS) : on ne travaille que si la caméra est près de cette salle
 		if (workspace.CurrentCamera.CFrame.Position - interieur:GetPivot().Position).Magnitude > 350 then return end
 		if not listeLumieres then
@@ -466,7 +589,7 @@ RunService.RenderStepped:Connect(function(dt)
 			if objet.Parent then
 				local infos = lumieresSalle[objet]
 				if not infos then
-					infos = { brillance = objet.Brightness, couleur = objet.Color, facteur = 1 }
+					infos = { brillance = objet.Brightness, couleur = objet.Color, facteur = 1, rotor = objet:IsDescendantOf(rotor) }
 					lumieresSalle[objet] = infos
 				end
 				local part = objet.Parent:IsA("Attachment") and objet.Parent.Parent or objet.Parent
@@ -494,7 +617,9 @@ RunService.RenderStepped:Connect(function(dt)
 					-- Choc d'atterrissage : la lumière vacille
 					if choc > 0 then cible *= 1 - 0.5 * choc * Config.Bruit(t, 20) end
 					-- Lumières du rotor : couleur du mode du voyage
-					if melangeRotor > 0 and objet:IsDescendantOf(rotor) then couleur = couleur:Lerp(couleurRotor, 0.85 * melangeRotor) end
+					if melangeRotor > 0 and infos.rotor then couleur = couleur:Lerp(couleurRotor, 0.85 * melangeRotor) end
+					-- Couleur de l'état de la salle (V6.9.9) : pas sur les lumières du rotor (ni sur les LedsAlerte, non recolorées)
+					if couleurEtatSalle and forceEtatSalle > 0.002 and not infos.rotor then couleur = couleur:Lerp(couleurEtatSalle, forceEtatSalle) end
 				end
 				-- Les souffles se suivent vite : la lumière les suit de près ; le reste change en douceur
 				infos.facteur += (cible - infos.facteur) * math.min(dt * (enVoyage and 8 or 2), 1)
@@ -677,6 +802,8 @@ do
 
 	RunService.RenderStepped:Connect(function(dt)
 		local t = os.clock()
+		local facteurHeure = Config.facteurHeure(Lighting.ClockTime) -- V6.9.9 : ondes plus visibles la nuit
+		local sansFlash = UI.sansFlash()
 
 		-- 1) Sur l'eau : flottaison (seulement quand personne ne le porte ni ne le pilote)
 		local surEau = exterieur:GetAttribute("SurEau") == true and not exterieur:GetAttribute("VolLibre")
@@ -743,12 +870,14 @@ do
 			if resultat and nouveauSouffle and EFFETS.Ondes ~= false then
 				local taille = exterieur:GetExtentsSize()
 				local largeur = math.max(taille.X, taille.Z) * 1.1
-				onde(resultat.Position, couleurMode:Lerp(Color3.new(1, 1, 1), 0.3), largeur, 0.7 + 0.5 * intensite, 0.6 - 0.25 * intensite)
+				onde(resultat.Position, couleurMode:Lerp(Color3.new(1, 1, 1), 0.3), largeur, 0.7 + 0.5 * intensite,
+					1 - math.clamp((0.4 + 0.25 * intensite) * facteurHeure, 0, 0.9))
 			end
 			-- Urgence et catastrophe : arcs sur la cabine et étincelles à la lampe (deux fois plus en catastrophe)
+			-- (« aucun flash », V6.9.9 : plus d'arcs, qui éclatent en blanc ; les étincelles restent)
 			if Config.modeSaccade(modeAnime) and EFFETS.Arcs ~= false and intensite > 0.05 then
 				local cf, taille = exterieur:GetBoundingBox()
-				if math.random() < dt * (3 + 9 * s) * intensite * (modeAnime == "Catastrophe" and 2 or 1) then arc(cf, taille) end
+				if not sansFlash and math.random() < dt * (3 + 9 * s) * intensite * (modeAnime == "Catastrophe" and 2 or 1) then arc(cf, taille) end
 				if not arcsPart or not arcsPart.Parent then
 					arcsPart = piece({ Name = "TardisEtincellesLampe", Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
 					local etincelles = Instance.new("ParticleEmitter")
@@ -785,7 +914,7 @@ do
 			if resultat then
 				local taille = exterieur:GetExtentsSize()
 				local largeur = math.max(taille.X, taille.Z) * 1.2
-				onde(resultat.Position, Color3.fromRGB(235, 235, 235), largeur, 1, 0.5)
+				onde(resultat.Position, Color3.fromRGB(235, 235, 235), largeur, 1, 1 - math.clamp(0.5 * facteurHeure, 0, 0.9))
 				if souffleSol then
 					for _, emetteur in souffleSol.emetteurs do emetteur:Emit(14) end
 				end
@@ -813,11 +942,14 @@ do
 		bulle.Size = cible * 0.05
 		tween(bulle, 0.35, { Size = cible }, Enum.EasingStyle.Back)
 
-		-- 2) Flash lumineux qui déborde un peu de la bulle
-		local flash = effetTemporaire({ Name = "TardisFlashBouclier", Shape = Enum.PartType.Ball, Color = bulle.Color,
-			Size = cible * 0.3, CFrame = bulle.CFrame, Transparency = 0.25 })
-		tween(flash, 0.45, { Size = cible * 1.12, Transparency = 1 })
-		task.delay(0.5, function() flash:Destroy() end)
+		-- 2) Flash lumineux qui déborde un peu de la bulle (pas avec « aucun flash », V6.9.9)
+		local flash = nil
+		if not UI.sansFlash() then
+			flash = effetTemporaire({ Name = "TardisFlashBouclier", Shape = Enum.PartType.Ball, Color = bulle.Color,
+				Size = cible * 0.3, CFrame = bulle.CFrame, Transparency = 0.25 })
+			tween(flash, 0.45, { Size = cible * 1.12, Transparency = 1 })
+			Debris:AddItem(flash, 0.5)
+		end
 
 		-- 3) Onde au sol
 		local params = RaycastParams.new()
@@ -954,7 +1086,8 @@ end
 --    l'arrivée (plus d'éclair vert dehors : l'ancien Éclair Express de la V6.6.4 est remplacé par les ondes neutres)
 --  • Sauvetage (V6.9.5) : pendant la descente en tournant, quatre lumières aux fenêtres (une par côté) éclairent vers
 --    l'extérieur, à l'horizontale, et balaient les alentours comme un phare ; le sol sous la cabine n'est pas éclairé
---  • Catastrophe : à bord, la console crache des étincelles et la salle bat en rouge pendant la matérialisation
+--  • Catastrophe : à bord, la console crache des étincelles et la salle bat en rouge pendant la matérialisation ;
+--    dehors (V6.9.9), fumée noire et étincelles autour de la cabine, puis éclats et fumée à l'atterrissage forcé
 --------------------------------------------------------------------
 do
 	local COULEUR_RAPIDE = Config.Modes.Express.CouleurRotor or Color3.fromRGB(74, 222, 128)
@@ -1033,6 +1166,111 @@ do
 		end
 	end
 
+	--------------------------------------------------------------------
+	-- Catastrophe dehors (V6.9.9) : pendant la matérialisation, fumée noire et gerbes d'étincelles qui sortent des faces
+	-- de la cabine (une bouffée à chaque souffle) ; à l'atterrissage forcé (attribut « Catastrophe » posé par le serveur,
+	-- qui remet aussitôt Mode à Normal), une explosion d'éclats et une fumée qui traîne. Divisé par 3 en « effets réduits ».
+	--------------------------------------------------------------------
+	local CATASTROPHE_DEHORS = EFFETS.Catastrophe ~= false
+	local DUREE_FUMEE = tonumber(EFFETS.DureeFumeeCatastrophe) or 20
+	local FUMEE = "rbxasset://textures/particles/smoke_main.dds"
+	local NOIR, NOIR_CLAIR = Color3.fromRGB(18, 16, 16), Color3.fromRGB(48, 42, 40)
+	local cabineCatastrophe = nil -- { part, fumee, etincelles } : suit la cabine pendant la remat
+	local souffleCatastrophe = 0
+	local function emetteurFumee(parent, debit)
+		local fumee = Instance.new("ParticleEmitter")
+		fumee.Name = "Fumee"
+		fumee.Texture = FUMEE
+		fumee.Color = ColorSequence.new(NOIR, NOIR_CLAIR)
+		fumee.LightInfluence = 1
+		fumee.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5), NumberSequenceKeypoint.new(1, 6) })
+		fumee.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(0.7, 0.7), NumberSequenceKeypoint.new(1, 1) })
+		fumee.Lifetime = NumberRange.new(2, 3.5)
+		fumee.Speed = NumberRange.new(2, 5)
+		fumee.Acceleration = Vector3.new(0, 3, 0)
+		fumee.Rotation, fumee.RotSpeed = NumberRange.new(0, 360), NumberRange.new(-40, 40)
+		fumee.Shape, fumee.ShapeStyle = Enum.ParticleEmitterShape.Box, Enum.ParticleEmitterShapeStyle.Surface
+		fumee.Rate = debit
+		fumee.Parent = parent
+		return fumee
+	end
+	local function emetteurEtincelles(parent)
+		local etincelles = Instance.new("ParticleEmitter")
+		etincelles.Name = "Etincelles"
+		etincelles.Color = ColorSequence.new(Color3.fromRGB(255, 235, 170), Color3.fromRGB(255, 110, 30))
+		etincelles.LightEmission = 1
+		etincelles.Size = NumberSequence.new(0.22, 0)
+		etincelles.Speed = NumberRange.new(10, 22)
+		etincelles.Lifetime = NumberRange.new(0.3, 0.8)
+		etincelles.SpreadAngle = Vector2.new(35, 35)
+		etincelles.Acceleration = Vector3.new(0, -40, 0)
+		etincelles.Shape, etincelles.ShapeStyle, etincelles.ShapeInOut = Enum.ParticleEmitterShape.Box, Enum.ParticleEmitterShapeStyle.Surface, Enum.ParticleEmitterShapeInOut.Outward
+		etincelles.Rate = 0
+		etincelles.Parent = parent
+		return etincelles
+	end
+	local function arreterCabineCatastrophe()
+		if not cabineCatastrophe then return end
+		local ancien = cabineCatastrophe
+		cabineCatastrophe = nil
+		ancien.fumee.Enabled, ancien.etincelles.Enabled = false, false
+		Debris:AddItem(ancien.part, 4) -- les dernières particules finissent de vivre
+	end
+	-- Une image de la remat en Catastrophe : la pièce d'effet (la boîte de la cabine) suit la cabine
+	local function majCabineCatastrophe(dt, reduit)
+		local cf, taille = exterieur:GetBoundingBox()
+		if not cabineCatastrophe then
+			local part = piece({ Name = "TardisCatastrophe_" .. def.Nom, Transparency = 1, Size = taille, CFrame = cf })
+			cabineCatastrophe = { part = part, fumee = emetteurFumee(part, 0), etincelles = emetteurEtincelles(part) }
+		end
+		cabineCatastrophe.part.CFrame = cf
+		local souffle = respiration()
+		local division = reduit and 3 or 1
+		cabineCatastrophe.fumee.Rate = (4 + 10 * souffle) / division
+		if souffle > 0.5 and souffleCatastrophe <= 0.5 then
+			cabineCatastrophe.fumee:Emit(math.floor(12 / division))
+			cabineCatastrophe.etincelles:Emit(math.floor(36 / division))
+		elseif math.random() < dt * 3 then
+			cabineCatastrophe.etincelles:Emit(math.floor(12 / division))
+		end
+		souffleCatastrophe = souffle
+	end
+	-- Atterrissage forcé : explosion d'éclats (petites pièces locales, sans collision) et fumée qui traîne DUREE_FUMEE s
+	local function explosionCatastrophe()
+		local division = UI.effetsReduits() and 3 or 1
+		local cf, taille = exterieur:GetBoundingBox()
+		local centre = cf.Position
+		for i = 1, math.floor(18 / division) do
+			local eclat_ = Instance.new("Part")
+			eclat_.Name = "TardisEclatCatastrophe"
+			eclat_.Anchored, eclat_.CanCollide, eclat_.CanTouch, eclat_.CanQuery, eclat_.CastShadow, eclat_.Massless = false, false, false, false, false, true
+			eclat_.Size = Vector3.new(0.2 + math.random() * 0.5, 0.1 + math.random() * 0.15, 0.2 + math.random() * 0.5)
+			eclat_.Material = i % 3 == 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+			eclat_.Color = i % 3 == 0 and Color3.fromRGB(255, 140, 60) or Color3.fromRGB(30, 45, 85)
+			local angle = math.random() * math.pi * 2
+			local direction = Vector3.new(math.cos(angle), 0.5 + math.random() * 0.8, math.sin(angle))
+			eclat_.CFrame = CFrame.new(centre + direction * 1.5) * CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6)
+			eclat_.Parent = workspace
+			eclat_.AssemblyLinearVelocity = direction * (25 + math.random() * 25)
+			eclat_.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 20
+			Debris:AddItem(eclat_, 2 + math.random())
+		end
+		-- Fumée noire qui traîne autour de la base, de plus en plus faible, et une gerbe d'étincelles
+		local base = piece({ Name = "TardisFumeeCatastrophe_" .. def.Nom, Transparency = 1, Size = Vector3.new(taille.X, 1, taille.Z),
+			CFrame = cf * CFrame.new(0, -taille.Y / 2 + 0.5, 0) })
+		local fumee = emetteurFumee(base, 12 / division)
+		fumee:Emit(math.floor(30 / division))
+		tween(fumee, DUREE_FUMEE, { Rate = 0 }, Enum.EasingStyle.Linear)
+		emetteurEtincelles(base):Emit(math.floor(80 / division))
+		Debris:AddItem(base, DUREE_FUMEE + 4)
+	end
+	exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
+		local quand = exterieur:GetAttribute("Catastrophe")
+		if not CATASTROPHE_DEHORS or type(quand) ~= "number" or workspace:GetServerTimeNow() - quand > 5 then return end
+		if exterieur:GetAttribute("Camouflage") == true then return end
+		proteger("catastropheAtterrissage", explosionCatastrophe)
+	end)
+
 	local etatAvant, modeAvant = exterieur:GetAttribute("Etat") or E.Pose, "Normal"
 	exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 		local etat = exterieur:GetAttribute("Etat")
@@ -1056,25 +1294,34 @@ do
 		local etat = exterieur:GetAttribute("Etat") or E.Pose
 		local mode = Config.modeDe(exterieur)
 		local reduit = UI.effetsReduits()
+		local sansFlash = UI.sansFlash() -- V6.9.9 : ni éclair du Rapide, ni battement rouge (la salle reste rouge, fixe)
 		local racine = joueur.Character and joueur.Character:FindFirstChild("HumanoidRootPart")
 		local dedans = racine ~= nil and dansInterieur(racine.Position)
 
 		-- Éclair intérieur du Rapide, et battement rouge de la catastrophe (seulement pour ceux qui sont à bord)
+		if sansFlash then eclat = 0 end
 		eclat = math.max(0, eclat - dt * 2.5)
 		local intensiteEclat = dedans and eclat * (reduit and 0.4 or 1) or 0
 		local catastrophe = etat == E.Remat and mode == "Catastrophe"
-		local battement = (catastrophe and dedans) and (0.5 + 0.5 * math.sin(t * 9)) * (reduit and 0.25 or 0.5) or 0
+		local pulsationCatastrophe = sansFlash and 0.5 or (0.5 + 0.5 * math.sin(t * 9))
+		local battement = (catastrophe and dedans) and pulsationCatastrophe * (reduit and 0.25 or 0.5) or 0
 		local teinte = Color3.new(1, 1, 1):Lerp(couleurEclat, 0.4 * intensiteEclat):Lerp(ROUGE, 0.5 * battement)
 		teinteMode.TintColor = teinte
 		teinteMode.Brightness = 0.12 * intensiteEclat
 		lumiereRotor.Color = catastrophe and ROUGE or couleurEclat
-		lumiereRotor.Brightness = 10 * intensiteEclat + (catastrophe and 5 * (0.5 + 0.5 * math.sin(t * 9)) or 0)
+		lumiereRotor.Brightness = 10 * intensiteEclat + (catastrophe and 5 * pulsationCatastrophe or 0)
 		-- Catastrophe : la console crache des étincelles (chez tout le monde : elle est visible de dehors par la porte)
 		if catastrophe then
 			if not pointsConsole then preparerEtincelles() end
 			if #pointsConsole > 0 and math.random() < dt * 7 then
 				pointsConsole[math.random(#pointsConsole)]:Emit(math.random(10, 25))
 			end
+		end
+		-- Catastrophe dehors (V6.9.9) : chez tout le monde, sauf si la cabine est camouflée
+		if CATASTROPHE_DEHORS and catastrophe and exterieur:GetAttribute("Camouflage") ~= true then
+			proteger("catastropheDehors", majCabineCatastrophe, dt, reduit)
+		elseif cabineCatastrophe then
+			arreterCabineCatastrophe()
 		end
 
 		-- Phare de sauvetage : allumé pendant la descente en tournant (pas camouflé, avec du courant), il suit la cabine

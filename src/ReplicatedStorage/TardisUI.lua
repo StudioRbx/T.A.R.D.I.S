@@ -531,6 +531,13 @@ function UI.effetsReduits()
 	return UI.pref("effetsReduits", false) == true
 end
 
+-- Option « aucun flash » (V6.9.9, joueurs sensibles à la lumière) : plus aucun éclat, voile blanc, stroboscope ni
+-- clignotement rapide (lampe, bouclier, saut temporel, régénération, explosion, enseigne, arcs, éclair du Rapide…).
+-- Les grésillements de la cabine en urgence sont aussi adoucis, comme en « réduire les effets ».
+function UI.sansFlash()
+	return UI.pref("sansFlash", false) == true
+end
+
 -- Volume des sons du TARDIS (0 à 1)
 function UI.volume()
 	return math.clamp(tonumber(UI.pref("volume", 1)) or 1, 0, 1)
