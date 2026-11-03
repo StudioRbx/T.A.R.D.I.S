@@ -27,6 +27,60 @@
 
 ---
 
+## Roadmap GitHub : types, priorités et dates
+
+Chaque version a sa carte dans le [projet GitHub T.A.R.D.I.S.](https://github.com/orgs/StudioRbx/projects/4), avec un **type** (🐛 bug, ✨ fonctionnalité, 🔧 tâche technique), une **priorité**, un **effort** et des **dates** (début, fin) qui alimentent la vue Roadmap. Chronologie complète : [#130](https://github.com/StudioRbx/T.A.R.D.I.S/issues/130).
+
+Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant la V7, puis 3 à 4 jours par lot ; la V9, un seul gros lot, a une semaine. Elles glissent si les tests en jeu demandent des corrections.
+
+| Lot | Carte | Type | Priorité | Effort | Début → fin |
+|---|---|---|---|---|---|
+| **Avant la V7 · Propositions gardées** | [#89](https://github.com/StudioRbx/T.A.R.D.I.S/issues/89) | ✨ Fonctionnalité | 🟠 Haute | gros | 03/11 → 17/11 |
+| ✅ V6.9.7 — Corrections : TARDIS bloqué ou perdu | [#90](https://github.com/StudioRbx/T.A.R.D.I.S/issues/90) | 🐛 Bug | faite | moyen | 03/11 → 03/11 |
+| ✅ V6.9.8 — Vérification et outils de suivi | [#91](https://github.com/StudioRbx/T.A.R.D.I.S/issues/91) | 🔧 Tâche | faite | moyen | 03/11 → 03/11 |
+| V6.9.9 — Effets visuels du voyage | [#92](https://github.com/StudioRbx/T.A.R.D.I.S/issues/92) | ✨ Fonctionnalité | 🟠 Haute | moyen | 04/11 → 05/11 |
+| V6.9.10 — Vol libre et vortex | [#93](https://github.com/StudioRbx/T.A.R.D.I.S/issues/93) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 06/11 → 07/11 |
+| V6.9.11 — Navigation et fiches de lieux | [#94](https://github.com/StudioRbx/T.A.R.D.I.S/issues/94) | ✨ Fonctionnalité | 🟡 Moyenne | petit | 08/11 → 09/11 |
+| V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | 🟠 Haute | moyen | 10/11 → 11/11 |
+| V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 12/11 → 13/11 |
+| V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 14/11 → 15/11 |
+| V6.9.15 — Confort de l'interface et accessibilité | [#98](https://github.com/StudioRbx/T.A.R.D.I.S/issues/98) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 16/11 → 17/11 |
+| **V7 · Sécurisation des scripts** | [#99](https://github.com/StudioRbx/T.A.R.D.I.S/issues/99) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 28/11 |
+| V7 — Sécurité : banc d'essai, audits et sauvegarde | [#100](https://github.com/StudioRbx/T.A.R.D.I.S/issues/100) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 21/11 |
+| V7.1 — Sécurité : garde-barrière unique et pont interne | [#101](https://github.com/StudioRbx/T.A.R.D.I.S/issues/101) | 🔧 Tâche | 🟠 Haute | moyen | 22/11 → 25/11 |
+| V7.2 — Sécurité : schéma des données et tests de triche | [#102](https://github.com/StudioRbx/T.A.R.D.I.S/issues/102) | 🔧 Tâche | 🟠 Haute | gros | 26/11 → 28/11 |
+| **V8 · Optimisation et nettoyage du code** | [#103](https://github.com/StudioRbx/T.A.R.D.I.S/issues/103) | 🔧 Tâche | 🟠 Haute | gros | 29/11 → 12/12 |
+| V8 — Nettoyage : journal, mesure et code mort | [#104](https://github.com/StudioRbx/T.A.R.D.I.S/issues/104) | 🔧 Tâche | 🟠 Haute | moyen | 29/11 → 01/12 |
+| V8.1 — Sons : liste unique et volumes par catégorie | [#105](https://github.com/StudioRbx/T.A.R.D.I.S/issues/105) | 🔧 Tâche | 🟡 Moyenne | moyen | 02/12 → 04/12 |
+| V8.2 — Code partagé et ordre des fonctions | [#106](https://github.com/StudioRbx/T.A.R.D.I.S/issues/106) | 🔧 Tâche | 🟡 Moyenne | petit | 05/12 → 07/12 |
+| V8.3 — Boucles par image et effets à distance | [#107](https://github.com/StudioRbx/T.A.R.D.I.S/issues/107) | 🔧 Tâche | 🟡 Moyenne | gros | 08/12 → 10/12 |
+| V8.4 — Moins d'attributs envoyés sur le réseau | [#108](https://github.com/StudioRbx/T.A.R.D.I.S/issues/108) | 🔧 Tâche | 🟡 Moyenne | moyen | 11/12 → 12/12 |
+| **V9 · Refonte de l'organisation des fichiers** | [#109](https://github.com/StudioRbx/T.A.R.D.I.S/issues/109) | 🔧 Tâche | 🟡 Moyenne | gros | 13/12 → 19/12 |
+| V9 — Guide d'installation | [#110](https://github.com/StudioRbx/T.A.R.D.I.S/issues/110) | 🔧 Tâche | 🟡 Moyenne | moyen | 13/12 → 19/12 |
+| **V10 · Les 3 TARDIS, un par pilote** | [#112](https://github.com/StudioRbx/T.A.R.D.I.S/issues/112) | ✨ Fonctionnalité | 🟠 Haute | gros | 20/12 → 18/01/27 |
+| V10.1 — Régénération : nouveaux styles et choix du style | [#113](https://github.com/StudioRbx/T.A.R.D.I.S/issues/113) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 20/12 → 23/12 |
+| V10.2 — Régénération : fins et réactions | [#114](https://github.com/StudioRbx/T.A.R.D.I.S/issues/114) | ✨ Fonctionnalité | 🟢 Basse | moyen | 24/12 → 27/12 |
+| V10.3 — Départ annulable et remat ratée | [#115](https://github.com/StudioRbx/T.A.R.D.I.S/issues/115) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 28/12 → 30/12 |
+| V10.4 — Voyage de groupe synchronisé | [#116](https://github.com/StudioRbx/T.A.R.D.I.S/issues/116) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 31/12 → 03/01/27 |
+| V10.5 — Accès à bord : sonnette, passages secrets, chambres | [#117](https://github.com/StudioRbx/T.A.R.D.I.S/issues/117) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 04/01/27 → 07/01/27 |
+| V10.6 — Nouvelles salles : machines, infirmerie, bibliothèque | [#118](https://github.com/StudioRbx/T.A.R.D.I.S/issues/118) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 08/01/27 → 11/01/27 |
+| V10.7 — Réglages personnels hors de la tablette | [#119](https://github.com/StudioRbx/T.A.R.D.I.S/issues/119) | ✨ Fonctionnalité | 🟠 Haute | moyen | 12/01/27 → 14/01/27 |
+| V10.8 — Textes à clés et langue anglaise | [#120](https://github.com/StudioRbx/T.A.R.D.I.S/issues/120) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 15/01/27 → 18/01/27 |
+| **V11 · La console remplace le menu (TARDIS_1)** | [#121](https://github.com/StudioRbx/T.A.R.D.I.S/issues/121) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 19/01/27 → 10/02/27 |
+| V11.1.1 — Écrans de la console : accueil, équipage, statistiques | [#122](https://github.com/StudioRbx/T.A.R.D.I.S/issues/122) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 19/01/27 → 22/01/27 |
+| V11.1.2 — Écrans de la console : journal de l'équipage | [#123](https://github.com/StudioRbx/T.A.R.D.I.S/issues/123) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 23/01/27 → 25/01/27 |
+| V11.1.3 — Écrans de la console : parasites et panne d'écrans | [#124](https://github.com/StudioRbx/T.A.R.D.I.S/issues/124) | ✨ Fonctionnalité | 🟢 Basse | moyen | 26/01/27 → 28/01/27 |
+| V11.2 — Boutons de navigation de la console | [#125](https://github.com/StudioRbx/T.A.R.D.I.S/issues/125) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 29/01/27 → 02/02/27 |
+| V11.3 — Boutons des systèmes : énergie, Artron et décoratifs | [#126](https://github.com/StudioRbx/T.A.R.D.I.S/issues/126) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 03/02/27 → 06/02/27 |
+| V11.4 — Retrait de T et Y sur TARDIS_1 : ce qui reste à l'écran | [#127](https://github.com/StudioRbx/T.A.R.D.I.S/issues/127) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 07/02/27 → 10/02/27 |
+| ✖ V11.5 → V11.8 — Console de commande de TARDIS_3 | [#128](https://github.com/StudioRbx/T.A.R.D.I.S/issues/128) | ✨ Fonctionnalité | ne sera pas fait | petit | — |
+| ✖ V11.9 → V11.12 — Console de commande de TARDIS_2 | [#129](https://github.com/StudioRbx/T.A.R.D.I.S/issues/129) | ✨ Fonctionnalité | ne sera pas fait | petit | — |
+
+**Bilan des versions faites** (cartes fermées) : 64 ✨ Fonctionnalité, 16 🔧 Tâche, 10 🐛 Bug.
+
+**Comment c'est décidé :** 🐛 bug = la version corrige surtout des défauts ; ✨ fonctionnalité = elle ajoute surtout quelque chose de visible en jeu ; 🔧 tâche = travail technique sans nouveauté pour le joueur (sécurité, nettoyage, organisation, outils, docs). Priorité : 🟠 haute = prochain lot, sécurité (V7) ou prérequis de beaucoup d'autres lots ; 🟡 moyenne = fonctionnalité prévue utile ; 🟢 basse = mise en scène, polish. Une étape prend la priorité la plus haute de ses lots ouverts.
+
+---
 ## V7 — Sécurisation des scripts
 
 **Sujet :** sécuriser les scripts.
