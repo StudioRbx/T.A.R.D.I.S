@@ -37,6 +37,15 @@ remote.Parent = ReplicatedStorage
 --------------------------------------------------------------------
 -- Sons (positionnés : autour de l'extérieur ET dans l'intérieur)
 --------------------------------------------------------------------
+-- Portée (V6.9.7) : « Dehors » pour les sons de la cabine, « Dedans » pour ceux de la salle de contrôle
+local function appliquerPortee(son, cote)
+	local reglage = (Config.PorteeSons or {})[cote]
+	if not reglage then return end
+	son.RollOffMode = Enum.RollOffMode.InverseTapered
+	son.RollOffMinDistance = reglage.Min or 10
+	son.RollOffMaxDistance = reglage.Max or 200
+end
+
 local function preparerSon(nom, parent, optionnel)
 	local modele = dossierSons:FindFirstChild(nom)
 	if not modele then
@@ -46,6 +55,7 @@ local function preparerSon(nom, parent, optionnel)
 		return nil
 	end
 	local son = modele:Clone()
+	appliquerPortee(son, parent == exterieur.PrimaryPart and "Dehors" or "Dedans")
 	son.Parent = parent
 	return son
 end
@@ -1568,7 +1578,13 @@ local dernierOrdre = {}
 -- Renvoie : cible, nom, partDestination, joueurAFiger, erreur
 -- autoriserInterieur (V6.7.1) : la commande Remat des menus accepte une destination dans le TARDIS (paradoxe) ;
 -- partout ailleurs, elle est refusée
-local function resoudreDestination(donnees, autoriserInterieur)
+-- Noms des joueurs partis pendant la session (V6.9.7), pour dire clairement qui a quitté
+local nomsPartis = {}
+Players.PlayerRemoving:Connect(function(joueur) nomsPartis[joueur.UserId] = joueur.DisplayName end)
+
+-- repliSiParti (V6.9.7) : si le joueur visé a quitté le jeu ou n'a plus de personnage, retour au lieu de départ
+-- (6e valeur renvoyée : le message à afficher) au lieu de laisser le TARDIS dans le vortex
+local function resoudreDestination(donnees, autoriserInterieur, repliSiParti)
 	local cible, nom, partDestination
 	local joueurAFiger = nil
 	if typeof(donnees.destination) == "string" and #donnees.destination <= 100 then
@@ -1585,12 +1601,18 @@ local function resoudreDestination(donnees, autoriserInterieur)
 	elseif typeof(donnees.joueur) == "number" then
 		-- Atterrissage près d'un joueur
 		local joueurCible = Players:GetPlayerByUserId(donnees.joueur)
-		if not joueurCible then
-			return nil, nil, nil, nil, "joueur introuvable"
-		end
 		local erreur
-		cible, erreur = cibleJoueur(joueurCible, autoriserInterieur)
+		if joueurCible then cible, erreur = cibleJoueur(joueurCible, autoriserInterieur) end
 		if not cible then
+			local absent = not joueurCible or erreur == "JOUEUR SANS PERSONNAGE"
+			local qui = (joueurCible and joueurCible.DisplayName) or nomsPartis[donnees.joueur] or "Le joueur visé"
+			if absent and repliSiParti and precedent then
+				return precedent.cf, precedent.nom, nil, nil, nil,
+					qui .. (joueurCible and " n'a plus de personnage" or " a quitté le jeu") .. " : retour à " .. tostring(precedent.nom) .. "."
+			end
+			if not joueurCible then
+				return nil, nil, nil, nil, nomsPartis[donnees.joueur] and (qui .. " a quitté le jeu") or "joueur introuvable"
+			end
 			return nil, nil, nil, nil, erreur
 		end
 		if donnees.figer == true then
@@ -1626,11 +1648,14 @@ end
 
 -- Joue un son sur le personnage d'un joueur (le TARDIS porté suit son porteur, pas sa position serveur)
 local function jouerSurPersonnage(joueurCible, nom)
+	-- Mode sans son (Silencieux, V6.9.7) : Config.Son renvoie nil ; avant, le script plantait ici et laissait le TARDIS occupé
+	if type(nom) ~= "string" then return end
 	local groupe = sons[nom] or sons[(string.gsub(string.gsub(nom, "_Urg", ""), "_Express", ""))]
 	local modele = groupe and (groupe.ext or groupe.int)
 	local racine = joueurCible.Character and joueurCible.Character:FindFirstChild("HumanoidRootPart")
 	if not (modele and racine) then return end
 	local son = modele:Clone()
+	appliquerPortee(son, "Dehors")
 	son.Parent = racine
 	son:Play()
 	son.Ended:Connect(function() son:Destroy() end)
@@ -1863,7 +1888,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		if typeof(donnees) ~= "table" then return end
 		local invisible = donnees.invisible == true
 		local cible, nom, partDestination
-		local joueurAFiger = nil
+		local joueurAFiger, avisRepli = nil, nil
 
 		if exterieur:GetAttribute("Retreci") then
 			-- Rétréci : atterrissage sur place uniquement, la destination demandée est ignorée
@@ -1871,7 +1896,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			partDestination = partage.positionActuelle
 		else
 			local erreur
-			cible, nom, partDestination, joueurAFiger, erreur = resoudreDestination(donnees, true)
+			cible, nom, partDestination, joueurAFiger, erreur, avisRepli = resoudreDestination(donnees, true, etatActuel() == E.Vol)
 			if not cible then
 				if erreur then repondre(false, erreur) end
 				return
@@ -1911,6 +1936,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			elseif mode == "Sauvetage" then
 				texte = "Sauvetage : descente terminée, portes ouvertes. " .. texte
 			end
+			if avisRepli then texte = avisRepli .. " " .. texte end
 			repondre(ok, erreur, texte)
 		end)
 
@@ -2070,7 +2096,7 @@ local function surveillerPorteur(joueur)
 	joueur.CharacterRemoving:Connect(function(personnage)
 		poserTardis(joueur, personnage)
 		if exterieur:GetAttribute("VolLibre") == joueur.UserId then
-			lancerDescente("Douce", true)
+			task.spawn(lancerDescente, "Douce", true) -- V6.9.7 : invisible, il se rematérialise d'abord
 		end
 	end)
 end

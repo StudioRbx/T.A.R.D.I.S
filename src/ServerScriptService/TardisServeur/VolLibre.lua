@@ -80,6 +80,8 @@ return function(contexte)
 		end)
 	end
 
+	local lancerDescente -- définie plus bas ; la surveillance du vol (V6.9.7) l'appelle
+
 	local function demarrerVolLibre(pilote)
 		if exterieur:GetAttribute("VolLibre") then return false, "DÉJÀ EN VOL LIBRE" end
 		if partage.occupe then return false, "TARDIS OCCUPÉ" end
@@ -113,12 +115,29 @@ return function(contexte)
 		exterieur:SetAttribute("Position", "Vol libre")
 		partage.positionActuelle = nil
 		majEcran()
+		-- V6.9.7 : si le pilote n'envoie plus rien (figé, connexion perdue, client modifié), le TARDIS se pose seul
+		volLibre.derniereNouvelle = os.clock()
+		local jeton = {}
+		volLibre.jetonSurveillance = jeton
+		task.spawn(function()
+			while volLibre.jetonSurveillance == jeton and exterieur:GetAttribute("VolLibre") == pilote.UserId do
+				task.wait(1)
+				local delai = reglagesVol.DelaiSansNouvelles or 8
+				if delai > 0 and not volLibre.enDescente and exterieur:GetAttribute("VolLibre") == pilote.UserId
+					and os.clock() - (volLibre.derniereNouvelle or 0) > delai then
+					warn(string.format("[TARDIS] Vol libre : aucune nouvelle de %s depuis %d s, le TARDIS se pose seul.", pilote.Name, delai))
+					lancerDescente("Douce", true)
+					break
+				end
+			end
+		end)
 		return true
 	end
 
 	-- Position envoyée par le pilote : vérifiée (format, zone, vitesse) avant d'être publiée
 	local function recevoirPositionVol(pilote, cf)
 		if exterieur:GetAttribute("VolLibre") ~= pilote.UserId or volLibre.enDescente then return end
+		volLibre.derniereNouvelle = os.clock() -- V6.9.7 : le pilote répond (même si la position est refusée plus bas)
 		if typeof(cf) ~= "CFrame" then return end
 		local p = cf.Position
 		if p.X ~= p.X or p.Y ~= p.Y or p.Z ~= p.Z then return end -- NaN
@@ -165,6 +184,7 @@ return function(contexte)
 		exterieur:SetAttribute("VolVortex", false)
 		exterieur:SetAttribute("VolUrgence", false)
 		volLibre.jetonPhase = nil
+		volLibre.jetonSurveillance = nil
 		exterieur:SetAttribute("VolPhase", nil) -- de nouveau visible normalement
 		for _, nom in ATTRIBUTS_DESCENTE do
 			exterieur:SetAttribute(nom, nil)
@@ -210,10 +230,20 @@ return function(contexte)
 		return nil
 	end
 
-	local function lancerDescente(mode, force, vitesseInitiale)
+	lancerDescente = function(mode, force, vitesseInitiale)
 		if not exterieur:GetAttribute("VolLibre") or volLibre.enDescente then return false end
 		-- Il faut être matérialisé pour se poser (sauf si le pilote part : on le pose quand même)
 		if not force and exterieur:GetAttribute("VolPhase") ~= "Visible" then return false end
+		if force and exterieur:GetAttribute("VolPhase") ~= "Visible" then
+			-- V6.9.7 : pilote parti ou muet pendant qu'il est invisible (ou en pleine démat / remat) : la cabine se
+			-- rematérialise d'abord sur place, avec son animation, au lieu de réapparaître d'un coup au sol
+			local limite = os.clock() + 30
+			while exterieur:GetAttribute("VolLibre") and not volLibre.enDescente and exterieur:GetAttribute("VolPhase") ~= "Visible" and os.clock() < limite do
+				if exterieur:GetAttribute("VolPhase") == "Invisible" then changerPhaseVol("Invisible", "Remat", "Visible", E.Remat, "Normal") end
+				task.wait(0.25)
+			end
+			if not exterieur:GetAttribute("VolLibre") or volLibre.enDescente then return false end
+		end
 		volLibre.enDescente = true
 		fermerPortesEnVol() -- on referme avant de se poser
 

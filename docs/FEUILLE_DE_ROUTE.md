@@ -7,7 +7,7 @@
 
 | Version | Sujet | État |
 |---|---|---|
-| V6.9.7 | Corrections : TARDIS bloqué ou perdu | 🔜 prévue |
+| V6.9.7 | Corrections : TARDIS bloqué ou perdu | ✅ faite (03/11) |
 | V6.9.8 | Vérification et outils de suivi | 🔜 prévue |
 | V6.9.9 | Effets visuels du voyage | 🔜 prévue |
 | V6.9.10 | Vol libre et vortex | 🔜 prévue |

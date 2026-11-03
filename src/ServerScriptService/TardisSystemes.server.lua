@@ -671,6 +671,21 @@ local function poseRegeneration(personnage, active, duree)
 	end
 end
 
+-- Chute dans le vide (V6.9.7) : dernière position où le joueur se tenait sur un sol, loin sous la limite de destruction
+-- de Roblox (workspace.FallenPartsDestroyHeight). Sert à rattraper un membre de la C.A.T. qui tombe hors de la carte,
+-- au lieu de le laisser se régénérer dans le vide en boucle.
+local positionsSures = {} -- [UserId] = CFrame
+local function seuilDuVide() return workspace.FallenPartsDestroyHeight end
+local function pointDeSecours(joueur)
+	local sure = positionsSures[joueur.UserId]
+	if sure then return sure end
+	-- Sinon : le spawn de l'équipe dans le TARDIS, ou la Part Arrivee de l'intérieur
+	local spawn = interieur:FindFirstChild("TardisSpawn_" .. def.Nom .. "_" .. Config.nomEquipe())
+	local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
+	local part = (spawn and spawn:IsA("BasePart") and spawn) or (arrivee and arrivee:IsA("BasePart") and arrivee) or nil
+	return part and (part.CFrame + Vector3.new(0, 3, 0)) or nil
+end
+
 local function surveillerPersonnage(joueur, personnage)
 	if def.Nom ~= Config.Tardis[1].Nom then return end -- un seul exemplaire gère la régénération
 	local humanoid = personnage:WaitForChild("Humanoid", 10)
@@ -769,11 +784,42 @@ local function surveillerPersonnage(joueur, personnage)
 		end)
 	end
 
+	-- Chute dans le vide (V6.9.7) : on retient la dernière position sûre ; si le corps passe sous la limite, il est
+	-- rattrapé (remonté à cette position, ou dans le TARDIS) puis la régénération se déroule là, une seule fois
+	do
+		local racineSuivi = personnage:WaitForChild("HumanoidRootPart", 5)
+		local prochaineMemoire = 0
+		local suivi
+		if racineSuivi then suivi = game:GetService("RunService").Heartbeat:Connect(function()
+			if not personnage.Parent or not racineSuivi.Parent then suivi:Disconnect() return end
+			local y = racineSuivi.Position.Y
+			local maintenant = os.clock()
+			if maintenant >= prochaineMemoire then
+				prochaineMemoire = maintenant + 0.5
+				if humanoid.FloorMaterial ~= Enum.Material.Air and y > seuilDuVide() + 50 then positionsSures[joueur.UserId] = racineSuivi.CFrame end
+			end
+			if y < seuilDuVide() + 30 and estRegenerateur(joueur) and personnage:GetAttribute("TardisMortReelle") ~= true then
+				local secours = pointDeSecours(joueur)
+				if not secours then return end
+				racineSuivi.AssemblyLinearVelocity = Vector3.zero
+				racineSuivi.AssemblyAngularVelocity = Vector3.zero
+				personnage:PivotTo(secours)
+				dire(joueur, "Chute dans le vide : le TARDIS t'a rattrapé.", false)
+				if not enCours then humanoid.Health = 0 end -- la régénération se déroule à l'endroit sûr
+			end
+		end) end
+	end
+
 	-- Corps neuf après un corps disloqué : on le replace où était l'ancien, et la régénération se poursuit
 	local attente = enAttente[joueur.UserId]
 	if attente then
 		enAttente[joueur.UserId] = nil
 		local racine = personnage:WaitForChild("HumanoidRootPart", 5)
+		-- V6.9.7 : jamais dans le vide (sinon il retombe et se régénère en boucle)
+		if attente.position and attente.position.Y < seuilDuVide() + 30 then
+			local secours = pointDeSecours(joueur)
+			attente.position = secours and secours.Position or nil
+		end
 		if racine and attente.position then
 			task.wait(0.1)
 			local regard = attente.regard and Vector3.new(attente.regard.X, 0, attente.regard.Z) or Vector3.new(0, 0, -1)
@@ -854,7 +900,7 @@ local function suivreJoueur(joueur)
 end
 Players.PlayerAdded:Connect(suivreJoueur)
 for _, joueur in Players:GetPlayers() do suivreJoueur(joueur) end
-Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = nil derniereTenue[joueur.UserId] = nil enAttente[joueur.UserId] = nil end)
+Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = nil derniereTenue[joueur.UserId] = nil enAttente[joueur.UserId] = nil positionsSures[joueur.UserId] = nil end)
 
 --------------------------------------------------------------------
 -- Outils des techniciens : chiffon (saleté), visseuse (surcharge de vapeur), clé à molette (vanne), extincteur

@@ -33,7 +33,7 @@
 | 6 | **Destination aléatoire** : Un bouton « Au hasard » parmi les lieux autorisés, avec un compte à rebours. | petit | ✖ Non |  |
 | 7 | **Retour automatique** : Après X minutes posé ailleurs, le TARDIS peut revenir seul à sa base (option). | moyen | ✖ Non |  |
 | 8 | **Point de base** : Un lieu « Base » défini par les pilotes, raccourci dans tous les menus. | petit | ✅ Garder | V6.9.11 |
-| 9 | **Voyage vers un joueur hors ligne refusé proprement** : Message clair si le joueur visé a quitté pendant le vol, avec repli sur le lieu précédent. | petit | ✅ Garder | V6.9.7 |
+| 9 | **Voyage vers un joueur hors ligne refusé proprement** : Message clair si le joueur visé a quitté pendant le vol, avec repli sur le lieu précédent. | petit | ✅ Garder | ✅ V6.9.7 |
 | 10 | **Durée du vortex réglable** : Vortex automatique de 5, 10 ou 20 s, choisi dans les réglages de la tablette. | petit | ✖ Non |  |
 | 11 | **Annuler un départ** : Pendant le son de départ (avant que la cabine s'efface), un bouton annule le voyage. | moyen | ✅ Garder | V10.3 |
 | 12 | **Atterrissage en douceur forcé** : Un protocole qui refuse l'urgence imposée par collision et cherche un point libre proche. | moyen | ✖ Non |  |
@@ -53,7 +53,7 @@
 | 21 | **Tutoriel du vol libre** : Un premier vol guidé, étape par étape, la première fois qu'un pilote l'ouvre. | moyen | ✖ Non |  |
 | 22 | **Altimètre et compas** : Un petit cadran qui affiche l'altitude, le cap et la vitesse. | petit | ⏳ Plus tard |  |
 | 23 | **Pilote automatique de croisière** : Garder cap et altitude sans toucher aux touches. | moyen | ✅ Garder | V6.9.10 |
-| 24 | **Retour au sol automatique** : Si le pilote se déconnecte en vol, le TARDIS descend en douceur au lieu de rester figé. | petit | ✅ Garder | V6.9.7 |
+| 24 | **Retour au sol automatique** : Si le pilote se déconnecte en vol, le TARDIS descend en douceur au lieu de rester figé. | petit | ✅ Garder | ✅ V6.9.7 |
 | 25 | **Limites de la carte visibles** : Un mur lumineux discret aux limites où le vol s'arrête. | petit | ⏳ Plus tard |  |
 | 26 | **Caméra cinématique** : Une caméra extérieure lente qui tourne autour de la cabine pendant le vol. | moyen | ✅ Garder | V6.9.10 |
 | 27 | **Vol en formation avec un joueur** : Suivre automatiquement un joueur ou un véhicule à distance fixe. | moyen | ✅ Garder | V6.9.8 |
@@ -162,7 +162,7 @@
 | 105 | **Régénération partielle** : Une blessure grave soignée par une petite régénération (visage seulement). | moyen | ✖ Non |  |
 | 106 | **Compteur de régénérations visible** : Le nombre de régénérations du joueur dans sa fiche. | petit | ✅ Garder | V11.1.2 |
 | 107 | **Dernière régénération** : Après N régénérations, une version plus dramatique, puis remise à zéro. | moyen | ✅ Garder | V10.2 |
-| 108 | **Régénération dans le vide** : Gérer proprement une mort par chute hors de la carte. | petit | ✅ Garder | V6.9.7 |
+| 108 | **Régénération dans le vide** : Gérer proprement une mort par chute hors de la carte. | petit | ✅ Garder | ✅ V6.9.7 |
 | 109 | **Énergie de régénération partagée** : Un membre peut donner de l'énergie à un autre (soin RP). | moyen | ⏳ Plus tard |  |
 | 110 | **Cinématique pour les témoins** : Les joueurs proches voient un plan rapproché pendant 2 s. | moyen | ✖ Non |  |
 | 111 | **Nouvelle voix à la régénération** : Changer le son des pas ou un effet de voix après (option RP). | petit | ⏳ Plus tard |  |
@@ -198,14 +198,14 @@
 |---|---|---|---|---|
 | 132 | **Banque de sons dans TardisAssets** : Tous les sons rangés et nommés dans ReplicatedStorage › TardisAssets › Sons. | petit | ✅ Garder | V8.1 |
 | 133 | **Volume par catégorie** : Volumes séparés : voyages, moteur, alarmes, jukebox, interface. | petit | ✅ Garder | V8.1 |
-| 134 | **Sons 3D dehors** : Les sons de voyage s'entendent plus fort près de la cabine et faiblissent avec la distance. | petit | ✅ Garder | V6.9.7 |
+| 134 | **Sons 3D dehors** : Les sons de voyage s'entendent plus fort près de la cabine et faiblissent avec la distance. | petit | ✅ Garder | ✅ V6.9.7 |
 | 135 | **Écho dans la salle** : Un effet de réverbération sur les sons à bord. | petit | ⏳ Plus tard |  |
 | 136 | **Ambiance du vortex** : Un son de vent cosmique pendant le vol, seulement à bord. | petit | ✅ Garder | V6.9.10 |
 | 137 | **Bips de la console** : Des petits sons quand on touche la console. | petit | ✅ Garder | V11.2 |
 | 138 | **Jukebox : file d'attente** : Ajouter des musiques à une file au lieu d'en jouer une seule. | moyen | ✅ Garder | V11.2 |
 | 139 | **Jukebox : vote des passagers** : Les passagers votent pour la musique suivante. | moyen | ✖ Non |  |
 | 140 | **Alarme vocale** : Une voix synthétique annonce les alertes (option). | moyen | ✖ Non |  |
-| 141 | **Silence total en Silencieux à bord aussi** : Option : le Silencieux coupe aussi les sons à l'intérieur. | petit | ✅ Garder | V6.9.7 |
+| 141 | **Silence total en Silencieux à bord aussi** : Option : le Silencieux coupe aussi les sons à l'intérieur. | petit | ✅ Garder | ✅ V6.9.7 |
 | 142 | **Sons de pannes** : Grincements, sifflements de vapeur, étincelles selon la panne. | petit | ✅ Garder | V6.9.12 |
 | 143 | **Musique de régénération** : Un thème musical court pendant la régénération (option). | petit | ✖ Non |  |
 

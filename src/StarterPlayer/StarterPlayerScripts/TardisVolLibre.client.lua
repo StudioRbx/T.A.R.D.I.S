@@ -461,9 +461,16 @@ exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
 	if phase ~= "Demat" and phase ~= "Remat" then return end
 	local base = exterieur.PrimaryPart
 	-- Son du mode (urgence, express ou normal), sinon le son normal
-	local modele = sonAsset(Config.Son(phase, Config.modeVolDe(exterieur))) or sonAsset(phase)
+	local nomSon = Config.Son(phase, Config.modeVolDe(exterieur))
+	local modele = (nomSon and sonAsset(nomSon)) or sonAsset(phase)
 	if base and modele then
 		local son = modele:Clone()
+		-- Portée (V6.9.7) : audible près de la cabine, muet au-delà de Config.PorteeSons.Dehors.Max
+		local portee = (Config.PorteeSons or {}).Dehors
+		if portee then
+			son.RollOffMode = Enum.RollOffMode.InverseTapered
+			son.RollOffMinDistance, son.RollOffMaxDistance = portee.Min or 12, portee.Max or 220
+		end
 		son.Parent = base -- le son suit le TARDIS en vol
 		son:Play()
 		son.Ended:Connect(function() son:Destroy() end)
