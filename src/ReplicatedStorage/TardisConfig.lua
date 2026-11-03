@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.7"
+Config.Version = "6.9.8"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -279,6 +279,12 @@ Config.VolLibre = {
 	GraviteChute = 70,         -- gravité de la chute (double Espace) : plus petit = chute plus lente
 	VitesseDescente = 14,      -- vitesse de l'atterrissage en douceur (studs/s)
 	DelaiSansNouvelles = 8,    -- V6.9.7 : secondes sans position du pilote (figé, déconnecté) avant que le TARDIS se pose seul
+	-- Vol en formation (touche L, V6.9.8) : le TARDIS suit le joueur ou le véhicule visé
+	Formation = {
+		Distance = 14,         -- studs en arrière de la cible
+		Hauteur = 16,          -- studs au-dessus de la cible
+		Portee = 200,          -- distance max pour choisir une cible (studs)
+	},
 }
 
 -- Sentinelle : prévient les pilotes quand quelqu'un s'approche du TARDIS posé

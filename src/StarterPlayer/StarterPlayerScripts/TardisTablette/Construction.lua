@@ -394,7 +394,7 @@ return function(contexte)
 			LayoutOrder = 2, Parent = contenu },
 		{ UI.coin(9), UI.contour(C.bleu, 1, 0.3), creer("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }) })
 
-		W.liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 170), BackgroundColor3 = Color3.fromRGB(4, 10, 24),
+		W.liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 170), BackgroundColor3 = C.creux,
 			BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(),
 			AutomaticCanvasSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = contenu },
 		{ UI.coin(9), UI.contour(C.bleu, 1, 0.5), UI.marges(6), UI.pile(4) })
@@ -402,7 +402,7 @@ return function(contexte)
 			Size = UDim2.new(1, 0, 0, 44), TextWrapped = true, LayoutOrder = 999, Visible = false, Parent = W.liste })
 
 		-- Panneau Coordonnées (remplace la liste dans l'onglet Coordonnées)
-		W.panneauCoord = creer("Frame", { Size = UDim2.new(1, 0, 0, 176), BackgroundColor3 = Color3.fromRGB(4, 10, 24),
+		W.panneauCoord = creer("Frame", { Size = UDim2.new(1, 0, 0, 176), BackgroundColor3 = C.creux,
 			LayoutOrder = 3, Visible = false, Parent = contenu }, { UI.coin(9), UI.contour(C.bleu, 1, 0.5), UI.marges(14), UI.pile(10) })
 		texte({ Text = "Place un aperçu du TARDIS n'importe où dans le monde, tourne-le et incline-le. "
 			.. "S'il touche un obstacle, l'atterrissage passera automatiquement en urgence.", TextSize = 12, TextColor3 = C.texte2,

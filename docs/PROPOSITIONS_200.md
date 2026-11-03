@@ -56,7 +56,7 @@
 | 24 | **Retour au sol automatique** : Si le pilote se déconnecte en vol, le TARDIS descend en douceur au lieu de rester figé. | petit | ✅ Garder | ✅ V6.9.7 |
 | 25 | **Limites de la carte visibles** : Un mur lumineux discret aux limites où le vol s'arrête. | petit | ⏳ Plus tard |  |
 | 26 | **Caméra cinématique** : Une caméra extérieure lente qui tourne autour de la cabine pendant le vol. | moyen | ✅ Garder | V6.9.10 |
-| 27 | **Vol en formation avec un joueur** : Suivre automatiquement un joueur ou un véhicule à distance fixe. | moyen | ✅ Garder | V6.9.8 |
+| 27 | **Vol en formation avec un joueur** : Suivre automatiquement un joueur ou un véhicule à distance fixe. | moyen | ✅ Garder | ✅ V6.9.8 |
 | 28 | **Manette : réglages de sensibilité** : Sensibilité et inversion des axes pour la manette. | petit | ✖ Non |  |
 | 29 | **Mobile : joystick virtuel** : Un vrai joystick tactile pour le vol libre sur téléphone. | moyen | ✅ Garder | V11.4 |
 | 30 | **Freinage d'urgence** : Une touche qui arrête net le TARDIS (avec secousse à bord). | petit | ✅ Garder | V6.9.10 |
@@ -90,7 +90,7 @@
 
 | N° | Proposition | Effort | Tri | Prévue en |
 |---|---|---|---|---|
-| 51 | **Écran de destination sur la console** : La destination choisie s'affiche sur un écran physique de la console. | petit | ✅ Garder | V6.9.8 |
+| 51 | **Écran de destination sur la console** : La destination choisie s'affiche sur un écran physique de la console. | petit | ✅ Garder | ✅ V6.9.8 |
 | 52 | **Rotor qui suit la vitesse du vol** : Le rotor monte et descend plus vite en vol libre rapide. | petit | ✅ Garder | V6.9.10 |
 | 53 | **Lumières de la salle selon l'état** : Bleu posé, ambré en voyage, cyan dans le vortex, rouge en alerte. | petit | ✅ Garder | V6.9.9 |
 | 54 | **Portes intérieures animées** : Les portes intérieures s'ouvrent et se ferment avec les extérieures. | moyen | ✅ Garder | V6.9.14 |
@@ -113,9 +113,9 @@
 
 | N° | Proposition | Effort | Tri | Prévue en |
 |---|---|---|---|---|
-| 69 | **Recherche dans les destinations** : Un champ de recherche dans le menu rapide aussi (pas seulement la tablette). | petit | ✅ Garder | V6.9.8 |
+| 69 | **Recherche dans les destinations** : Un champ de recherche dans le menu rapide aussi (pas seulement la tablette). | petit | ✅ Garder | ✅ V6.9.8 |
 | 70 | **Raccourcis clavier configurables partout** : Toutes les touches du menu modifiables, comme celles du vol libre. | moyen | ⏳ Plus tard |  |
-| 71 | **Thème clair de la tablette** : Un thème clair pour la tablette, en plus des thèmes sombres. | moyen | ✅ Garder | V6.9.8 |
+| 71 | **Thème clair de la tablette** : Un thème clair pour la tablette, en plus des thèmes sombres. | moyen | ✅ Garder | ✅ V6.9.8 |
 | 72 | **Taille de l'interface** : Agrandir ou réduire toute l'interface (accessibilité). | petit | ✅ Garder | V6.9.15 |
 | 73 | **Notifications regroupées** : Un journal des messages récents au lieu de messages qui disparaissent. | moyen | ✖ Non |  |
 | 74 | **Infobulles sur chaque bouton** : Une courte explication au survol de chaque commande. | petit | ⏳ Plus tard |  |
@@ -287,6 +287,6 @@
 |---|---|---|---|---|
 | 196 | **Guide d'installation pas à pas** : Un document illustré pour installer une version dans Studio. | moyen | ✅ Garder | V9 |
 | 197 | **Plugin de synchronisation** : Un outil pour envoyer le dépôt dans Studio sans copier-coller. | gros | ✖ Non |  |
-| 198 | **Releases GitHub automatiques** : Un modèle de release pour chaque version, prêt à publier. | petit | ✅ Garder | V6.9.8 |
-| 199 | **Page d'état des tests** : Une page qui liste ce qui a été testé en jeu, version par version. | petit | ✅ Garder | V6.9.8 |
-| 200 | **Glossaire du TARDIS** : Un lexique des termes (démat, remat, vortex, modes, équipes). | petit | ✅ Garder | V6.9.8 |
+| 198 | **Releases GitHub automatiques** : Un modèle de release pour chaque version, prêt à publier. | petit | ✅ Garder | ✅ V6.9.8 |
+| 199 | **Page d'état des tests** : Une page qui liste ce qui a été testé en jeu, version par version. | petit | ✅ Garder | ✅ V6.9.8 |
+| 200 | **Glossaire du TARDIS** : Un lexique des termes (démat, remat, vortex, modes, équipes). | petit | ✅ Garder | ✅ V6.9.8 |

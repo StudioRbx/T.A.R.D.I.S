@@ -8,7 +8,7 @@
 | Version | Sujet | État |
 |---|---|---|
 | V6.9.7 | Corrections : TARDIS bloqué ou perdu | ✅ faite (03/11) |
-| V6.9.8 | Vérification et outils de suivi | 🔜 prévue |
+| V6.9.8 | Vérification et outils de suivi | ✅ faite (03/11) |
 | V6.9.9 | Effets visuels du voyage | 🔜 prévue |
 | V6.9.10 | Vol libre et vortex | 🔜 prévue |
 | V6.9.11 | Navigation et fiches de lieux | 🔜 prévue |
@@ -191,7 +191,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 | **V11.3** | Boutons des systèmes : énergie, Artron et décoratifs | 17, 131, 66 |
 | **V11.4** | Retrait de T et Y sur TARDIS_1 : ce qui reste à l'écran | 101, 192, 29, 84 |
 
-### V6.9.7 — Corrections : TARDIS bloqué ou perdu
+### V6.9.7 — Corrections : TARDIS bloqué ou perdu ✅ faite (03/11)
 
 **Objectif :** Corriger les cas où le TARDIS reste bloqué (occupé, dans le vortex, en l'air), où un pilote enchaîne les régénérations dans le vide, et où les sons de voyage s'entendent de trop loin.
 
@@ -205,7 +205,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* Ce sont des défauts actifs : ils passent avant toute nouveauté. Le plus urgent est la 141 : en poche, le mode Silencieux fait planter le script juste après partage.occupe = true, et un client modifié peut le provoquer exprès. Les autres corrections sont petites, côté serveur et à faible risque : 9 (TARDIS laissé dans le vortex), 24 (pilote muet ou déconnecté pendant qu'il est invisible ; avancée depuis la V7 parce que c'est un blocage), 108 (régénérations en boucle dans le vide) et 134 (sons posés à la main audibles à 10 000 studs). Les cinq cas se testent en une seule session.
 
-### V6.9.8 — Vérification et outils de suivi
+### V6.9.8 — Vérification et outils de suivi ✅ faite (03/11)
 
 **Objectif :** Confirmer et marquer comme faites les quatre propositions qui existent déjà, puis mettre en place la page d'état des tests, le script de publication et le glossaire, qui serviront à toutes les versions suivantes.
 
