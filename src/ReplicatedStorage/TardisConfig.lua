@@ -126,10 +126,10 @@ Config.Modes = {
 }
 Config.DureeVol = 8       -- temps passé dans le vortex quand le levier fait un voyage complet
 Config.DureeVortexAuto = 10 -- destination choisie avant la démat : secondes dans le vortex avant la remat automatique (V6.7.1)
-Config.LevierEnExpress = false
+Config.LevierEnExpress = false -- true : le levier de la console fait des voyages Rapides (V6.6.4)
 -- Portée des sons du TARDIS (V6.9.7) : fort près de la cabine, puis de plus en plus faible, et muet au-delà de Max (studs).
 -- S'applique aussi aux Sound posés à la main dans TardisAssets › Sons (sinon Roblox les fait entendre à 10 000 studs).
-Config.PorteeSons = { Dehors = { Min = 12, Max = 220 }, Dedans = { Min = 8, Max = 90 } } -- true : le levier de la console fait des voyages Rapides (V6.6.4)
+Config.PorteeSons = { Dehors = { Min = 12, Max = 220 }, Dedans = { Min = 8, Max = 90 } }
 
 -- L'équipe C.A.T. — Cellule d'Autorité Temporelle (V6.7.1) : ses joueurs se régénèrent (Config.Regeneration) et apparaissent dans le TARDIS.
 -- Nom : celui de la Team dans le service Teams de Studio (à renommer là aussi si tu changes ce nom).

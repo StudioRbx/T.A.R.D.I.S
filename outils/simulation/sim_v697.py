@@ -120,5 +120,51 @@ if M:
     res = {}
     lancer(Fonction("j", py=lambda: res.__setitem__("ok", appeler(M.get("jouer"), [vise, None]) is not None)))
     verifier("Poche en Silencieux : jouerSurPersonnage(nil) ne plante plus", res.get("ok") is True and not roblox.ERREURS, roblox.ERREURS[:2])
+
+# ------------------------------------------------------------------ 4. Chute dans le vide : point de secours (extrait de TardisSystemes)
+roblox.ERREURS.clear()
+I3, G3, game3, joueur3 = monde(serveur=True)
+systemes = open(DEPOT + "/ServerScriptService/TardisSystemes.server.lua", encoding="utf-8").read()
+debut = systemes.index("local positionsSures = {}")
+fin = systemes.index("local function surveillerPersonnage(joueur, personnage)")
+sol = {"present": True}
+ws3 = game3.m_FindFirstChild("Workspace")
+ws3.extra["Raycast"] = Fonction("Raycast", py=lambda _w, origine, direction, params=None: "SOL" if sol["present"] else None)
+ws3.props["FallenPartsDestroyHeight"] = -500
+interieur3 = Instance("Model", "INTERIEURE")
+arrivee = Instance("Part", "Arrivee", interieur3); arrivee.props["CFrame"] = "CF_ARRIVEE"
+prelude3 = """
+local def = { Nom = "TARDIS_1" }
+local Config = { nomEquipe = function() return "C.A.T." end, NomArrivee = "Arrivee" }
+local interieur = ...
+"""
+R3 = {}
+def charger3():
+    R3["m"] = premier(I3.executer(prelude3 + systemes[debut:fin] + "\nreturn { secours = pointDeSecours, sures = positionsSures, rattrapages = derniersRattrapages }", "extrait-systemes", (interieur3,)))
+lancer(Fonction("extrait3", py=charger3))
+M3 = R3.get("m")
+verifier("Extrait de TardisSystemes exécuté", M3 is not None and not roblox.ERREURS, roblox.ERREURS[:2])
+if M3:
+    # « CF_ARRIVEE » + Vector3 donne une Valeur : on reconnaît le repli par son type
+    perso = Instance("Model", "Perso")
+    def secours():
+        res = {}
+        lancer(Fonction("s", py=lambda: res.__setitem__("v", premier(appeler(M3.get("secours"), [joueur3, perso])))))
+        return res.get("v")
+    M3.get("sures").set(101, "CF_SURE")
+    verifier("Sol encore présent : retour à la dernière position sûre", secours() == "CF_SURE")
+    sol["present"] = False
+    v = secours()
+    verifier("Support disparu : repli dans le TARDIS (Part Arrivee)", v != "CF_SURE" and v is not None, v)
+    verifier("Et la position sûre périmée est oubliée", M3.get("sures").get(101) is None)
+    sol["present"] = True
+    M3.get("sures").set(101, "CF_SURE")
+    M3.get("rattrapages").set(101, H.t)
+    v = secours()
+    verifier("Déjà rattrapé il y a moins de 15 s : directement dans le TARDIS", v != "CF_SURE" and v is not None, v)
+    H.avancer(16)
+    M3.get("sures").set(101, "CF_SURE")
+    verifier("16 s plus tard, sol présent : de nouveau la dernière position sûre", secours() == "CF_SURE")
+
 print("\n".join("  ✓ " + o for o in OK)); print("\n".join("  ✗ " + k for k in KO))
 print(f"V6.9.7 : {len(OK)} réussis, {len(KO)} échoués.")

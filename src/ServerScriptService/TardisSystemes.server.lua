@@ -675,10 +675,22 @@ end
 -- de Roblox (workspace.FallenPartsDestroyHeight). Sert à rattraper un membre de la C.A.T. qui tombe hors de la carte,
 -- au lieu de le laisser se régénérer dans le vide en boucle.
 local positionsSures = {} -- [UserId] = CFrame
+local derniersRattrapages = {} -- [UserId] = os.clock() du dernier rattrapage
 local function seuilDuVide() return workspace.FallenPartsDestroyHeight end
-local function pointDeSecours(joueur)
+-- Un sol existe-t-il encore sous cette position ? (le support a pu bouger ou disparaître : plateforme, véhicule, pièce détruite)
+local function solSous(cf, personnage)
+	local parametres = RaycastParams.new()
+	parametres.FilterType = Enum.RaycastFilterType.Exclude
+	parametres.FilterDescendantsInstances = { personnage }
+	return workspace:Raycast(cf.Position, Vector3.new(0, -15, 0), parametres) ~= nil
+end
+local function pointDeSecours(joueur, personnage)
 	local sure = positionsSures[joueur.UserId]
-	if sure then return sure end
+	-- Dernière position sûre, seulement s'il y a encore un sol dessous et si le joueur n'a pas déjà été rattrapé
+	-- il y a moins de 15 s (sinon il retomberait au même endroit, et se régénérerait en boucle)
+	local recent = derniersRattrapages[joueur.UserId] ~= nil and os.clock() - derniersRattrapages[joueur.UserId] < 15
+	if sure and not recent and solSous(sure, personnage) then return sure end
+	positionsSures[joueur.UserId] = nil
 	-- Sinon : le spawn de l'équipe dans le TARDIS, ou la Part Arrivee de l'intérieur
 	local spawn = interieur:FindFirstChild("TardisSpawn_" .. def.Nom .. "_" .. Config.nomEquipe())
 	local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
@@ -799,11 +811,15 @@ local function surveillerPersonnage(joueur, personnage)
 				if humanoid.FloorMaterial ~= Enum.Material.Air and y > seuilDuVide() + 50 then positionsSures[joueur.UserId] = racineSuivi.CFrame end
 			end
 			if y < seuilDuVide() + 30 and estRegenerateur(joueur) and personnage:GetAttribute("TardisMortReelle") ~= true then
-				local secours = pointDeSecours(joueur)
+				local secours = pointDeSecours(joueur, personnage)
 				if not secours then return end
+				derniersRattrapages[joueur.UserId] = os.clock()
 				racineSuivi.AssemblyLinearVelocity = Vector3.zero
 				racineSuivi.AssemblyAngularVelocity = Vector3.zero
 				personnage:PivotTo(secours)
+				-- Tenu une seconde sur place : la physique du client (qui possède le personnage) ne le refait pas tomber aussitôt
+				racineSuivi.Anchored = true
+				task.delay(1, function() if racineSuivi.Parent then racineSuivi.Anchored = false end end)
 				dire(joueur, "Chute dans le vide : le TARDIS t'a rattrapé.", false)
 				if not enCours then humanoid.Health = 0 end -- la régénération se déroule à l'endroit sûr
 			end
@@ -817,7 +833,7 @@ local function surveillerPersonnage(joueur, personnage)
 		local racine = personnage:WaitForChild("HumanoidRootPart", 5)
 		-- V6.9.7 : jamais dans le vide (sinon il retombe et se régénère en boucle)
 		if attente.position and attente.position.Y < seuilDuVide() + 30 then
-			local secours = pointDeSecours(joueur)
+			local secours = pointDeSecours(joueur, personnage)
 			attente.position = secours and secours.Position or nil
 		end
 		if racine and attente.position then
@@ -900,7 +916,7 @@ local function suivreJoueur(joueur)
 end
 Players.PlayerAdded:Connect(suivreJoueur)
 for _, joueur in Players:GetPlayers() do suivreJoueur(joueur) end
-Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = nil derniereTenue[joueur.UserId] = nil enAttente[joueur.UserId] = nil positionsSures[joueur.UserId] = nil end)
+Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = nil derniereTenue[joueur.UserId] = nil enAttente[joueur.UserId] = nil positionsSures[joueur.UserId] = nil derniersRattrapages[joueur.UserId] = nil end)
 
 --------------------------------------------------------------------
 -- Outils des techniciens : chiffon (saleté), visseuse (surcharge de vapeur), clé à molette (vanne), extincteur
