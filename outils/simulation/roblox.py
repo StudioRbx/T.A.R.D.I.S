@@ -235,7 +235,7 @@ class Valeur:
     """Valeur Roblox fictive : tout champ, appel ou calcul renvoie une Valeur (suffisant pour charger la configuration)."""
     def __init__(s, nom="Valeur", args=()): s.nom, s.args = nom, list(args)
     def __lua_index__(s, k):
-        if k in ("X", "Y", "Z", "R", "G", "B", "Magnitude", "Scale", "Offset", "Min", "Max", "Value", "Time"):
+        if k in ("X", "Y", "Z", "R", "G", "B", "Magnitude", "Scale", "Offset", "Min", "Max", "Value", "Time") and not (s.nom == "Enum.KeyCode" and k in ("X", "Y", "Z", "R", "G", "B")):  # V6.9.10 : Enum.KeyCode.X est une touche
             return float(s.args[{"X": 0, "R": 0, "Y": 1, "G": 1, "Z": 2, "B": 2}.get(k, 0)]) if s.args and isinstance(s.args[0], (int, float)) and len(s.args) > {"X": 0, "R": 0, "Y": 1, "G": 1, "Z": 2, "B": 2}.get(k, 0) else 0.0
         if k == "Name": return s.nom.split(".")[-1]
         return Valeur(s.nom + "." + str(k))
@@ -334,6 +334,7 @@ class Vec3(Valeur):
         raise LuaError("Vector3 : opération " + op)
     def __lua_arith__(s, op, a, b):
         if isinstance(a, CF) or isinstance(b, CF): return CF.arith(op, a, b)
+        if not all(en_vec3(x) is not None or _num(x) for x in (a, b)): return Valeur("calcul")  # avec une valeur de remplissage
         return Vec3.arith(op, a, b)
     def __lua_unm__(s): return Vec3(-s.x, -s.y, -s.z)
     def __lua_eq__(s, o):
@@ -388,6 +389,7 @@ class CF(Valeur):
         if k == "Inverse": return Fonction("Inverse", py=lambda _s: s.inverse())
         if k == "Lerp":
             def lerp(_s, o, a):
+                if not isinstance(o, CF): return Valeur("CFrame")
                 return CF(tuple(x + (y - x) * a for x, y in zip(s.p, o.p)), _slerp(s.R, o.R, a))
             return Fonction("Lerp", py=lerp)
         if k == "ToEulerAnglesYXZ":
@@ -395,12 +397,15 @@ class CF(Valeur):
             return Fonction("ToEulerAnglesYXZ", py=lambda _s: [math.asin(max(-1, min(1, -R[1][2]))), math.atan2(R[0][2], R[2][2]), math.atan2(R[1][0], R[1][1])])
         if k == "Orthonormalize": return Fonction("Orthonormalize", py=lambda _s: CF(s.p, _dequat(_quat(s.R))))
         if k == "GetComponents": return Fonction("GetComponents", py=lambda _s: list(s.p) + [c for ligne in s.R for c in ligne])
-        if k == "PointToObjectSpace": return Fonction("PointToObjectSpace", py=lambda _s, v: s.inverse().point(v))
-        if k == "PointToWorldSpace": return Fonction("PointToWorldSpace", py=lambda _s, v: s.point(v))
-        if k == "VectorToObjectSpace": return Fonction("VectorToObjectSpace", py=lambda _s, v: Vec3(*_app(_tr(s.R), en_vec3(v).t())))
-        if k == "VectorToWorldSpace": return Fonction("VectorToWorldSpace", py=lambda _s, v: Vec3(*_app(s.R, en_vec3(v).t())))
-        if k == "ToObjectSpace": return Fonction("ToObjectSpace", py=lambda _s, o: s.inverse().fois(o))
-        if k == "ToWorldSpace": return Fonction("ToWorldSpace", py=lambda _s, o: s.fois(o))
+        # Avec une valeur de remplissage (pièce dont la position n'est pas connue), le résultat reste une valeur de remplissage
+        sv = lambda f: (lambda _s, v: f(v) if en_vec3(v) is not None else Valeur("Vector3"))
+        sc = lambda f: (lambda _s, o: f(o) if isinstance(o, CF) else Valeur("CFrame"))
+        if k == "PointToObjectSpace": return Fonction("PointToObjectSpace", py=sv(lambda v: s.inverse().point(v)))
+        if k == "PointToWorldSpace": return Fonction("PointToWorldSpace", py=sv(lambda v: s.point(v)))
+        if k == "VectorToObjectSpace": return Fonction("VectorToObjectSpace", py=sv(lambda v: Vec3(*_app(_tr(s.R), en_vec3(v).t()))))
+        if k == "VectorToWorldSpace": return Fonction("VectorToWorldSpace", py=sv(lambda v: Vec3(*_app(s.R, en_vec3(v).t()))))
+        if k == "ToObjectSpace": return Fonction("ToObjectSpace", py=sc(lambda o: s.inverse().fois(o)))
+        if k == "ToWorldSpace": return Fonction("ToWorldSpace", py=sc(lambda o: s.fois(o)))
         return Valeur.__lua_index__(s, k)
     @staticmethod
     def arith(op, a, b):
@@ -410,9 +415,12 @@ class CF(Valeur):
             if op == "+": return CF(tuple(x + y for x, y in zip(a.p, en_vec3(b).t())), a.R)
             if op == "-": return CF(tuple(x - y for x, y in zip(a.p, en_vec3(b).t())), a.R)
         raise LuaError("CFrame : opération " + op + " impossible")
-    def __lua_arith__(s, op, a, b): return CF.arith(op, a, b)
+    def __lua_arith__(s, op, a, b):
+        if not all(isinstance(x, CF) or en_vec3(x) is not None for x in (a, b)): return Valeur("calcul")  # avec une valeur de remplissage
+        return CF.arith(op, a, b)
     def __lua_eq__(s, o): return isinstance(o, CF) and all(abs(x - y) < 1e-9 for x, y in zip(s.args, o.args))
 def _regarder(pos, cible, haut=None):
+    if en_vec3(pos) is None or en_vec3(cible) is None: return Valeur("CFrame", [pos, cible])  # avec une valeur de remplissage
     pos, cible = en_vec3(pos), en_vec3(cible); haut = en_vec3(haut) if haut is not None else Vec3(0, 1, 0)
     devant = Vec3.arith("-", cible, pos).unite()
     if devant.x != devant.x: return CF(pos.t())
@@ -430,6 +438,7 @@ def activer_maths(G):
     G["Vector3"] = v
     def nouveau(*a):
         if not a: return CF()
+        if any(isinstance(v, Valeur) and en_vec3(v) is None for v in a): return Valeur("CFrame", a)  # avec une valeur de remplissage
         if len(a) == 1: return CF(en_vec3(a[0]).t())
         if len(a) == 2 and en_vec3(a[0]) is not None: return _regarder(a[0], a[1])
         if len(a) == 3: return CF((n(a[0]), n(a[1]), n(a[2])))
@@ -447,6 +456,7 @@ def activer_maths(G):
                 "fromOrientation": Fonction("CFrame.fromOrientation", py=lambda x=0, y=0, z=0: CF((0, 0, 0), _mat(_mat(_ry(n(y)), _rx(n(x))), _rz(n(z))))),
                 "fromAxisAngle": Fonction("CFrame.fromAxisAngle", py=axe_angle)})
     G["CFrame"] = c
+    G["Vector2"].h.update({"zero": Valeur("Vector2", [0, 0]), "one": Valeur("Vector2", [1, 1])})
 
 # Valeurs par défaut de quelques propriétés (V6.9.9), lues par les effets avant d'être écrites
 def _defauts(classe):
@@ -495,7 +505,7 @@ class Instance:
         for e in s.enfants:
             if e.Name == k: return e
         if k in ("Changed",): return s.changed
-        if k[0].isupper() and k.endswith(("ed", "Added", "Removing", "Triggered", "Event", "Activated")) or k in ("Heartbeat", "RenderStepped", "Stepped", "OnServerEvent", "OnClientEvent", "Event", "Triggered", "Touched", "Error", "MessageOut", "Chatted", "PlayerAdded", "PlayerRemoving", "CharacterAdded", "CharacterRemoving", "ChildAdded", "ChildRemoved", "DescendantAdded", "DescendantRemoving"):
+        if k[0].isupper() and k.endswith(("ed", "Added", "Removing", "Triggered", "Event", "Activated")) or k in ("MouseEnter", "MouseLeave", "InputBegan") or k in ("Heartbeat", "RenderStepped", "Stepped", "OnServerEvent", "OnClientEvent", "Event", "Triggered", "Touched", "Error", "MessageOut", "Chatted", "PlayerAdded", "PlayerRemoving", "CharacterAdded", "CharacterRemoving", "ChildAdded", "ChildRemoved", "DescendantAdded", "DescendantRemoving"):
             s.extra[k] = Signal(s.Name + "." + k); return s.extra[k]
         raise LuaError(f"{k} is not a valid member of {s.ClassName} \"{s.Name}\"")
     def __lua_setindex__(s, k, v):
@@ -614,6 +624,8 @@ class Instance:
     def m_UnbindFromRenderStep(s, nom, *a): s.extra.setdefault("rendu", {}).pop(nom, None); return []
     def m_GetRankInGroup(s, g): return 0
     def m_PivotTo(s, cf): s.props["Pivot"] = cf; return []
+    def m_GetScale(s): return s.props.get("Scale", 1)
+    def m_ScaleTo(s, e): s.props["Scale"] = e; return []
     def m_GetPivot(s): return s.props.get("Pivot", Valeur("CFrame"))
     def m_GetBoundingBox(s): return [Valeur("CFrame"), Valeur("Vector3", [10, 10, 10])]
 

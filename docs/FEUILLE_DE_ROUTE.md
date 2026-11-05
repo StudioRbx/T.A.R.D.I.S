@@ -12,7 +12,7 @@
 | V6.9.7 | Corrections : TARDIS bloqué ou perdu | ✅ faite (03/11) |
 | V6.9.8 | Vérification et outils de suivi | ✅ faite (03/11) |
 | V6.9.9 | Effets visuels du voyage | ✅ faite (05/11) |
-| V6.9.10 | Vol libre et vortex | 🔜 prévue |
+| V6.9.10 | Vol libre et vortex | ✅ faite (05/11) |
 | V6.9.11 | Navigation et fiches de lieux | 🔜 prévue |
 | V6.9.12 | Pannes : le socle commun | 🔜 prévue |
 | V6.9.13 | Nouvelles pannes et outils du technicien | 🔜 prévue |
@@ -328,7 +328,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* Tout le serveur voit ces effets à chaque voyage, et ils ne demandent presque rien dans Studio. Tout se passe côté client (TardisEffets, EffetsExterieurs, Signalisation), sans nouvelle action réseau : la V8 n'aura rien de plus à sécuriser. Correction de l'analyse : 38 existe en partie. Depuis la V6.9.3, après un voyage Rapide, une marque ronde sous la cabine passe du vert au gris en 2,5 s (Signalisation.lua:118-123, Config.Signalisation.Trainee). On l'étend à tous les modes et on la fait durer plus longtemps dans Signalisation, au lieu de créer un second effet dans TardisEffets. 191 met une garde dans les mêmes fonctions (flashLampe, flash du bouclier, flashTemporel), d'où sa place ici. Ordre interne, du plus sûr au plus délicat : 36, 38, 46, 53, 43, 191, puis 41 (la seconde de retard des vitres déborde sur l'état Vol).
 
-### V6.9.10 — Vol libre et vortex
+### V6.9.10 — Vol libre et vortex ✅ faite (05/11)
 
 **Objectif :** Rendre le vol libre plus agréable (croisière, caméra cinématique) et plus perceptible pour les passagers (freinage ressenti à bord, rotor qui suit la vitesse, bruit du vortex).
 

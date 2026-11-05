@@ -52,14 +52,14 @@
 |---|---|---|---|---|
 | 21 | **Tutoriel du vol libre** : Un premier vol guidé, étape par étape, la première fois qu'un pilote l'ouvre. | moyen | ✖ Non |  |
 | 22 | **Altimètre et compas** : Un petit cadran qui affiche l'altitude, le cap et la vitesse. | petit | ⏳ Plus tard |  |
-| 23 | **Pilote automatique de croisière** : Garder cap et altitude sans toucher aux touches. | moyen | ✅ Garder | V6.9.10 |
+| 23 | **Pilote automatique de croisière** : Garder cap et altitude sans toucher aux touches. | moyen | ✅ Garder | ✅ V6.9.10 |
 | 24 | **Retour au sol automatique** : Si le pilote se déconnecte en vol, le TARDIS descend en douceur au lieu de rester figé. | petit | ✅ Garder | ✅ V6.9.7 |
 | 25 | **Limites de la carte visibles** : Un mur lumineux discret aux limites où le vol s'arrête. | petit | ⏳ Plus tard |  |
-| 26 | **Caméra cinématique** : Une caméra extérieure lente qui tourne autour de la cabine pendant le vol. | moyen | ✅ Garder | V6.9.10 |
+| 26 | **Caméra cinématique** : Une caméra extérieure lente qui tourne autour de la cabine pendant le vol. | moyen | ✅ Garder | ✅ V6.9.10 |
 | 27 | **Vol en formation avec un joueur** : Suivre automatiquement un joueur ou un véhicule à distance fixe. | moyen | ✅ Garder | ✅ V6.9.8 |
 | 28 | **Manette : réglages de sensibilité** : Sensibilité et inversion des axes pour la manette. | petit | ✖ Non |  |
 | 29 | **Mobile : joystick virtuel** : Un vrai joystick tactile pour le vol libre sur téléphone. | moyen | ✅ Garder | V12.4 |
-| 30 | **Freinage d'urgence** : Une touche qui arrête net le TARDIS (avec secousse à bord). | petit | ✅ Garder | V6.9.10 |
+| 30 | **Freinage d'urgence** : Une touche qui arrête net le TARDIS (avec secousse à bord). | petit | ✅ Garder | ✅ V6.9.10 |
 | 31 | **Traînée de vol** : Une traînée lumineuse derrière la cabine à pleine vitesse. | petit | ✖ Non |  |
 | 32 | **Vent et météo** : Le vol est secoué par la météo du jeu (pluie, orage). | moyen | ⏳ Plus tard |  |
 | 33 | **Passagers secoués** : À bord, la caméra des passagers suit les virages du pilote. | petit | ✖ Non |  |
@@ -91,7 +91,7 @@
 | N° | Proposition | Effort | Tri | Prévue en |
 |---|---|---|---|---|
 | 51 | **Écran de destination sur la console** : La destination choisie s'affiche sur un écran physique de la console. | petit | ✅ Garder | ✅ V6.9.8 |
-| 52 | **Rotor qui suit la vitesse du vol** : Le rotor monte et descend plus vite en vol libre rapide. | petit | ✅ Garder | V6.9.10 |
+| 52 | **Rotor qui suit la vitesse du vol** : Le rotor monte et descend plus vite en vol libre rapide. | petit | ✅ Garder | ✅ V6.9.10 |
 | 53 | **Lumières de la salle selon l'état** : Bleu posé, ambré en voyage, cyan dans le vortex, rouge en alerte. | petit | ✅ Garder | ✅ V6.9.9 |
 | 54 | **Portes intérieures animées** : Les portes intérieures s'ouvrent et se ferment avec les extérieures. | moyen | ✅ Garder | V6.9.14 |
 | 55 | **Fauteuil du pilote** : S'asseoir dans un fauteuil ouvre directement les commandes. | moyen | ✖ Non |  |
@@ -200,7 +200,7 @@
 | 133 | **Volume par catégorie** : Volumes séparés : voyages, moteur, alarmes, jukebox, interface. | petit | ✅ Garder | V9.1 |
 | 134 | **Sons 3D dehors** : Les sons de voyage s'entendent plus fort près de la cabine et faiblissent avec la distance. | petit | ✅ Garder | ✅ V6.9.7 |
 | 135 | **Écho dans la salle** : Un effet de réverbération sur les sons à bord. | petit | ⏳ Plus tard |  |
-| 136 | **Ambiance du vortex** : Un son de vent cosmique pendant le vol, seulement à bord. | petit | ✅ Garder | V6.9.10 |
+| 136 | **Ambiance du vortex** : Un son de vent cosmique pendant le vol, seulement à bord. | petit | ✅ Garder | ✅ V6.9.10 |
 | 137 | **Bips de la console** : Des petits sons quand on touche la console. | petit | ✅ Garder | V12.2 |
 | 138 | **Jukebox : file d'attente** : Ajouter des musiques à une file au lieu d'en jouer une seule. | moyen | ✅ Garder | V12.2 |
 | 139 | **Jukebox : vote des passagers** : Les passagers votent pour la musique suivante. | moyen | ✖ Non |  |

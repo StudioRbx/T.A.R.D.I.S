@@ -26,6 +26,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 
 ## 4. Sons
 - Voir la liste de sons proposés (02/11) : les identifiants choisis vont dans `Config.Sons`, `Config.Jukebox` et `Config.AmbianceThemes`, ou dans `ReplicatedStorage › TardisAssets › Sons`.
+- **V6.9.10** : un son **« Vortex »** (vent cosmique, en boucle) : son identifiant dans `Config.Sons.Vortex` (aujourd'hui 0), ou un Sound « Vortex » dans `TardisAssets › Sons`. Sans lui, pas de vent du vortex à bord (le diagnostic le signale). **En option**, un son **« Frein »** (crissement temporel du freinage d'urgence en vol libre) : `Config.Sons.Frein` ou un Sound « Frein ». Rien à construire pour l'orbite : le bouton **BoutonCamera** de la console suffit.
 
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).

@@ -1241,14 +1241,16 @@ local function piloter(dt, t)
 		else
 			direction = vol.croisiere.cap
 			-- Obstacle devant : il s'arrête en stationnaire au lieu de glisser sans fin contre un mur (sauf en précision,
-			-- où il traverse tout)
+			-- où il traverse tout). La portée ajoute la distance qu'il lui faut pour s'arrêter (son inertie, ~vitesse / 1,6) :
+			-- même en TURBO, il s'immobilise avant le mur, sans choc.
 			if not precision then
 				local params = RaycastParams.new()
 				params.FilterType = Enum.RaycastFilterType.Exclude
 				params.FilterDescendantsInstances = exclusions()
 				params.RespectCanCollide = true
+				local portee = R.OBSTACLE_CROISIERE + vol.vitesse.Magnitude / 1.6
 				local devant = workspace:Blockcast(CFrame.new(vol.centre) * CFrame.Angles(0, vol.yaw, 0), vol.taille * 0.9,
-					vol.croisiere.cap * R.OBSTACLE_CROISIERE, params)
+					vol.croisiere.cap * portee, params)
 				if devant then
 					arreterCroisiere("Obstacle devant : croisière arrêtée, stationnaire")
 					direction = Vector3.zero

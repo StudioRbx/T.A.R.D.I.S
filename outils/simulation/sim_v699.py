@@ -78,7 +78,7 @@ def dans_ws(prefixe): return [e for e in ws.enfants if e.Name.startswith(prefixe
 
 
 # ------------------------------------------------------------------ 1. TardisConfig : réglages et fonctions pures
-verifier("Config.Version = 6.9.9", Config.get("Version") == "6.9.9", Config.get("Version"))
+verifier("Config.Version ≥ 6.9.9 (6.9.9 à sa sortie)", tuple(int(n) for n in Config.get("Version").split(".")) >= (6, 9, 9), Config.get("Version"))
 EF = Config.get("Effets")
 attendus = {"DistorsionUrgence": 1.8, "DistorsionCatastrophe": 2.2, "MarquesSol": True, "DureeMarques": 30, "Nuit": 1.35, "Jour": 0.7,
             "Catastrophe": True, "DureeFumeeCatastrophe": 20, "RetardVitres": 1}

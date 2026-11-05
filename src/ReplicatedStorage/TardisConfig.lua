@@ -317,7 +317,7 @@ Config.VolLibre = {
 	-- Croisière (V6.9.10, bouton CROISIÈRE du sous-menu PLUS ou touche Entrée) : cap, altitude et vitesse tenus sans
 	-- toucher aux touches. Une touche de direction, le frein, la chute, CIBLE, ATTERRIR ICI ou l'urgence l'arrêtent.
 	Croisiere = {
-		DistanceObstacle = 25, -- (V6.9.10) obstacle à moins de tant de studs devant : la croisière s'arrête en stationnaire
+		DistanceObstacle = 25, -- (V6.9.10) obstacle à moins de tant de studs devant (plus sa distance de freinage) : arrêt en stationnaire
 	},
 	-- Freinage d'urgence (V6.9.10, Ctrl ou bouton FREIN) : ressenti à bord par tout le monde (secousse, fumée, son « Frein »)
 	Frein = {
