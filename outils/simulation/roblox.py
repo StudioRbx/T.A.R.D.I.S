@@ -94,9 +94,18 @@ def bib_string(I):
         t2 = Table()
         for i, x in enumerate(s.split(sep)): t2.h[i + 1] = x
         return t2
+    # string.byte compte en octets UTF-8, comme Roblox (un « é » en fait deux) ; le dernier texte encodé est gardé
+    cache = {"s": None, "b": b""}
+    def octets_de(s, i=1, j=None):
+        if cache["s"] is not s:
+            cache["s"], cache["b"] = s, s.encode("utf-8")
+        b = cache["b"]; i = int(i); j = int(j) if j is not None else i
+        if i < 0: i = len(b) + i + 1
+        if j < 0: j = len(b) + j + 1
+        return list(b[max(i, 1) - 1:j])
     for nom, f in dict(sub=sub, find=find, match=match, gmatch=gmatch, gsub=gsub, format=fmt, rep=rep, split=split,
                       lower=lambda s: s.lower(), upper=lambda s: s.upper(), len=lambda s: len(s.encode()), reverse=lambda s: s[::-1],
-                      byte=lambda s, i=1, j=None: [ord(c) for c in s[int(i) - 1:int(j if j else i)]], char=lambda *c: "".join(chr(int(x)) for x in c)).items():
+                      byte=octets_de, char=lambda *c: "".join(chr(int(x)) for x in c)).items():
         t.h[nom] = Fonction("string." + nom, py=f)
     return t
 
@@ -312,6 +321,8 @@ class Instance:
         if k in s.extra: return s.extra[k]
         if k in s.props: return s.props[k]
         if k == "Parent": return s.parent
+        if k == "ClassName": return s.ClassName
+        if k == "Source" and s.ClassName in ("Script", "LocalScript", "ModuleScript"): return ""
         m = getattr(s, "m_" + k, None)
         if m: return Fonction(k, py=lambda _s, *a: m(*a))
         for e in s.enfants:

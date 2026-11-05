@@ -78,6 +78,16 @@ python -m http.server 35001 --bind 127.0.0.1
 
 Puis, dans Studio (mode Édition), coller le contenu de `outils/synchro_studio.luau` dans la barre de commande. Seuls les scripts qui diffèrent sont réécrits ; chaque script est vérifié par son empreinte, et le rapport liste ce qui a été créé, mis à jour ou supprimé.
 
+### Sans serveur : le paquet .rbxmx
+
+Quand Studio ne peut pas joindre le dépôt (dépôt privé, autre ordinateur) :
+
+```bash
+python3 outils/paquet_studio.py
+```
+
+Le fichier `dist/TARDIS_MiseAJour_V<version>.rbxmx` contient tous les scripts. Dans Studio (mode Édition) : clic droit sur **Workspace › Insert from File…**, choisir le fichier, puis coller le contenu de `outils/installer_paquet.luau` dans la barre de commande (**View › Command Bar**) et valider. Même vérification par empreinte ; le dossier du paquet est retiré s'il n'y a aucune erreur. Les scripts « Tardis… » de Studio absents du dépôt sont signalés, jamais supprimés.
+
 ## Installation dans Studio
 
 1. **ReplicatedStorage** : `TardisConfig`, `TardisUI` et `TardisCommandes` (ModuleScripts), plus le dossier `TardisAssets › Sons` (`Demat`, `Remat`, `Demat_Urg`, `Remat_Urg`, `Alarme`…).
