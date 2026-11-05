@@ -369,6 +369,27 @@ r_ = cliquer_ecran(pilote)
 verifier("6. Hors tension : écran éteint, pas de menu", r_ and r_[0][1] == "__console" and "hors tension" in r_[0][2], r_)
 xs.m_SetAttribute("Alimentation", True); H.avancer(0.2)
 verifier("Serveur (Ecrans) : aucune erreur", not roblox.ERREURS, roblox.ERREURS[:3])
+# Relecture 1 : la vraie coupure de courant de TardisServeur (memoriserEclairage, appliquerEclairage) ne doit pas éteindre
+# les SurfaceGui des écrans (sinon le voile « HORS TENSION », AVARIE et les refus ne s'affichent jamais)
+serveur = lire("ServerScriptService/TardisServeur/init.server.lua")
+bloc_ecl = serveur[serveur.index("local function estAlimente()"):serveur.index("local function reglerAlimentation(allumer)")]
+affiche = Instance("SurfaceGui", "Affiche", Instance("Part", "Panneau", salle)); affiche.props["Enabled"] = True
+code_ecl = "local exterieur, interieur, Config = ...\nlocal function preparerSon() return nil end\nlocal partRotor = nil\n" + bloc_ecl + "\nreturn appliquerEclairage\n"
+tache(lambda: R.update(ecl=premier(I.executer(code_ecl, "eclairage-serveur", (xs, salle, Config)))))
+xs.m_SetAttribute("Alimentation", False); tache(lambda: appeler(R["ecl"], [])); H.avancer(0.2)
+verifier("Relecture 1. Coupure de courant (vrai appliquerEclairage) : les SurfaceGui des écrans restent allumés, voile « HORS TENSION » visible",
+         g1.props.get("Enabled") is True and gi.props.get("Enabled") is True and champ(g1, "Veille").props["Visible"] is True and champ(gi, "Veille").props["Visible"] is True,
+         (g1.props.get("Enabled"), gi.props.get("Enabled")))
+verifier("Relecture 1. … les autres SurfaceGui de la salle s'éteignent toujours", affiche.props.get("Enabled") is False)
+tache(lambda: appeler(Ec.get("majEcran"), ["HORS TENSION"]))
+xs.m_SetAttribute("Alimentation", True); tache(lambda: appeler(R["ecl"], [])); H.avancer(0.2)
+tache(lambda: appeler(Ec.get("majEcran"), ["ALIMENTATION RÉTABLIE"]))
+verifier("Relecture 1. Courant rétabli : écrans allumés, message de la console affiché", g1.props.get("Enabled") is True and texte_de(champ(g1, "Message")) == "ALIMENTATION RÉTABLIE"
+         and champ(g1, "Bandeau").props["Visible"] is True and affiche.props.get("Enabled") is True)
+tache(lambda: appeler(Ec.get("majEcran"), []))
+xs.m_SetAttribute("Avarie", True); xs.m_SetAttribute("PointsDeVie", 0); H.avancer(0.2)
+verifier("Relecture 1. AVARIE affichée sur l'écran ingénieur", val("integrite") == "AVARIE  ·  0 %" and coul("integrite") == ROUGE, val("integrite"))
+xs.m_SetAttribute("Avarie", None); xs.m_SetAttribute("PointsDeVie", 100); H.avancer(0.2)
 ECRAN_SERVEUR = P["ecrans"][0]  # repris par le client (11)
 
 
@@ -445,6 +466,33 @@ canalV.__lua_index__("OnServerEvent").declencher(pilote, "VolLibreDebut", None, 
 verifier("4. Un 4e argument venu d'un client (pas une fonction) est ignoré : seul le serveur passe un rappel",
          len(ALERTES) == n and not roblox.ERREURS and "if typeof(rappel) ~= \"function\" then rappel = nil end" in serveur, (ALERTES[n:], roblox.ERREURS[:1]))
 tache(lambda: appeler(V.get("lancerDescente"), ["Douce", False])); H.avancer(15)
+# Relecture 7 : le vrai brancherCommande, sans bloquer, avec l'ancien emplacement de l'alerte en secours
+bloc_bc = serveur[serveur.index("local function brancherCommande("):serveur.index("-- Alimentation : Controls")]
+def brancher_alerte(salle_):
+    roblox.SORTIE.clear()
+    xa = Instance("Model", "Cabine"); xa.attrs["Alerte"] = False
+    code_bc = ("local Config, interieur, exterieur, pilotes, alerter, enPart = ...\n" + creer_prompt +
+               "local function marquerActivite() end\nlocal function disponible() return true end\n" + bloc_bc +
+               "\nbrancherCommande(\"Alerte\", \"Lever l'alerte\", \"Déclencher l'alerte\", \"Alerte\", true, function() exterieur:SetAttribute(\"Alerte\", not exterieur:GetAttribute(\"Alerte\")) return true end, \"ALERTE GÉNÉRALE\", \"FIN DE L'ALERTE\")\n")
+    tache(lambda: I.executer(code_bc, "brancher-serveur", (Config, salle_, xa, PILOTES, Fonction("alerter", py=lambda m: ALERTES.append(m) or []), S.get("enPart"))))
+    H.avancer(0.1)
+    return xa, list(roblox.SORTIE)
+salleN = Instance("Model", "Salle"); PN = console_reelle(salleN)
+xa, sortie = brancher_alerte(salleN)
+bn = PN["console"].m_FindFirstChild("Datapanel").m_FindFirstChild("Redbutton").m_FindFirstChild("Button")
+verifier("Relecture 7. Nouveau chemin : invite sur Datapanel › Redbutton › Button", enfant_classe(bn, "ProximityPrompt") and not [l for l in sortie if "introuvable" in l], sortie)
+salleA = Instance("Model", "Salle"); PA = console_reelle(salleA); PA["console"].m_FindFirstChild("Datapanel").set_parent(None)
+ciA = Instance("Model", "Circuit", PA["console"]); clA = Instance("Model", "Cloister", ciA); sw = Instance("Part", "Switch", clA)
+xa, sortie = brancher_alerte(salleA)
+pa_sw = enfant_classe(sw, "ProximityPrompt")
+verifier("Relecture 7. Place pas encore mise à jour : l'ancien Circuit › Cloister › Switch répond, avec un avertissement", pa_sw and [l for l in sortie if "ancien emplacement utilisé" in l], sortie)
+n = len(ALERTES); declencher(pa_sw[0], "Triggered", pilote); H.avancer(0.1)
+verifier("Relecture 7. … et déclenche bien l'alerte", xa.attrs.get("Alerte") is True and ALERTES[n:] == ["ALERTE GÉNÉRALE"], ALERTES[n:])
+salleB = Instance("Model", "Salle"); PB = console_reelle(salleB); PB["console"].m_FindFirstChild("Datapanel").set_parent(None)
+xa, sortie = brancher_alerte(salleB)
+verifier("Relecture 7. Ni l'un ni l'autre : avertissement clair, sans erreur ni blocage", [l for l in sortie if "introuvable : ni Console › Datapanel › Redbutton › Button ni Console › Circuit › Cloister › Switch" in l]
+         and not roblox.ERREURS, (sortie, roblox.ERREURS[:1]))
+verifier("Relecture 7. brancherCommande n'attend plus sans fin (Config.Trouver remplacé)", "Config.Trouver(interieur, cle)" not in bloc_bc and "Config.trouverCommande(interieur, cle, 10)" in bloc_bc)
 # Relecture 4 : les actions traitées ailleurs (Tech, Jukebox, Tenue, Theme…) ne consomment plus le délai des ordres
 H.avancer(1.1)
 for action, donnees in (("Tech", Table({"commande": "Reguler", "systeme": "Air", "valeur": 50})), ("Jukebox", Table({})), ("Tenue", Table({"index": 1})), ("Theme", Table({"nom": "Nuit"}))):
@@ -453,7 +501,7 @@ n = len(ALERTES); declencher(cv_[0], "MouseClick", pilote); H.avancer(0.2)
 verifier("Relecture 4. Tech, Jukebox, Tenue, Theme juste avant : le bouton Vol libre part quand même (pas de délai consommé)", xv.attrs.get("VolLibre") == 101 and ALERTES[n:] == [], (xv.attrs.get("VolLibre"), ALERTES[n:]))
 ailleurs = serveur[serveur.index("local ACTIONS_AILLEURS = {}"):serveur.index("local function traiterOrdre")]
 gerees_serveur = set(re.findall(r'action == "(\w+)"', serveur[serveur.index("local function traiterOrdre"):serveur.index("remote.OnServerEvent:Connect(traiterOrdre)")]))
-autres = set(re.findall(r'action == "(\w+)"', extras)) | set(re.findall(r'action == "(\w+)"', lire("ServerScriptService/TardisSystemes.server.lua")))
+autres = set(re.findall(r'action == "(\w+)"', lire("ServerScriptService/TardisExtras.server.lua"))) | set(re.findall(r'action == "(\w+)"', lire("ServerScriptService/TardisSystemes.server.lua")))
 bloquees = set(re.findall(r"(\w+) = true", cfgsrc[cfgsrc.index("Bloquees = {"):cfgsrc.index("}", cfgsrc.index("Bloquees = {"))]))
 attendues = autres - gerees_serveur - bloquees
 listees = set(re.findall(r'"(\w+)"', ailleurs))
@@ -479,7 +527,7 @@ PD["colors"].set_parent(None); PD["ingenieur"].set_parent(None); PD["jukebox"].s
 ligne, alertes = diag()
 verifier("Relecture 8. Sans Colors : « commande VolLibre » dans les optionnelles absentes, pas dans les obligatoires", not alertes and "commande VolLibre (Console > Selecteur > Colors)" in ligne, (alertes, ligne[-250:]))
 verifier("5. Sans écran ingénieur ni jukebox : rangés dans les optionnelles absentes, pas dans les obligatoires",
-         "commande EcranIngenieur" in ligne and "commande JukeBox" in ligne and "EcranIngenieur" not in alertes[0] and "JukeBox" not in alertes[0], (ligne[-200:], alertes))
+         "commande EcranIngenieur" in ligne and "commande JukeBox" in ligne and not alertes, (ligne[-200:], alertes))
 verifier("5. L'ancien chemin de l'alerte n'est plus demandé", "Circuit" not in ligne and "Circuit" not in "".join(alertes))
 dp_ = PD["console"].m_FindFirstChild("Datapanel"); dp_.set_parent(None)
 ligne, alertes = diag()
@@ -648,6 +696,20 @@ for e in tech_envois: canalS.__lua_index__("OnServerEvent").declencher(visiteur,
 verifier("6. … et le même envoi par un joueur sans droit : refusé", xs.attrs.get("RegulEnergie") == 90)
 xc.m_SetAttribute("RegulEnergie", 90); xc.m_SetAttribute("PointsDeVie", 30); H.avancer(0.01)
 verifier("6. Menu mis à jour en direct (attributs)", jv("integrite").startswith("30 %") and rv_("Energie") == "90 %")
+# Relecture 2 : la valeur demandée n'est jamais affichée trop longtemps
+plusA_ = trouve(trouve(menu, "Regul_Air"), "Plus"); moinsA = trouve(trouve(menu, "Regul_Air"), "Moins"); moinsE = trouve(trouve(menu, "Regul_Energie"), "Moins")
+appuyer(plusE)
+verifier("Relecture 2. « + » : la valeur demandée s'affiche tout de suite (95 %)", rv_("Energie") == "95 %")
+H.avancer(1.6)
+verifier("Relecture 2. Le serveur refuse (aucun changement) : retour à sa valeur au bout d'1 s", rv_("Energie") == "90 %", rv_("Energie"))
+appuyer(plusE); appuyer(moinsE); H.avancer(1.6)
+verifier("Relecture 2. « + » puis « − » rapides : la valeur du serveur", rv_("Energie") == "90 %", rv_("Energie"))
+appuyer(moinsA); H.avancer(0.6)
+xc.m_SetAttribute("RegulAir", 40); H.avancer(0.01)
+verifier("Relecture 2. Réglé par un autre pendant l'attente (rien à envoyer) : sa valeur s'affiche", rv_("Air") == "40 %", rv_("Air"))
+appuyer(plusE); recevoir("__energie", PC["ingenieur"])
+verifier("Relecture 2. Chaque ouverture repart des valeurs du serveur", rv_("Energie") == "90 %", rv_("Energie"))
+H.avancer(1.6)
 uis.extra["InputBegan"].declencher(Table({"KeyCode": Valeur("Enum.KeyCode.Escape")}), False); H.avancer(0.01)
 verifier("6. Échap : le menu se ferme", menu.props.get("Enabled") is False)
 recevoir("__energie", PC["ingenieur"]); appuyer(trouve(menu, "Fermer"))
@@ -657,6 +719,13 @@ verifier("6. Près de l'écran : reste ouvert", menu.props.get("Enabled") is Tru
 racineMoi.props["Position"] = Vec3(0, 0, 30); H.avancer(0.6)
 verifier("6. En s'éloignant (plus de 14 studs) : fermé", menu.props.get("Enabled") is False)
 racineMoi.props["Position"] = Vec3(0, 0, 5)
+# Relecture 6 : pièce pas encore chargée (Streaming) : la distance se mesure depuis l'endroit de l'ouverture
+PC["ingenieur"].set_parent(None)
+recevoir("__energie", None); H.avancer(0.6)
+verifier("Relecture 6. Sans la pièce : le menu s'ouvre et reste ouvert sur place", menu.props.get("Enabled") is True)
+racineMoi.props["Position"] = Vec3(0, 0, 30); H.avancer(0.6)
+verifier("Relecture 6. Sans la pièce : il se ferme quand même en s'éloignant", menu.props.get("Enabled") is False)
+racineMoi.props["Position"] = Vec3(0, 0, 5); PC["ingenieur"].set_parent(PC["console"])
 recevoir("__console", "Réservé aux pilotes et aux ingénieurs.", False)
 verifier("6. « __console » : le message s'affiche (« Réservé aux pilotes et aux ingénieurs »)", trouve(msg, "Texte") and "Réservé aux pilotes et aux ingénieurs." in texte_de(trouve(msg, "Texte"))
          and trouve(msg, "Texte").parent.props.get("Visible") is True and menu.props.get("Enabled") is False)
@@ -686,6 +755,12 @@ recevoir("__jukebox", PC["jukebox"]); recevoir("__energie", PC["ingenieur"])
 verifier("Un seul panneau à la fois", juke.props.get("Enabled") is False and menu.props.get("Enabled") is True)
 appuyer(trouve(menu, "Fermer"))
 verifier("Client (Console) : aucune erreur", not roblox.ERREURS, roblox.ERREURS[:3])
+
+
+copi = lire("StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Copilote.lua")
+h_ = copi[copi.index("remote.OnClientEvent:Connect(function(texteRecu, ok)"):]
+verifier("Relecture 3. Poste du copilote : les messages techniques « __… » (__console…) ne s'affichent plus, après le cas __paradoxe",
+         'if string.sub(texteRecu, 1, 2) == "__" then return end' in h_ and h_.index('"__paradoxe"') < h_.index('string.sub(texteRecu, 1, 2) == "__"') < h_.index("message.Text = texteRecu"))
 
 
 # ================================================================== 10. Client, module Interactions : casier de la console

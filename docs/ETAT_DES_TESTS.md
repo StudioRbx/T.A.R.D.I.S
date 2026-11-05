@@ -7,7 +7,7 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 125 tests** — ⬜ 107 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 128 tests** — ⬜ 110 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
@@ -30,10 +30,13 @@ confirment l'affichage, les sons et les sensations.
 | Pilote ou technicien C.T.A.T. : cliquer sur l'écran ingénieur, régler l'énergie avec − / + | le menu s'ouvre ; la tablette technicien et l'écran montrent la nouvelle valeur | ⬜ |  |
 | Visiteur : cliquer sur l'écran ingénieur | « Réservé aux pilotes et aux ingénieurs », pas de menu | ⬜ |  |
 | Menu ouvert : Échap, puis rouvrir et s'éloigner | il se ferme les deux fois | ⬜ |  |
-| `Console › Casier` : « Choisir une tenue » (E court) ou clic | le menu des tenues s'ouvre ; les autres casiers demandent toujours 3 s | ⬜ |  |
-| Pilote : `Console › JukeBox` (« Musique » ou clic), choisir une piste, puis « Arrêter la musique » | la musique joue à bord, puis s'arrête ; avec `Config.Jukebox` vide, le panneau le dit | ⬜ |  |
+| `Console › Casier` : « Choisir une tenue » (Z) ou clic | le menu des tenues s'ouvre ; les autres casiers demandent toujours 3 s | ⬜ |  |
+| Pilote : `Console › JukeBox` (« Musique », Z, ou clic), choisir une piste, puis « Arrêter la musique » | la musique joue à bord, puis s'arrête ; avec `Config.Jukebox` vide, le panneau le dit | ⬜ |  |
 | Visiteur : `Console › JukeBox` | « Réservé aux pilotes. » | ⬜ |  |
-| Output au démarrage | le diagnostic trouve Alerte et VolLibre ; Casier, JukeBox, EcranIngenieur absents seraient dans les optionnelles | ⬜ |  |
+| Output au démarrage | le diagnostic trouve Alerte ; VolLibre, Casier, JukeBox, EcranIngenieur absents seraient dans les optionnelles | ⬜ |  |
+| Près du Selecteur, du jukebox et de l'écran ingénieur | les invites E (Selecteur…), F (Vol libre) et Z (jukebox ou écran ingénieur) sont visibles en même temps | ⬜ |  |
+| Couper le courant (levier de l'alimentation) | les écrans montrent « HORS TENSION » (et non plus rien du tout) ; un refus de la console s'y affiche | ⬜ |  |
+| Pilote : changer de thème ou de musique, puis tout de suite DÉMAT ou Colors | le voyage ou le vol libre part sans attendre | ⬜ |  |
 
 ## V6.9.10 — Vol libre et vortex
 

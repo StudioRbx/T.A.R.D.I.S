@@ -25,6 +25,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
   - **vol libre** : `Console › Selecteur › Colors` (clic ou touche F) ;
   - **écran ingénieur** : `Console › Ecran-Ingenieure` (avec le tiret ; même attribut `FaceEcran`) ;
   - **casier** : `Console › Casier` (pièce ou Model) ; **jukebox** : `Console › JukeBox` (J et B majuscules) ;
+  - **touches** : E pour les commandes de la console, F pour Vol libre, Z pour le jukebox, l'écran ingénieur et le casier de la console (chacun a aussi un clic) ;
 - supprimer les scripts du kit désactivés (`Default Mainscript`, `README:`, les `Move` / `MainPhase` des portes).
 
 ## 3. Équipes

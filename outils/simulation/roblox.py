@@ -565,7 +565,7 @@ class Instance:
         def visite(o):
             for e in o.enfants: res.append(e); visite(e)
         visite(s); return Table({i + 1: e for i, e in enumerate(res)})
-    def m_IsA(s, c): return s.ClassName == c or (c == "BasePart" and s.ClassName in ("Part", "MeshPart")) or (c == "Light" and s.ClassName in LUMIERES) or c == "Instance"
+    def m_IsA(s, c): return s.ClassName == c or (c == "BasePart" and s.ClassName in ("Part", "MeshPart")) or (c == "Light" and s.ClassName in LUMIERES) or (c == "LayerCollector" and s.ClassName in ("ScreenGui", "SurfaceGui", "BillboardGui")) or c == "Instance"
     def m_Destroy(s): s.set_parent(None); return []
     def m_IsDescendantOf(s, o):
         p = s.parent
