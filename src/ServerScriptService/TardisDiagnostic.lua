@@ -54,6 +54,11 @@ return function(def, exterieur, interieur)
 		local chemin = Config.Chemins[cle]
 		local objet = interieur
 		for _, nom in chemin do objet = objet and objet:FindFirstChild(nom) end
+		local secours = (Config.CheminsSecours or {})[cle]
+		if not objet and secours then -- ancien emplacement encore en place : la commande marche
+			objet = interieur
+			for _, nom in secours do objet = objet and objet:FindFirstChild(nom) end
+		end
 		local libelle = "commande " .. cle .. " (" .. table.concat(chemin, " > ") .. ")"
 		if facultatives[cle] then
 			optionnelles += 1

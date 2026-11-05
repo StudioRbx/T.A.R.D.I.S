@@ -168,8 +168,13 @@ return function(contexte)
 		end
 		-- Casier de la console : appui court (ou clic) ; les règles du choix de tenue ne changent pas (serveur : action Tenue)
 		local function brancherCasierConsole(part)
+			-- (V6.9.10.1, relecture) pas E : les invites du Selecteur, du levier et de l'alerte restent visibles
+			local invites = Config.InvitesConsole or {}
+			local okTouche, touche = pcall(function() return Enum.KeyCode[invites.Touche or "Z"] end)
+			local okManette, manette = pcall(function() return Enum.KeyCode[invites.Manette or "DPadRight"] end)
 			local prompt = creer("ProximityPrompt", { Name = "TardisCasierConsole", ActionText = "Choisir une tenue", ObjectText = "Casier", HoldDuration = 0,
-				MaxActivationDistance = 8, RequiresLineOfSight = false, Parent = part })
+				MaxActivationDistance = 8, RequiresLineOfSight = false, KeyboardKeyCode = okTouche and touche or Enum.KeyCode.Z,
+				GamepadKeyCode = okManette and manette or Enum.KeyCode.DPadRight, Parent = part })
 			prompt.Triggered:Connect(ouvrir)
 			local clic = creer("ClickDetector", { Name = "TardisCasierConsole", MaxActivationDistance = 12, Parent = part })
 			clic.MouseClick:Connect(function(qui) if qui == joueur then ouvrir() end end)

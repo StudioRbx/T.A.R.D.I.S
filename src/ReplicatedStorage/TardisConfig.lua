@@ -42,7 +42,9 @@ Config.Chemins = {
 	JukeBox = { "Console", "JukeBox" },                       -- (V6.9.10.1) jukebox de la console : « Musique » (pilotes)
 }
 -- Commandes facultatives (V6.9.10.1) : absentes, le diagnostic les range dans les « optionnelles » au lieu des obligatoires
-Config.CheminsFacultatifs = { EcranIngenieur = true, Casier = true, JukeBox = true } -- (V6.9.10.1)
+Config.CheminsFacultatifs = { VolLibre = true, EcranIngenieur = true, Casier = true, JukeBox = true } -- (V6.9.10.1)
+-- Anciens emplacements essayés si le nouveau n'existe pas (V6.9.10.1) : une place pas encore mise à jour marche toujours
+Config.CheminsSecours = { Alerte = { "Console", "Circuit", "Cloister", "Switch" } } -- (V6.9.10.1)
 
 -- Alerte : si TARDIS_Interieur contient un Folder portant ce nom, seules ses lumières passent au rouge.
 -- Sinon, toutes les lumières et tous les néons de l'intérieur passent au rouge.
@@ -69,6 +71,13 @@ Config.JukeboxConsole = {
 }
 -- Bouton Vol libre de la console (V6.9.10.1) : « Console › Selecteur › Colors ». Une autre touche que E, pour que son
 -- invite ne cache pas celle du Selecteur (Roblox n'affiche qu'une invite par touche).
+-- Invites du jukebox, de l'écran ingénieur et du casier de la console (V6.9.10.1, relecture) : une autre touche que E,
+-- pour ne pas cacher les invites du Selecteur, du levier et de l'alerte (Roblox n'affiche qu'une invite par touche), et
+-- aucune touche du vol libre (le pilote peut voler depuis la console). Chacune a aussi un clic.
+Config.InvitesConsole = {
+	Touche = "Z",            -- (V6.9.10.1) clavier
+	Manette = "DPadRight",   -- (V6.9.10.1) manette
+}
 Config.BoutonVolLibre = {
 	Touche = "F",            -- (V6.9.10.1) touche de l'invite (manette : Y)
 	Distance = 10,           -- (V6.9.10.1) distance du clic et de l'invite (studs)

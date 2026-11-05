@@ -155,7 +155,6 @@ local NEONS = Config.NeonsSalle or {}
 local neonsSalle = {}            -- [BasePart] = { origine = Color3, ecrite = Color3 ou nil (jamais repeint) }
 local couleurNeons, forceNeons = nil, 0 -- couleur et force appliquées aux néons, lissées
 local cleNeons = nil             -- couleur et force (arrondies) du dernier passage : rien à repeindre si elles n'ont pas bougé
-local dossierLedsNeons = interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte")
 local neonsExclus = {}
 for _, nom in NEONS.Exclure or { "Ecran", "Ecran-Ingenieure" } do neonsExclus[nom] = true end
 if NEONS.ExclureIgnorerVue == true then neonsExclus[Config.NomIgnorerVue or "IgnorerVue"] = true end
@@ -164,6 +163,8 @@ local function memeCouleur(a, b) -- les couleurs des pièces sont gardées sur 8
 end
 local function neonExclu(objet)
 	if objet == rotor or objet:IsDescendantOf(rotor) then return true end
+	-- (V6.9.10.1, relecture) cherché à chaque fois : le dossier peut arriver après le chargement (Streaming, ajout en jeu)
+	local dossierLedsNeons = interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte")
 	if dossierLedsNeons and objet:IsDescendantOf(dossierLedsNeons) then return true end
 	if string.sub(objet.Name, 1, 6) == "Tardis" then return true end -- pièces d'effet des scripts
 	local p = objet

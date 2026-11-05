@@ -227,6 +227,7 @@ return function(contexte)
 			message.TextColor3 = C.rouge
 			return
 		end
+		if string.sub(texteRecu, 1, 2) == "__" then return end -- (V6.9.10.1, relecture) messages techniques (« __console »…)
 		message.Text = texteRecu
 		message.TextColor3 = ok and C.vert or (ok == false and C.rouge or C.texte2)
 	end)

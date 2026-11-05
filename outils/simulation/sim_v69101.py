@@ -91,14 +91,18 @@ verifier("7. Config.Chemins.Casier = Console › Casier", chemin("Casier") == ["
 verifier("8. Config.Chemins.JukeBox = Console › JukeBox (casse respectée)", chemin("JukeBox") == ["Console", "JukeBox"])
 verifier("2. Config.Chemins.Ecran gardé (diagnostic)", chemin("Ecran") == ["Console", "Ecran"])
 FAC = Config.get("CheminsFacultatifs")
-verifier("Casier, JukeBox et EcranIngenieur facultatifs pour le diagnostic (pas VolLibre)", FAC and FAC.get("Casier") and FAC.get("JukeBox") and FAC.get("EcranIngenieur") and not FAC.get("VolLibre"))
+verifier("Relecture 8. VolLibre, Casier, JukeBox et EcranIngenieur facultatifs pour le diagnostic", FAC and FAC.get("VolLibre") and FAC.get("Casier") and FAC.get("JukeBox") and FAC.get("EcranIngenieur"))
+SEC = Config.get("CheminsSecours")
+verifier("Relecture 7. Ancien emplacement de l'alerte gardé en secours (Config.CheminsSecours.Alerte)", SEC and [SEC.get("Alerte").get(i) for i in range(1, 5)] == ["Console", "Circuit", "Cloister", "Switch"])
+INV = Config.get("InvitesConsole")
+verifier("Relecture 9. Config.InvitesConsole : touche Z (ni E, ni une touche du vol libre), manette DPadRight", INV and (INV.get("Touche"), INV.get("Manette")) == ("Z", "DPadRight"))
 cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 def bloc(debut, fin="\n}"):
     i = cfgsrc.index(debut); return cfgsrc[i:cfgsrc.index(fin, i)]
-blocs = [bloc("Config.Ecrans = {"), bloc("Config.EcranIngenieur = {"), bloc("Config.JukeboxConsole = {"), bloc("Config.BoutonVolLibre = {"), bloc("Config.NeonsSalle = {")]
+blocs = [bloc("Config.Ecrans = {"), bloc("Config.EcranIngenieur = {"), bloc("Config.JukeboxConsole = {"), bloc("Config.BoutonVolLibre = {"), bloc("Config.NeonsSalle = {"), bloc("Config.InvitesConsole = {")]
 nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l)]
-nouvelles += [l for l in cfgsrc.splitlines() if re.match(r"\s*(Alerte|VolLibre|EcranIngenieur|Casier|JukeBox) = \{ \"Console\"", l) or l.startswith("Config.CheminsFacultatifs")]
-verifier("Chaque nouveau réglage est marqué « (V6.9.10.1) »", len(nouvelles) == 21 and all("(V6.9.10.1)" in l for l in nouvelles),
+nouvelles += [l for l in cfgsrc.splitlines() if re.match(r"\s*(Alerte|VolLibre|EcranIngenieur|Casier|JukeBox) = \{ \"Console\"", l) or l.startswith("Config.CheminsFacultatifs") or l.startswith("Config.CheminsSecours")]
+verifier("Chaque nouveau réglage est marqué « (V6.9.10.1) »", len(nouvelles) == 24 and all("(V6.9.10.1)" in l for l in nouvelles),
          (len(nouvelles), [l for l in nouvelles if "(V6.9.10.1)" not in l][:3]))
 NE = Config.get("NeonsSalle")
 verifier("Config.NeonsSalle : actif, force 0,5, réduite × 0,5, secours rouge 0,6", NE and (NE.get("Actif"), NE.get("Force"), NE.get("ForceReduite"), NE.get("ForceSecours")) == (True, 0.5, 0.5, 0.6))
@@ -209,8 +213,18 @@ verifier("1. L'effet retombe : chaque néon retrouve EXACTEMENT sa couleur d'ori
 n0 = ecritures["n"]; image(0.1, 30)
 verifier("1. … et n'est plus repeint ensuite", ecritures["n"] == n0)
 verifier("1. Rotor, LedsAlerte et écrans toujours intacts", intacts())
+# Relecture 5 : un dossier LedsAlerte qui arrive après le chargement (Streaming, ajout en jeu) protège aussi ses néons
+leds.set_parent(None)
+nouvelles_leds = Instance("Folder", "LedsAlerte", interieur); led2 = neon("Led2", nouvelles_leds, Couleur(0, 1, 0))
+neon3 = neon("Neon3", interieur, blanc)
+CS.set("Pose", Couleur(120 / 255, 170 / 255, 1, [120, 170, 255]))
+x.m_SetAttribute("Alimentation", False); image(0.1, 2); x.m_SetAttribute("Alimentation", None); image(0.1, 100)  # le courant revient : nouveaux néons cherchés
+verifier("Relecture 5. Dossier LedsAlerte arrivé après le chargement : ses néons ne sont pas recolorés (les autres si)",
+         rgb(led2) == (0, 255, 0) and proche(rgb(neon3), melange(blanc, CS.get("Pose"), 0.5)), (rgb(led2), rgb(neon3)))
+CS.set("Pose", False); image(0.1, 100)
 eff = lire("StarterPlayer/StarterPlayerScripts/TardisEffets.client.lua")
 verifier("1. Pas de nouvelle boucle par image (3 RenderStepped et 1 Heartbeat dans TardisEffets, comme avant)", eff.count("RunService.RenderStepped:Connect") == 3 and eff.count("RunService.Heartbeat:Connect") == 1)
+verifier("Relecture 5. LedsAlerte cherché à chaque fois (pas une seule fois au chargement)", "local dossierLedsNeons = interieur:FindFirstChild" in eff[eff.index("local function neonExclu"):eff.index("local function enregistrerNeon")])
 verifier("1. Branché sur la boucle des lumières de la salle", 'lisserNeons(dt, horsTension, cibleCouleurSalle)' in eff and eff.index("lisserNeons(dt, horsTension, cibleCouleurSalle) --") > eff.index('proteger("lumieres"'))
 verifier("1. Les lumières sont gardées (sans danger)", "lumieresSalle[objet] = infos" in eff)
 verifier("TardisEffets : aucun effet en erreur", not roblox.ERREURS and not [l for l in roblox.SORTIE if "en erreur" in l], roblox.ERREURS[:2])
@@ -326,7 +340,9 @@ verifier("6. Hors tension : l'écran ingénieur s'éteint aussi", champ(gi, "Vei
 xs.m_SetAttribute("Alimentation", True); H.avancer(0.2)
 # Clic sans bouton : ClickDetector et invite
 clic = enfant_classe(P["ingenieur"], "ClickDetector"); invite = enfant_classe(P["ingenieur"], "ProximityPrompt")
-verifier("6. Clic sur l'écran (ClickDetector) et invite E (mobile, manette)", len(clic) == 1 and len(invite) == 1 and invite[0].props["HoldDuration"] == 0)
+verifier("6. Clic sur l'écran (ClickDetector) et invite (mobile, manette)", len(clic) == 1 and len(invite) == 1 and invite[0].props["HoldDuration"] == 0)
+verifier("Relecture 9. Invite de l'écran ingénieur : touche Z (pas E, qui cacherait Selecteur, levier, alerte)", invite[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z"
+         and invite[0].props["GamepadKeyCode"].nom == "Enum.KeyCode.DPadRight", invite[0].props.get("KeyboardKeyCode"))
 envoisC = lambda: canal.extra.get("envoisClient", [])
 def cliquer_ecran(qui, par="clic"):
     n = len(envoisC())
@@ -373,7 +389,7 @@ tache(lambda: R.update(V=premier(appeler(premier(I.executer(lire("ServerScriptSe
 V = R["V"]
 canalV = Instance("RemoteEvent", "TardisCommande_TARDIS_1", Instance("Folder", "ReplicatedStorageVol"))
 ALERTES = []
-debut = serveur.index("local function traiterOrdre(joueur, action, donnees, rappel)")
+debut = serveur.index("local ACTIONS_AILLEURS = {}")
 fin_ = serveur.index("Players.PlayerRemoving:Connect(function(joueur)\n\tdernierOrdre[joueur] = nil")
 en_part = serveur[serveur.index("local function enPart(objet, exclu)"):serveur.index("-- Le Selecteur garde son prompt")]
 creer_prompt = serveur[serveur.index("local function creerPrompt(part, action)"):serveur.index("local dernierUsage = 0")]
@@ -418,7 +434,7 @@ verifier("4. L'invite disparaît pendant le vol libre", pv_[0].props.get("Enable
 H.avancer(1.1); declencher(cv_[0], "MouseClick", pilote); H.avancer(0.2)
 verifier("4. Clic pendant le vol : refus de demarrerVolLibre affiché sur les écrans", ALERTES[-1] == "DÉJÀ EN VOL LIBRE", ALERTES)
 n = len(ALERTES); H.avancer(0.3); declencher(cv_[0], "MouseClick", pilote); H.avancer(0.1)
-verifier("4. Même délai entre deux ordres que la tablette (Config.Cooldown)", len(ALERTES) == n)
+verifier("4. Même délai entre deux ordres que la tablette (Config.Cooldown), « PATIENTEZ » sur les écrans", ALERTES[n:] == ["PATIENTEZ"], ALERTES[n:])
 tache(lambda: appeler(V.get("lancerDescente"), ["Douce", False])); H.avancer(15)
 verifier("4. Fin du vol : l'invite revient", xv.attrs.get("VolLibre") is None and pv_[0].props.get("Enabled") is True, (xv.attrs.get("VolLibre"), pv_[0].props.get("Enabled")))
 canalV.__lua_index__("OnServerEvent").declencher(visiteur, "VolLibreDebut"); H.avancer(0.1)
@@ -428,6 +444,21 @@ n = len(ALERTES); H.avancer(1.1)
 canalV.__lua_index__("OnServerEvent").declencher(pilote, "VolLibreDebut", None, Table({"rappel": True})); H.avancer(0.2)
 verifier("4. Un 4e argument venu d'un client (pas une fonction) est ignoré : seul le serveur passe un rappel",
          len(ALERTES) == n and not roblox.ERREURS and "if typeof(rappel) ~= \"function\" then rappel = nil end" in serveur, (ALERTES[n:], roblox.ERREURS[:1]))
+tache(lambda: appeler(V.get("lancerDescente"), ["Douce", False])); H.avancer(15)
+# Relecture 4 : les actions traitées ailleurs (Tech, Jukebox, Tenue, Theme…) ne consomment plus le délai des ordres
+H.avancer(1.1)
+for action, donnees in (("Tech", Table({"commande": "Reguler", "systeme": "Air", "valeur": 50})), ("Jukebox", Table({})), ("Tenue", Table({"index": 1})), ("Theme", Table({"nom": "Nuit"}))):
+    canalV.__lua_index__("OnServerEvent").declencher(pilote, action, donnees)
+n = len(ALERTES); declencher(cv_[0], "MouseClick", pilote); H.avancer(0.2)
+verifier("Relecture 4. Tech, Jukebox, Tenue, Theme juste avant : le bouton Vol libre part quand même (pas de délai consommé)", xv.attrs.get("VolLibre") == 101 and ALERTES[n:] == [], (xv.attrs.get("VolLibre"), ALERTES[n:]))
+ailleurs = serveur[serveur.index("local ACTIONS_AILLEURS = {}"):serveur.index("local function traiterOrdre")]
+gerees_serveur = set(re.findall(r'action == "(\w+)"', serveur[serveur.index("local function traiterOrdre"):serveur.index("remote.OnServerEvent:Connect(traiterOrdre)")]))
+autres = set(re.findall(r'action == "(\w+)"', extras)) | set(re.findall(r'action == "(\w+)"', lire("ServerScriptService/TardisSystemes.server.lua")))
+bloquees = set(re.findall(r"(\w+) = true", cfgsrc[cfgsrc.index("Bloquees = {"):cfgsrc.index("}", cfgsrc.index("Bloquees = {"))]))
+attendues = autres - gerees_serveur - bloquees
+listees = set(re.findall(r'"(\w+)"', ailleurs))
+verifier("Relecture 4. La liste couvre toutes les actions de TardisExtras et TardisSystemes sans voyage (les bloquées en maintenance gardent leur message)",
+         attendues == listees, (sorted(attendues - listees), sorted(listees - attendues)))
 tache(lambda: appeler(V.get("lancerDescente"), ["Douce", False])); H.avancer(15)
 verifier("Serveur (ordres) : aucune erreur", not roblox.ERREURS, roblox.ERREURS[:3])
 
@@ -446,10 +477,16 @@ m = re.search(r"obligatoires (\d+)/(\d+)", ligne)
 verifier("5. Diagnostic : tous les chemins trouvés (Alerte › Datapanel › Redbutton › Button, VolLibre › Selecteur › Colors)", m and m.group(1) == m.group(2) and not alertes, (ligne[:160], alertes))
 PD["colors"].set_parent(None); PD["ingenieur"].set_parent(None); PD["jukebox"].set_parent(None)
 ligne, alertes = diag()
-verifier("5. Sans Colors : signalé (« commande VolLibre »), le reste marche", alertes and "commande VolLibre (Console > Selecteur > Colors)" in alertes[0], alertes)
+verifier("Relecture 8. Sans Colors : « commande VolLibre » dans les optionnelles absentes, pas dans les obligatoires", not alertes and "commande VolLibre (Console > Selecteur > Colors)" in ligne, (alertes, ligne[-250:]))
 verifier("5. Sans écran ingénieur ni jukebox : rangés dans les optionnelles absentes, pas dans les obligatoires",
          "commande EcranIngenieur" in ligne and "commande JukeBox" in ligne and "EcranIngenieur" not in alertes[0] and "JukeBox" not in alertes[0], (ligne[-200:], alertes))
 verifier("5. L'ancien chemin de l'alerte n'est plus demandé", "Circuit" not in ligne and "Circuit" not in "".join(alertes))
+dp_ = PD["console"].m_FindFirstChild("Datapanel"); dp_.set_parent(None)
+ligne, alertes = diag()
+verifier("Relecture 7. Sans Datapanel : alerte signalée parmi les obligatoires", alertes and "commande Alerte (Console > Datapanel > Redbutton > Button)" in alertes[0], alertes)
+ci = Instance("Model", "Circuit", PD["console"]); cl = Instance("Model", "Cloister", ci); Instance("Part", "Switch", cl)
+ligne, alertes = diag()
+verifier("Relecture 7. Ancien emplacement Circuit › Cloister › Switch encore en place : accepté par le diagnostic", not alertes, alertes)
 
 
 # ================================================================== 6. Interphone supprimé
@@ -492,6 +529,7 @@ verifier("5. Action « Interphone » (pilote ou non) : ignorée par le serveur, 
 # ================================================================== 9. Jukebox de la console (serveur)
 pj = enfant_classe(PX["jukebox"], "ProximityPrompt"); cj = enfant_classe(PX["jukebox"], "ClickDetector")
 verifier("8. Console › JukeBox : invite « Musique » et clic", len(pj) == 1 and len(cj) == 1 and pj[0].props["ActionText"] == "Musique")
+verifier("Relecture 9. Invite du jukebox : touche Z", pj[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z")
 n = len(canalX.extra.get("envoisClient", []))
 declencher(cj[0], "MouseClick", pilote); H.avancer(0.1)
 declencher(pj[0], "Triggered", visiteur); H.avancer(0.6)
@@ -658,6 +696,7 @@ porte = PC["casier"].enfants[0]
 pc_ = enfant_classe(porte, "ProximityPrompt"); cc_ = enfant_classe(porte, "ClickDetector")
 verifier("7. Console › Casier (Model) trouvé : invite « Choisir une tenue » (appui court) et clic", len(pc_) == 1 and pc_[0].props["ActionText"] == "Choisir une tenue" and pc_[0].props["HoldDuration"] == 0 and len(cc_) == 1,
          [(e.props.get("ActionText"), e.props.get("HoldDuration")) for e in pc_])
+verifier("Relecture 9. Invite du casier de la console : touche Z", pc_[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z")
 pa_ = enfant_classe(autreCasier, "ProximityPrompt")
 verifier("7. Les autres casiers de l'intérieur gardent « maintenir E 3 s »", len(pa_) == 1 and pa_[0].props["HoldDuration"] == 3 and pa_[0].props["ActionText"] == "Ouvrir le casier")
 casierGui = pg.m_FindFirstChild("TardisCasier")

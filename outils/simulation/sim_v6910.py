@@ -627,7 +627,7 @@ V = R2["V"]
 verifier("Serveur : module VolLibre chargé, freinerVol exporté", V is not None and V.get("freinerVol") is not None and not roblox.ERREURS, roblox.ERREURS[:2])
 # Le vrai aiguillage des actions de TardisServeur (du début du gestionnaire jusqu'aux actions des pilotes)
 serveur = lire("ServerScriptService/TardisServeur/init.server.lua")
-debut = serveur.index("local function traiterOrdre(joueur, action, donnees, rappel)")  # V6.9.10.1 : le gestionnaire a un nom
+debut = serveur.index("local ACTIONS_AILLEURS = {}")  # V6.9.10.1 : le gestionnaire a un nom
 fin_ = serveur.index("\t-- Copilote (V6.9.1) : seulement la navigation", debut)
 canal = Instance("RemoteEvent", "TardisCommande_TARDIS_1", game2.m_FindFirstChild("ReplicatedStorage"))
 GENERAL = []  # actions arrivées jusqu'au traitement des pilotes (délai entre deux ordres, activité…)

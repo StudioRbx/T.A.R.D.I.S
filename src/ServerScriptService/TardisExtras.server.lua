@@ -1138,6 +1138,12 @@ do
 			prompt.HoldDuration = 0
 			prompt.MaxActivationDistance = 8
 			prompt.RequiresLineOfSight = false
+			-- (V6.9.10.1, relecture) pas E : les invites du Selecteur, du levier et de l'alerte restent visibles
+			local invites = Config.InvitesConsole or {}
+			local okTouche, touche = pcall(function() return Enum.KeyCode[invites.Touche or "Z"] end)
+			local okManette, manette = pcall(function() return Enum.KeyCode[invites.Manette or "DPadRight"] end)
+			prompt.KeyboardKeyCode = okTouche and touche or Enum.KeyCode.Z
+			prompt.GamepadKeyCode = okManette and manette or Enum.KeyCode.DPadRight
 			prompt.Parent = part
 			prompt.Triggered:Connect(function(joueur) ouvrirJukebox(joueur, part) end)
 			local clic = Instance.new("ClickDetector")

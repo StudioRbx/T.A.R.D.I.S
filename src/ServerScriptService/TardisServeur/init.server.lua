@@ -887,6 +887,8 @@ local function memoriserEclairage(objet)
 		eclairages[objet] = { Enabled = objet.Enabled, Color = objet.Color }
 	elseif objet:IsA("BasePart") and objet.Material == Enum.Material.Neon then
 		eclairages[objet] = { Material = objet.Material, Color = objet.Color }
+	elseif objet:IsA("LayerCollector") and string.sub(objet.Name, 1, 11) == "TardisEcran" then
+		return -- (V6.9.10.1, relecture) les écrans du module Ecrans gèrent eux-mêmes la coupure (voile « HORS TENSION »)
 	elseif objet:IsA("LayerCollector") or objet:IsA("ParticleEmitter") or objet:IsA("Beam") then
 		eclairages[objet] = { Enabled = objet.Enabled }
 	end
@@ -1082,9 +1084,21 @@ end)
 local function brancherCommande(cle, texteActif, texteInactif, attribut, valeurActive, action, messageActif, messageInactif)
 	if not Config.Chemins[cle] then return end
 	task.spawn(function()
-		local part = enPart(Config.Trouver(interieur, cle))
+		-- (V6.9.10.1, relecture) sans bloquer : 10 s au plus par dossier, puis l'ancien emplacement (Config.CheminsSecours)
+		local objet = Config.trouverCommande(interieur, cle, 10)
+		local secours = (Config.CheminsSecours or {})[cle]
+		if not objet and secours then
+			objet = interieur
+			for _, nom in secours do objet = objet and objet:FindFirstChild(nom) end
+			if objet then
+				warn("[TARDIS] Commande '" .. cle .. "' : " .. table.concat(Config.Chemins[cle], " › ") .. " introuvable, ancien emplacement utilisé ("
+					.. table.concat(secours, " › ") .. ").")
+			end
+		end
+		local part = objet and enPart(objet)
 		if not part then
-			warn("[TARDIS] Commande '" .. cle .. "' introuvable (aucune Part)")
+			warn("[TARDIS] Commande '" .. cle .. "' introuvable : ni " .. table.concat(Config.Chemins[cle], " › ")
+				.. (secours and (" ni " .. table.concat(secours, " › ")) or "") .. " (aucune Part). Elle ne répond pas ; le reste marche.")
 			return
 		end
 		local prompt = creerPrompt(part, texteInactif)
@@ -1730,6 +1744,13 @@ end)
 -- Les ordres des pilotes (menu, tablette) ; V6.9.10.1 : aussi les commandes de la console qui reprennent une action du
 -- menu (bouton Vol libre), avec exactement les mêmes vérifications. rappel(ok, message) : seulement pour un appel du
 -- serveur lui-même (un client ne peut pas envoyer de fonction par un RemoteEvent).
+local ACTIONS_AILLEURS = {}
+for _, nom in { "Bannir", "CarnetEcrire", "CarnetEffacer", "Categorie", "Couleur", "Decoration", "Enseigne", "Expulser", "InvitationReponse", "Inviter",
+	"Jukebox", "MinuterieAnnuler", "Murs", "Projecteur", "ProjecteurDir", "Promouvoir", "Reflets", "StyleConsole", "StyleInterieur", "Tenue", "Theme",
+	"Tracteur", "VolLibreChoc", -- TardisExtras
+	"LienTimeLord", "Maintenance", "Outil", "RefuserRegeneration", "SiegePose", "Stabilisateur", "Tech", "TenuesCompte" } do -- TardisSystemes
+	ACTIONS_AILLEURS[nom] = true
+end
 local function traiterOrdre(joueur, action, donnees, rappel)
 	-- Le serveur ne fait jamais confiance au client : permission, type et fréquence vérifiés ici
 	if typeof(action) ~= "string" then return end
@@ -1737,6 +1758,10 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 	-- Préférences du joueur : traitées par TardisExtras seul (V6.9.9). Ici, elles consommeraient le délai entre deux ordres
 	-- d'un pilote (DÉMAT ignoré juste après un changement de réglage) et remettraient son inactivité à zéro.
 	if action == "Prefs" then return end
+	-- (V6.9.10.1, relecture) Actions traitées seulement par TardisExtras ou TardisSystemes, sans voyage : ici, elles
+	-- consommeraient aussi le délai entre deux ordres (DÉMAT ou bouton Vol libre ignoré juste après) et l'activité du pilote.
+	-- Les actions de TardisExtras bloquées en maintenance (Rappel, Minuterie, Leurre…) continuent, pour le message.
+	if ACTIONS_AILLEURS[action] then return end
 
 	-- Actions du porteur (n'importe quel joueur qui tient le TARDIS, pas forcément un pilote)
 	if action == "ModePort" or action == "Poser" then
@@ -1844,7 +1869,10 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 		return
 	end
 	local maintenant = os.clock()
-	if dernierOrdre[joueur] and maintenant - dernierOrdre[joueur] < Config.Cooldown then return end
+	if dernierOrdre[joueur] and maintenant - dernierOrdre[joueur] < Config.Cooldown then
+		if rappel then rappel(false, "PATIENTEZ") end
+		return
+	end
 	dernierOrdre[joueur] = maintenant
 
 	local function repondre(ok, erreur, messageOk)

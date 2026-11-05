@@ -77,7 +77,9 @@ return function(contexte)
 	end
 	local function ouvrirPanneau(gui, part, distance)
 		fermerPanneau()
-		ouvert = { gui = gui, part = part, distance = distance }
+		-- Sans la pièce (pas encore chargée, Streaming), la distance se mesure depuis l'endroit où le panneau a été ouvert
+		local racineOuverture = maRacine()
+		ouvert = { gui = gui, part = part, distance = distance, origine = racineOuverture and racineOuverture.Position }
 		gui.Enabled = true
 		-- Fermeture en s'éloignant de l'objet (toutes les 0,5 s, seulement tant que ce panneau est ouvert)
 		local moi = ouvert
@@ -86,7 +88,8 @@ return function(contexte)
 				task.wait(0.5)
 				if ouvert ~= moi then break end
 				local racine = maRacine()
-				if not racine or (moi.part and moi.part.Parent and (racine.Position - moi.part.Position).Magnitude > moi.distance) then
+				local reference = (moi.part and moi.part.Parent and moi.part.Position) or moi.origine
+				if not racine or (reference and (racine.Position - reference).Magnitude > moi.distance) then
 					fermerPanneau()
 				end
 			end
@@ -122,6 +125,8 @@ return function(contexte)
 
 	-- Envoi des réglages : un à la fois (le serveur refuse deux commandes Tech à moins de 0,25 s), la dernière valeur gagne
 	local aEnvoyer, ordreEnvoi, envoiEnCours = {}, {}, false
+	local regulations = {} -- [systeme] = { valeur, barre, couleur, voulu } ; voulu = valeur demandée, affichée en attendant le serveur
+	local majEnergie -- (définie plus bas)
 	local function envoyerReglages()
 		if envoiEnCours then return end
 		envoiEnCours = true
@@ -133,13 +138,20 @@ return function(contexte)
 				aEnvoyer[systeme] = nil
 				if valeur then
 					remote:FireServer("Tech", { commande = "Reguler", systeme = systeme, valeur = valeur })
+					-- (V6.9.10.1, relecture) sans réponse au bout d'1 s (refus, même valeur) : on revient à la valeur du serveur
+					task.delay(1, function()
+						local r = regulations[systeme]
+						if r and r.voulu == valeur and not aEnvoyer[systeme] then
+							r.voulu = nil
+							if ouvert and ouvert.gui == guiEnergie then majEnergie() end
+						end
+					end)
 					task.wait(0.3)
 				end
 			end
 			envoiEnCours = false
 		end)
 	end
-	local regulations = {} -- [systeme] = { valeur, barre, voulu }
 	local function reguler(systeme, nom, couleur, ordre)
 		local cadre = creer("Frame", { Name = "Regul_" .. systeme, Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = ordre, Parent = carteRegul })
 		texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.texte2, Size = UDim2.new(1, -150, 0, 14), Parent = cadre })
@@ -185,7 +197,7 @@ return function(contexte)
 		jauges[cle].barre.Size = UDim2.fromScale(math.clamp(p, 0, 1), 1)
 		jauges[cle].barre.BackgroundColor3 = couleur
 	end
-	local function majEnergie()
+	majEnergie = function(attributChange)
 		local pv = tonumber(exterieur:GetAttribute("PointsDeVie")) or 100
 		majJauge("integrite", pv / 100, string.format("%d %%  (%s PV)", pv, tostring(exterieur:GetAttribute("PV") or "?")), couleurNiveau(pv, 20, 50))
 		local alimente = exterieur:GetAttribute("Alimentation") ~= false
@@ -197,7 +209,8 @@ return function(contexte)
 			actif and couleurNiveau(energieBouclier, 15, 40) or (energieBouclier <= 0 and C.rouge or C.texte2))
 		for systeme, r in regulations do
 			local v = tonumber(exterieur:GetAttribute("Regul" .. systeme)) or 50
-			if r.voulu == v then r.voulu = nil end -- le serveur a appliqué le réglage
+			-- Le serveur a répondu (ou un autre a réglé) et rien ne reste à envoyer : sa valeur fait foi
+			if r.voulu and not aEnvoyer[systeme] and (r.voulu == v or attributChange == "Regul" .. systeme) then r.voulu = nil end
 			local affiche = r.voulu or v
 			r.valeur.Text = string.format("%d %%", affiche)
 			r.barre.Size = UDim2.fromScale(affiche / 100, 1)
@@ -209,7 +222,7 @@ return function(contexte)
 	end
 	for _, nom in { "PointsDeVie", "PV", "Alimentation", "BouclierEnergie", "BouclierJoueurs", "BouclierBalles", "BouclierComplet", "RegulEnergie", "RegulAir", "RegulVapeur" } do
 		exterieur:GetAttributeChangedSignal(nom):Connect(function()
-			if ouvert and ouvert.gui == guiEnergie then majEnergie() end
+			if ouvert and ouvert.gui == guiEnergie then majEnergie(nom) end
 		end)
 	end
 
@@ -279,6 +292,7 @@ return function(contexte)
 		if message == "__console" then
 			afficherMessage(info, ok == true)
 		elseif message == "__energie" then
+			for _, r in regulations do r.voulu = nil end -- chaque ouverture repart des valeurs du serveur
 			majEnergie()
 			ouvrirPanneau(guiEnergie, partOu(info, "EcranIngenieur"), REGLAGES.DistanceFermeture or 14)
 		elseif message == "__jukebox" then
