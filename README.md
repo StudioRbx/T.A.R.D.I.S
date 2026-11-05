@@ -68,6 +68,12 @@ Le code de `src/` est **identique octet pour octet** à ce qui tourne dans ZONE-
 
 ## Synchroniser Studio avec le dépôt
 
+### Le plus simple : depuis GitHub
+
+Le dépôt est public : dans Studio (mode Édition), coller le contenu de `outils/synchro_github.luau` dans la barre de commande (**View › Command Bar**) et valider. En haut du script, `BRANCHE = "main"` prend la version publiée ; mettre le nom d'une autre branche pour tester une version en cours. Le script lit le commit exact de la branche, télécharge chaque script, vérifie son empreinte et ne réécrit que ce qui diffère. `outils/manifeste.json` est suivi par git : relancer `python3 outils/manifeste.py` avant chaque commit qui touche `src/`.
+
+### Avec un serveur local
+
 ```bash
 python outils/manifeste.py
 ```

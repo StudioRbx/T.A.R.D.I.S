@@ -1,4 +1,5 @@
 """Génère outils/manifeste.json : la liste des scripts de src/ avec leur emplacement Studio et leur empreinte.
+Le manifeste est suivi par git (V6.9.9) : outils/synchro_github.luau le lit sur GitHub. À relancer avant chaque commit qui touche src/.
 
 Convention (celle de Rojo) :
   X.lua -> ModuleScript, X.server.lua -> Script, X.client.lua -> LocalScript
@@ -59,7 +60,10 @@ def main():
             })
     # Les parents d'abord (un script-dossier avant ses enfants)
     entrees.sort(key=lambda e: (e["parent"].count("/"), e["parent"], e["nom"]))
-    manifeste = {"entrees": entrees, "supprimer": SUPPRIMER}
+    import re
+    config = open(os.path.join(SRC, "ReplicatedStorage", "TardisConfig.lua"), encoding="utf-8").read()
+    v = re.search(r'Config\.Version\s*=\s*"([^"]+)"', config)
+    manifeste = {"version": v.group(1) if v else "", "entrees": entrees, "supprimer": SUPPRIMER}
     with open(os.path.join(RACINE, "outils", "manifeste.json"), "w", encoding="utf-8") as sortie:
         json.dump(manifeste, sortie, ensure_ascii=False, indent=1)
     print(len(entrees), "scripts dans le manifeste")

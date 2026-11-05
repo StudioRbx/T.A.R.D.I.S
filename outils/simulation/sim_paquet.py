@@ -104,6 +104,55 @@ dossier.m_FindFirstChild(entrees[0]["cle"]).props["Source"] = "-- abîmé"
 fin3 = installer()
 verifier("Paquet abîmé : erreur signalée, script non écrit, paquet gardé",
          "ERREUR paquet abîmé" in fin3 and ws.m_FindFirstChild("TARDIS_MiseAJour") is not None, fin3.strip().splitlines()[-1])
+
+# 3. Synchro directe depuis GitHub (outils/synchro_github.luau) : GitHub simulé par les fichiers du dépôt
+manifeste_suivi = json.load(open(os.path.join(RACINE, "outils", "manifeste.json"), encoding="utf-8"))
+verifier("Manifeste suivi par git à jour (même liste et mêmes empreintes que src/)",
+         [(e["fichier"], e["empreinte"]) for e in manifeste_suivi["entrees"]] == [(e["fichier"], e["empreinte"]) for e in infos["entrees"]]
+         and manifeste_suivi.get("version") == infos["version"], "relancer python3 outils/manifeste.py")
+I2, G2, game2, _ = monde(serveur=True)
+Instance("ScriptEditorService", "ScriptEditorService", game2).m_UpdateSourceAsync = ses.m_UpdateSourceAsync
+ws2 = game2.m_FindFirstChild("Workspace")
+t2 = Instance("Folder", "TARDIS", ws2)
+for n in ("TARDIS_1", "TARDIS_2"):
+    ext = Instance("Folder", "EXTERIEURE", Instance("Folder", n, t2)); por = Instance("Model", "TARDISDoors", Instance("Model", "Cabine", ext))
+    Instance("Model", "LeftDoor", por); Instance("Model", "RightDoor", por)
+Instance("StarterPlayerScripts", "StarterPlayerScripts", game2.m_FindFirstChild("StarterPlayer"))
+http = game2.m_FindFirstChild("HttpService"); http.props["HttpEnabled"] = False
+appels = []
+def get_async(url, *a):
+    appels.append(url)
+    url = url.split("?")[0]
+    if url.startswith("https://api.github.com/repos/StudioRbx/T.A.R.D.I.S/commits/"):
+        return json.dumps({"sha": "abc1234def5678"})
+    prefixe = "https://raw.githubusercontent.com/StudioRbx/T.A.R.D.I.S/abc1234def5678/"
+    if not url.startswith(prefixe): raise roblox.LuaError("HTTP 404 " + url)
+    return open(os.path.join(RACINE, url[len(prefixe):]), encoding="utf-8").read()
+http.m_GetAsync = get_async
+code_gh = open(os.path.join(RACINE, "outils", "synchro_github.luau"), encoding="utf-8").read()
+def synchro(code):
+    roblox.SORTIE.clear(); roblox.ERREURS.clear(); I2.pas = 0
+    lancer(Fonction("synchro", py=lambda: I2.executer(code, "synchro_github")))
+    return "\n".join(str(x) for x in roblox.SORTIE)
+r1 = synchro(code_gh)
+f1 = r1.strip().splitlines()[-1] if r1.strip() else ""
+verifier("GitHub : synchro sans erreur Luau", not roblox.ERREURS, roblox.ERREURS[:2])
+verifier("GitHub : commit exact utilisé (pas le cache de la branche)", "commit abc1234" in r1 and any("/abc1234def5678/" in u for u in appels), r1[:200])
+nb2 = len(infos["entrees"]) + sum(1 for e in infos["entrees"] if e["parTardis"])  # portes posées dans 2 TARDIS
+verifier(f"GitHub : place vide → tout est créé ({nb2} scripts), 0 erreur", f"{nb2} réécrit(s), 0 erreur(s)" in f1, f1)
+verifier("GitHub : HttpEnabled remis comme avant", http.props.get("HttpEnabled") is False)
+r2 = synchro(code_gh)
+verifier("GitHub : seconde synchro, rien à réécrire", "0 réécrit(s), 0 erreur(s)" in r2, r2.strip().splitlines()[-1])
+# Fichier corrompu en route : refusé, rien d'écrit
+vrai = http.m_GetAsync
+http.m_GetAsync = lambda url, *a: ("-- tronqué" if "TardisConfig.lua" in url else vrai(url, *a))
+r3 = synchro(code_gh)
+verifier("GitHub : téléchargement tronqué refusé", "ERREUR téléchargement : src/ReplicatedStorage/TardisConfig.lua" in r3, r3[-200:])
+http.m_GetAsync = vrai
+# Pas d'Internet : échec propre et réglage remis
+http.m_GetAsync = lambda url, *a: (_ for _ in ()).throw(roblox.LuaError("HttpError: ConnectFail"))
+r4 = synchro(code_gh)
+verifier("GitHub : sans Internet, échec expliqué et HttpEnabled remis", "ÉCHEC" in r4 and http.props.get("HttpEnabled") is False, r4[-200:])
 roblox.Instance.m_IsA = ancien_isa
 
 print("\n".join("  ✓ " + o for o in OK))
