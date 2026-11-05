@@ -199,7 +199,7 @@ boutonDemat.Activated:Connect(teleportationDePoche)
 
 -- Réponses du serveur (réussite ou refus) affichées dans le bandeau
 remote.OnClientEvent:Connect(function(message)
-	if not gui.Enabled or typeof(message) ~= "string" then return end
+	if not gui.Enabled or typeof(message) ~= "string" or string.sub(message, 1, 2) == "__" then return end -- (« __… » : messages techniques)
 	messageJusqua = os.clock() + 4
 	bandeau.Text = message
 end)

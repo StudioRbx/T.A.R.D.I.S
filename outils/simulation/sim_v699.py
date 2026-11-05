@@ -86,7 +86,8 @@ verifier("Config.Effets : les 9 réglages de la V6.9.9", all(EF.get(k) == v for 
 verifier("Anciens réglages des effets inchangés", all(EF.get(k) is True for k in ("Tourbillon", "Lueur", "Ondes", "Arcs", "Choc", "Contrejour")))
 verifier("Config.NomFenetres = Fenetres, Config.NomVitre = Vitre", Config.get("NomFenetres") == "Fenetres" and Config.get("NomVitre") == "Vitre")
 cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
-bloc = cfgsrc[cfgsrc.index("-- Effets visuels du voyage (V6.9.9)"):cfgsrc.index("-- Vue de l'intérieur depuis l'extérieur")]
+fin_bloc = cfgsrc.find("-- Néons de la salle selon l'état (V6.9.10.1)")  # (réglage ajouté juste après en V6.9.10.1)
+bloc = cfgsrc[cfgsrc.index("-- Effets visuels du voyage (V6.9.9)"):fin_bloc if fin_bloc > 0 else cfgsrc.index("-- Vue de l'intérieur depuis l'extérieur")]
 effets_v699 = bloc.split("\n}")[0]
 nouvelles = [l for l in effets_v699.splitlines() if re.match(r"\s*\w+ = ", l)] + [l for l in bloc.splitlines() if l.startswith("Config.")]
 verifier("Chaque nouveau réglage est commenté « (V6.9.9) »", len(nouvelles) == 12 and all("(V6.9.9)" in l for l in nouvelles),

@@ -44,10 +44,23 @@ return function(def, exterieur, interieur)
 	exiger(chercherDans(exterieur, Config.NomLampe), "Lampe")
 	exiger(interieur:FindFirstChild(Config.NomPortailInt) ~= nil, "Portail intérieur")
 	exiger(interieur:FindFirstChild(Config.NomRotor) ~= nil, "Rotor")
-	for cle, chemin in Config.Chemins do
+	-- Commandes de la console (V6.9.10.1 : les commandes de Config.CheminsFacultatifs comptent parmi les optionnelles ;
+	-- les chemins sont parcourus dans l'ordre alphabétique, pour une ligne toujours identique)
+	local facultatives = Config.CheminsFacultatifs or {}
+	local cles, optionnelles = {}, #OPTIONNELLES
+	for cle in Config.Chemins do table.insert(cles, cle) end
+	table.sort(cles)
+	for _, cle in cles do
+		local chemin = Config.Chemins[cle]
 		local objet = interieur
 		for _, nom in chemin do objet = objet and objet:FindFirstChild(nom) end
-		exiger(objet ~= nil, "commande " .. cle .. " (" .. table.concat(chemin, " > ") .. ")")
+		local libelle = "commande " .. cle .. " (" .. table.concat(chemin, " > ") .. ")"
+		if facultatives[cle] then
+			optionnelles += 1
+			if objet == nil then table.insert(optionnellesAbsentes, libelle) end
+		else
+			exiger(objet ~= nil, libelle)
+		end
 	end
 
 	-- Optionnelles
@@ -81,7 +94,7 @@ return function(def, exterieur, interieur)
 	end
 
 	local ligne = string.format("[TARDIS] %s : diagnostic · obligatoires %d/%d · optionnelles %d/%d · sons %d/%d · destinations %d (ZDC : %d)",
-		def.Nom, obligatoires - #manquantes, obligatoires, #OPTIONNELLES - #optionnellesAbsentes, #OPTIONNELLES,
+		def.Nom, obligatoires - #manquantes, obligatoires, optionnelles - #optionnellesAbsentes, optionnelles,
 		presents, #noms, destinations, zdc)
 	if #manquantes > 0 then
 		warn("[TARDIS] " .. def.Nom .. " : pièces OBLIGATOIRES manquantes : " .. table.concat(manquantes, ", "))

@@ -466,6 +466,7 @@ def _defauts(classe):
                 "CFrame": Valeur("CFrame"), "Position": v3(0, 0, 0), "Anchored": False, "CanCollide": True, "Reflectance": 0}
     if classe in ("PointLight", "SpotLight", "SurfaceLight"):
         return {"Brightness": 1, "Range": 8, "Color": Couleur(1, 1, 1), "Enabled": True, "Shadows": False}
+    if classe == "Model": return {"PrimaryPart": None}  # V6.9.10.1 : comme Roblox, pas de PrimaryPart par défaut
     if classe == "ColorCorrectionEffect": return {"Brightness": 0, "Contrast": 0, "Saturation": 0, "TintColor": Couleur(1, 1, 1), "Enabled": True}
     if classe == "BlurEffect": return {"Size": 24, "Enabled": True}
     if classe == "ParticleEmitter": return {"Rate": 5, "Enabled": True}
@@ -505,7 +506,7 @@ class Instance:
         for e in s.enfants:
             if e.Name == k: return e
         if k in ("Changed",): return s.changed
-        if k[0].isupper() and k.endswith(("ed", "Added", "Removing", "Triggered", "Event", "Activated")) or k in ("MouseEnter", "MouseLeave", "InputBegan") or k in ("Heartbeat", "RenderStepped", "Stepped", "OnServerEvent", "OnClientEvent", "Event", "Triggered", "Touched", "Error", "MessageOut", "Chatted", "PlayerAdded", "PlayerRemoving", "CharacterAdded", "CharacterRemoving", "ChildAdded", "ChildRemoved", "DescendantAdded", "DescendantRemoving"):
+        if k[0].isupper() and k.endswith(("ed", "Added", "Removing", "Triggered", "Event", "Activated")) or k in ("MouseEnter", "MouseLeave", "InputBegan", "MouseClick") or k in ("Heartbeat", "RenderStepped", "Stepped", "OnServerEvent", "OnClientEvent", "Event", "Triggered", "Touched", "Error", "MessageOut", "Chatted", "PlayerAdded", "PlayerRemoving", "CharacterAdded", "CharacterRemoving", "ChildAdded", "ChildRemoved", "DescendantAdded", "DescendantRemoving"):
             s.extra[k] = Signal(s.Name + "." + k); return s.extra[k]
         raise LuaError(f"{k} is not a valid member of {s.ClassName} \"{s.Name}\"")
     def __lua_setindex__(s, k, v):
@@ -537,6 +538,7 @@ class Instance:
         return None
     def m_WaitForChild(s, n, delai=None):
         r = s.m_FindFirstChild(n)
+        if r is None and delai is not None: return None  # V6.9.10.1 : comme Roblox, nil au bout du délai
         if r is None: raise LuaError(f"WaitForChild : « {n} » absent de {s.Name} (simulation)")
         return r
     def m_FindFirstChildOfClass(s, c):

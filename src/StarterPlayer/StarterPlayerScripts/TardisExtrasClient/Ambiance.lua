@@ -128,41 +128,62 @@ return function(contexte)
 	end
 
 	--------------------------------------------------------------------
-	-- 2) Écrans vivants + horloge de bord : une ligne en direct sous le texte de l'écran de la console
+	-- 2) Écrans vivants + horloge de bord : une ligne en direct dans la bande du bas de chaque écran de destination
+	-- (V6.9.10.1 : les écrans sont faits par le serveur, module TardisServeur › Ecrans, un ou plusieurs ; la ligne va
+	-- dans leur cadre « LigneVivante », sans toucher au reste de l'affichage)
 	--------------------------------------------------------------------
 	do
-		local chemin = Config.Chemins and Config.Chemins.Ecran
-		local objet = interieur
-		for _, nom in chemin or {} do objet = objet and objet:FindFirstChild(nom) end
-		local surface = objet and objet:FindFirstChildOfClass("SurfaceGui")
-		if surface then
-			-- Le texte du serveur garde toute la place sauf une bande en bas, pour la ligne vivante
-			for _, etiquette in surface:GetChildren() do
-				if etiquette:IsA("TextLabel") then etiquette.Size = UDim2.new(1, 0, 1, -36) end
-			end
-			local vivant = texte({ Text = "", Font = UI.POLICE_CODE, TextSize = 20, TextColor3 = Color3.fromRGB(120, 230, 255),
-				TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd, AnchorPoint = Vector2.new(0.5, 1),
-				Position = UDim2.new(0.5, 0, 1, -6), Size = UDim2.new(1, -16, 0, 28), Parent = surface })
-			local dernierScan, dernierTexteScan = nil, nil
+		local chemin = Config.Chemins and Config.Chemins.Ecran or { "Console", "Ecran" }
+		local vivants = {} -- [TextLabel] = true, un par écran
+		local function brancher(objet)
+			if not (objet:IsA("SurfaceGui") and objet.Name == "TardisEcranDestination") then return end
 			task.spawn(function()
-				while true do
-					task.wait(0.5)
+				local fond = objet:WaitForChild("Fond", 10)
+				local zone = fond and fond:WaitForChild("LigneVivante", 10)
+				if not zone or zone:FindFirstChild("TardisVivant") then return end
+				local vivant = texte({ Name = "TardisVivant", Text = "", Font = UI.POLICE_CODE, TextScaled = true, TextColor3 = Color3.fromRGB(120, 230, 255),
+					TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd, Size = UDim2.fromScale(1, 1), Parent = zone })
+				vivants[vivant] = true
+			end)
+		end
+		-- Les écrans sont dans le dossier de Config.Chemins.Ecran (la Console), qui peut arriver plus tard (Streaming)
+		task.spawn(function()
+			local dossier = interieur
+			for i = 1, #chemin - 1 do
+				dossier = dossier and (dossier:FindFirstChild(chemin[i]) or dossier:WaitForChild(chemin[i], 30))
+			end
+			if not dossier then return end
+			for _, objet in dossier:GetDescendants() do brancher(objet) end
+			dossier.DescendantAdded:Connect(brancher)
+		end)
+		local dernierScan, dernierTexteScan = nil, nil
+		task.spawn(function()
+			while true do
+				task.wait(0.5)
+				if next(vivants) then
 					local p = exterieur:GetPivot().Position
 					local heure = Lighting.ClockTime
 					local entree = exterieur:GetAttribute("DerniereEntree")
 					local age = entree and (os.clock() - (dernierScan or 0)) or 99
 					if entree ~= dernierTexteScan then dernierTexteScan, dernierScan, age = entree, os.clock(), 0 end
+					local ligne, couleur
 					if entree and age < 12 then
-						vivant.Text = "ENTRÉE : " .. entree -- scan d'identité
-						vivant.TextColor3 = Color3.fromRGB(255, 200, 120)
+						ligne, couleur = "ENTRÉE : " .. entree, Color3.fromRGB(255, 200, 120) -- scan d'identité
 					else
-						vivant.Text = string.format("X %d · Y %d · Z %d · %02d:%02d", p.X, p.Y, p.Z, math.floor(heure), math.floor((heure % 1) * 60))
-						vivant.TextColor3 = Color3.fromRGB(120, 230, 255)
+						ligne = string.format("X %d · Y %d · Z %d · %02d:%02d", p.X, p.Y, p.Z, math.floor(heure), math.floor((heure % 1) * 60))
+						couleur = Color3.fromRGB(120, 230, 255)
 					end
-					vivant.Visible = exterieur:GetAttribute("Alimentation") ~= false
+					local visible = exterieur:GetAttribute("Alimentation") ~= false
+					for vivant in vivants do
+						if vivant.Parent then
+							vivant.Text, vivant.TextColor3, vivant.Visible = ligne, couleur, visible
+						else
+							vivants[vivant] = nil
+						end
+					end
 				end
-			end)
-		end
+			end
+		end)
 	end
 
 	--------------------------------------------------------------------

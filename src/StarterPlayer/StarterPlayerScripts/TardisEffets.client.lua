@@ -2,7 +2,8 @@
 -- (Dé)matérialisation de l'extérieur, lampe, rotor, lumières de la salle, secousses, et depuis la V6.7 :
 -- lueur de la cabine, tourbillon de poussière, ondes au sol, arcs d'urgence, choc d'atterrissage ; depuis la V6.9.9 :
 -- lueurs selon l'heure, lumières de la salle selon l'état, Catastrophe plus violente, vitres qui s'éteignent en dernier,
--- et l'option « aucun flash » (UI.sansFlash) ; depuis la V6.9.10 : rotor qui suit la vitesse du vol libre.
+-- et l'option « aucun flash » (UI.sansFlash) ; depuis la V6.9.10 : rotor qui suit la vitesse du vol libre ;
+-- depuis la V6.9.10.1 : les néons de la salle prennent aussi la couleur de l'état.
 -- Tout est calculé à partir des attributs "Etat" et "DebutEtat" posés par le serveur (Config.Souffle),
 -- donc tous les joueurs voient la même chose au même moment (même ceux qui arrivent en cours de vol).
 
@@ -144,6 +145,95 @@ local ambianceOrigine, exterieureOrigine = Lighting.Ambient, Lighting.OutdoorAmb
 local themeActuel = 0 -- 0 = éclairage normal, 1 = thème appliqué (lissé)
 local ledsOrigine = {} -- [Light] = couleur d'origine (thèmes de l'intérieur)
 local couleurEtatSalle, forceEtatSalle = nil, 0 -- couleur de l'état de la salle (V6.9.9), lissée
+
+-- Néons de la salle selon l'état (V6.9.10.1, Config.NeonsSalle) : les pièces en Neon de l'intérieur prennent la couleur
+-- de l'état, en douceur, dans la boucle des lumières (aucune boucle en plus). Un néon n'est repeint que quand sa
+-- couleur change vraiment ; sa couleur d'origine est rendue exactement quand l'effet retombe. Pas le rotor (couleur du
+-- mode), ni les LedsAlerte, ni les écrans. Si le serveur change lui-même la couleur d'un néon (alerte sans dossier
+-- LedsAlerte, style de la console), c'est sa nouvelle couleur d'origine.
+local NEONS = Config.NeonsSalle or {}
+local neonsSalle = {}            -- [BasePart] = { origine = Color3, ecrite = Color3 ou nil (jamais repeint) }
+local couleurNeons, forceNeons = nil, 0 -- couleur et force appliquées aux néons, lissées
+local cleNeons = nil             -- couleur et force (arrondies) du dernier passage : rien à repeindre si elles n'ont pas bougé
+local dossierLedsNeons = interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte")
+local neonsExclus = {}
+for _, nom in NEONS.Exclure or { "Ecran", "Ecran-Ingenieure" } do neonsExclus[nom] = true end
+if NEONS.ExclureIgnorerVue == true then neonsExclus[Config.NomIgnorerVue or "IgnorerVue"] = true end
+local function memeCouleur(a, b) -- les couleurs des pièces sont gardées sur 8 bits par canal : on compare à 1/255 près
+	return math.abs(a.R - b.R) < 0.006 and math.abs(a.G - b.G) < 0.006 and math.abs(a.B - b.B) < 0.006
+end
+local function neonExclu(objet)
+	if objet == rotor or objet:IsDescendantOf(rotor) then return true end
+	if dossierLedsNeons and objet:IsDescendantOf(dossierLedsNeons) then return true end
+	if string.sub(objet.Name, 1, 6) == "Tardis" then return true end -- pièces d'effet des scripts
+	local p = objet
+	while p and p ~= interieur do
+		if neonsExclus[p.Name] then return true end
+		p = p.Parent
+	end
+	return false
+end
+local function enregistrerNeon(objet)
+	if NEONS.Actif == false or neonsSalle[objet] or not objet:IsA("BasePart") or objet.Material ~= Enum.Material.Neon or neonExclu(objet) then return end
+	local infos = { origine = objet.Color, ecrite = nil }
+	neonsSalle[objet] = infos
+	objet:GetPropertyChangedSignal("Color"):Connect(function()
+		if infos.ecrite and memeCouleur(objet.Color, infos.ecrite) then return end -- notre propre couleur
+		infos.origine = objet.Color
+		infos.ecrite = nil
+		cleNeons = nil -- à repeindre au prochain passage
+	end)
+end
+local function chercherNeons()
+	for _, objet in interieur:GetDescendants() do enregistrerNeon(objet) end
+end
+chercherNeons()
+interieur.DescendantAdded:Connect(enregistrerNeon)
+-- Hors tension, le serveur passe les néons en plastique : ceux d'un joueur arrivé à ce moment-là sont trouvés au retour du courant
+exterieur:GetAttributeChangedSignal("Alimentation"):Connect(function()
+	if exterieur:GetAttribute("Alimentation") ~= false then task.defer(chercherNeons) end
+end)
+-- Une image : la couleur visée suit l'état (bleu, ambre, cyan, rouge) ou le secours rouge hors tension
+local function lisserNeons(dt, horsTension, cibleCouleurSalle)
+	if NEONS.Actif == false then return end
+	local cible, force = cibleCouleurSalle, cibleCouleurSalle and (tonumber(NEONS.Force) or 0.5) or 0
+	if horsTension then cible, force = NEONS.Secours or Color3.fromRGB(255, 40, 40), tonumber(NEONS.ForceSecours) or 0.6 end
+	if UI.effetsReduits() then force *= tonumber(NEONS.ForceReduite) or 0.5 end
+	force = math.clamp(force, 0, 1)
+	-- « Aucun flash » : un changement encore plus lent (jamais de saut de couleur)
+	local lissage = math.min(dt * (UI.sansFlash() and 0.75 or 1.5), 1)
+	if cible then couleurNeons = couleurNeons and couleurNeons:Lerp(cible, lissage) or cible end
+	forceNeons += (force - forceNeons) * lissage
+	if force == 0 and forceNeons < 0.004 then forceNeons = 0 end
+end
+local function peindreNeons()
+	if NEONS.Actif == false then return end
+	local cle = "0"
+	if forceNeons > 0 and couleurNeons then
+		cle = string.format("%d,%d,%d,%d", math.floor(couleurNeons.R * 255 + 0.5), math.floor(couleurNeons.G * 255 + 0.5),
+			math.floor(couleurNeons.B * 255 + 0.5), math.floor(forceNeons * 255 + 0.5))
+	end
+	if cle == cleNeons then return end -- rien n'a bougé depuis le dernier passage
+	cleNeons = cle
+	for part, infos in neonsSalle do
+		if not part.Parent then
+			neonsSalle[part] = nil
+		elseif cle == "0" then
+			-- L'effet est retombé : la couleur d'origine, exactement
+			if infos.ecrite then
+				infos.ecrite = infos.origine
+				part.Color = infos.origine
+				infos.ecrite = nil
+			end
+		else
+			local couleur = infos.origine:Lerp(couleurNeons, forceNeons)
+			if not (infos.ecrite and memeCouleur(infos.ecrite, couleur)) then
+				infos.ecrite = couleur
+				part.Color = couleur
+			end
+		end
+	end
+end
 local function themeChoisi()
 	local nom = exterieur:GetAttribute("Theme")
 	for _, theme in Config.Themes or {} do
@@ -595,8 +685,10 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 		forceEtatSalle += ((cibleCouleurSalle and cibleForceSalle or 0) - forceEtatSalle) * lissageSalle
 		if forceEtatSalle < 0.002 and not cibleCouleurSalle then forceEtatSalle = 0 end
+		lisserNeons(dt, horsTension, cibleCouleurSalle) -- V6.9.10.1 : néons de la salle
 		-- Trois exemplaires tournent (un par TARDIS) : on ne travaille que si la caméra est près de cette salle
 		if (workspace.CurrentCamera.CFrame.Position - interieur:GetPivot().Position).Magnitude > 350 then return end
+		peindreNeons()
 		if not listeLumieres then
 			listeLumieres = {}
 			for _, objet in interieur:GetDescendants() do

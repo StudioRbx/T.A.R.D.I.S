@@ -92,10 +92,16 @@ require(script:WaitForChild("Replay"))({ C = C, RunService = RunService, UI = UI
 require(script:WaitForChild("AutoDestruction"))({ ReplicatedStorage = ReplicatedStorage, RunService = RunService, animer = animer, camera = camera, creer = creer, exterieur = exterieur, jeSuisDedans = jeSuisDedans, joueur = joueur, partTemporaire = partTemporaire, secouer = secouer })
 
 --------------------------------------------------------------------
--- Invitation, interphone et casiers : module Interactions
+-- Invitation et casiers (dont celui de la console) : module Interactions
 --------------------------------------------------------------------
 local Interactions = require(script:WaitForChild("Interactions"))({ C = C, Config = Config, UI = UI, UserInputService = UserInputService, animer = animer, camera = camera, creer = creer, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, maRacine = maRacine, remote = remote, texte = texte })
 local afficherInvitation = Interactions.afficherInvitation
+
+--------------------------------------------------------------------
+-- Commandes de la console qui ouvrent un panneau (V6.9.10.1) : gestion de l'énergie (écran ingénieur), jukebox,
+-- messages « réservé aux… » : module Console
+--------------------------------------------------------------------
+require(script:WaitForChild("Console"))({ C = C, Config = Config, UI = UI, UserInputService = UserInputService, creer = creer, def = def, exterieur = exterieur, interieur = interieur, joueur = joueur, maRacine = maRacine, remote = remote, texte = texte })
 
 --------------------------------------------------------------------
 -- Boucliers : révélation, fissures, chute : module Boucliers

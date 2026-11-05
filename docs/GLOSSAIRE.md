@@ -11,7 +11,7 @@ Entre parenthèses : le nom utilisé dans le code ou dans `TardisConfig`, quand 
 | **Vortex** | L'entre-deux du voyage : le TARDIS n'est plus nulle part. État `Vol`. Depuis la V3.10, c'est aussi un décor de tunnel dans le ciel pendant le vol libre. |
 | **Remat** (rematérialisation) | Le TARDIS apparaît à destination. État `Remat`, puis `Pose`. |
 | **Posé** | Le TARDIS est à l'arrêt, portes utilisables. État `Pose`. |
-| **Destination** | Une Part du dossier `TARDIS_DESTINATIONS`, un joueur, ou des coordonnées libres. Elle s'affiche sur l'écran de la console. |
+| **Destination** | Une Part du dossier `TARDIS_DESTINATIONS`, un joueur, ou des coordonnées libres. Elle s'affiche sur les écrans de la console. |
 | **Zones** | Sous-dossiers de `TARDIS_DESTINATIONS` : `ACCORDE` (atterrissage normal), `REFUSE` (seule une remat d'Urgence y est possible), `SANS_EXPRESS` (un voyage Rapide y devient Classique). |
 | **Repli** | Si le joueur visé quitte le jeu pendant le voyage, le TARDIS revient à son point de départ (V6.9.7). |
 | **Téléportation de poche** | Voyage lancé alors que le TARDIS est rapetissé et porté par un joueur (V4.1). |
@@ -49,7 +49,9 @@ Entre parenthèses : le nom utilisé dans le code ou dans `TardisConfig`, quand 
 | **Racine** | La Part principale (PrimaryPart) de l'extérieur, par laquelle le TARDIS est déplacé. |
 | **Lampe** | Le fanal au sommet de la cabine ; elle clignote pendant les voyages. |
 | **Portail** | La vue de l'intérieur à travers la porte ouverte, et le passage d'un côté à l'autre. |
-| **Console** | Le pupitre central : levier de vol, sélecteur, écran de destination, verrou, alimentation, alerte, démarrage. |
+| **Console** | Le pupitre central : levier de vol, sélecteur (avec le bouton Vol libre, `Colors`), écrans de destination, écran ingénieur, verrou, alimentation, alerte (`Datapanel`), démarrage, casier et jukebox. |
+| **Écrans de destination** | Les pièces `Ecran` de la console (une, deux ou plus) : destination, état, mode, alertes ; affichage fait en script, face choisie par l'attribut `FaceEcran` (V6.9.10.1). |
+| **Écran ingénieur** (`Ecran-Ingenieure`) | Écran de la console qui montre en direct l'intégrité, l'énergie, la régulation et les boucliers ; un clic d'un pilote ou d'un technicien ouvre le menu de gestion de l'énergie (V6.9.10.1). |
 | **Rotor** | La colonne centrale de la console ; sa couleur suit le mode de voyage. |
 | **Alimentation** | Courant du TARDIS : coupé, plus rien ne marche à bord. |
 | **Boucliers** | Protection contre les joueurs et les balles (V3.14). |

@@ -18,14 +18,20 @@ local rotor = interieur:WaitForChild(Config.NomRotor)
 -- Le Rotor peut être une Part ou un Model : les sons ont besoin d'une Part pour être positionnés
 local partRotor = rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true)
 -- Un ProximityPrompt doit être dans une Part : si la commande est un Model, on prend sa première Part
-local function enPart(objet)
+-- (V6.9.10.1 : exclu = une commande rangée dedans qui a son propre prompt, comme Colors dans le Selecteur)
+local function enPart(objet, exclu)
 	if objet:IsA("BasePart") then return objet end
+	local function libre(part) return part and not (exclu and (part == exclu or part:IsDescendantOf(exclu))) end
+	if objet:IsA("Model") and libre(objet.PrimaryPart) then return objet.PrimaryPart end
+	for _, part in objet:GetDescendants() do
+		if part:IsA("BasePart") and libre(part) then return part end
+	end
 	return (objet:IsA("Model") and objet.PrimaryPart) or objet:FindFirstChildWhichIsA("BasePart", true)
 end
 
-local selecteur = enPart(Config.Trouver(interieur, "Selecteur"))
+-- Le Selecteur garde son prompt sur une autre pièce que le bouton Vol libre (Console › Selecteur › Colors, V6.9.10.1)
+local selecteur = enPart(Config.Trouver(interieur, "Selecteur"), Config.trouverCommande(interieur, "VolLibre"))
 local levier = enPart(Config.Trouver(interieur, "Levier"))
-local ecran = Config.Trouver(interieur, "Ecran")
 
 assert(exterieur.PrimaryPart, "[TARDIS] Le Model extérieur doit avoir un PrimaryPart (la base).")
 
@@ -138,29 +144,6 @@ local function jouerVoyage(etat, mode, dehorsAussi)
 	if dehorsAussi and normal.ext then jouerExpress(normal.ext, etat) end
 end
 
---------------------------------------------------------------------
--- Écran de la console
---------------------------------------------------------------------
-local guiEcran = Instance.new("SurfaceGui")
-guiEcran.Face = Enum.NormalId.Front
-guiEcran.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-guiEcran.PixelsPerStud = 50
-guiEcran.Parent = ecran
-
-local texte = Instance.new("TextLabel")
-texte.Size = UDim2.fromScale(1, 1)
-texte.BackgroundColor3 = Color3.fromRGB(10, 20, 30)
-texte.Font = Enum.Font.Code
-texte.TextScaled = true
-texte.Parent = guiEcran
-
-local libelles = {
-	[E.Pose] = "POSÉ",
-	[E.Demat] = "DÉMATÉRIALISATION",
-	[E.Vol] = "EN VOL",
-	[E.Remat] = "MATÉRIALISATION",
-}
-
 local function etatActuel()
 	return exterieur:GetAttribute("Etat") or E.Pose
 end
@@ -233,24 +216,10 @@ local function publierDestinations()
 	exterieur:SetAttribute("CarteDestinations", table.concat(carte, "\n"))
 end
 
-local function majEcran(alerte)
-	local dest = destinationChoisie()
-	local ligneEtat = "ÉTAT : " .. libelles[etatActuel()]
-	if exterieur:GetAttribute("Alerte") then
-		ligneEtat = "!! ALERTE !!\n" .. ligneEtat
-	end
-	if exterieur:GetAttribute("DemarrageBloque") then
-		ligneEtat ..= "\n(DÉMARRAGE BLOQUÉ)"
-	end
-	if exterieur:GetAttribute("Camouflage") then
-		ligneEtat ..= "\n(CAMOUFLÉ)"
-	end
-	if exterieur:GetAttribute("Retreci") then
-		ligneEtat ..= "\n(RÉTRÉCI)"
-	end
-	texte.Text = string.format("DESTINATION :\n%s\n\n%s", dest and dest.Name or "AUCUNE", alerte or ligneEtat)
-	texte.TextColor3 = alerte and Color3.fromRGB(255, 90, 90) or Color3.fromRGB(120, 220, 255)
-end
+-- Écrans de la console (V6.9.10.1) : faits en script par le module Ecrans, sur chaque pièce « Ecran » de la Console
+-- (une, deux ou plus) et sur l'écran ingénieur. majEcran(message) : message court ; majEcran() : affichage normal.
+local Ecrans = require(script:WaitForChild("Ecrans"))({ Config = Config, E = E, Players = Players, def = def, destinationChoisie = destinationChoisie, etatActuel = etatActuel, exterieur = exterieur, interieur = interieur, remote = remote })
+local majEcran = Ecrans.majEcran
 
 -- Journal du TARDIS (V6.8) : TardisSupervision l'envoie au journal du jeu (Config.Journal)
 local function journal(categorie, message)
@@ -1141,7 +1110,7 @@ end
 -- Alimentation : Controls > LockLever > Main > Lever > Main
 brancherCommande("Alimentation", "Rétablir l'alimentation", "Couper l'alimentation", "Alimentation", false,
 	basculerAlimentation, "HORS TENSION", "ALIMENTATION RÉTABLIE")
--- Alerte : Console > Circuit > Cloister > Switch
+-- Alerte : Console > Datapanel > Redbutton > Button (V6.9.10.1 ; avant : Console > Circuit > Cloister > Switch)
 brancherCommande("Alerte", "Lever l'alerte", "Déclencher l'alerte", "Alerte", true,
 	basculerAlerte, "ALERTE GÉNÉRALE", "FIN DE L'ALERTE")
 -- Démarrage : Controls > Power > On
@@ -1758,9 +1727,13 @@ task.spawn(function()
 	end
 end)
 
-remote.OnServerEvent:Connect(function(joueur, action, donnees)
+-- Les ordres des pilotes (menu, tablette) ; V6.9.10.1 : aussi les commandes de la console qui reprennent une action du
+-- menu (bouton Vol libre), avec exactement les mêmes vérifications. rappel(ok, message) : seulement pour un appel du
+-- serveur lui-même (un client ne peut pas envoyer de fonction par un RemoteEvent).
+local function traiterOrdre(joueur, action, donnees, rappel)
 	-- Le serveur ne fait jamais confiance au client : permission, type et fréquence vérifiés ici
 	if typeof(action) ~= "string" then return end
+	if typeof(rappel) ~= "function" then rappel = nil end
 	-- Préférences du joueur : traitées par TardisExtras seul (V6.9.9). Ici, elles consommeraient le délai entre deux ordres
 	-- d'un pilote (DÉMAT ignoré juste après un changement de réglage) et remettraient son inactivité à zéro.
 	if action == "Prefs" then return end
@@ -1860,12 +1833,14 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	local maintenance = Config.bloqueParMaintenance(exterieur, action)
 	if maintenance then
 		remote:FireClient(joueur, "Impossible : TARDIS en maintenance (" .. maintenance .. ").", false)
+		if rappel then rappel(false, "EN MAINTENANCE") end
 		return
 	end
 	marquerActivite()
 	-- Détruit (auto-destruction) ou compte à rebours en cours : plus aucune commande
 	if exterieur:GetAttribute("Detruit") or exterieur:GetAttribute("AutoDestructionDebut") then
 		remote:FireClient(joueur, exterieur:GetAttribute("Detruit") and "Impossible : TARDIS détruit, il se reconstitue bientôt." or "Impossible : auto-destruction en cours.", false)
+		if rappel then rappel(false, exterieur:GetAttribute("Detruit") and "TARDIS DÉTRUIT" or "AUTO-DESTRUCTION EN COURS") end
 		return
 	end
 	local maintenant = os.clock()
@@ -1874,6 +1849,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 
 	local function repondre(ok, erreur, messageOk)
 		remote:FireClient(joueur, ok and messageOk or ("Impossible : " .. string.lower(erreur or "erreur")), ok)
+		if rappel then rappel(ok, ok and messageOk or (erreur or "ERREUR")) end
 	end
 
 	-- Mode demandé : "Normal", "Urgence", "Express", "Sauvetage" (les anciens champs urgence / express restent acceptés) ;
@@ -2088,7 +2064,50 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		local ok, erreur = basculerCamouflage()
 		repondre(ok, erreur, exterieur:GetAttribute("Camouflage") and "Camouflage activé." or "Camouflage désactivé.")
 	end
-end)
+end
+remote.OnServerEvent:Connect(traiterOrdre)
+
+--------------------------------------------------------------------
+-- Bouton Vol libre de la console (V6.9.10.1) : Console › Selecteur › Colors. Un clic ou l'invite (touche F) lance le vol
+-- libre pour le pilote qui l'actionne, par le même chemin que l'action « VolLibreDebut » de la tablette (traiterOrdre :
+-- pilote, maintenance, détruit, délai entre deux ordres, puis demarrerVolLibre : posé, porté, courant, démarrage…).
+-- Rien pour un non-pilote. Un refus s'affiche sur les écrans de destination, comme pour les autres commandes.
+--------------------------------------------------------------------
+if Config.Chemins.VolLibre then
+	task.spawn(function()
+		local partVol = Config.partDe(Config.trouverCommande(interieur, "VolLibre", 10))
+		if not partVol then
+			warn("[TARDIS] Bouton Vol libre (" .. table.concat(Config.Chemins.VolLibre, " › ") .. ") introuvable : le vol libre reste dans la tablette.")
+			return
+		end
+		local reglagesBouton = Config.BoutonVolLibre or {}
+		local promptVol = creerPrompt(partVol, "Vol libre")
+		promptVol.Name = "TardisVolLibre"
+		promptVol.MaxActivationDistance = reglagesBouton.Distance or 10
+		local okTouche, touche = pcall(function() return Enum.KeyCode[reglagesBouton.Touche or "F"] end)
+		promptVol.KeyboardKeyCode = okTouche and touche or Enum.KeyCode.F -- pas E : l'invite du Selecteur reste visible
+		promptVol.GamepadKeyCode = Enum.KeyCode.ButtonY
+		local clicVol = Instance.new("ClickDetector")
+		clicVol.Name = "TardisVolLibre"
+		clicVol.MaxActivationDistance = reglagesBouton.Distance or 10
+		clicVol.Parent = partVol
+		local function lancerDepuisConsole(joueur)
+			if not pilotes[joueur] then return end
+			traiterOrdre(joueur, "VolLibreDebut", nil, function(ok, message)
+				if not ok then alerter(string.upper(message or "IMPOSSIBLE")) end
+			end)
+		end
+		promptVol.Triggered:Connect(lancerDepuisConsole)
+		clicVol.MouseClick:Connect(lancerDepuisConsole)
+		-- L'invite n'apparaît que TARDIS posé, hors vol libre
+		local function majBoutonVol()
+			promptVol.Enabled = etatActuel() == E.Pose and not exterieur:GetAttribute("VolLibre")
+		end
+		exterieur:GetAttributeChangedSignal("Etat"):Connect(majBoutonVol)
+		exterieur:GetAttributeChangedSignal("VolLibre"):Connect(majBoutonVol)
+		majBoutonVol()
+	end)
+end
 
 Players.PlayerRemoving:Connect(function(joueur)
 	dernierOrdre[joueur] = nil

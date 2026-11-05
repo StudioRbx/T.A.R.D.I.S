@@ -48,7 +48,7 @@ tache(lambda: R.update(Config=premier(appeler(G["require"], [rs.m_FindFirstChild
 Config, UI = R["Config"], R["UI"]
 E = Config.get("Etats")
 VL = Config.get("VolLibre")
-verifier("Config.Version = 6.9.10", Config.get("Version") == "6.9.10", Config.get("Version"))
+verifier("Config.Version ≥ 6.9.10 (6.9.10 à sa sortie)", tuple(int(n) for n in Config.get("Version").split(".")) >= (6, 9, 10), Config.get("Version"))
 CR, FR = VL.get("Croisiere"), VL.get("Frein")
 verifier("Config.VolLibre.Croisiere.DistanceObstacle = 25", CR and CR.get("DistanceObstacle") == 25)
 verifier("Config.VolLibre.Frein : recharge 1 s, secousses, portée, fumée", FR and (FR.get("Recharge"), FR.get("SecousseABord"), FR.get("SecousseDehors"), FR.get("PorteeDehors"), FR.get("DureeFumee")) == (1, 0.5, 0.4, 60, 0.5))
@@ -627,7 +627,7 @@ V = R2["V"]
 verifier("Serveur : module VolLibre chargé, freinerVol exporté", V is not None and V.get("freinerVol") is not None and not roblox.ERREURS, roblox.ERREURS[:2])
 # Le vrai aiguillage des actions de TardisServeur (du début du gestionnaire jusqu'aux actions des pilotes)
 serveur = lire("ServerScriptService/TardisServeur/init.server.lua")
-debut = serveur.index("remote.OnServerEvent:Connect(function(joueur, action, donnees)")
+debut = serveur.index("local function traiterOrdre(joueur, action, donnees, rappel)")  # V6.9.10.1 : le gestionnaire a un nom
 fin_ = serveur.index("\t-- Copilote (V6.9.1) : seulement la navigation", debut)
 canal = Instance("RemoteEvent", "TardisCommande_TARDIS_1", game2.m_FindFirstChild("ReplicatedStorage"))
 GENERAL = []  # actions arrivées jusqu'au traitement des pilotes (délai entre deux ordres, activité…)
@@ -640,7 +640,7 @@ local teleAtterrir, lancerDescente, freinerVol = V.teleAtterrir, V.lancerDescent
 local function poserTardis() end
 local function setCamouflage() end
 """
-code = prelude + serveur[debut:fin_] + "\tgeneral(joueur, action)\nend)\n"
+code = prelude + serveur[debut:fin_] + "\tgeneral(joueur, action)\nend\nremote.OnServerEvent:Connect(traiterOrdre)\n"
 lancer(Fonction("aiguillage", py=lambda: I2.executer(code, "aiguillage-serveur", (canal, xs, Config2, E2, V, Fonction("general", py=lambda j, a: GENERAL.append(a) or [])))))
 verifier("Serveur : vrai aiguillage des actions extrait et branché sur TardisCommande_TARDIS_1", len(canal.__lua_index__("OnServerEvent").connexions) == 1 and not roblox.ERREURS, roblox.ERREURS[:2])
 autreJ = Instance("Player", "Amy", game2.m_FindFirstChild("Players")); autreJ.props.update({"UserId": 202, "DisplayName": "Amy"})

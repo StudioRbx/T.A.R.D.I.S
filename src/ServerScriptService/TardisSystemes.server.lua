@@ -1189,9 +1189,11 @@ local function commandeTechnique(joueur, donnees)
 	local commande = donnees.commande
 
 	if commande == "Reguler" then
-		local systeme, valeur = donnees.systeme, tonumber(donnees.valeur)
-		if not SYSTEMES_REGULES[systeme] or not valeur or valeur ~= valeur then return end
-		valeur = math.clamp(math.floor(valeur + 0.5), 0, 100)
+		local systeme, valeur = donnees.systeme, donnees.valeur
+		-- (V6.9.10.1 : un nombre seulement, entre 0 et 100 ; hors bornes, refusé au lieu d'être ramené dans 0..100)
+		if type(systeme) ~= "string" or not SYSTEMES_REGULES[systeme] or type(valeur) ~= "number" or valeur ~= valeur then return end
+		if valeur < 0 or valeur > 100 then return end
+		valeur = math.floor(valeur + 0.5)
 		exterieur:SetAttribute("Regul" .. systeme, valeur)
 		if systeme == "Vapeur" then exterieur:SetAttribute("VapeurIntensite", intensiteVapeur(valeur)) end
 		exterieur:SetAttribute("TechDernier", string.format("%s\tRégulation %s : %d %%\t%.2f", joueur.DisplayName, string.lower(systeme), valeur, workspace:GetServerTimeNow()))

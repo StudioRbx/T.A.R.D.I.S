@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10"
+Config.Version = "6.9.10.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -28,19 +28,51 @@ Config.NomRotor = "Rotor"            -- Part centrale de la console qui monte/de
 Config.Chemins = {
 	Levier = { "Controls", "Matlever", "Fly", "Levier" },  -- décoller / atterrir
 	Selecteur = { "Console", "Selecteur" },                -- changer de destination
-	Ecran = { "Console", "Ecran" },                        -- affichage destination / état
+	-- Écrans de destination (V6.9.10.1 : faits en script) : TOUTES les pièces nommées « Ecran » de la Console, ou toutes
+	-- les pièces d'un Model / Folder « Ecran » (deux écrans ou plus). Face : attribut « FaceEcran » (voir Config.Ecrans).
+	Ecran = { "Console", "Ecran" },
 	BoutonCamera = { "Console", "BoutonCamera" },          -- caméra au-dessus de la Lampe
 	Verrou = { "Console", "LeverLeft", "Main", "Lever", "Main" }, -- verrouiller / déverrouiller les portes
 	Alimentation = { "Controls", "LockLever", "Main", "Lever", "Main" }, -- couper / rétablir le courant
-	Alerte = { "Console", "Circuit", "Cloister", "Switch" },  -- alerte générale (lumières rouges, urgence)
+	Alerte = { "Console", "Datapanel", "Redbutton", "Button" }, -- (V6.9.10.1) alerte générale (avant : Console › Circuit › Cloister › Switch)
 	Demarrage = { "Controls", "Power", "On" },                -- bloquer / débloquer le décollage
+	VolLibre = { "Console", "Selecteur", "Colors" },          -- (V6.9.10.1) lancer le vol libre (clic ou touche F, pilotes)
+	EcranIngenieur = { "Console", "Ecran-Ingenieure" },       -- (V6.9.10.1) écran ingénieur : PV, énergie, régulation, boucliers
+	Casier = { "Console", "Casier" },                         -- (V6.9.10.1) casier de la console : « Choisir une tenue »
+	JukeBox = { "Console", "JukeBox" },                       -- (V6.9.10.1) jukebox de la console : « Musique » (pilotes)
 }
+-- Commandes facultatives (V6.9.10.1) : absentes, le diagnostic les range dans les « optionnelles » au lieu des obligatoires
+Config.CheminsFacultatifs = { EcranIngenieur = true, Casier = true, JukeBox = true } -- (V6.9.10.1)
 
 -- Alerte : si TARDIS_Interieur contient un Folder portant ce nom, seules ses lumières passent au rouge.
 -- Sinon, toutes les lumières et tous les néons de l'intérieur passent au rouge.
 Config.NomLedsAlerte = "LedsAlerte"
 Config.CouleurAlerte = Color3.fromRGB(255, 30, 30)
 Config.NomIgnorerVue = "IgnorerVue"  -- Folder optionnel : son contenu n'apparaît pas dans la vue depuis l'extérieur
+
+-- Écrans de la console faits en script (V6.9.10.1) : destination (un ou plusieurs « Ecran ») et écran ingénieur.
+-- Face de l'affichage : attribut texte « FaceEcran » posé dans Studio sur la pièce (ou sur le Model « Ecran ») :
+-- Front, Back, Top, Bottom, Left ou Right ; absent = Front ; « Aucune » = pas d'affichage sur cette pièce.
+Config.Ecrans = {
+	AttributFace = "FaceEcran", -- (V6.9.10.1) nom de l'attribut qui choisit la face
+	PixelsParStud = 50,         -- (V6.9.10.1) finesse de l'affichage
+	Rafraichissement = 0.1,     -- (V6.9.10.1) secondes au moins entre deux mises à jour de l'écran ingénieur (tirs sur le bouclier)
+}
+-- Menu de gestion de l'énergie (V6.9.10.1) : un clic sur l'écran ingénieur (pilotes et techniciens C.T.A.T.)
+Config.EcranIngenieur = {
+	Pas = 5,                 -- (V6.9.10.1) pas des boutons − / + de la régulation (%)
+	DistanceFermeture = 14,  -- (V6.9.10.1) le menu se ferme si on s'éloigne de l'écran de plus de tant de studs
+}
+-- Panneau du jukebox de la console (V6.9.10.1) : « Console › JukeBox », mêmes pistes que la tablette (Config.Jukebox)
+Config.JukeboxConsole = {
+	DistanceFermeture = 14,  -- (V6.9.10.1) le panneau se ferme si on s'éloigne du jukebox de plus de tant de studs
+}
+-- Bouton Vol libre de la console (V6.9.10.1) : « Console › Selecteur › Colors ». Une autre touche que E, pour que son
+-- invite ne cache pas celle du Selecteur (Roblox n'affiche qu'une invite par touche).
+Config.BoutonVolLibre = {
+	Touche = "F",            -- (V6.9.10.1) touche de l'invite (manette : Y)
+	Distance = 10,           -- (V6.9.10.1) distance du clic et de l'invite (studs)
+}
 Config.NomPortesInt = "PortesInterieures" -- Folder des portes de l'intérieur (cachées quand la porte est ouverte)
 Config.NomArrivee = "Arrivee"             -- Part optionnelle de l'intérieur : où arrivent les joueurs embarqués
 Config.NomDossierPortes = "TARDISDoors"   -- Model des battants extérieurs
@@ -197,6 +229,18 @@ Config.CouleursSalle = { -- (V6.9.9)
 	Voyage = Color3.fromRGB(255, 176, 80),  -- ambre : démat, remat (et vol libre visible)
 	Vortex = Color3.fromRGB(90, 230, 255),  -- cyan : dans le vortex (vol, vol libre dans le vortex ou invisible)
 	Alerte = Color3.fromRGB(255, 50, 50),   -- rouge : alerte générale
+}
+-- Néons de la salle selon l'état (V6.9.10.1) : les pièces en matériau Neon de l'intérieur prennent elles aussi la couleur
+-- de l'état (Config.CouleursSalle), en douceur, puis retrouvent exactement leur couleur d'origine. Pas touchés : le rotor
+-- (couleur du mode), le dossier LedsAlerte, les écrans (et tout ce qui est rangé dedans). Hors tension : rouge de secours, fixe.
+Config.NeonsSalle = {
+	Actif = true,               -- (V6.9.10.1)
+	Force = 0.5,                -- (V6.9.10.1) part de la couleur de l'état dans la couleur du néon (0 à 1)
+	ForceReduite = 0.5,         -- (V6.9.10.1) « réduire les effets » : la force est multipliée par ceci
+	Secours = Color3.fromRGB(255, 40, 40), -- (V6.9.10.1) hors tension
+	ForceSecours = 0.6,         -- (V6.9.10.1)
+	Exclure = { "Ecran", "Ecran-Ingenieure" }, -- (V6.9.10.1) noms des pièces (ou dossiers) jamais recolorées
+	ExclureIgnorerVue = false,  -- (V6.9.10.1) vrai : les néons du dossier IgnorerVue gardent aussi leur couleur
 }
 
 -- Vue de l'intérieur depuis l'extérieur
@@ -734,6 +778,26 @@ function Config.Trouver(racine, cle)
 		objet = objet:WaitForChild(nom)
 	end
 	return objet
+end
+-- (V6.9.10.1) Retrouve une commande facultative : nil si son chemin n'existe pas (attente : secondes au plus par
+-- dossier, 0 ou nil = sans attendre). Ne bloque jamais le script, contrairement à Config.Trouver.
+function Config.trouverCommande(racine, cle, attente)
+	local chemin = Config.Chemins and Config.Chemins[cle]
+	if not chemin or not racine then return nil end
+	local objet = racine
+	for _, nom in chemin do
+		local suivant = objet:FindFirstChild(nom)
+		if not suivant and attente and attente > 0 then suivant = objet:WaitForChild(nom, attente) end
+		objet = suivant
+		if not objet then return nil end
+	end
+	return objet
+end
+-- (V6.9.10.1) La pièce d'une commande : elle-même, ou le PrimaryPart (sinon la première pièce) de son Model
+function Config.partDe(objet)
+	if not objet then return nil end
+	if objet:IsA("BasePart") then return objet end
+	return (objet:IsA("Model") and objet.PrimaryPart) or objet:FindFirstChildWhichIsA("BasePart", true)
 end
 
 -- Nom de mode valide ("Normal", "Urgence", "Express", "Sauvetage", "Catastrophe"). Accepte aussi un booléen :

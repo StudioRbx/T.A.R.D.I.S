@@ -18,6 +18,13 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **`Grille`** (ou un dossier `Grilles`) : vapeur et purge ;
 - sous-dossiers de destinations **`REFUSE`** et **`SANS_EXPRESS`** si tu veux des zones interdites ;
 - **V6.9.9** : ranger les vitres de la cabine dans un dossier **`Fenetres`** de l'extérieur, ou les nommer **`Vitre`** (vitres qui s'éteignent en dernier) ; vérifier que la salle contient des **PointLight** ou **SpotLight** (lumières selon l'état) ;
+- **V6.9.10.1, la console** (rien d'autre à construire : les affichages et les boutons sont faits par les scripts) :
+  - **néons** : les pièces en matériau **Neon** de l'intérieur prennent les couleurs de l'état (sauf rotor, `LedsAlerte`, écrans) ; une pièce qui ne doit jamais changer : la ranger dans `LedsAlerte`, ou ajouter son nom à `Config.NeonsSalle.Exclure` ;
+  - **deux écrans de destination** : deux pièces nommées **`Ecran`** dans `Console`, ou un Model **`Ecran`** qui contient les deux pièces ; si l'affichage est sur la mauvaise face, ajouter à la pièce (ou au Model) l'attribut texte **`FaceEcran`** = `Front`, `Back`, `Top`, `Bottom`, `Left` ou `Right` (`Aucune` : pas d'affichage, pour un cadre) ;
+  - **alerte** : `Console › Datapanel › Redbutton › Button` ;
+  - **vol libre** : `Console › Selecteur › Colors` (clic ou touche F) ;
+  - **écran ingénieur** : `Console › Ecran-Ingenieure` (avec le tiret ; même attribut `FaceEcran`) ;
+  - **casier** : `Console › Casier` (pièce ou Model) ; **jukebox** : `Console › JukeBox` (J et B majuscules) ;
 - supprimer les scripts du kit désactivés (`Default Mainscript`, `README:`, les `Move` / `MainPhase` des portes).
 
 ## 3. Équipes

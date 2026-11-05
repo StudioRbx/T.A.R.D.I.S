@@ -1,10 +1,10 @@
 -- StarterPlayerScripts > TardisExtrasClient > Interactions (ModuleScript)
--- Invitation, interphone et casiers
+-- Invitation et casiers (V6.9.10.1 : casier de la console avec un vrai bouton)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
 	local C, Config, UI, UserInputService, animer, camera = contexte.C, contexte.Config, contexte.UI, contexte.UserInputService, contexte.animer, contexte.camera
-	local creer, exterieur, interieur, jeSuisDedans, joueur, maRacine = contexte.creer, contexte.exterieur, contexte.interieur, contexte.jeSuisDedans, contexte.joueur, contexte.maRacine
+	local creer, interieur, joueur, maRacine = contexte.creer, contexte.interieur, contexte.joueur, contexte.maRacine
 	local remote, texte = contexte.remote, contexte.texte
 
 	--------------------------------------------------------------------
@@ -38,71 +38,18 @@ return function(contexte)
 	end
 
 	--------------------------------------------------------------------
-	-- 15) Interphone : parler entre l'extérieur et l'intérieur
+	-- 16) Casiers : maintenir E 3 s sur un "Casier", la caméra recule face au joueur, un menu de tenues apparaît.
+	-- Casier de la console (V6.9.10.1, Config.Chemins.Casier = Console › Casier, pièce ou Model) : un vrai bouton,
+	-- l'invite « Choisir une tenue » (appui court) et un clic, qui ouvrent le même menu.
 	--------------------------------------------------------------------
 	do
-		local gui = creer("ScreenGui", { Name = "TardisInterphone", ResetOnSpawn = false, Enabled = false, Parent = joueur:WaitForChild("PlayerGui") })
-		local panneau = creer("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -20), Size = UDim2.fromOffset(300, 0),
-			AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.1, Parent = gui },
-		{ UI.coin(12), UI.contour(C.cyan, 1, 0.4), UI.marges(10), UI.pile(6) })
-		texte({ Text = "●  INTERPHONE", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.cyan, LayoutOrder = 1, Parent = panneau })
-		local saisie = creer("TextBox", { Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = C.panneau, Text = "", PlaceholderText = "Message… (Entrée pour envoyer)",
-			PlaceholderColor3 = C.texte2, Font = UI.POLICE, TextSize = 12, TextColor3 = C.texte, ClearTextOnFocus = false, LayoutOrder = 2, Parent = panneau },
-		{ UI.coin(8), creer("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }) })
-		saisie.FocusLost:Connect(function(entree)
-			if entree and #saisie.Text > 0 then
-				remote:FireServer("Interphone", { texte = string.sub(saisie.Text, 1, 120) })
-				saisie.Text = ""
-			end
-		end)
-		-- Le panneau n'apparaît qu'à l'intérieur, ou dehors à moins de 12 studs de la porte
-		task.spawn(function()
-			while true do
-				task.wait(0.5)
-				local racine = maRacine()
-				local pres = racine and (jeSuisDedans() or (racine.Position - exterieur:GetPivot().Position).Magnitude < 12)
-				gui.Enabled = pres == true and exterieur:GetAttribute("Detruit") ~= true
-			end
-		end)
-		-- Les messages : bulle au-dessus de la porte extérieure (venus de l'intérieur) ou de la porte intérieure (venus de dehors)
-		local bulle = nil
-		exterieur:GetAttributeChangedSignal("Interphone"):Connect(function()
-			local brut = exterieur:GetAttribute("Interphone")
-			local origine, nom, message = string.match(brut or "", "^(%a+)\t(.-)\t(.-)\t")
-			if not origine then return end
-			if bulle then bulle:Destroy() end
-			local support
-			if origine == "dedans" then
-				support = exterieur.PrimaryPart
-			else
-				support = interieur:FindFirstChild(Config.NomPortailInt or "Portail")
-			end
-			if not support then return end
-			bulle = creer("BillboardGui", { Size = UDim2.fromOffset(260, 60), StudsOffsetWorldSpace = Vector3.new(0, origine == "dedans" and 11 or 4, 0),
-				AlwaysOnTop = true, MaxDistance = 60, Parent = support })
-			local cadre = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Parent = bulle },
-			{ UI.coin(10), UI.contour(C.cyan, 1, 0.3), UI.marges(8) })
-			texte({ Text = "INTERPHONE  ·  " .. nom, Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.cyan, Size = UDim2.new(1, 0, 0, 14), Parent = cadre })
-			texte({ Text = message, TextSize = 12, TextColor3 = C.texte, TextWrapped = true, Position = UDim2.fromOffset(0, 16), Size = UDim2.new(1, 0, 1, -16),
-				TextYAlignment = Enum.TextYAlignment.Top, Parent = cadre })
-			-- Notification pour ceux qui sont du côté concerné
-			local concerne = (origine == "dedans" and not jeSuisDedans() and (camera.CFrame.Position - exterieur:GetPivot().Position).Magnitude < 40)
-				or (origine == "dehors" and jeSuisDedans())
-			if concerne then UI.son("Notification") end
-			local moi = bulle
-			task.delay(10, function() if bulle == moi then bulle:Destroy() bulle = nil end end)
-		end)
-	end
-
-	--------------------------------------------------------------------
-	-- 16) Casiers : maintenir E 3 s sur un "Casier", la caméra recule face au joueur, un menu de tenues apparaît
-	--------------------------------------------------------------------
-	do
+		local objetConsole = Config.trouverCommande(interieur, "Casier")
+		local partConsole = Config.partDe(objetConsole)
 		local casiers = {}
 		for _, objet in interieur:GetDescendants() do
-			if objet.Name == "Casier" then
+			if objet.Name == "Casier" and objet ~= objetConsole then
 				local part = objet:IsA("BasePart") and objet or (objet:IsA("Model") and (objet.PrimaryPart or objet:FindFirstChildWhichIsA("BasePart", true)))
-				if part then table.insert(casiers, part) end
+				if part and part ~= partConsole then table.insert(casiers, part) end
 			end
 		end
 		local gui = creer("ScreenGui", { Name = "TardisCasier", ResetOnSpawn = false, Enabled = false, Parent = joueur:WaitForChild("PlayerGui") })
@@ -218,6 +165,23 @@ return function(contexte)
 			local prompt = creer("ProximityPrompt", { ActionText = "Ouvrir le casier", ObjectText = "Casier", HoldDuration = 3, MaxActivationDistance = 8,
 				RequiresLineOfSight = false, Parent = part })
 			prompt.Triggered:Connect(ouvrir)
+		end
+		-- Casier de la console : appui court (ou clic) ; les règles du choix de tenue ne changent pas (serveur : action Tenue)
+		local function brancherCasierConsole(part)
+			local prompt = creer("ProximityPrompt", { Name = "TardisCasierConsole", ActionText = "Choisir une tenue", ObjectText = "Casier", HoldDuration = 0,
+				MaxActivationDistance = 8, RequiresLineOfSight = false, Parent = part })
+			prompt.Triggered:Connect(ouvrir)
+			local clic = creer("ClickDetector", { Name = "TardisCasierConsole", MaxActivationDistance = 12, Parent = part })
+			clic.MouseClick:Connect(function(qui) if qui == joueur then ouvrir() end end)
+		end
+		if partConsole then
+			brancherCasierConsole(partConsole)
+		elseif Config.Chemins.Casier then
+			-- Pas encore chargé (Streaming) : on l'attend un peu, sans bloquer le reste
+			task.spawn(function()
+				local part = Config.partDe(Config.trouverCommande(interieur, "Casier", 10))
+				if part then brancherCasierConsole(part) end
+			end)
 		end
 		UserInputService.InputBegan:Connect(function(input)
 			if actif and input.KeyCode == Enum.KeyCode.Escape then quitter(false) end

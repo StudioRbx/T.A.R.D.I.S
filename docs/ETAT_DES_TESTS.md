@@ -7,10 +7,33 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 107 tests** — ⬜ 89 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 125 tests** — ⬜ 107 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.1 — Ajustements Studio
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Regarder les néons de la salle, posé, puis pendant un voyage, en alerte, hors tension | bleutés posé, ambrés en démat / remat, cyan dans le vortex, rouges en alerte, rouge fixe hors tension ; changements en douceur | ⬜ |  |
+| Mettre `Config.CouleursSalle.Pose = false`, relancer, voyager puis se poser | les néons reprennent exactement leurs couleurs d'origine une fois posé | ⬜ |  |
+| Pendant un voyage, regarder le rotor, les LedsAlerte et les écrans | le rotor garde la couleur du mode ; LedsAlerte et écrans ne changent pas | ⬜ |  |
+| Regarder les deux écrans de destination, puis changer de destination au Selecteur | les deux affichent la destination, l'état et le mode ; ils changent ensemble | ⬜ |  |
+| Un écran affiché sur la mauvaise face | poser l'attribut texte `FaceEcran` (`Back`, `Top`…) sur la pièce : l'affichage passe sur cette face | ⬜ |  |
+| Couper le courant, puis le rétablir | les deux écrans et l'écran ingénieur deviennent noirs (« HORS TENSION »), puis reviennent | ⬜ |  |
+| Appuyer sur `Console › Datapanel › Redbutton › Button` | alerte générale (et « ALERTE » sur les écrans) ; un second appui la lève | ⬜ |  |
+| Pilote : cliquer sur `Console › Selecteur › Colors` (ou F) | le vol libre démarre ; le Selecteur (E) change toujours de destination | ⬜ |  |
+| Visiteur : cliquer sur Colors | rien | ⬜ |  |
+| Chercher l'interphone près de la porte, dehors et à bord | plus aucun panneau ni bulle d'interphone | ⬜ |  |
+| Regarder l'écran ingénieur, puis tirer sur le bouclier ou régler la régulation | PV, énergie, air, vapeur, boucliers à jour ; rouge quand c'est bas | ⬜ |  |
+| Pilote ou technicien C.T.A.T. : cliquer sur l'écran ingénieur, régler l'énergie avec − / + | le menu s'ouvre ; la tablette technicien et l'écran montrent la nouvelle valeur | ⬜ |  |
+| Visiteur : cliquer sur l'écran ingénieur | « Réservé aux pilotes et aux ingénieurs », pas de menu | ⬜ |  |
+| Menu ouvert : Échap, puis rouvrir et s'éloigner | il se ferme les deux fois | ⬜ |  |
+| `Console › Casier` : « Choisir une tenue » (E court) ou clic | le menu des tenues s'ouvre ; les autres casiers demandent toujours 3 s | ⬜ |  |
+| Pilote : `Console › JukeBox` (« Musique » ou clic), choisir une piste, puis « Arrêter la musique » | la musique joue à bord, puis s'arrête ; avec `Config.Jukebox` vide, le panneau le dit | ⬜ |  |
+| Visiteur : `Console › JukeBox` | « Réservé aux pilotes. » | ⬜ |  |
+| Output au démarrage | le diagnostic trouve Alerte et VolLibre ; Casier, JukeBox, EcranIngenieur absents seraient dans les optionnelles | ⬜ |  |
 
 ## V6.9.10 — Vol libre et vortex
 

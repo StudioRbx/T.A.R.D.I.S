@@ -1035,7 +1035,7 @@ local function lancerAutoDestruction(pilote)
 end
 
 --------------------------------------------------------------------
--- Invitation, interphone, balise "y aller"
+-- Invitation, balise "y aller"
 --------------------------------------------------------------------
 local invitations = {} -- [UserId invité] = { pilote = UserId, fin = os.clock() }
 local function filtrer(joueur, texte)
@@ -1110,6 +1110,46 @@ local function peutEcrireCarnet(joueur)
 end
 
 --------------------------------------------------------------------
+-- Jukebox de la console (V6.9.10.1) : Console › JukeBox. Un clic ou l'invite « Musique » ouvre le panneau du jukebox
+-- (module Console des joueurs) ; le panneau envoie l'action « Jukebox » ci-dessous, comme la tablette. Réservé aux
+-- pilotes, comme l'action : les autres lisent « Réservé aux pilotes. »
+--------------------------------------------------------------------
+do
+	local derniersJukebox = {}
+	local function ouvrirJukebox(joueur, part)
+		local maintenant = os.clock()
+		if derniersJukebox[joueur] and maintenant - derniersJukebox[joueur] < 0.5 then return end
+		derniersJukebox[joueur] = maintenant
+		if not estPilote(joueur) then
+			remote:FireClient(joueur, "__console", "Réservé aux pilotes.", false)
+			return
+		end
+		remote:FireClient(joueur, "__jukebox", part)
+	end
+	Players.PlayerRemoving:Connect(function(joueur) derniersJukebox[joueur] = nil end)
+	if (Config.Chemins or {}).JukeBox then
+		task.spawn(function()
+			local part = Config.partDe(Config.trouverCommande(interieur, "JukeBox", 10))
+			if not part then return end -- facultatif : sans jukebox sur la console, la tablette le garde
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.Name = "TardisJukebox"
+			prompt.ActionText = "Musique"
+			prompt.ObjectText = "Jukebox"
+			prompt.HoldDuration = 0
+			prompt.MaxActivationDistance = 8
+			prompt.RequiresLineOfSight = false
+			prompt.Parent = part
+			prompt.Triggered:Connect(function(joueur) ouvrirJukebox(joueur, part) end)
+			local clic = Instance.new("ClickDetector")
+			clic.Name = "TardisJukebox"
+			clic.MaxActivationDistance = 12
+			clic.Parent = part
+			clic.MouseClick:Connect(function(joueur) ouvrirJukebox(joueur, part) end)
+		end)
+	end
+end
+
+--------------------------------------------------------------------
 -- Commandes (le menu et la tablette envoient le même RemoteEvent que TardisServeur)
 --------------------------------------------------------------------
 local dernier = {}
@@ -1148,21 +1188,6 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			if pilote then dire(pilote, joueur.DisplayName .. " a accepté ton invitation.", true) end
 		elseif pilote then
 			dire(pilote, joueur.DisplayName .. " a refusé ton invitation.", false)
-		end
-		return
-	end
-	if action == "Interphone" then
-		-- Tout le monde peut parler à l'interphone : de l'intérieur, ou de dehors à moins de 12 studs de la porte
-		local texte = typeof(donnees) == "table" and donnees.texte
-		if typeof(texte) ~= "string" or #texte == 0 or #texte > 120 then return end
-		local racine = racineDe(joueur)
-		if not racine then return end
-		local dedansMoi = dedans[joueur] == true
-		if not dedansMoi and (racine.Position - exterieur:GetPivot().Position).Magnitude > 12 then return end
-		local filtre = filtrer(joueur, texte)
-		if filtre then
-			exterieur:SetAttribute("Interphone", string.format("%s\t%s\t%s\t%.2f", dedansMoi and "dedans" or "dehors", joueur.DisplayName, filtre,
-				workspace:GetServerTimeNow()))
 		end
 		return
 	end
