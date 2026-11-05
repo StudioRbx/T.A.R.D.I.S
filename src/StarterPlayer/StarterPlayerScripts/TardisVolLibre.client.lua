@@ -2,7 +2,8 @@
 -- VOL LIBRE du TARDIS (lancé depuis la tablette).
 --   Pilote : vol en 3D dans la direction de la caméra (regarder en haut = monter), 4 vitesses,
 --            collisions avec glissement le long des murs, inclinaison dans le sens du mouvement,
---            double Espace = chute (rentrée atmosphérique), G = se poser, F / bouton = vitesse suivante.
+--            double Espace = chute (rentrée atmosphérique), G = se poser, F / bouton = vitesse suivante,
+--            croisière (V6.9.10, Entrée) : cap, altitude et vitesse tenus sans toucher aux touches, et caméra en orbite.
 --   Tous les joueurs : le TARDIS suit les positions publiées par le serveur, avec traînées lumineuses,
 --            particules temporelles, aura en Turbo, chute et impact.
 
@@ -58,6 +59,9 @@ local R = {
 	TOUCHE_CIBLE = Enum.KeyCode.L,
 	TOUCHE_PRECISION = Enum.KeyCode.P,
 	TOUCHE_CAP = Enum.KeyCode.M,
+	TOUCHE_CROISIERE = Enum.KeyCode.Return, -- V6.9.10 : toutes les lettres évidentes sont prises ; réglable dans la tablette
+	OBSTACLE_CROISIERE = (reglages.Croisiere and reglages.Croisiere.DistanceObstacle) or 25,
+	FREIN_RECHARGE = (reglages.Frein and reglages.Frein.Recharge) or 1,
 	BOOST_DUREE = 1.5, BOOST_RECHARGE = 6,
 	FORMATION_DISTANCE = (reglages.Formation and reglages.Formation.Distance) or 14,
 	FORMATION_HAUTEUR = (reglages.Formation and reglages.Formation.Hauteur) or 16,
@@ -84,6 +88,7 @@ local vol = {
 	stationnaire = false, altitudeFixe = 0, planeur = false, capFixe = nil, cible = nil, atterrissage = nil,
 	dernierBoost = -99, vitessePrecedente = Vector3.zero, gMax = 0, siege = nil, poseSiege = 1,
 	controles = nil,
+	croisiere = nil, dernierFrein = -99, message = nil, -- V6.9.10 : croisière { cap, altitude }, dernier frein envoyé, message temporaire
 }
 
 local function controles()
@@ -253,6 +258,9 @@ do
 	H.boutonCible = bouton("CIBLE  (L)", 160, Color3.fromRGB(110, 60, 90), 11, sous)
 	H.boutonPrecision = bouton("PRÉCISION  (P)", 160, Color3.fromRGB(60, 110, 60), 12, sous)
 	H.boutonCap = bouton("CAP FIXE  (M)", 160, Color3.fromRGB(80, 80, 110), 13, sous)
+	-- V6.9.10 : croisière (23) et caméra en orbite autour de la cabine (26), permise seulement en croisière
+	H.boutonCroisiere = bouton("CROISIÈRE  (Entrée)", 160, Color3.fromRGB(40, 100, 130), 14, sous)
+	H.boutonOrbite = bouton("ORBITE", 160, Color3.fromRGB(70, 70, 120), 15, sous)
 end
 H.boutonPlus.Activated:Connect(function()
 	H.sousMenu.Visible = not H.sousMenu.Visible
@@ -278,6 +286,14 @@ end
 
 local tonneau, freiner -- définis plus bas (pilotage)
 local basculerStationnaire, basculerSiege, boost, atterrirIci, basculerPlaneur, basculerCible, basculerCap -- idem
+local basculerCroisiere, arreterCroisiere -- idem (V6.9.10)
+
+-- Message temporaire sur le tableau de bord (V6.9.10), à la place de la ligne des G pendant 3 secondes
+local function annoncer(message)
+	vol.message = { texte = message, fin = os.clock() + 3 }
+	H.infosSecondaires.Text = message
+end
+
 local function majBoutonsModes()
 	UI.colorer(H.boutonStationnaire, vol.stationnaire and Color3.fromRGB(80, 140, 190) or Color3.fromRGB(60, 90, 120))
 	H.boutonStationnaire.Text = vol.stationnaire and "STATIONNAIRE  ●" or "STATIONNAIRE  (H)"
@@ -294,7 +310,14 @@ local function majBoutonsModes()
 	H.boutonCap.Text = vol.capFixe and "CAP FIXE  ●" or "CAP FIXE  (M)"
 	UI.colorer(H.boutonAtterrir, vol.atterrissage and Color3.fromRGB(40, 160, 140) or Color3.fromRGB(30, 110, 100))
 	H.boutonAtterrir.Text = vol.atterrissage and "ATTERRISSAGE…  (N annule)" or "ATTERRIR ICI  (N)"
+	-- V6.9.10 : croisière, et orbite (seulement en croisière ; la caméra est gérée par TardisCamera)
+	UI.colorer(H.boutonCroisiere, vol.croisiere and Color3.fromRGB(60, 160, 200) or Color3.fromRGB(40, 100, 130))
+	H.boutonCroisiere.Text = vol.croisiere and "CROISIÈRE  ●" or "CROISIÈRE  (Entrée)"
+	local orbite = joueur:GetAttribute("TardisOrbiteActive") == true
+	UI.setDisponible(H.boutonOrbite, vol.croisiere ~= nil, orbite and Color3.fromRGB(120, 110, 200) or Color3.fromRGB(70, 70, 120))
+	H.boutonOrbite.Text = orbite and "ORBITE  ●" or "ORBITE"
 end
+joueur:GetAttributeChangedSignal("TardisOrbiteActive"):Connect(majBoutonsModes) -- V6.9.10 : posé par TardisCamera
 exterieur:GetAttributeChangedSignal("VolPrecision"):Connect(majBoutonsModes)
 H.boutonVitesse.Activated:Connect(vitesseSuivante)
 H.boutonCamouflage.Activated:Connect(function() if vol.pilote and not vol.descente then remote:FireServer("VolLibreCamouflage") end end)
@@ -313,6 +336,13 @@ H.boutonCible.Activated:Connect(function() if basculerCible then basculerCible()
 H.boutonPrecision.Activated:Connect(function() if vol.pilote and not vol.descente then remote:FireServer("VolLibrePrecision") end end)
 H.boutonCap.Activated:Connect(function() if basculerCap then basculerCap() end end)
 H.boutonFrein.Activated:Connect(function() if freiner then freiner() end end)
+H.boutonCroisiere.Activated:Connect(function() if basculerCroisiere then basculerCroisiere() end end)
+H.boutonOrbite.Activated:Connect(function()
+	-- V6.9.10 : la caméra en orbite est dans TardisCamera ; on lui transmet la demande par un attribut local du joueur
+	if vol.pilote and vol.croisiere and H.boutonOrbite:GetAttribute("Disponible") ~= false then
+		joueur:SetAttribute("TardisDemandeOrbite", os.clock())
+	end
+end)
 H.boutonTracteur.Activated:Connect(function() if vol.pilote and not vol.descente then remote:FireServer("Tracteur") end end)
 exterieur:GetAttributeChangedSignal("Tracteur"):Connect(function()
 	local actif = exterieur:GetAttribute("Tracteur") == true
@@ -368,7 +398,10 @@ H.boutonPortes.Activated:Connect(function()
 end)
 H.boutonChute.Activated:Connect(function()
 	if vol.pilote and not vol.descente and H.boutonChute:GetAttribute("Disponible") ~= false then
-		UI.confirmer(H.boutonChute, function() remote:FireServer("VolLibreChute", vol.vitesse) end) -- action dangereuse : confirmation
+		UI.confirmer(H.boutonChute, function() -- action dangereuse : confirmation
+			if arreterCroisiere then arreterCroisiere() end -- V6.9.10 : la chute arrête la croisière
+			remote:FireServer("VolLibreChute", vol.vitesse)
+		end)
 	end
 end)
 H.boutonPoser.Activated:Connect(function()
@@ -836,6 +869,7 @@ local function entrerPilotage()
 	vol.teinte = creer("ColorCorrectionEffect", { Name = "TardisVortexTeinte", Parent = game:GetService("Lighting") })
 	H.gui.Enabled = true
 	majBoutonsBascule()
+	majBoutonsModes() -- V6.9.10 : ORBITE grisé tant que la croisière n'est pas active
 end
 
 local function sortirPilotage()
@@ -855,6 +889,8 @@ local function sortirPilotage()
 	vol.tonneau, vol.tonneauActif = 0, false
 	if vol.siege then remote:FireServer("SiegePose", { pose = 0 }) end
 	vol.stationnaire, vol.planeur, vol.capFixe, vol.cible, vol.atterrissage, vol.siege = false, false, nil, nil, nil, nil
+	vol.croisiere, vol.message = nil, nil
+	joueur:SetAttribute("TardisCroisiere", nil) -- V6.9.10 : TardisCamera ferme l'orbite
 	vol.gMax = 0
 	animer(camera, 0.4, { FieldOfView = vol.champOrigine })
 end
@@ -869,6 +905,7 @@ UserInputService.InputBegan:Connect(function(input, traite)
 	if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
 		local maintenant = os.clock()
 		if maintenant - vol.derniereEspace < R.DOUBLE_ESPACE then
+			arreterCroisiere() -- V6.9.10 : la chute arrête la croisière
 			remote:FireServer("VolLibreChute", vol.vitesse)
 			vol.derniereEspace = 0
 		else
@@ -902,6 +939,8 @@ UserInputService.InputBegan:Connect(function(input, traite)
 		remote:FireServer("VolLibrePrecision")
 	elseif input.KeyCode == UI.touche("volCap", R.TOUCHE_CAP) then
 		if basculerCap then basculerCap() end
+	elseif input.KeyCode == UI.touche("volCroisiere", R.TOUCHE_CROISIERE) then
+		if basculerCroisiere then basculerCroisiere() end
 	elseif input.KeyCode == UI.touche("volSaut", R.TOUCHE_SAUT) then
 		task.defer(function() sautTemporel() end)
 	elseif input.KeyCode == UI.touche("volPortes", R.TOUCHE_PORTES) then
@@ -1008,19 +1047,21 @@ end
 freiner = function()
 	if not vol.pilote or vol.descente then return end
 	if exterieur:GetAttribute("VolUrgence") then return end -- en urgence, rien ne l'arrête
+	arreterCroisiere() -- V6.9.10 : le frein arrête la croisière
 	vol.vitesse = Vector3.zero
-	secousse = math.max(secousse, 0.5)
-	camera.FieldOfView -= 8
-	-- Fumée de freinage
-	if exterieur.PrimaryPart then
-		local fumee = creer("Smoke", { Color = Color3.fromRGB(150, 150, 150), Opacity = 0.4, RiseVelocity = 2, Size = 5, Parent = exterieur.PrimaryPart })
-		task.delay(0.5, function() fumee.Enabled = false end)
-		task.delay(3, function() fumee:Destroy() end)
+	secousse = math.max(secousse, 0.5) -- × 0,3 avec « réduire les effets » (TardisImpact)
+	camera.FieldOfView -= UI.effetsReduits() and 3 or 8
+	-- V6.9.10 : la fumée et la secousse à bord passent par le serveur (attribut FreinTemps), pour tout le monde ;
+	-- au plus un envoi par seconde (le serveur refuse de toute façon un frein trop rapproché)
+	if os.clock() - vol.dernierFrein >= R.FREIN_RECHARGE then
+		vol.dernierFrein = os.clock()
+		remote:FireServer("VolLibreFrein")
 	end
 end
 
 basculerStationnaire = function()
 	if not vol.pilote or vol.descente then return end
+	arreterCroisiere()
 	vol.stationnaire = not vol.stationnaire
 	vol.altitudeFixe = vol.centre.Y
 	if not vol.stationnaire and vol.siege then basculerSiege() end
@@ -1065,6 +1106,7 @@ atterrirIci = function()
 	if not resultat then return end
 	local sol = workspace:Raycast(resultat.Position + Vector3.new(0, 2, 0), Vector3.new(0, -3000, 0), params)
 	local cible = sol and sol.Position or resultat.Position
+	arreterCroisiere() -- V6.9.10 : ATTERRIR ICI arrête la croisière
 	vol.atterrissage = { cible = cible, dernierePosition = vol.centre, dernierProgres = os.clock() }
 	vol.stationnaire, vol.planeur, vol.cible = false, false, nil
 	majBoutonsModes()
@@ -1072,7 +1114,10 @@ end
 basculerPlaneur = function()
 	if not vol.pilote or vol.descente then return end
 	vol.planeur = not vol.planeur
-	if vol.planeur then vol.stationnaire = false end
+	if vol.planeur then
+		vol.stationnaire = false
+		arreterCroisiere()
+	end
 	majBoutonsModes()
 end
 basculerCible = function()
@@ -1103,6 +1148,7 @@ basculerCible = function()
 	end
 	vol.cible = meilleur
 	if vol.cible then
+		arreterCroisiere() -- V6.9.10 : CIBLE arrête la croisière
 		vol.stationnaire, vol.planeur, vol.atterrissage = false, false, nil
 	else
 		H.infosSecondaires.Text = string.format("Aucune cible : vise un autre joueur ou un véhicule occupé (moins de %d studs)", R.FORMATION_PORTEE)
@@ -1116,7 +1162,38 @@ basculerCap = function()
 	else
 		local regard = camera.CFrame.LookVector * Vector3.new(1, 0, 1)
 		vol.capFixe = regard.Magnitude > 0.1 and regard.Unit or Vector3.new(0, 0, -1)
+		arreterCroisiere() -- le cap fixe se pilote aux touches : il remplace la croisière
 	end
+	majBoutonsModes()
+end
+
+-- Croisière (V6.9.10) : garde le cap (regard horizontal de la caméra, ou le cap fixe), l'altitude et la vitesse du
+-- niveau, sans toucher aux touches. Rien ne change côté serveur : il borne déjà la vitesse des positions reçues.
+arreterCroisiere = function(raison)
+	if not vol.croisiere then return end
+	vol.croisiere = nil
+	joueur:SetAttribute("TardisCroisiere", nil) -- TardisCamera ferme l'orbite et rend la caméra au pilotage
+	if raison then annoncer(raison) end
+	majBoutonsModes()
+end
+basculerCroisiere = function()
+	if not vol.pilote or vol.descente then return end
+	if vol.croisiere then
+		arreterCroisiere("Croisière arrêtée")
+		return
+	end
+	if exterieur:GetAttribute("VolUrgence") == true then
+		annoncer("Pas de croisière en urgence")
+		return
+	end
+	local regard = vol.capFixe or (camera.CFrame.LookVector * Vector3.new(1, 0, 1))
+	if regard.Magnitude < 0.1 then regard = exterieur:GetPivot().LookVector * Vector3.new(1, 0, 1) end
+	if regard.Magnitude < 0.1 then regard = Vector3.new(0, 0, -1) end
+	vol.croisiere = { cap = regard.Unit, altitude = vol.centre.Y }
+	vol.stationnaire, vol.planeur, vol.cible, vol.atterrissage, vol.capFixe = false, false, nil, nil, nil
+	if vol.siege then basculerSiege() end
+	joueur:SetAttribute("TardisCroisiere", true) -- l'orbite de TardisCamera n'est permise qu'en croisière
+	annoncer("Croisière : cap et altitude tenus (une touche de direction l'arrête)")
 	majBoutonsModes()
 end
 
@@ -1153,6 +1230,34 @@ local function piloter(dt, t)
 		local droite = vol.capFixe:Cross(Vector3.yAxis)
 		direction = droite * mouvement.X + vol.capFixe * -mouvement.Z
 		if direction.Magnitude > 1 then direction = direction.Unit end
+	end
+	-- Croisière (V6.9.10) : tout droit au cap mémorisé ; une touche de direction ou l'urgence l'arrête
+	if vol.croisiere then
+		local mouvement = ctrl and ctrl:GetMoveVector() or Vector3.zero
+		if urgence then
+			arreterCroisiere("Croisière arrêtée : urgence")
+		elseif mouvement.Magnitude > 0.1 then
+			arreterCroisiere("Croisière arrêtée")
+		else
+			direction = vol.croisiere.cap
+			-- Obstacle devant : il s'arrête en stationnaire au lieu de glisser sans fin contre un mur (sauf en précision,
+			-- où il traverse tout)
+			if not precision then
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				params.FilterDescendantsInstances = exclusions()
+				params.RespectCanCollide = true
+				local devant = workspace:Blockcast(CFrame.new(vol.centre) * CFrame.Angles(0, vol.yaw, 0), vol.taille * 0.9,
+					vol.croisiere.cap * R.OBSTACLE_CROISIERE, params)
+				if devant then
+					arreterCroisiere("Obstacle devant : croisière arrêtée, stationnaire")
+					direction = Vector3.zero
+					vol.stationnaire = true
+					vol.altitudeFixe = vol.centre.Y
+					majBoutonsModes()
+				end
+			end
+		end
 	end
 	-- Boost : accélération brève
 	if os.clock() - vol.dernierBoost < R.BOOST_DUREE then vitesseCible *= 2.2 end
@@ -1247,9 +1352,10 @@ local function piloter(dt, t)
 	-- Inertie : il accélère et freine comme un objet lourd
 	local reactivite = urgence and 4 or (direction.Magnitude > 0.05 and 2.2 or 1.6)
 	if not vol.planeur then vol.vitesse = vol.vitesse:Lerp(direction * vitesseCible, 1 - math.exp(-reactivite * dt)) end
-	if vol.stationnaire then vol.vitesse = Vector3.new(vol.vitesse.X, 0, vol.vitesse.Z) end
+	if vol.stationnaire or vol.croisiere then vol.vitesse = Vector3.new(vol.vitesse.X, 0, vol.vitesse.Z) end
 	local centre = precision and (vol.centre + vol.vitesse * dt) or deplacer(vol.centre, vol.vitesse * dt) -- précision : il traverse tout
 	if vol.stationnaire then centre = Vector3.new(centre.X, vol.altitudeFixe, centre.Z) end
+	if vol.croisiere then centre = Vector3.new(centre.X, vol.croisiere.altitude, centre.Z) end -- V6.9.10 : altitude tenue
 	-- Planeur : au sol, il se pose en douceur
 	if vol.planeur then
 		local sol = hauteurSol(centre)
@@ -1285,7 +1391,13 @@ local function piloter(dt, t)
 
 	-- Orientation : suit la caméra, et il tourne sur lui-même d'autant plus vite qu'il va vite
 	local _, yawCamera = camera.CFrame:ToEulerAnglesYXZ()
-	vol.yaw = angleVers(vol.yaw, yawCamera, 1 - math.exp(-3 * dt))
+	if vol.croisiere then
+		-- V6.9.10 : en croisière, il garde son cap même si la caméra tourne (caméra en orbite, regard libre)
+		local capVoulu = math.atan2(-vol.croisiere.cap.X, -vol.croisiere.cap.Z)
+		vol.yaw = angleVers(vol.yaw, capVoulu, 1 - math.exp(-3 * dt))
+	else
+		vol.yaw = angleVers(vol.yaw, yawCamera, 1 - math.exp(-3 * dt))
+	end
 	local fraction = math.clamp(vol.vitesse.Magnitude / R.VITESSE_MAX, 0, 1)
 	if vol.stationnaire then
 		vol.rotation = (vol.rotation + dt * 0.08) % (2 * math.pi) -- très très lentement
@@ -1336,8 +1448,14 @@ local function piloter(dt, t)
 	-- Tableau de bord
 	local vitesseActuelle = vol.vitesse.Magnitude
 	H.vitesse.Text = tostring(math.floor(vitesseActuelle))
-	H.infosSecondaires.Text = string.format("G %.1f  ·  max %.1f  ·  %s", g, vol.gMax,
-		os.clock() - vol.dernierBoost < R.BOOST_RECHARGE and string.format("boost dans %d s", R.BOOST_RECHARGE - (os.clock() - vol.dernierBoost)) or "boost prêt")
+	if vol.message and os.clock() < vol.message.fin then
+		H.infosSecondaires.Text = vol.message.texte -- V6.9.10 : message de la croisière
+	else
+		vol.message = nil
+		H.infosSecondaires.Text = string.format("G %.1f  ·  max %.1f  ·  %s%s", g, vol.gMax,
+			os.clock() - vol.dernierBoost < R.BOOST_RECHARGE and string.format("boost dans %d s", R.BOOST_RECHARGE - (os.clock() - vol.dernierBoost)) or "boost prêt",
+			vol.croisiere and "  ·  CROISIÈRE" or "")
+	end
 	-- Siège extérieur : le joueur assis suit le TARDIS
 	if vol.siege and vol.ancrage then
 		local pivotTardis = exterieur:GetPivot()
@@ -1522,6 +1640,7 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 
 	if exterieur:GetAttribute("DescenteDebut") then
+		if vol.croisiere then arreterCroisiere() end -- V6.9.10 : on se pose (G, planeur, chute, pilote parti…)
 		animerDescente()
 		majEffetsVol(0)
 		vol.vitesseVecteur = Vector3.zero

@@ -1,5 +1,6 @@
 -- StarterPlayerScripts > TardisExtrasClient > EffetsExterieurs (ModuleScript)
--- Halo et projecteur, ombre, air, distorsion, givre, impacts, leurre, rayon tracteur, chocs et secousse
+-- Halo et projecteur, ombre, air, distorsion, givre, impacts, leurre, rayon tracteur, chocs et secousse,
+-- freinage d'urgence ressenti à bord (V6.9.10)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
@@ -250,6 +251,60 @@ return function(contexte)
 		local distance = (camera.CFrame.Position - position).Magnitude
 		secouer(math.clamp(1 - distance / 80, 0, 1) * 0.8)
 		if jeSuisDedans() then secouer(0.6) end
+	end)
+
+	--------------------------------------------------------------------
+	-- 9 bis) Freinage d'urgence (V6.9.10) : le serveur publie FreinTemps (pilote vérifié, un frein par seconde au plus).
+	-- Secousse pour les passagers à bord (plus douce avec « réduire les effets », par secouer), petite secousse dehors
+	-- tout près de la cabine, fumée de freinage autour de la cabine pour tout le monde (pas camouflée ni invisible),
+	-- et le son « Frein » s'il existe (TardisAssets › Sons) : à bord, ou près de la cabine.
+	--------------------------------------------------------------------
+	local reglagesFrein = (Config.VolLibre or {}).Frein or {}
+	exterieur:GetAttributeChangedSignal("FreinTemps"):Connect(function()
+		local temps = exterieur:GetAttribute("FreinTemps")
+		if type(temps) ~= "number" or workspace:GetServerTimeNow() - temps > 2 then return end -- ancien frein : rien ne se rejoue
+		local dedans = jeSuisDedans()
+		local base = exterieur.PrimaryPart
+		-- Le pilote a déjà sa propre secousse (TardisVolLibre) : pas de seconde secousse pour lui
+		if exterieur:GetAttribute("VolLibre") ~= joueur.UserId then
+			if dedans then
+				secouer(reglagesFrein.SecousseABord or 0.5)
+			elseif base then
+				local distance = (camera.CFrame.Position - base.Position).Magnitude
+				secouer(math.clamp(1 - distance / (reglagesFrein.PorteeDehors or 60), 0, 1) * (reglagesFrein.SecousseDehors or 0.4))
+			end
+		end
+		local visible = exterieur:GetAttribute("Camouflage") ~= true and (exterieur:GetAttribute("VolPhase") or "Visible") == "Visible"
+		if base and visible then
+			-- Petit TARDIS ou vol de précision : une fumée à sa taille
+			local echelle = (tonumber(exterieur:GetAttribute("Echelle")) or 1) * (exterieur:GetAttribute("VolPrecision") == true and 0.3 or 1)
+			local fumee = creer("Smoke", { Name = "TardisFumeeFrein", Color = Color3.fromRGB(150, 150, 150), Opacity = 0.4, RiseVelocity = 2,
+				Size = math.max(5 * echelle, 0.5), Parent = base })
+			task.delay(reglagesFrein.DureeFumee or 0.5, function() fumee.Enabled = false end)
+			task.delay(3, function() fumee:Destroy() end)
+		end
+		-- Son « Frein » (facultatif) : non positionné à bord, autour de la cabine dehors (pas pour une cabine cachée)
+		local assets = game:GetService("ReplicatedStorage"):FindFirstChild("TardisAssets")
+		local modele = assets and assets:FindFirstChild("Sons") and assets.Sons:FindFirstChild("Frein")
+		if modele and modele:IsA("Sound") and (dedans or (base and visible)) then
+			local son = modele:Clone()
+			son.Name = "TardisSonFrein"
+			son.Looped = false
+			if dedans then
+				son.Volume = modele.Volume * UI.volume()
+				son.Parent = game:GetService("SoundService")
+			else
+				local portee = (Config.PorteeSons or {}).Dehors
+				if portee then
+					son.RollOffMode = Enum.RollOffMode.InverseTapered
+					son.RollOffMinDistance, son.RollOffMaxDistance = portee.Min or 12, portee.Max or 220
+				end
+				son.Parent = base -- le volume des réglages s'applique tout seul (sons de l'extérieur)
+			end
+			son:Play()
+			son.Ended:Connect(function() son:Destroy() end)
+			task.delay(10, function() if son.Parent then son:Destroy() end end) -- au cas où Ended ne viendrait pas
+		end
 	end)
 	RunService:BindToRenderStep("TardisExtrasSecousse_" .. def.Nom, Enum.RenderPriority.Camera.Value + 3, function(dt)
 		if secousse <= 0 then return end

@@ -240,7 +240,13 @@ class Valeur:
         if k == "Name": return s.nom.split(".")[-1]
         return Valeur(s.nom + "." + str(k))
     def __lua_call__(s, args): return [Valeur(s.nom + "()", args[1:] if args and args[0] is s else args)]
-    def __lua_arith__(s, op, a, b): return Valeur("calcul")
+    def __lua_arith__(s, op, a, b):
+        # V6.9.10 : avec les maths réelles (activer_maths), un Vector3 de remplissage à coordonnées connues devient calculable
+        if MATHS["actif"]:
+            va, vb = en_vec3(a), en_vec3(b)
+            if (va is not None or isinstance(a, (int, float))) and (vb is not None or isinstance(b, (int, float))) and (va is not None or vb is not None):
+                return Vec3.arith(op, va if va is not None else a, vb if vb is not None else b)
+        return Valeur("calcul")
     def __lua_unm__(s): return Valeur("calcul")
     def __lua_eq__(s, o): return s is o or (isinstance(o, Valeur) and o.nom == s.nom and o.args == s.args)
     def __lua_tostring__(s): return s.nom
@@ -280,6 +286,167 @@ def constructeur_couleur():
     t.h["fromRGB"] = Fonction("Color3.fromRGB", py=lambda r=0, g=0, b=0: Couleur(n(r) / 255, n(g) / 255, n(b) / 255, [r, g, b]))
     t.h["fromHSV"] = Fonction("Color3.fromHSV", py=lambda h=0, sa=0, v=0: Couleur(*colorsys.hsv_to_rgb(n(h) % 1, n(sa), n(v))))
     return t
+
+# ---------------------------------------------------------------- Maths réelles (V6.9.10), sur demande : activer_maths(G)
+# Vector3 et CFrame calculables (positions, rotations, LookVector, Lerp, ToEulerAnglesYXZ…). Les autres simulations
+# gardent les valeurs de remplissage : rien ne change pour elles tant que activer_maths n'est pas appelé.
+MATHS = {"actif": False}
+def _num(x): return isinstance(x, (int, float)) and not isinstance(x, bool)
+def en_vec3(v):
+    if isinstance(v, Vec3): return v
+    if isinstance(v, Valeur) and v.nom == "Vector3" and len(v.args) == 3 and all(_num(a) for a in v.args): return Vec3(*v.args)
+    return None
+class Vec3(Valeur):
+    def __init__(s, x=0.0, y=0.0, z=0.0):
+        x, y, z = (float(c) if _num(c) else 0.0 for c in (x, y, z))
+        super().__init__("Vector3", [x, y, z]); s.x, s.y, s.z = x, y, z
+    def t(s): return (s.x, s.y, s.z)
+    def norme(s): return math.sqrt(s.x * s.x + s.y * s.y + s.z * s.z)
+    def unite(s):
+        n = s.norme()
+        return Vec3(s.x / n, s.y / n, s.z / n) if n > 0 else Vec3(math.nan, math.nan, math.nan)
+    def dot(s, o): return s.x * o.x + s.y * o.y + s.z * o.z
+    def cross(s, o): return Vec3(s.y * o.z - s.z * o.y, s.z * o.x - s.x * o.z, s.x * o.y - s.y * o.x)
+    def __lua_index__(s, k):
+        if k == "X": return s.x
+        if k == "Y": return s.y
+        if k == "Z": return s.z
+        if k == "Magnitude": return s.norme()
+        if k == "Unit": return s.unite()
+        if k == "Dot": return Fonction("Dot", py=lambda _s, o: s.dot(en_vec3(o)))
+        if k == "Cross": return Fonction("Cross", py=lambda _s, o: s.cross(en_vec3(o)))
+        if k == "Lerp": return Fonction("Lerp", py=lambda _s, o, a: Vec3.arith("+", s, Vec3.arith("*", Vec3.arith("-", en_vec3(o), s), a)))
+        if k == "Abs": return Fonction("Abs", py=lambda _s: Vec3(abs(s.x), abs(s.y), abs(s.z)))
+        if k == "Max": return Fonction("Max", py=lambda _s, o: Vec3(*(max(a, b) for a, b in zip(s.t(), en_vec3(o).t()))))
+        if k == "Min": return Fonction("Min", py=lambda _s, o: Vec3(*(min(a, b) for a, b in zip(s.t(), en_vec3(o).t()))))
+        if k == "FuzzyEq": return Fonction("FuzzyEq", py=lambda _s, o, e=1e-5: all(abs(a - b) <= e for a, b in zip(s.t(), en_vec3(o).t())))
+        return Valeur.__lua_index__(s, k)
+    @staticmethod
+    def arith(op, a, b):
+        va, vb = en_vec3(a), en_vec3(b)
+        A = va.t() if va is not None else (float(a),) * 3
+        B = vb.t() if vb is not None else (float(b),) * 3
+        if op == "+": return Vec3(*(x + y for x, y in zip(A, B)))
+        if op == "-": return Vec3(*(x - y for x, y in zip(A, B)))
+        if op == "*": return Vec3(*(x * y for x, y in zip(A, B)))
+        if op == "/": return Vec3(*((x / y) if y != 0 else (math.inf if x > 0 else -math.inf if x < 0 else math.nan) for x, y in zip(A, B)))
+        if op == "//": return Vec3(*(math.floor(x / y) for x, y in zip(A, B)))
+        raise LuaError("Vector3 : opération " + op)
+    def __lua_arith__(s, op, a, b):
+        if isinstance(a, CF) or isinstance(b, CF): return CF.arith(op, a, b)
+        return Vec3.arith(op, a, b)
+    def __lua_unm__(s): return Vec3(-s.x, -s.y, -s.z)
+    def __lua_eq__(s, o):
+        o = en_vec3(o)
+        return o is not None and all(abs(a - b) < 1e-9 for a, b in zip(s.t(), o.t()))
+    def __lua_tostring__(s): return "%g, %g, %g" % s.t()
+def _mat(a, b): return tuple(tuple(sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)) for i in range(3))
+def _tr(a): return tuple(tuple(a[j][i] for j in range(3)) for i in range(3))
+def _app(R, v): return tuple(sum(R[i][k] * v[k] for k in range(3)) for i in range(3))
+I3 = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+def _rx(a): c, s_ = math.cos(a), math.sin(a); return ((1, 0, 0), (0, c, -s_), (0, s_, c))
+def _ry(a): c, s_ = math.cos(a), math.sin(a); return ((c, 0, s_), (0, 1, 0), (-s_, 0, c))
+def _rz(a): c, s_ = math.cos(a), math.sin(a); return ((c, -s_, 0), (s_, c, 0), (0, 0, 1))
+def _quat(R):
+    t = R[0][0] + R[1][1] + R[2][2]
+    if t > 0:
+        r = math.sqrt(1 + t) * 2; return ((R[2][1] - R[1][2]) / r, (R[0][2] - R[2][0]) / r, (R[1][0] - R[0][1]) / r, r / 4)
+    if R[0][0] > R[1][1] and R[0][0] > R[2][2]:
+        r = math.sqrt(1 + R[0][0] - R[1][1] - R[2][2]) * 2; return (r / 4, (R[0][1] + R[1][0]) / r, (R[0][2] + R[2][0]) / r, (R[2][1] - R[1][2]) / r)
+    if R[1][1] > R[2][2]:
+        r = math.sqrt(1 + R[1][1] - R[0][0] - R[2][2]) * 2; return ((R[0][1] + R[1][0]) / r, r / 4, (R[1][2] + R[2][1]) / r, (R[0][2] - R[2][0]) / r)
+    r = math.sqrt(1 + R[2][2] - R[0][0] - R[1][1]) * 2; return ((R[0][2] + R[2][0]) / r, (R[1][2] + R[2][1]) / r, r / 4, (R[1][0] - R[0][1]) / r)
+def _dequat(q):
+    x, y, z, w = q; n = math.sqrt(x * x + y * y + z * z + w * w) or 1; x, y, z, w = x / n, y / n, z / n, w / n
+    return ((1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)),
+            (2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)),
+            (2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)))
+def _slerp(R1, R2, a):
+    q1, q2 = _quat(R1), _quat(R2)
+    d = sum(x * y for x, y in zip(q1, q2))
+    if d < 0: q2, d = tuple(-x for x in q2), -d
+    if d > 0.9995: return _dequat(tuple(x + (y - x) * a for x, y in zip(q1, q2)))
+    th = math.acos(max(-1, min(1, d))); s1, s2 = math.sin((1 - a) * th) / math.sin(th), math.sin(a * th) / math.sin(th)
+    return _dequat(tuple(s1 * x + s2 * y for x, y in zip(q1, q2)))
+class CF(Valeur):
+    """CFrame calculable : position p et matrice de rotation R (colonnes : RightVector, UpVector, -LookVector)."""
+    def __init__(s, p=(0.0, 0.0, 0.0), R=None):
+        s.p = tuple(float(c) for c in p); s.R = tuple(tuple(float(c) for c in ligne) for ligne in (R or I3))
+        super().__init__("CFrame", list(s.p) + [c for ligne in s.R for c in ligne])
+    def col(s, j): return Vec3(s.R[0][j], s.R[1][j], s.R[2][j])
+    def fois(s, o): return CF(tuple(a + b for a, b in zip(_app(s.R, o.p), s.p)), _mat(s.R, o.R))
+    def point(s, v): return Vec3(*(a + b for a, b in zip(_app(s.R, en_vec3(v).t()), s.p)))
+    def inverse(s): Rt = _tr(s.R); return CF(tuple(-c for c in _app(Rt, s.p)), Rt)
+    def __lua_index__(s, k):
+        if k == "Position" or k == "p": return Vec3(*s.p)
+        if k in ("X", "Y", "Z"): return s.p["XYZ".index(k)]
+        if k == "Rotation": return CF((0, 0, 0), s.R)
+        if k == "LookVector": return Vec3(-s.R[0][2], -s.R[1][2], -s.R[2][2])
+        if k in ("RightVector", "XVector"): return s.col(0)
+        if k in ("UpVector", "YVector"): return s.col(1)
+        if k == "ZVector": return s.col(2)
+        if k == "Inverse": return Fonction("Inverse", py=lambda _s: s.inverse())
+        if k == "Lerp":
+            def lerp(_s, o, a):
+                return CF(tuple(x + (y - x) * a for x, y in zip(s.p, o.p)), _slerp(s.R, o.R, a))
+            return Fonction("Lerp", py=lerp)
+        if k == "ToEulerAnglesYXZ":
+            R = s.R
+            return Fonction("ToEulerAnglesYXZ", py=lambda _s: [math.asin(max(-1, min(1, -R[1][2]))), math.atan2(R[0][2], R[2][2]), math.atan2(R[1][0], R[1][1])])
+        if k == "Orthonormalize": return Fonction("Orthonormalize", py=lambda _s: CF(s.p, _dequat(_quat(s.R))))
+        if k == "GetComponents": return Fonction("GetComponents", py=lambda _s: list(s.p) + [c for ligne in s.R for c in ligne])
+        if k == "PointToObjectSpace": return Fonction("PointToObjectSpace", py=lambda _s, v: s.inverse().point(v))
+        if k == "PointToWorldSpace": return Fonction("PointToWorldSpace", py=lambda _s, v: s.point(v))
+        if k == "VectorToObjectSpace": return Fonction("VectorToObjectSpace", py=lambda _s, v: Vec3(*_app(_tr(s.R), en_vec3(v).t())))
+        if k == "VectorToWorldSpace": return Fonction("VectorToWorldSpace", py=lambda _s, v: Vec3(*_app(s.R, en_vec3(v).t())))
+        if k == "ToObjectSpace": return Fonction("ToObjectSpace", py=lambda _s, o: s.inverse().fois(o))
+        if k == "ToWorldSpace": return Fonction("ToWorldSpace", py=lambda _s, o: s.fois(o))
+        return Valeur.__lua_index__(s, k)
+    @staticmethod
+    def arith(op, a, b):
+        if isinstance(a, CF) and isinstance(b, CF) and op == "*": return a.fois(b)
+        if isinstance(a, CF) and en_vec3(b) is not None:
+            if op == "*": return a.point(b)
+            if op == "+": return CF(tuple(x + y for x, y in zip(a.p, en_vec3(b).t())), a.R)
+            if op == "-": return CF(tuple(x - y for x, y in zip(a.p, en_vec3(b).t())), a.R)
+        raise LuaError("CFrame : opération " + op + " impossible")
+    def __lua_arith__(s, op, a, b): return CF.arith(op, a, b)
+    def __lua_eq__(s, o): return isinstance(o, CF) and all(abs(x - y) < 1e-9 for x, y in zip(s.args, o.args))
+def _regarder(pos, cible, haut=None):
+    pos, cible = en_vec3(pos), en_vec3(cible); haut = en_vec3(haut) if haut is not None else Vec3(0, 1, 0)
+    devant = Vec3.arith("-", cible, pos).unite()
+    if devant.x != devant.x: return CF(pos.t())
+    droite = devant.cross(haut)
+    if droite.norme() < 1e-9: droite = devant.cross(Vec3(0, 0, 1) if abs(devant.y) > 0.99 else Vec3(0, 1, 0))
+    droite = droite.unite(); dessus = droite.cross(devant)
+    return CF(pos.t(), ((droite.x, dessus.x, -devant.x), (droite.y, dessus.y, -devant.y), (droite.z, dessus.z, -devant.z)))
+def activer_maths(G):
+    """Remplace Vector3 et CFrame par des versions calculables (à appeler juste après environnement(), avant de charger le code)."""
+    MATHS["actif"] = True
+    n = lambda x: float(x) if _num(x) else 0.0
+    v = constructeur("Vector3")
+    v.h.update({"new": Fonction("Vector3.new", py=lambda x=0, y=0, z=0: Vec3(n(x), n(y), n(z))),
+                "zero": Vec3(0, 0, 0), "one": Vec3(1, 1, 1), "xAxis": Vec3(1, 0, 0), "yAxis": Vec3(0, 1, 0), "zAxis": Vec3(0, 0, 1)})
+    G["Vector3"] = v
+    def nouveau(*a):
+        if not a: return CF()
+        if len(a) == 1: return CF(en_vec3(a[0]).t())
+        if len(a) == 2 and en_vec3(a[0]) is not None: return _regarder(a[0], a[1])
+        if len(a) == 3: return CF((n(a[0]), n(a[1]), n(a[2])))
+        if len(a) == 12: return CF((n(a[0]), n(a[1]), n(a[2])), ((n(a[3]), n(a[4]), n(a[5])), (n(a[6]), n(a[7]), n(a[8])), (n(a[9]), n(a[10]), n(a[11]))))
+        raise LuaError("CFrame.new : arguments non gérés par la simulation")
+    def axe_angle(axe, angle):
+        u = en_vec3(axe).unite(); c, s_ = math.cos(angle), math.sin(angle); x, y, z = u.t(); t = 1 - c
+        return CF((0, 0, 0), ((t * x * x + c, t * x * y - s_ * z, t * x * z + s_ * y), (t * x * y + s_ * z, t * y * y + c, t * y * z - s_ * x), (t * x * z - s_ * y, t * y * z + s_ * x, t * z * z + c)))
+    c = constructeur("CFrame")
+    c.h.update({"new": Fonction("CFrame.new", py=nouveau), "identity": CF(),
+                "lookAt": Fonction("CFrame.lookAt", py=lambda p, cible, haut=None: _regarder(p, cible, haut)),
+                "Angles": Fonction("CFrame.Angles", py=lambda x=0, y=0, z=0: CF((0, 0, 0), _mat(_mat(_rx(n(x)), _ry(n(y))), _rz(n(z))))),
+                "fromEulerAnglesXYZ": Fonction("CFrame.fromEulerAnglesXYZ", py=lambda x=0, y=0, z=0: CF((0, 0, 0), _mat(_mat(_rx(n(x)), _ry(n(y))), _rz(n(z))))),
+                "fromEulerAnglesYXZ": Fonction("CFrame.fromEulerAnglesYXZ", py=lambda x=0, y=0, z=0: CF((0, 0, 0), _mat(_mat(_ry(n(y)), _rx(n(x))), _rz(n(z))))),
+                "fromOrientation": Fonction("CFrame.fromOrientation", py=lambda x=0, y=0, z=0: CF((0, 0, 0), _mat(_mat(_ry(n(y)), _rx(n(x))), _rz(n(z))))),
+                "fromAxisAngle": Fonction("CFrame.fromAxisAngle", py=axe_angle)})
+    G["CFrame"] = c
 
 # Valeurs par défaut de quelques propriétés (V6.9.9), lues par les effets avant d'être écrites
 def _defauts(classe):
@@ -443,8 +610,8 @@ class Instance:
     def m_IsStudio(s): return True
     def m_IsServer(s): return s.extra.get("serveur", True)
     def m_IsClient(s): return not s.extra.get("serveur", True)
-    def m_BindToRenderStep(s, *a): return []
-    def m_UnbindFromRenderStep(s, *a): return []
+    def m_BindToRenderStep(s, nom, priorite=None, f=None, *a): s.extra.setdefault("rendu", {})[nom] = f; return []
+    def m_UnbindFromRenderStep(s, nom, *a): s.extra.setdefault("rendu", {}).pop(nom, None); return []
     def m_GetRankInGroup(s, g): return 0
     def m_PivotTo(s, cf): s.props["Pivot"] = cf; return []
     def m_GetPivot(s): return s.props.get("Pivot", Valeur("CFrame"))
@@ -532,7 +699,7 @@ def environnement(I, serveur=True):
         return None
     def _typeof(v):
         if isinstance(v, Instance): return "Instance"
-        if isinstance(v, Valeur): return v.nom.split(".")[0] if "." in v.nom else v.nom
+        if isinstance(v, Valeur): return v.nom.split(".")[0] if "." in v.nom else v.nom  # Vec3 → "Vector3", CF → "CFrame"
         if isinstance(v, (Signal,)): return "RBXScriptSignal"
         return type_lua(v)
     def _assert(v, msg="assertion failed!", *r):

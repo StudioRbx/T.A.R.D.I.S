@@ -1,5 +1,5 @@
 -- StarterPlayerScripts > TardisExtrasClient > Ambiance (ModuleScript)
--- Hologramme, écrans vivants, gravité folle, moteur et vapeur, écrans de diagnostic
+-- Hologramme, écrans vivants, gravité folle, moteur et vapeur, écrans de diagnostic, vent du vortex à bord (V6.9.10)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
@@ -249,6 +249,41 @@ return function(contexte)
 				end)
 			end
 		end
+		-- Vent du vortex (V6.9.10) : le Sound « Vortex » en boucle, LOCAL (pas positionné) comme le jukebox, seulement à bord,
+		-- en fondu, pendant le vol (état Vol, ou vol libre dématérialisé ou dans le VORTEX). Il disparaît quand il s'est tu.
+		local reglagesVortex = Config.AmbianceVortex or {}
+		local vortex, volumeVortex, prochaineRecherche = nil, 0, 0
+		local function majVortex(dt, etat, alimente)
+			local vol = etat == E.Vol or (exterieur:GetAttribute("VolLibre") ~= nil
+				and (exterieur:GetAttribute("VolPhase") == "Invisible" or exterieur:GetAttribute("VolVortex") == true))
+			local voulu = (vol and alimente and jeSuisDedans()) and 1 or 0
+			volumeVortex += (voulu - volumeVortex) * math.min(dt * (reglagesVortex.Fondu or 1), 1)
+			if voulu == 0 and volumeVortex < 0.01 then
+				volumeVortex = 0
+				if vortex then vortex:Destroy() vortex = nil end -- se coupe proprement : aucun son ne reste
+				return
+			end
+			if not vortex and os.clock() >= prochaineRecherche then
+				prochaineRecherche = os.clock() + 2 -- le Sound peut arriver plus tard (créé par le serveur depuis Config.Sons)
+				local modele = sons and sons:FindFirstChild("Vortex")
+				if not modele then
+					local dossier = ReplicatedStorage:FindFirstChild("TardisAssets")
+					modele = dossier and dossier:FindFirstChild("Sons") and dossier.Sons:FindFirstChild("Vortex")
+				end
+				if modele and modele:IsA("Sound") then
+					vortex = modele:Clone()
+					vortex.Name = "TardisVortex"
+					vortex.Looped = true
+					vortex.Volume = 0
+					vortex.Parent = game:GetService("SoundService")
+					vortex:Play()
+				end
+			end
+			if vortex then
+				local jukeboxJoue = exterieur:GetAttribute("Jukebox") ~= nil
+				vortex.Volume = (reglagesVortex.Volume or 0.4) * UI.volume() * volumeVortex * (jukeboxJoue and (reglagesVortex.AvecJukebox or 0.5) or 1)
+			end
+		end
 		local function nouvellePlaylist(categorie)
 			local liste = {}
 			for i, p in Config.Jukebox or {} do
@@ -294,6 +329,8 @@ return function(contexte)
 			end
 			presence += (((jeSuisDedans() and alimente) and 1 or 0) - presence) * math.min(dt * 1.2, 1)
 			if jukebox then jukebox.Volume = 0.5 * UI.volume() * presence end
+			-- V6.9.10 : vent du vortex (alimente est déjà faux hors tension, détruit, ou en Silencieux avec SilenceABord)
+			majVortex(dt, etat, alimente)
 		end)
 
 		-- Vapeur de refroidissement : un jet sous chaque plaque "Grille", par bouffées aléatoires (les mêmes pour tous)

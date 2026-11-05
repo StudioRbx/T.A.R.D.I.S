@@ -2,7 +2,7 @@
 -- (Dé)matérialisation de l'extérieur, lampe, rotor, lumières de la salle, secousses, et depuis la V6.7 :
 -- lueur de la cabine, tourbillon de poussière, ondes au sol, arcs d'urgence, choc d'atterrissage ; depuis la V6.9.9 :
 -- lueurs selon l'heure, lumières de la salle selon l'état, Catastrophe plus violente, vitres qui s'éteignent en dernier,
--- et l'option « aucun flash » (UI.sansFlash).
+-- et l'option « aucun flash » (UI.sansFlash) ; depuis la V6.9.10 : rotor qui suit la vitesse du vol libre.
 -- Tout est calculé à partir des attributs "Etat" et "DebutEtat" posés par le serveur (Config.Souffle),
 -- donc tous les joueurs voient la même chose au même moment (même ceux qui arrivent en cours de vol).
 
@@ -218,6 +218,9 @@ local alphaActuel = 0
 local secousseActive = false
 local dernierModeAnime = "Normal" -- mode de la dernière animation (le serveur le remet à Normal en posant le TARDIS)
 local courseRotor = 0 -- hauteur actuelle du rotor (lissée)
+local phaseRotor = 0       -- V6.9.10 : phase cumulée du rotor (il ne saute pas quand sa vitesse change)
+local facteurRotorVol = 1  -- V6.9.10 : vitesse du rotor en vol libre (Config.facteurRotorVol), lissée
+local dernierePositionCabine = nil -- V6.9.10 : pour mesurer la vitesse réelle de la cabine d'une image à l'autre
 local choc = 0        -- secousse d'arrivée (atterrissage), décroît
 local flashLampe = 0  -- éclat de la lampe au départ et à l'arrivée, décroît
 local etatPrecedent = exterieur:GetAttribute("Etat") or E.Pose
@@ -521,14 +524,28 @@ RunService.RenderStepped:Connect(function(dt)
 		local boost = exterieur:GetAttribute("RotorBoost")
 		local boostActif = boost ~= nil and workspace:GetServerTimeNow() - boost < 3
 		local actif = etat ~= E.Pose or boostActif or exterieur:GetAttribute("VolLibre") ~= nil
-		local vitesse = Config.VitesseRotor * (boostActif and 3 or 1)
+		-- Vol libre (V6.9.10) : le rotor suit la vitesse réelle de la cabine (chez le pilote comme chez ceux qui la suivent)
+		local voulu = 1
+		if exterieur:GetAttribute("VolLibre") ~= nil then
+			local position = exterieur:GetPivot().Position
+			if dernierePositionCabine and dt > 0 then
+				voulu = Config.facteurRotorVol((position - dernierePositionCabine).Magnitude / dt,
+					exterieur:GetAttribute("VolVortex") == true, exterieur:GetAttribute("VolUrgence") == true)
+			end
+			dernierePositionCabine = position
+		else
+			dernierePositionCabine = nil
+		end
+		facteurRotorVol += (voulu - facteurRotorVol) * math.min(dt * ((Config.RotorVolLibre or {}).Lissage or 2), 1)
+		local vitesse = Config.VitesseRotor * (boostActif and 3 or 1) * facteurRotorVol
+		phaseRotor = (phaseRotor + dt * vitesse) % (2 * math.pi)
 		local amplitude = Config.AmplitudeRotor * ((etat == E.Pose and not boostActif) and 0.5 or 1)
 		-- Atterrissage : la course se réduit pendant les 2 dernières secondes, pour s'arrêter sans à-coup
 		if etat == E.Remat then
 			local duree, decalage = Config.Timing(E.Remat, mode)
 			amplitude *= math.clamp((duree + decalage - ecoule) / 2, 0.1, 1)
 		end
-		local cible = actif and math.sin(t * vitesse) * amplitude or 0
+		local cible = actif and math.sin(phaseRotor) * amplitude or 0
 		courseRotor += (cible - courseRotor) * math.min(dt * (actif and 12 or 4), 1)
 		if math.abs(courseRotor) < 0.002 and not actif then courseRotor = 0 end
 		local voulu = rotorBase * CFrame.new(0, courseRotor, 0)

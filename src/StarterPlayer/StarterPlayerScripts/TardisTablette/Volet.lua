@@ -114,6 +114,7 @@ return function(contexte)
 			{ "volStationnaire", "Vol : stationnaire", "H" }, { "volSiege", "Vol : siège extérieur", "I" }, { "volBoost", "Vol : boost", "LeftShift" },
 			{ "volAtterrir", "Vol : atterrir ici", "N" }, { "volPlaneur", "Vol : planeur", "J" }, { "volCible", "Vol : verrouillage de cible", "L" },
 			{ "volPrecision", "Vol : précision", "P" }, { "volCap", "Vol : cap fixe", "M" },
+			{ "volCroisiere", "Vol : croisière", "Return" }, -- V6.9.10
 		}
 		local enAttente = nil
 		local afficherReglages
