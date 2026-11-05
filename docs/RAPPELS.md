@@ -17,6 +17,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **`SiegeEquipage`** : sièges de l'équipage ;
 - **`Grille`** (ou un dossier `Grilles`) : vapeur et purge ;
 - sous-dossiers de destinations **`REFUSE`** et **`SANS_EXPRESS`** si tu veux des zones interdites ;
+- **V6.9.9** : ranger les vitres de la cabine dans un dossier **`Fenetres`** de l'extérieur, ou les nommer **`Vitre`** (vitres qui s'éteignent en dernier) ; vérifier que la salle contient des **PointLight** ou **SpotLight** (lumières selon l'état) ;
 - supprimer les scripts du kit désactivés (`Default Mainscript`, `README:`, les `Move` / `MainPhase` des portes).
 
 ## 3. Équipes

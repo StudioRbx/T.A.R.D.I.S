@@ -12,7 +12,7 @@ Effort : petit (quelques heures), moyen, gros (un chantier). La colonne « Choix
 
 | N° | Proposition | Effort | Choix |
 |---|---|---|---|
-| T-1 | **Préférences envoyées au bon RemoteEvent** : UI.sauverPrefs (TardisUI) cherche « TardisCommande », qui n'existe plus depuis les canaux par TARDIS (« TardisCommande_TARDIS_1 ») : les préférences ne partent jamais au serveur. Il faut viser le bon canal (ou un canal commun) et ajouter un test qui le vérifie. | petit | |
+| T-1 | **Préférences envoyées au bon RemoteEvent** : UI.sauverPrefs (TardisUI) cherche « TardisCommande », qui n'existe plus depuis les canaux par TARDIS (« TardisCommande_TARDIS_1 ») : les préférences ne partent jamais au serveur. Il faut viser le bon canal (ou un canal commun) et ajouter un test qui le vérifie. | petit | ✅ fait en V6.9.9 |
 | T-2 | **Préférences communes à tous les TARDIS** : Aujourd'hui, chaque exemplaire de TardisExtras lit et écrit « prefs_<UserId> » dans son propre magasin (TardisExtras_v2_<Nom>). Avec 3 TARDIS, on aurait 3 copies qui se marchent dessus : un seul magasin « joueurs » pour tous évite ce conflit. | moyen | |
 | T-3 | **Un seul profil sauvegardé par joueur** : Les statistiques, la découverte et les préférences sont trois clés séparées, et chaque TARDIS les relit : cela fait 2 à 3 lectures DataStore par joueur et par TARDIS à chaque arrivée. Une seule clé « profil » par joueur divise les requêtes et se sauvegarde d'un bloc. | moyen | |
 | T-4 | **Compteur de voyages additionné entre serveurs** : « stats_serveur » est lu au démarrage puis réécrit en entier : deux serveurs ouverts en même temps effacent les voyages l'un de l'autre. Écrire avec UpdateAsync en ajoutant seulement les voyages du serveur rend le total juste. | petit | |

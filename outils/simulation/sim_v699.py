@@ -137,11 +137,14 @@ verifier("Normal, 0,3 s avant la fin : les vitres plus visibles que le reste", a
 
 # ------------------------------------------------------------------ 2. TardisUI : « aucun flash »
 verifier("UI.sansFlash() faux par défaut", premier(appeler(UI.get("sansFlash"), [])) is False)
-remote = Instance("RemoteEvent", "TardisCommande", rs)
+# Correction T-1 : les canaux sont par TARDIS (« TardisCommande_TARDIS_1 »…), il n'y a plus de « TardisCommande » tout court
+canal2 = Instance("RemoteEvent", "TardisCommande_TARDIS_2", rs)
+remote = Instance("RemoteEvent", "TardisCommande_TARDIS_1", rs)
 tache(lambda: appeler(UI.get("setPref"), ["sansFlash", True]))
 H.avancer(1)
 envois = remote.extra.get("envois", [])
-verifier("UI.setPref(sansFlash) : préférence envoyée au serveur (action Prefs existante)", envois and envois[-1][0] == "Prefs" and '"sansFlash":true' in envois[-1][1], envois[-1:])
+verifier("UI.setPref(sansFlash) : préférence envoyée au serveur par le canal du TARDIS (correction T-1)", envois and envois[-1][0] == "Prefs" and '"sansFlash":true' in envois[-1][1], envois[-1:])
+verifier("Correction T-1 : toujours le même canal (le premier par ordre alphabétique)", not canal2.extra.get("envois"), canal2.extra.get("envois"))
 verifier("UI.sansFlash() vrai une fois activé", premier(appeler(UI.get("sansFlash"), [])) is True)
 pref("sansFlash", False)
 extras = lire("ServerScriptService/TardisExtras.server.lua")
@@ -493,6 +496,7 @@ eff = lire("StarterPlayer/StarterPlayerScripts/TardisEffets.client.lua")
 verifier("Pas de nouvelle boucle par image (3 RenderStepped dans TardisEffets, comme avant)", eff.count("RunService.RenderStepped:Connect") == 3 and eff.count("RunService.Heartbeat:Connect") == 1)
 verifier("Pas de nouvelle action réseau (aucun FireServer ajouté)", eff.count("FireServer") == 0 and lire("StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Signalisation.lua").count("FireServer") == 0)
 verifier("Aucune erreur au total", not roblox.ERREURS, roblox.ERREURS[:3])
+
 
 print("\n".join("  ✓ " + o for o in OK))
 print("\n".join("  ✗ " + k for k in KO))

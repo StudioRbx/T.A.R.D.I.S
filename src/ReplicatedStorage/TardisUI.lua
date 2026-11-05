@@ -504,7 +504,14 @@ function UI.sauverPrefs()
 	envoiPrevu = true
 	task.delay(0.5, function()
 		envoiPrevu = false
-		local remote = ReplicatedStorage:FindFirstChild("TardisCommande")
+		-- V6.9.9 (correction T-1) : depuis les canaux par TARDIS, il n'existe plus de « TardisCommande » tout court.
+		-- Les préférences partent par le canal du premier TARDIS (ordre alphabétique : toujours le même).
+		local remote = nil
+		for _, enfant in ReplicatedStorage:GetChildren() do
+			if enfant:IsA("RemoteEvent") and string.sub(enfant.Name, 1, 15) == "TardisCommande_" and (remote == nil or enfant.Name < remote.Name) then
+				remote = enfant
+			end
+		end
 		if remote then remote:FireServer("Prefs", HttpService:JSONEncode(UI.prefs)) end
 	end)
 end

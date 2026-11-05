@@ -25,8 +25,8 @@
    "nom": "TardisUI",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 31898,
-   "empreinte": 1488600498
+   "taille": 32299,
+   "empreinte": 2050997667
   },
   {
    "fichier": "src/ServerScriptService/TardisDiagnostic.lua",
