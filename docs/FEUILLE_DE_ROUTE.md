@@ -11,7 +11,7 @@
 |---|---|---|
 | V6.9.7 | Corrections : TARDIS bloqué ou perdu | ✅ faite (03/11) |
 | V6.9.8 | Vérification et outils de suivi | ✅ faite (03/11) |
-| V6.9.9 | Effets visuels du voyage | 🚧 en cours (code écrit, relecture à faire) |
+| V6.9.9 | Effets visuels du voyage | ✅ faite (05/11) |
 | V6.9.10 | Vol libre et vortex | 🔜 prévue |
 | V6.9.11 | Navigation et fiches de lieux | 🔜 prévue |
 | V6.9.12 | Pannes : le socle commun | 🔜 prévue |
@@ -312,7 +312,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* 27, 51, 69 et 71 sont déjà faits : on les présente comme existants, avec au plus une petite retouche (valeurs de formation dans Config, quelques couleurs écrites en dur du thème clair). Avec 199 (état des tests), 198 (outils/release.py et rattrapage des 13 releases manquantes) et 200 (glossaire) en place tôt, chaque sous-version suivante est publiée et suivie proprement. Les V8, V9 et V10 promettent un jeu identique, et c'est la page des tests qui permettra de le vérifier. Ce lot ne touche presque pas au code du jeu.
 
-### V6.9.9 — Effets visuels du voyage 🚧 en cours
+### V6.9.9 — Effets visuels du voyage ✅ faite (05/11)
 
 **Objectif :** Rendre la démat, la remat et l'atterrissage plus spectaculaires selon le mode et l'heure, et ajouter une option « aucun flash » pour les joueurs sensibles.
 

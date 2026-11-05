@@ -7,10 +7,23 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 86 tests** — ⬜ 68 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 94 tests** — ⬜ 76 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.9 — Effets visuels du voyage
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Voyage d'urgence (démat puis remat), en étant près de la cabine | l'air ondule et l'image se trouble nettement plus qu'en Classique, dès la démat | ⬜ |  |
+| Atterrissage en Classique, puis en Rapide, sur de l'herbe | une trace carrée sombre sous la cabine, qui s'efface en 30 s | ⬜ |  |
+| Atterrissage en Silencieux, puis sur l'eau | aucune trace au sol | ⬜ |  |
+| Voyage de nuit (ClockTime 0), puis de jour (ClockTime 12) | lueur, halo et lampe nettement plus forts la nuit, plus discrets le jour | ⬜ |  |
+| Dans la salle de contrôle : posé, démat, vol, alerte, hors tension | lumières bleutées, ambrées, cyan, rouges ; hors tension : lumière de secours rouge ; le rotor garde la couleur du mode | ⬜ |  |
+| Paradoxe : destination dans le TARDIS, puis confirmer pour forcer | fumée noire et étincelles autour de la cabine, puis éclats et fumée qui traîne environ 20 s | ⬜ |  |
+| Démat en Classique, en regardant les vitres de la cabine | les vitres restent lumineuses (lueur chaude) environ une seconde après le reste | ⬜ |  |
+| Tablette › Réglages › « Aucun flash », puis un voyage d'urgence, un bouclier et un Rapide à bord | aucun éclat, aucun clignotement, aucun arc ; l'enseigne reste fixe ; « Réduire les effets » s'est activé | ⬜ |  |
 
 ## V6.9.8 — Vérification et outils de suivi
 

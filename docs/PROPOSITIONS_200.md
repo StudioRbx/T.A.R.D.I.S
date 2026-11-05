@@ -70,17 +70,17 @@
 
 | N° | Proposition | Effort | Tri | Prévue en |
 |---|---|---|---|---|
-| 36 | **Distorsion de l'air plus forte en Urgence** : L'air ondule autour de la cabine en urgence, plus que pour les autres modes. | petit | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 36 | **Distorsion de l'air plus forte en Urgence** : L'air ondule autour de la cabine en urgence, plus que pour les autres modes. | petit | ✅ Garder | ✅ V6.9.9 |
 | 37 | **Feuilles et poussière soulevées** : Au départ, les petits objets non ancrés autour sont légèrement soulevés. | moyen | ⏳ Plus tard |  |
-| 38 | **Marques au sol après l'atterrissage** : Une trace carrée légère reste 30 s là où la cabine s'est posée. | petit | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 38 | **Marques au sol après l'atterrissage** : Une trace carrée légère reste 30 s là où la cabine s'est posée. | petit | ✅ Garder | ✅ V6.9.9 |
 | 39 | **Effet pour la téléportation de poche** : Une animation propre quand le TARDIS porté se dématérialise dans les mains. | moyen | ⏳ Plus tard |  |
 | 40 | **Silhouette du vortex au départ** : Un bref tunnel du vortex visible au-dessus de la cabine qui s'efface. | moyen | ✖ Non |  |
-| 41 | **Vitres qui s'éteignent en dernier** : En démat, les fenêtres restent lumineuses une seconde après le reste. | petit | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 41 | **Vitres qui s'éteignent en dernier** : En démat, les fenêtres restent lumineuses une seconde après le reste. | petit | ✅ Garder | ✅ V6.9.9 |
 | 42 | **Lampe : rythme réglable** : Choisir le rythme de clignotement de la lampe pendant les voyages. | petit | ✖ Non |  |
-| 43 | **Effet Catastrophe plus violent** : Éclats, fumée noire et étincelles autour de la cabine lors d'un paradoxe. | moyen | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 43 | **Effet Catastrophe plus violent** : Éclats, fumée noire et étincelles autour de la cabine lors d'un paradoxe. | moyen | ✅ Garder | ✅ V6.9.9 |
 | 44 | **Arrivée en Sauvetage avec halo** : Un halo sous la cabine pendant la descente, sans éclairer le sol directement. | petit | ✖ Non |  |
 | 45 | **Rematérialisation partielle ratée** : Rare : la cabine clignote, disparaît, puis réapparaît (bug d'atterrissage RP). | moyen | ✅ Garder | V11.3 |
-| 46 | **Effets selon l'heure du jeu** : La lueur est plus forte la nuit, plus discrète le jour. | petit | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 46 | **Effets selon l'heure du jeu** : La lueur est plus forte la nuit, plus discrète le jour. | petit | ✅ Garder | ✅ V6.9.9 |
 | 47 | **Réduction automatique des effets** : Effets allégés quand les images par seconde baissent. | moyen | ✅ Garder | V9.3 |
 | 48 | **Son et effet synchronisés sur mobile** : Vérifier et caler les effets sur les appareils lents. | moyen | ⏳ Plus tard |  |
 | 49 | **Écho visuel au décollage** : Deux ou trois contours de la cabine qui se décalent en s'effaçant. | petit | ✖ Non |  |
@@ -92,7 +92,7 @@
 |---|---|---|---|---|
 | 51 | **Écran de destination sur la console** : La destination choisie s'affiche sur un écran physique de la console. | petit | ✅ Garder | ✅ V6.9.8 |
 | 52 | **Rotor qui suit la vitesse du vol** : Le rotor monte et descend plus vite en vol libre rapide. | petit | ✅ Garder | V6.9.10 |
-| 53 | **Lumières de la salle selon l'état** : Bleu posé, ambré en voyage, cyan dans le vortex, rouge en alerte. | petit | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 53 | **Lumières de la salle selon l'état** : Bleu posé, ambré en voyage, cyan dans le vortex, rouge en alerte. | petit | ✅ Garder | ✅ V6.9.9 |
 | 54 | **Portes intérieures animées** : Les portes intérieures s'ouvrent et se ferment avec les extérieures. | moyen | ✅ Garder | V6.9.14 |
 | 55 | **Fauteuil du pilote** : S'asseoir dans un fauteuil ouvre directement les commandes. | moyen | ✖ Non |  |
 | 56 | **Bibliothèque** : Une pièce avec des livres qui affichent des fiches RP (lieux, anomalies). | moyen | ✅ Garder | V11.6 |
@@ -275,7 +275,7 @@
 | 188 | **Effets réduits par défaut sur mobile** : Les téléphones démarrent en effets réduits. | petit | ✅ Garder | V6.9.15 |
 | 189 | **Boutons tactiles plus grands** : Des boutons adaptés au doigt sur téléphone et tablette. | petit | ⏳ Plus tard |  |
 | 190 | **Sous-titres des sons** : Un petit texte pour les sons importants (alarme, départ, arrivée). | petit | ✅ Garder | V6.9.15 |
-| 191 | **Pas de flash** : Une option qui supprime tout flash lumineux. | petit | ✅ Garder | 🚧 V6.9.9 (en cours) |
+| 191 | **Pas de flash** : Une option qui supprime tout flash lumineux. | petit | ✅ Garder | ✅ V6.9.9 |
 | 192 | **Manette : navigation des menus** : Parcourir le menu et la tablette à la manette. | moyen | ✅ Garder | V12.4 |
 | 193 | **Réglages retenus entre appareils** : Les préférences suivent le joueur (déjà sauvegardées) et sont résumées dans un écran. | petit | ✅ Garder | V11.7 |
 | 194 | **Mode lecture seule clair** : Les visiteurs voient clairement ce qu'ils peuvent et ne peuvent pas faire. | petit | ✅ Garder | V8.1 |
