@@ -7,10 +7,28 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 94 tests** — ⬜ 76 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 107 tests** — ⬜ 89 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10 — Vol libre et vortex
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Vol libre, sous-menu PLUS › CROISIÈRE (ou Entrée), lâcher les touches | le TARDIS avance seul, droit, à la même altitude ; « CROISIÈRE ● » | ⬜ |  |
+| En croisière, tourner la caméra | le TARDIS garde son cap et ne se tourne pas vers la caméra | ⬜ |  |
+| En croisière, appuyer sur une touche de direction, puis relancer et freiner | la croisière s'arrête (message), le frein arrête net le TARDIS | ⬜ |  |
+| Croisière en TURBO vers un mur | il s'arrête en stationnaire avant le mur, sans choc ni dégâts | ⬜ |  |
+| En croisière, PLUS › ORBITE | la caméra tourne lentement autour de la cabine qui avance ; molette : plus près / plus loin | ⬜ |  |
+| Pendant l'orbite, freiner (Ctrl) | l'orbite se ferme, la caméra revient derrière le TARDIS, on pilote normalement | ⬜ |  |
+| Console › BoutonCamera pendant la croisière, puis « Orbite », puis « Vue du toit », puis « Quitter la caméra » | vue du toit, orbite, vue du toit, retour au pilotage (pas sur le personnage) | ⬜ |  |
+| Hors croisière, bouton « Orbite » de la caméra de la console | refusé, l'aide explique « seulement en croisière » | ⬜ |  |
+| Un passager à bord quand le pilote freine | secousse à l'écran (plus douce avec « réduire les effets ») ; dehors : fumée autour de la cabine | ⬜ |  |
+| Vol libre en TURBO, puis à l'arrêt, en regardant le rotor dans la salle | le rotor pompe bien plus vite en TURBO, revient doucement à son rythme normal | ⬜ |  |
+| Donner un son « Vortex » (Config.Sons ou TardisAssets › Sons), voyage classique, rester à bord puis sortir | vent du vortex pendant le vol, à bord seulement ; il s'estompe et s'arrête en sortant ou à l'arrivée | ⬜ |  |
+| Voyage Silencieux avec `SilenceABord = true` | pas de vent du vortex à bord | ⬜ |  |
+| Output au démarrage sans son Vortex | « sons absents » cite Vortex et Frein | ⬜ |  |
 
 ## V6.9.9 — Effets visuels du voyage
 
