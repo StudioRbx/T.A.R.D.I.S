@@ -395,6 +395,9 @@ pref("effetsReduits", False)
 # ------------------------------------------------------------------ 5. Signalisation : marque au sol (38) et enseigne (191)
 module("Signalisation")
 verifier("Signalisation se charge", not roblox.ERREURS, roblox.ERREURS[:3])
+# Le faux CFrame ne calcule pas de positions : par défaut, tout point paraît dans la salle. On teste d'abord ce cas
+# (paradoxe : cabine posée dans la salle → pas de marque), puis on place la salle « loin » (boîte illisible → pas de test de salle).
+boiteSalle = interieur.m_GetBoundingBox
 def atterrir(mode, **attrs):
     for k, v in attrs.items(): x.m_SetAttribute(k, v)
     etat("Remat", mode); image(0.1, 5)
@@ -402,6 +405,11 @@ def atterrir(mode, **attrs):
     m = ws.m_FindFirstChild("TardisMarqueSol_TARDIS_1")
     for k in attrs: x.m_SetAttribute(k, None)
     return m
+m = atterrir("Normal")
+verifier("38. Cabine posée dans la salle (paradoxe) : pas de marque (correction de relecture)", m is None, m)
+H.avancer(31); image(0.1)
+def salle_loin(): raise roblox.LuaError("salle hors de portée")
+interieur.m_GetBoundingBox = salle_loin
 m = atterrir("Normal")
 verifier("38. Atterrissage (Classique) : une marque carrée au sol", m is not None and m.props["Size"].args == [5.0, 0.05, 5.0] and m.props["Transparency"] == 0.7
          and m.props["Material"].nom == "Enum.Material.SmoothPlastic", m and (m.props["Size"].args, m.props["Transparency"]))
@@ -453,7 +461,7 @@ def explosion(sans):
     return voile, boule.props["Transparency"] if boule else None
 ex_avec, ex_sans = explosion(False), explosion(True)
 verifier("191. Explosion : voile blanc à l'écran ; « aucun flash » : pas de voile", ex_avec[0] and not ex_sans[0], (ex_avec, ex_sans))
-verifier("191. « Aucun flash » : boule de feu adoucie (semi-transparente)", ex_avec[1] == 0 and ex_sans[1] == 0.55, (ex_avec, ex_sans))
+verifier("191. « Aucun flash » : boule de feu adoucie (petite, très transparente)", ex_avec[1] == 0 and ex_sans[1] == 0.8, (ex_avec, ex_sans))
 x.m_SetAttribute("Explosion", None)
 def compteARebours(sans):
     pref("sansFlash", sans)

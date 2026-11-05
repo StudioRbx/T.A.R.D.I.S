@@ -1760,6 +1760,9 @@ end)
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	-- Le serveur ne fait jamais confiance au client : permission, type et fréquence vérifiés ici
 	if typeof(action) ~= "string" then return end
+	-- Préférences du joueur : traitées par TardisExtras seul (V6.9.9). Ici, elles consommeraient le délai entre deux ordres
+	-- d'un pilote (DÉMAT ignoré juste après un changement de réglage) et remettraient son inactivité à zéro.
+	if action == "Prefs" then return end
 
 	-- Actions du porteur (n'importe quel joueur qui tient le TARDIS, pas forcément un pilote)
 	if action == "ModePort" or action == "Poser" then

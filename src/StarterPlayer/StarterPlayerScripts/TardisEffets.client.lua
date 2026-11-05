@@ -233,12 +233,14 @@ local function proteger(nom, fonction, ...)
 end
 
 local alphaVitreActuel = 0
+-- Vitres en retard seulement quand leur lueur est préparée (pas en Silencieux, ni camouflé, ni porté : correction de relecture V6.9.9)
+local vitresEnRetard = false
 local function fondu(etat, ecoule, camouflage, mode)
 	-- « Aucun flash » (V6.9.9) : la cabine s'efface sans grésillements, comme en « réduire les effets »
 	local adouci = UI.effetsReduits() or UI.sansFlash()
 	local alpha = math.max(Config.Alpha(etat, ecoule, mode, adouci), camouflage)
 	-- Vitres (V6.9.9) : en démat, la même animation avec un retard qui grandit jusqu'à Config.Effets.RetardVitres
-	local retard = (nombreVitres > 0 and etat == E.Demat) and Config.retardVitres(etat, ecoule, mode) or 0
+	local retard = (nombreVitres > 0 and etat == E.Demat and vitresEnRetard) and Config.retardVitres(etat, ecoule, mode) or 0
 	local alphaVitre = retard > 0 and math.max(Config.Alpha(etat, ecoule - retard, mode, adouci), camouflage) or alpha
 	if alpha ~= alphaActuel or alphaVitre ~= alphaVitreActuel then
 		alphaActuel, alphaVitreActuel = alpha, alphaVitre
@@ -353,7 +355,8 @@ RunService.RenderStepped:Connect(function(dt)
 		if etat == E.Demat then
 			-- Vitres (V6.9.9) : leur lueur est préparée au départ (pas en Silencieux, ni camouflé, ni porté)
 			local modeDepart = Config.modeDe(exterieur)
-			if not (Config.Modes[modeDepart] or {}).Discret and exterieur:GetAttribute("Camouflage") ~= true and not exterieur:GetAttribute("Porteur") then
+			vitresEnRetard = not (Config.Modes[modeDepart] or {}).Discret and exterieur:GetAttribute("Camouflage") ~= true and not exterieur:GetAttribute("Porteur")
+			if vitresEnRetard then
 				proteger("vitres", preparerLueurVitres, modeDepart)
 			end
 		elseif etat == E.Vol and etatPrecedent == E.Demat then
@@ -615,7 +618,10 @@ RunService.RenderStepped:Connect(function(dt)
 					local tension = exterieur:GetAttribute("RegulEnergie")
 					if tension then cible *= 0.3 + 0.7 * math.clamp(tension / math.max((Config.Technicien or {}).SousTension or 20, 1) * 0.5, 0, 1) end
 					-- Choc d'atterrissage : la lumière vacille
-					if choc > 0 then cible *= 1 - 0.5 * choc * Config.Bruit(t, 20) end
+					-- (« aucun flash », V6.9.9 : une simple baisse, sans vacillement à 20 Hz)
+					if choc > 0 then
+						if UI.sansFlash() then cible *= 1 - 0.25 * math.min(choc, 1) else cible *= 1 - 0.5 * choc * Config.Bruit(t, 20) end
+					end
 					-- Lumières du rotor : couleur du mode du voyage
 					if melangeRotor > 0 and infos.rotor then couleur = couleur:Lerp(couleurRotor, 0.85 * melangeRotor) end
 					-- Couleur de l'état de la salle (V6.9.9) : pas sur les lumières du rotor (ni sur les LedsAlerte, non recolorées)

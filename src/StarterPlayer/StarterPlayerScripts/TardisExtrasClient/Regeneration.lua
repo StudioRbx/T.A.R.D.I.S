@@ -404,8 +404,10 @@ return function(contexte)
 						-- Au changement : la colonne devient blanche un instant et les anneaux s'écartent
 						if p >= 0.55 and not eclatFait then
 							eclatFait = true
-							colonne.Color = BLANC
-							animer(colonne, 1.2, { Color = OR_CLAIR })
+							if not sansFlash then -- « aucun flash » (V6.9.9) : la colonne ne passe pas au blanc
+								colonne.Color = BLANC
+								animer(colonne, 1.2, { Color = OR_CLAIR })
+							end
 							anneauSol(BLANC_OR, 14, 1.2, 0.1)
 						end
 					end
@@ -438,7 +440,7 @@ return function(contexte)
 					parImage = function(p, i, t)
 						if not explose then
 							local charge = math.clamp(p / 0.55, 0, 1)
-							coeur.Size = Vector3.one * (0.5 + 3 * charge * charge) * (1 + 0.12 * math.sin(t * 30 * charge))
+							coeur.Size = Vector3.one * (0.5 + 3 * charge * charge) * (sansFlash and 1 or (1 + 0.12 * math.sin(t * 30 * charge)))
 							coeur.Transparency = 1 - 0.85 * charge
 							coeur.CFrame = racine.CFrame
 							voileSombre.CFrame = racine.CFrame
@@ -451,6 +453,7 @@ return function(contexte)
 							for _, f in flux do if f.e == aspiration then f.debit = 0 end end
 							coeur.Transparency = 1
 							voileSombre.Transparency = 1
+							if not sansFlash then -- « aucun flash » (V6.9.9) : ni boule de lumière ni anneaux ; l'onde de choc et les débris restent
 							local boule = partTemporaire({ Name = "TardisRegenSupernova", Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = BLANC,
 								Transparency = reduit and 0.7 or 0, Size = Vector3.one * 4, CFrame = racine.CFrame })
 							animer(boule, 0.55, { Size = Vector3.one * 48, Transparency = 1, Color = ORANGE }, Enum.EasingStyle.Quad)
@@ -461,6 +464,7 @@ return function(contexte)
 									Transparency = 0.1, Size = Vector3.new(0.2, 2, 2), CFrame = CFrame.new(racine.Position) * rotation })
 								animer(anneau, 0.9, { Size = Vector3.new(0.1, 40, 40), Transparency = 1, Color = ORANGE }, Enum.EasingStyle.Quad)
 								Debris:AddItem(anneau, 1)
+							end
 							end
 							debris:Emit(160)
 							ondeDeChoc(BLANC_OR, 1.2)
@@ -524,14 +528,14 @@ return function(contexte)
 							f.part.CFrame = CFrame.lookAt(sol + Vector3.new(0, 0.12, 0) + direction * (longueur / 2), sol + Vector3.new(0, 0.12, 0) + direction * longueur)
 							f.part.Transparency = p > 0.25 and (1 - 0.9 * i * (0.7 + 0.3 * Config.Bruit(t + k, 12))) or 1
 						end
-						if i > 0.3 and p < 0.85 and math.random() < 0.4 * i then
+						if i > 0.3 and p < 0.85 and math.random() < 0.4 * i and not sansFlash then
 							local a = math.random() * math.pi * 2
 							local loin = 2 + math.random() * 5
 							eclair(racine.Position + Vector3.new(0, math.random() * 2, 0), sol + Vector3.new(math.cos(a) * loin, 0.2, math.sin(a) * loin))
 						end
-						if i > 0.2 and math.random() < 0.6 * i then arcPeau() end
-						-- L'image tressaute : la lueur et la lumière saccadent
-						local saccade = Config.Bruit(t, 18)
+						if i > 0.2 and math.random() < 0.6 * i and not sansFlash then arcPeau() end
+						-- L'image tressaute : la lueur et la lumière saccadent (couleur fixe avec « aucun flash », V6.9.9)
+						local saccade = sansFlash and 0 or Config.Bruit(t, 18)
 						lueur.OutlineColor = saccade < 0.5 and ROUGE_CLAIR or BLANC
 						lumiere.Color = saccade < 0.7 and ROUGE or BLANC
 						while ondes[1] and p >= ondes[1].p do

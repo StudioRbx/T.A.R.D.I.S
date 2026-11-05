@@ -79,8 +79,8 @@
    "nom": "TardisServeur",
    "classe": "Script",
    "parTardis": false,
-   "taille": 99132,
-   "empreinte": 92811918
+   "taille": 99410,
+   "empreinte": 1386697632
   },
   {
    "fichier": "src/ServerScriptService/TardisSupervision.server.lua",
@@ -124,8 +124,8 @@
    "nom": "TardisEffets",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 70001,
-   "empreinte": 1061316330
+   "taille": 70388,
+   "empreinte": 1329115335
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/init.client.lua",
@@ -187,8 +187,8 @@
    "nom": "TardisVolLibre",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 79062,
-   "empreinte": 1427163528
+   "taille": 79380,
+   "empreinte": 913389249
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Ambiance.lua",
@@ -205,8 +205,8 @@
    "nom": "AutoDestruction",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 6776,
-   "empreinte": 821119251
+   "taille": 7151,
+   "empreinte": 1220467217
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Boucliers.lua",
@@ -241,8 +241,8 @@
    "nom": "EffetsExterieurs",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 14701,
-   "empreinte": 1098385905
+   "taille": 14945,
+   "empreinte": 308065499
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Interactions.lua",
@@ -286,8 +286,8 @@
    "nom": "Regeneration",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 59528,
-   "empreinte": 1937304393
+   "taille": 59901,
+   "empreinte": 973919168
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Replay.lua",
@@ -304,8 +304,8 @@
    "nom": "Signalisation",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 15874,
-   "empreinte": 1137665983
+   "taille": 16411,
+   "empreinte": 1944869834
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Supervision.lua",

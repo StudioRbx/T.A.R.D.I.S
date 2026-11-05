@@ -56,7 +56,7 @@ return function(contexte)
 			local centre = exterieur:GetPivot().Position + Vector3.new(0, 4, 0)
 			local sansFlash = UI.sansFlash() -- V6.9.9
 			local boule = partTemporaire({ Name = "TardisExplosion", Shape = Enum.PartType.Ball, Material = Enum.Material.Neon,
-				Color = Color3.fromRGB(255, 230, 160), Size = Vector3.new(4, 4, 4), CFrame = CFrame.new(centre), Transparency = sansFlash and 0.55 or 0 })
+				Color = Color3.fromRGB(255, 230, 160), Size = sansFlash and Vector3.new(2, 2, 2) or Vector3.new(4, 4, 4), CFrame = CFrame.new(centre), Transparency = sansFlash and 0.8 or 0 })
 			animer(boule, 0.5, { Size = Vector3.new(60, 60, 60), Color = Color3.fromRGB(255, 90, 20) }, Enum.EasingStyle.Quad)
 			task.delay(0.5, function()
 				animer(boule, 1.2, { Size = Vector3.new(90, 90, 90), Transparency = 1, Color = Color3.fromRGB(40, 20, 10) })
@@ -67,8 +67,14 @@ return function(contexte)
 				CFrame = CFrame.new(centre - Vector3.new(0, 3.5, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
 			animer(onde, 1.4, { Size = Vector3.new(0.2, 220, 220), Transparency = 1 })
 			task.delay(1.5, function() onde:Destroy() end)
-			local lumiere = creer("PointLight", { Color = Color3.fromRGB(255, 150, 60), Brightness = 20, Range = 150, Parent = boule })
-			animer(lumiere, 1.5, { Brightness = 0 })
+			-- « Aucun flash » (V6.9.9) : la lumière monte doucement et reste faible, au lieu d'un éclat de 150 studs
+			local lumiere = creer("PointLight", { Color = Color3.fromRGB(255, 150, 60), Brightness = sansFlash and 0 or 20, Range = sansFlash and 60 or 150, Parent = boule })
+			if sansFlash then
+				animer(lumiere, 0.3, { Brightness = 4 })
+				task.delay(0.3, function() if lumiere.Parent then animer(lumiere, 1.2, { Brightness = 0 }) end end)
+			else
+				animer(lumiere, 1.5, { Brightness = 0 })
+			end
 			-- Fumée et débris
 			local support = partTemporaire({ Name = "TardisFumeeExplosion", Transparency = 1, Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(centre) })
 			local fumee = creer("Smoke", { Color = Color3.fromRGB(40, 35, 30), Opacity = 0.7, RiseVelocity = 12, Size = 25, Parent = support })

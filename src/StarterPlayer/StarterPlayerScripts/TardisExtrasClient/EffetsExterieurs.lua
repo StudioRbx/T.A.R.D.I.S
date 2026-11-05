@@ -67,7 +67,9 @@ return function(contexte)
 			local base = exterieur:GetPivot().Position
 			local facteur = Config.facteurDistorsion(modeAnime, UI_.effetsReduits())
 			-- Ombre au sol avant l'apparition, et air qui ondule pendant la matérialisation (et la démat d'urgence)
-			if p and (remat or facteur > 1) then
+			-- (démat d'urgence : pas pour une cabine camouflée ou portée, qui se trahirait — correction de relecture V6.9.9)
+			local cache = exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") ~= nil
+			if p and (remat or (facteur > 1 and not cache)) then
 				local sol = solSous(base)
 				if sol then
 					local taille = exterieur:GetExtentsSize()

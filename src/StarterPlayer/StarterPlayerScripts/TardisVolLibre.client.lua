@@ -618,7 +618,16 @@ local function majVortex(dt, centre, direction, t, tube)
 	end
 
 	-- Éclairs : de temps en temps, un arc en zigzag entre deux points de la grille
-	if t >= v.prochainEclair and v.apparition > 0.5 then
+	local sansFlash = UI.sansFlash() -- « aucun flash » (V6.9.9) : pas d'éclairs dans le vortex
+	if sansFlash then
+		for _, eclair in v.eclairs do
+			if eclair.vie > 0 then
+				eclair.vie = 0
+				for _, segment in eclair.segments do segment.Transparency = NumberSequence.new(1) end
+			end
+		end
+	end
+	if t >= v.prochainEclair and v.apparition > 0.5 and not sansFlash then
 		v.prochainEclair = t + 0.35 + math.random() * 1.1
 		for _, eclair in v.eclairs do
 			if eclair.vie <= 0 then
