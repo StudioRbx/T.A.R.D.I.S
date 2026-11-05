@@ -629,7 +629,7 @@ class Instance:
     def m_GetScale(s): return s.props.get("Scale", 1)
     def m_ScaleTo(s, e): s.props["Scale"] = e; return []
     def m_GetPivot(s): return s.props.get("Pivot", Valeur("CFrame"))
-    def m_GetBoundingBox(s): return [Valeur("CFrame"), Valeur("Vector3", [10, 10, 10])]
+    def m_GetBoundingBox(s): return [s.props.get("BoiteCFrame", Valeur("CFrame")), s.props.get("BoiteTaille", Valeur("Vector3", [10, 10, 10]))]  # V6.9.10.3 : boîte réglable
 
 def versPython(v):
     if isinstance(v, Table):

@@ -53,11 +53,18 @@ Config.CouleurAlerte = Color3.fromRGB(255, 30, 30)
 Config.NomIgnorerVue = "IgnorerVue"  -- Folder optionnel : son contenu n'apparaît pas dans la vue depuis l'extérieur
 
 -- Écrans de la console faits en script (V6.9.10.1) : destination (un ou plusieurs « Ecran ») et écran ingénieur.
--- Face de l'affichage : attribut texte « FaceEcran » posé dans Studio sur la pièce (ou sur le Model « Ecran ») :
--- Front, Back, Top, Bottom, Left ou Right ; absent = Front ; « Aucune » = pas d'affichage sur cette pièce.
+-- Face de l'affichage : attribut texte « FaceEcran » posé dans Studio sur la pièce (ou sur le Model) :
+-- Front, Back, Top, Bottom, Left, Right ou Auto ; « Aucune » = pas d'affichage sur cette pièce ; absent = la face par
+-- défaut ci-dessous. Auto (V6.9.10.3) : le grand côté de la pièce qui regarde vers le haut et vers l'extérieur de la
+-- console. Au démarrage, l'Output dit quelle pièce et quelle face chaque écran utilise.
+-- Netteté (V6.9.10.3) : chaque écran a Resolution pixels sur son grand côté, quelle que soit la taille de la pièce.
 Config.Ecrans = {
 	AttributFace = "FaceEcran", -- (V6.9.10.1) nom de l'attribut qui choisit la face
-	PixelsParStud = 50,         -- (V6.9.10.1) finesse de l'affichage
+	FaceDestination = "Front",  -- (V6.9.10.3) face des écrans de destination sans attribut (Front, …, Auto)
+	FaceIngenieur = "Auto",     -- (V6.9.10.3) face de l'écran ingénieur sans attribut (Auto : la face visible, trouvée seule)
+	Resolution = 1024,          -- (V6.9.10.3) pixels sur le grand côté de chaque écran (net même sur un écran de 2 studs)
+	ResolutionMax = 2048,       -- (V6.9.10.3) jamais plus de pixels sur le grand côté (mémoire), même au minimum de finesse
+	PixelsParStud = 20,         -- (V6.9.10.1) finesse minimale ; V6.9.10.3 : un minimum (avant : 50 fixe, 100 à 200 pixels sur un petit écran, flou)
 	Rafraichissement = 0.1,     -- (V6.9.10.1) secondes au moins entre deux mises à jour de l'écran ingénieur (tirs sur le bouclier)
 }
 -- Menu de gestion de l'énergie (V6.9.10.1) : un clic sur l'écran ingénieur (pilotes et techniciens C.T.A.T.)

@@ -100,7 +100,7 @@ cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 def bloc(debut, fin="\n}"):
     i = cfgsrc.index(debut); return cfgsrc[i:cfgsrc.index(fin, i)]
 blocs = [bloc("Config.Ecrans = {"), bloc("Config.EcranIngenieur = {"), bloc("Config.JukeboxConsole = {"), bloc("Config.BoutonVolLibre = {"), bloc("Config.NeonsSalle = {"), bloc("Config.InvitesConsole = {")]
-nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l)]
+nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l) and "(V6.9.10.3)" not in l]  # V6.9.10.3 : réglages des écrans ajoutés depuis (sim_v69103)
 nouvelles += [l for l in cfgsrc.splitlines() if re.match(r"\s*(Alerte|VolLibre|EcranIngenieur|Casier|JukeBox) = \{ \"Console\"", l) or l.startswith("Config.CheminsFacultatifs") or l.startswith("Config.CheminsSecours")]
 verifier("Chaque nouveau réglage est marqué « (V6.9.10.1) »", len(nouvelles) == 24 and all("(V6.9.10.1)" in l for l in nouvelles),
          (len(nouvelles), [l for l in nouvelles if "(V6.9.10.1)" not in l][:3]))
@@ -805,7 +805,7 @@ vivant = trouve(ecranCopie, "TardisVivant")
 verifier("11. Ligne vivante (coordonnées, horloge) dans la bande du bas de l'écran du serveur", vivant is not None and vivant.parent.Name == "LigneVivante"
          and texte_de(vivant) == "X 12 · Y 34 · Z 56 · 13:30", vivant and texte_de(vivant))
 sg = enfant_classe(ecranCopie, "SurfaceGui")[0]
-verifier("11. Le reste de l'affichage du serveur n'est pas déformé (la destination garde sa place)", list(champ(sg, "Destination").props["Size"].args) == [0.9, 0.19], champ(sg, "Destination").props["Size"].args)
+verifier("11. Le reste de l'affichage du serveur n'est pas déformé (la destination garde sa place : 0,9 × 0,22 depuis la V6.9.10.3)", list(champ(sg, "Destination").props["Size"].args) == [0.9, 0.22], champ(sg, "Destination").props["Size"].args)
 xc.m_SetAttribute("Alimentation", False); H.avancer(0.6)
 verifier("11. Hors tension : la ligne vivante disparaît", vivant.props.get("Visible") is False)
 verifier("Client (Ambiance) : aucune erreur", not roblox.ERREURS, roblox.ERREURS[:3])
