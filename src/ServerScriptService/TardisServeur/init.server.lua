@@ -1388,6 +1388,7 @@ end
 local VolLibre = require(script:WaitForChild("VolLibre"))({ Config = Config, jouerVoyage = jouerVoyage, modeAutorise = modeAutorise, E = E, Players = Players, chercherSol = chercherSol, dansInterieur = dansInterieur, echelleNormale = echelleNormale, emmenerALInterieur = emmenerALInterieur, etatActuel = etatActuel, exterieur = exterieur, fermerPortes = fermerPortes, hauteurNormale = hauteurNormale, interieur = interieur, jouer = jouer, majEcran = majEcran, majRamassage = majRamassage, memoriserDepart = memoriserDepart, partage = partage, setCollisionsExterieur = setCollisionsExterieur, tropPetitPourLesPortes = tropPetitPourLesPortes, verifierEau = verifierEau })
 local basculerPortesEnVol, changerPhaseVol, demarrerVolLibre, lancerDescente, lancerGlisse, recevoirPositionVol = VolLibre.basculerPortesEnVol, VolLibre.changerPhaseVol, VolLibre.demarrerVolLibre, VolLibre.lancerDescente, VolLibre.lancerGlisse, VolLibre.recevoirPositionVol
 local reglagesVol, teleAtterrir, volLibre = VolLibre.reglagesVol, VolLibre.teleAtterrir, VolLibre.volLibre
+local freinerVol = VolLibre.freinerVol -- V6.9.10 : freinage d'urgence ressenti à bord
 
 --------------------------------------------------------------------
 -- Boucliers
@@ -1814,6 +1815,11 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		if exterieur:GetAttribute("VolLibre") == joueur.UserId and not volLibre.enDescente then
 			task.spawn(basculerPortesEnVol)
 		end
+		return
+	end
+	if action == "VolLibreFrein" then
+		-- V6.9.10 : pilote du vol libre seul, sans données, au plus un frein par seconde (vérifié dans freinerVol)
+		freinerVol(joueur, donnees)
 		return
 	end
 	if action == "VolLibreGlisse" then

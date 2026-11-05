@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.9"
+Config.Version = "6.9.10"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -207,6 +207,16 @@ Config.LumiereAmbiante = Color3.fromRGB(170, 170, 170)
 -- Caméra extérieure (au-dessus de la Lampe)
 Config.HauteurCamera = 3        -- hauteur de départ au-dessus de la Lampe (studs)
 Config.HauteurCameraMax = 40    -- hauteur maximale avec la molette
+-- Caméra en orbite (V6.9.10) : depuis la caméra de la console (ou le bouton ORBITE du vol libre), une vue lente qui tourne
+-- autour de la cabine. Réservée au pilote du vol libre, et seulement en CROISIÈRE (sa caméra ne dirige plus le TARDIS).
+Config.CameraOrbite = {
+	Vitesse = 8,        -- (V6.9.10) degrés par seconde (moitié moins vite avec « réduire les effets »)
+	Distance = 30,      -- (V6.9.10) distance de départ au centre de la cabine (studs, à sa taille normale)
+	DistanceMin = 25,   -- (V6.9.10) molette : au plus près
+	DistanceMax = 35,   -- (V6.9.10) molette : au plus loin
+	Elevation = 20,     -- (V6.9.10) degrés au-dessus de l'horizon au départ (clic droit + souris pour changer)
+	RechargeZone = 4,   -- (V6.9.10) secondes entre deux demandes de chargement de la zone autour de la cabine (Streaming)
+}
 
 -- Vue de la rue depuis l'intérieur
 Config.RayonVueExterieur = 120                       -- rayon des décors copiés autour du TARDIS (studs)
@@ -304,6 +314,19 @@ Config.VolLibre = {
 	GraviteChute = 70,         -- gravité de la chute (double Espace) : plus petit = chute plus lente
 	VitesseDescente = 14,      -- vitesse de l'atterrissage en douceur (studs/s)
 	DelaiSansNouvelles = 8,    -- V6.9.7 : secondes sans position du pilote (figé, déconnecté) avant que le TARDIS se pose seul
+	-- Croisière (V6.9.10, bouton CROISIÈRE du sous-menu PLUS ou touche Entrée) : cap, altitude et vitesse tenus sans
+	-- toucher aux touches. Une touche de direction, le frein, la chute, CIBLE, ATTERRIR ICI ou l'urgence l'arrêtent.
+	Croisiere = {
+		DistanceObstacle = 25, -- (V6.9.10) obstacle à moins de tant de studs devant : la croisière s'arrête en stationnaire
+	},
+	-- Freinage d'urgence (V6.9.10, Ctrl ou bouton FREIN) : ressenti à bord par tout le monde (secousse, fumée, son « Frein »)
+	Frein = {
+		Recharge = 1,          -- (V6.9.10) secondes minimum entre deux freins (vérifié par le serveur)
+		SecousseABord = 0.5,   -- (V6.9.10) secousse des passagers à bord (× 0,3 avec « réduire les effets »)
+		SecousseDehors = 0.4,  -- (V6.9.10) secousse des joueurs dehors tout près de la cabine (décroît avec la distance)
+		PorteeDehors = 60,     -- (V6.9.10) au-delà de cette distance (studs), rien ne se sent dehors
+		DureeFumee = 0.5,      -- (V6.9.10) secondes de fumée de freinage autour de la cabine
+	},
 	-- Vol en formation (touche L, V6.9.8) : le TARDIS suit le joueur ou le véhicule visé
 	Formation = {
 		Distance = 14,         -- studs en arrière de la cible
@@ -495,6 +518,8 @@ Config.Jukebox = {
 Config.Sons = {
 	Camouflage = 0, Decamouflage = 0, Cloitre = 0, Reparation = 0, Regeneration = 0, Intercom = 0,
 	Moteur_Pose = 0, Moteur_Vol = 0, Moteur_Urgence = 0,
+	Vortex = 0, -- (V6.9.10) vent cosmique en boucle, à bord seulement, pendant le vol dans le vortex (Config.AmbianceVortex)
+	Frein = 0,  -- (V6.9.10) crissement temporel du freinage d'urgence en vol libre (facultatif)
 	-- Replis intégrés à Roblox (toujours disponibles) : à remplacer par de vrais sons de TARDIS si tu en as
 	Chute = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.9 },
 	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
@@ -627,6 +652,24 @@ Config.Technicien = {
 
 -- Bourdonnement du moteur : Sound "Moteur_Pose", "Moteur_Vol", "Moteur_Urgence" dans TardisAssets > Sons (optionnels)
 
+-- Vent du vortex à bord (V6.9.10) : le Sound « Vortex » (Config.Sons, ou TardisAssets › Sons) joue en boucle, en fondu,
+-- seulement pour ceux qui sont à bord, pendant le vol (état Vol, ou vol libre dématérialisé ou dans le VORTEX).
+-- Il se tait hors tension, et pendant un voyage Silencieux si Config.Modes.Silencieux.SilenceABord est vrai.
+Config.AmbianceVortex = {
+	Volume = 0.4,          -- (V6.9.10) volume à bord (multiplié par le volume des réglages)
+	AvecJukebox = 0.5,     -- (V6.9.10) volume multiplié par ceci quand le jukebox joue
+	Fondu = 1,             -- (V6.9.10) rapidité du fondu (plus grand = plus vite)
+}
+
+-- Rotor qui suit la vitesse du vol libre (V6.9.10) : plus la cabine va vite, plus le rotor monte et descend vite
+-- (chez tout le monde, d'après le déplacement réel de la cabine). Config.facteurRotorVol fait le calcul.
+Config.RotorVolLibre = {
+	FacteurMax = 3,        -- (V6.9.10) vitesse du rotor (× Config.VitesseRotor) au plus haut niveau de Config.VolLibre.Niveaux
+	BonusVortex = 0.5,     -- (V6.9.10) en plus dans le VORTEX du vol libre
+	BonusUrgence = 1,      -- (V6.9.10) en plus en URGENCE
+	Lissage = 2,           -- (V6.9.10) rapidité avec laquelle il suit la vitesse (plus grand = plus vif)
+}
+
 -- Systèmes (points de vie, boucliers, pannes, régénération, saleté)
 Config.Systemes = {
 	PointsDeVie = 10000,            -- énorme : même en le faisant exprès, il est difficile d'arriver à 0
@@ -736,6 +779,21 @@ end
 
 function Config.modeDe(exterieur)
 	return Config.normaliserMode(exterieur:GetAttribute("Mode"))
+end
+
+-- Rotor en vol libre (V6.9.10) : facteur de vitesse d'après la vitesse de la cabine (studs/s). 1 à l'arrêt, FacteurMax
+-- au plus haut niveau de Config.VolLibre.Niveaux (et au-delà), plus les bonus du VORTEX et de l'URGENCE.
+function Config.facteurRotorVol(vitesse, vortex, urgence)
+	local reglages = Config.RotorVolLibre or {}
+	local maxi = reglages.FacteurMax or 3
+	local plusRapide = 1
+	for _, niveau in (Config.VolLibre or {}).Niveaux or { 150 } do plusRapide = math.max(plusRapide, niveau) end
+	local v = tonumber(vitesse) or 0
+	if v ~= v then v = 0 end -- NaN
+	local facteur = 1 + (maxi - 1) * math.clamp(v / plusRapide, 0, 1)
+	if vortex then facteur += reglages.BonusVortex or 0.5 end
+	if urgence then facteur += reglages.BonusUrgence or 1 end
+	return facteur
 end
 
 -- Durée de l'animation et décalage du son pour un état et un mode

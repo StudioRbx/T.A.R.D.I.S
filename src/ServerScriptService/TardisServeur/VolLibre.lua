@@ -163,6 +163,24 @@ return function(contexte)
 		exterieur:SetAttribute("VolLibreCF", volLibre.dernierCF)
 	end
 
+	-- Freinage d'urgence (V6.9.10, action VolLibreFrein) : le pilote a déjà arrêté le TARDIS chez lui ; le serveur publie
+	-- l'instant du frein (attribut FreinTemps) pour que tout le monde le ressente (secousse à bord, fumée, son « Frein »).
+	-- Le serveur ne fait pas confiance au client : seul le pilote du vol libre en cours, aucune donnée attendue, jamais en
+	-- urgence (rien ne l'arrête, comme chez le pilote) ni pendant la descente, et au plus un frein par seconde
+	-- (Config.VolLibre.Frein.Recharge : un temps de recharge propre à cette action, comme Config.Cooldown).
+	local function freinerVol(pilote, donnees)
+		if typeof(pilote) ~= "Instance" or not pilote:IsA("Player") then return false end
+		if exterieur:GetAttribute("VolLibre") ~= pilote.UserId or volLibre.enDescente then return false end
+		if donnees ~= nil then return false end
+		if exterieur:GetAttribute("VolUrgence") == true then return false end
+		local recharge = (reglagesVol.Frein or {}).Recharge or 1
+		local maintenant = os.clock()
+		if volLibre.dernierFrein and maintenant - volLibre.dernierFrein < recharge then return false end
+		volLibre.dernierFrein = maintenant
+		exterieur:SetAttribute("FreinTemps", workspace:GetServerTimeNow())
+		return true
+	end
+
 	-- Vol de précision : le TARDIS rapetisse (30 %) le temps du mode, puis reprend sa taille
 	local function echellerEnVol(facteur)
 		if not hauteurNormale then return end
@@ -183,6 +201,8 @@ return function(contexte)
 		exterieur:SetAttribute("VolLibreCF", nil)
 		exterieur:SetAttribute("VolVortex", false)
 		exterieur:SetAttribute("VolUrgence", false)
+		exterieur:SetAttribute("FreinTemps", nil) -- V6.9.10 : rien ne se rejoue après le vol
+		volLibre.dernierFrein = nil
 		volLibre.jetonPhase = nil
 		volLibre.jetonSurveillance = nil
 		exterieur:SetAttribute("VolPhase", nil) -- de nouveau visible normalement
@@ -357,5 +377,5 @@ return function(contexte)
 		return true
 	end
 
-	return { basculerPortesEnVol = basculerPortesEnVol, changerPhaseVol = changerPhaseVol, demarrerVolLibre = demarrerVolLibre, lancerDescente = lancerDescente, lancerGlisse = lancerGlisse, recevoirPositionVol = recevoirPositionVol, reglagesVol = reglagesVol, teleAtterrir = teleAtterrir, volLibre = volLibre }
+	return { basculerPortesEnVol = basculerPortesEnVol, changerPhaseVol = changerPhaseVol, demarrerVolLibre = demarrerVolLibre, freinerVol = freinerVol, lancerDescente = lancerDescente, lancerGlisse = lancerGlisse, recevoirPositionVol = recevoirPositionVol, reglagesVol = reglagesVol, teleAtterrir = teleAtterrir, volLibre = volLibre }
 end
