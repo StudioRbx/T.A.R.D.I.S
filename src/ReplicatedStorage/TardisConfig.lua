@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.3"
+Config.Version = "6.9.10.4"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -66,6 +66,10 @@ Config.Ecrans = {
 	ResolutionMax = 2048,       -- (V6.9.10.3) jamais plus de pixels sur le grand côté (mémoire), même au minimum de finesse
 	PixelsParStud = 20,         -- (V6.9.10.1) finesse minimale ; V6.9.10.3 : un minimum (avant : 50 fixe, 100 à 200 pixels sur un petit écran, flou)
 	Rafraichissement = 0.1,     -- (V6.9.10.1) secondes au moins entre deux mises à jour de l'écran ingénieur (tirs sur le bouclier)
+	-- Sens du texte (V6.9.10.4) : attribut « RotationEcran » (0, 90, 180, 270 ou Auto) sur la pièce ou le Model ; sinon :
+	AttributRotation = "RotationEcran", -- (V6.9.10.4) nom de l'attribut qui tourne l'affichage
+	RotationDestination = 0,    -- (V6.9.10.4) écrans de destination : tels quels (ils s'affichent déjà droit)
+	RotationIngenieur = "Auto", -- (V6.9.10.4) écran ingénieur : le haut du texte vers le haut (ou vers le centre de la console s'il est à plat)
 }
 -- Menu de gestion de l'énergie (V6.9.10.1) : un clic sur l'écran ingénieur (pilotes et techniciens C.T.A.T.)
 Config.EcranIngenieur = {

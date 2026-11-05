@@ -281,8 +281,8 @@ verifier("6. Une seule ligne dans l'Output au démarrage", len(lignes) == 1, S["
 L = lignes[0] if lignes else ""
 verifier("6. Elle nomme le TARDIS et chaque écran de destination, avec sa face et sa taille en pixels",
          L.startswith("[TARDIS] TARDIS_1 · écrans de la console : ") and L.count("destination « Console › Ecran » : face ") == 2
-         and "face Front (1024 × 614 px)" in L and "face Back (1024 × 614 px)" in L, L)
-verifier("6. … et l'écran ingénieur : la pièce choisie dans le Model et sa face automatique", "ingénieur « Console › Ecran-Ingenieure › Vitre » : face Top (auto) (1024 × 683 px)" in L, L)
+         and "face Front, sens 0° (1024 × 614 px)" in L and "face Back, sens 0° (1024 × 614 px)" in L, L)
+verifier("6. … et l'écran ingénieur : la pièce choisie dans le Model et sa face automatique", "ingénieur « Console › Ecran-Ingenieure › Vitre » : face Top (auto), sens 180° (auto) (1024 × 683 px)" in L, L)
 n6 = len(roblox.SORTIE); H.avancer(12)
 verifier("6. Pas de deuxième ligne ensuite (12 s plus tard)", not [l for l in roblox.SORTIE[n6:] if "écrans de la console" in l], roblox.SORTIE[n6:])
 tard = piece("Ecran", S["console"], (0, 4, 0), (2, 1.2, 0.1))

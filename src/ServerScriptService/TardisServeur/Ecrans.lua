@@ -30,6 +30,7 @@ return function(contexte)
 	local C = UI.C
 	local REGLAGES = Config.Ecrans or {}
 	local ATTRIBUT_FACE = REGLAGES.AttributFace or "FaceEcran"
+	local ATTRIBUT_ROTATION = REGLAGES.AttributRotation or "RotationEcran" -- (V6.9.10.4)
 	local RESOLUTION = REGLAGES.Resolution or 1024        -- pixels voulus sur le grand côté de chaque écran
 	local RESOLUTION_MAX = REGLAGES.ResolutionMax or 2048 -- jamais plus (mémoire), même avec le minimum de finesse
 	local FINESSE_MIN = REGLAGES.PixelsParStud or 20      -- finesse minimale (pixels par stud) d'un grand écran
@@ -103,6 +104,52 @@ return function(contexte)
 		return Enum.NormalId[FACES[string.lower(tostring(parDefaut))] or "Front"], false
 	end
 
+	--------------------------------------------------------------------
+	-- Sens de l'affichage (V6.9.10.4)
+	--------------------------------------------------------------------
+	-- Une SurfaceGui n'a pas toujours le haut là où on lit : sur les faces de côté, son haut suit le haut de la pièce
+	-- (une pièce couchée sur le flanc donne un texte tourné) ; sur la face Top, son haut va vers la face Right de la
+	-- pièce (comportement connu de Roblox, différent des Decals). Le contenu est donc tourné de 0, 90, 180 ou 270°.
+	-- Attribut « RotationEcran » sur la pièce (ou le Model) : 0, 90, 180, 270 ou Auto ; absent = réglage par défaut.
+	-- Auto : le haut du texte va vers le haut du monde (écran incliné ou debout) ; pour un écran à plat, vers le centre
+	-- de la console (le joueur lit depuis l'extérieur).
+	local function repereFace(cf, face)
+		if face == Enum.NormalId.Front then return cf.LookVector, cf.UpVector end
+		if face == Enum.NormalId.Back then return -cf.LookVector, cf.UpVector end
+		if face == Enum.NormalId.Right then return cf.RightVector, cf.UpVector end
+		if face == Enum.NormalId.Left then return -cf.RightVector, cf.UpVector end
+		if face == Enum.NormalId.Top then return cf.UpVector, cf.RightVector end
+		return -cf.UpVector, cf.RightVector -- Bottom : supposé comme Top (à corriger avec RotationEcran au besoin)
+	end
+	local function rotationAuto(part, face, centre)
+		local cf = part.CFrame
+		local normale, haut = repereFace(cf, face)
+		local droite = (-normale):Cross(haut) -- la droite de l'image, vue de face
+		local voulu = Vector3.new(0, 1, 0) - normale * normale.Y
+		if voulu.Magnitude < 0.35 then -- écran presque à plat : le haut du texte vers le centre de la console
+			if not centre then return 0 end
+			local d = centre - cf.Position
+			voulu = d - normale * normale:Dot(d)
+			if voulu.Magnitude < 0.01 then return 0 end
+		end
+		local a, b = voulu:Dot(haut), voulu:Dot(droite)
+		local choix, meilleur = 0, a
+		for _, c in { { 90, b }, { 180, -a }, { 270, -b } } do
+			if c[2] > meilleur + 1e-6 then choix, meilleur = c[1], c[2] end
+		end
+		return choix
+	end
+	local function rotationDe(ecran, face)
+		local valeur = ecran.part:GetAttribute(ATTRIBUT_ROTATION)
+		if valeur == nil and ecran.modele then valeur = ecran.modele:GetAttribute(ATTRIBUT_ROTATION) end
+		if valeur == nil then valeur = ecran.rotationParDefaut end
+		if type(valeur) == "string" and string.lower(valeur) == "auto" then return rotationAuto(ecran.part, face, ecran.centre), true end
+		local n = tonumber(valeur)
+		if n and n % 90 == 0 then return n % 360, false end
+		warn("[TARDIS] " .. ecran.part:GetFullName() .. " : " .. ATTRIBUT_ROTATION .. " « " .. tostring(valeur) .. " » inconnu (0, 90, 180, 270 ou Auto) : 0.")
+		return 0, false
+	end
+
 	-- Taille (studs) d'une face : largeur et hauteur de l'image de la SurfaceGui posée dessus
 	local function tailleFace(part, face)
 		local taille = part.Size
@@ -174,6 +221,21 @@ return function(contexte)
 		local pps, largeur, hauteur = finesse(ecran.part, face)
 		ecran.gui.Face = face
 		ecran.gui.PixelsPerStud = pps
+		-- Sens (V6.9.10.4) : les trois couches (affichage, hors tension, détruit) tournent ensemble ; tournées d'un quart
+		-- de tour, elles échangent largeur et hauteur pour remplir toujours toute la face
+		local rotation, rotationAutoChoisie = rotationDe(ecran, face)
+		ecran.rotation, ecran.rotationAuto = rotation, rotationAutoChoisie
+		local quart = rotation % 180 == 90 and largeur > 0 and hauteur > 0
+		for _, nom in { "Fond", "Veille", "Detruit" } do
+			local couche = ecran.gui:FindFirstChild(nom)
+			if couche then
+				couche.AnchorPoint = Vector2.new(0.5, 0.5)
+				couche.Position = UDim2.fromScale(0.5, 0.5)
+				couche.Size = quart and UDim2.fromScale(hauteur / largeur, largeur / hauteur) or UDim2.fromScale(1, 1)
+				couche.Rotation = rotation
+			end
+		end
+		if quart then largeur, hauteur = hauteur, largeur end -- taille de l'affichage tel qu'on le lit
 		ecran.largeur, ecran.hauteur = largeur, hauteur
 		for _, c in ecran.contraintes do
 			c[1].MinTextSize = math.clamp(math.floor(hauteur * c[2] + 0.5), 8, 100)
@@ -191,7 +253,8 @@ return function(contexte)
 		gui.ZOffset = 1 -- (V6.9.10.3) au-dessus d'un Decal ou d'une autre SurfaceGui sur la même face
 		gui.ClipsDescendants = true
 		gui.Parent = part
-		local ecran = { part = part, modele = modele, gui = gui, faceParDefaut = faceParDefaut, centre = centre, contraintes = {} }
+		local ecran = { part = part, modele = modele, gui = gui, faceParDefaut = faceParDefaut, centre = centre, contraintes = {},
+			rotationParDefaut = nom == "TardisEcranIngenieur" and (REGLAGES.RotationIngenieur or "Auto") or (REGLAGES.RotationDestination or 0) }
 		local fond = cadre(gui, "Fond", UDim2.new(), UDim2.fromScale(1, 1), C.ecran)
 		ecran.fond = fond
 		local degrade = Instance.new("UIGradient")
@@ -239,7 +302,11 @@ return function(contexte)
 	local function suivre(ecran)
 		local function maj() ajuster(ecran) end
 		ecran.part:GetAttributeChangedSignal(ATTRIBUT_FACE):Connect(maj)
-		if ecran.modele then ecran.modele:GetAttributeChangedSignal(ATTRIBUT_FACE):Connect(maj) end
+		ecran.part:GetAttributeChangedSignal(ATTRIBUT_ROTATION):Connect(maj)
+		if ecran.modele then
+			ecran.modele:GetAttributeChangedSignal(ATTRIBUT_FACE):Connect(maj)
+			ecran.modele:GetAttributeChangedSignal(ATTRIBUT_ROTATION):Connect(maj)
+		end
 		ecran.part:GetPropertyChangedSignal("Size"):Connect(maj)
 	end
 
@@ -256,8 +323,8 @@ return function(contexte)
 	-- « destination « Console › Ecran » : face Front (1024 × 512 px) » : pour la ligne de l'Output
 	local function description(genre, ecran)
 		if not ecran.face then return genre .. " « " .. cheminLisible(ecran.part) .. " » : aucune face (" .. ATTRIBUT_FACE .. " = Aucune)" end
-		return string.format("%s « %s » : face %s%s (%d × %d px)", genre, cheminLisible(ecran.part), ecran.face.Name, ecran.auto and " (auto)" or "",
-			math.floor(ecran.largeur + 0.5), math.floor(ecran.hauteur + 0.5))
+		return string.format("%s « %s » : face %s%s, sens %d°%s (%d × %d px)", genre, cheminLisible(ecran.part), ecran.face.Name, ecran.auto and " (auto)" or "",
+			ecran.rotation or 0, ecran.rotationAuto and " (auto)" or "", math.floor(ecran.largeur + 0.5), math.floor(ecran.hauteur + 0.5))
 	end
 
 	-- Regroupe les mises à jour : un seul dessin pour plusieurs attributs changés en même temps

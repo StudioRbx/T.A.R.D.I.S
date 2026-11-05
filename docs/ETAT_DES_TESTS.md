@@ -7,10 +7,18 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 139 tests** — ⬜ 121 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 142 tests** — ⬜ 124 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.4 — Sens du texte des écrans de la console
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Regarder l'écran ingénieur | texte à l'endroit, lisible depuis le joueur | ⬜ |  |
+| Output au démarrage | la ligne « écrans de la console » donne la face et le sens de chaque écran | ⬜ |  |
+| Si le texte est encore tourné ou à l'envers | attribut `RotationEcran` sur la pièce (90, 180 ou 270) : il tourne tout de suite | ⬜ |  |
 
 ## V6.9.10.3 — Écrans de la console nets et écran ingénieur visible
 

@@ -1,5 +1,5 @@
 {
- "version": "6.9.10.3",
+ "version": "6.9.10.4",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 67966,
-   "empreinte": 1286046664
+   "taille": 68438,
+   "empreinte": 1552310994
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -106,8 +106,8 @@
    "nom": "Ecrans",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 32781,
-   "empreinte": 1845798893
+   "taille": 36871,
+   "empreinte": 286219110
   },
   {
    "fichier": "src/ServerScriptService/TardisServeur/VolLibre.lua",
