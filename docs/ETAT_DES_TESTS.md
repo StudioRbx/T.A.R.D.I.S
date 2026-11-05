@@ -7,10 +7,20 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 134 tests** — ⬜ 116 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 139 tests** — ⬜ 121 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.3 — Écrans de la console nets et écran ingénieur visible
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Regarder les deux écrans de destination de près | texte net, lisible même pour l'état, le mode et la ligne du bas | ⬜ |  |
+| Regarder l'écran ingénieur | intégrité, énergie, régulation et boucliers affichés sur la face visible | ⬜ |  |
+| Output au démarrage | une ligne « écrans de la console » qui donne la pièce et la face de chaque écran | ⬜ |  |
+| Si un écran est sur la mauvaise face | attribut texte `FaceEcran` sur la pièce (`Auto`, `Top`, `Back`…) : l'affichage change de face tout de suite | ⬜ |  |
+| Cliquer sur l'écran ingénieur | le menu de l'énergie s'ouvre toujours | ⬜ |  |
 
 ## V6.9.10.2 — Nouvelle hiérarchie de l'intérieur
 

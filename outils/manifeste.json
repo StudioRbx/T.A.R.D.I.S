@@ -1,5 +1,5 @@
 {
- "version": "6.9.10.2",
+ "version": "6.9.10.3",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -17,7 +17,7 @@
    "classe": "ModuleScript",
    "parTardis": false,
    "taille": 67966,
-   "empreinte": 2107329
+   "empreinte": 1286046664
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
