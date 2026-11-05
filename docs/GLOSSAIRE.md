@@ -66,7 +66,7 @@ Entre parenthèses : le nom utilisé dans le code ou dans `TardisConfig`, quand 
 
 | Terme | Sens |
 |---|---|
-| **Pilote** | Peut tout faire avec le TARDIS. Il y a un TARDIS par pilote à partir de la V10. |
+| **Pilote** | Peut tout faire avec le TARDIS. Il y a un TARDIS par pilote à partir de la V11. |
 | **Copilote** | Passager qui reçoit un poste de navigation donné par un pilote (V6.9.1). |
 | **Technicien** | Répare les pannes, a sa propre tablette (V6.7.2). Ne se régénère pas. |
 | **C.A.T.** | L'équipe Roblox des pilotes. |
