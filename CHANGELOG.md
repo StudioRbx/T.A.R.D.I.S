@@ -90,9 +90,10 @@ Index de toutes les versions et sous-versions. Le détail de chacune est dans [`
 | **V6.9.6** | 02/11 | **Simulations sans Roblox** (`outils/simulation` : analyse statique des 50 scripts, petit interpréteur Luau, 122 tests de la configuration, de la sauvegarde, des commandes de voyage et de la supervision : tout passe) ; **intercom mis en pause** (bloc `Config.Intercom` en commentaire). |
 | **V6.9.7** | 03/11 | **Corrections** : téléportation de poche en Silencieux qui bloquait le TARDIS, retour au départ si le joueur visé a quitté, vol libre qui se pose seul si le pilote ne répond plus (et se rematérialise s'il était invisible), chute dans le vide rattrapée, portée des sons limitée. 24 simulations, revue indépendante. |
 | **V6.9.8** | 03/11 | **Vérification et outils de suivi** : vol en formation réglable (`Config.VolLibre.Formation`), thème clair Gallifrey lisible (fond des listes qui suit le thème), page d'[état des tests](docs/ETAT_DES_TESTS.md) (81 tests), textes de release prêts (`outils/release.py`, 15 versions), [glossaire](docs/GLOSSAIRE.md). 31 simulations. |
-| **V6.9.9** | 03/11 | **Effets visuels du voyage** : air qui ondule plus fort en Urgence et en Catastrophe, marque au sol après chaque atterrissage, lueurs plus fortes la nuit, lumières de la salle selon l'état (bleu, ambre, cyan, rouge), Catastrophe plus violente (fumée noire, étincelles, éclats), vitres qui s'éteignent en dernier, option **« Aucun flash »**. 137 simulations. |
-| *V7* | *à venir* | *Sécurisation des scripts* ([feuille de route](docs/FEUILLE_DE_ROUTE.md)) |
-| *V8* | *à venir* | *Optimisation et nettoyage du code* |
-| *V9* | *à venir* | *Refonte presque totale de l'organisation des fichiers* |
-| *V10* | *à venir* | *Les 3 TARDIS officialisés, un TARDIS attribué à chaque pilote* |
-| *V11* | *à venir* | *Plus de menu : boutons et écrans sur la console (V11.1 → V11.4 : TARDIS_1 ; V11.5 → V11.12 : ne seront pas faites)* |
+| **V6.9.9** | *en cours* | **Effets visuels du voyage** : air qui ondule plus fort en Urgence et en Catastrophe, marque au sol après chaque atterrissage, lueurs plus fortes la nuit, lumières de la salle selon l'état (bleu, ambre, cyan, rouge), Catastrophe plus violente (fumée noire, étincelles, éclats), vitres qui s'éteignent en dernier, option **« Aucun flash »**. 137 simulations. |
+| *V7* | *à venir* | *Modifications : 357 propositions du second tri, en 10 sous-versions ([plan](docs/PLAN_V7.md), [feuille de route](docs/FEUILLE_DE_ROUTE.md))* |
+| *V8* | *à venir* | *Sécurisation des scripts* |
+| *V9* | *à venir* | *Optimisation et nettoyage du code* |
+| *V10* | *à venir* | *Refonte presque totale de l'organisation des fichiers* |
+| *V11* | *à venir* | *Les 3 TARDIS officialisés, un TARDIS attribué à chaque pilote* |
+| *V12* | *à venir* | *Plus de menu : boutons et écrans sur la console (V12.1 → V12.4 : TARDIS_1 ; V12.5 → V12.12 : ne seront pas faites)* |

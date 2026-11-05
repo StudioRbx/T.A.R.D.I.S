@@ -1,8 +1,10 @@
-# Feuille de route — V8 à V12
+# Feuille de route — V7 à V12
 
 > Fixée le 02/11/2026, revue le même jour : la **sécurisation** (V8) et le **nettoyage** (V9) passent devant ; les versions prévues avant
 > deviennent V10, V11 et V12. **Revue le 03/11/2026 après le tri des 200 propositions** : les 110 propositions gardées sont réparties
 > dans des sous-versions (V6.9.7 → V6.9.15 avant la V8, puis V8.x, V9.x, V10, V11.x et V12.x) : voir **[Plan des 110 propositions gardées](#plan-des-110-propositions-gardées)**.
+> **Revue le 05/11/2026 après le second tri (1200 propositions)** : les 357 gardées forment la nouvelle **V7 « Modifications »**
+> (10 sous-versions, 52 sous-sous-versions de 10 propositions au plus : voir [PLAN_V7.md](PLAN_V7.md)) ; les versions suivantes sont décalées de +1.
 > Pour chaque version : **le sujet** (décidé) puis **ce que ça implique** dans le code actuel (à valider ensemble avant de commencer).
 
 | Version | Sujet | État |
@@ -16,6 +18,17 @@
 | V6.9.13 | Nouvelles pannes et outils du technicien | 🔜 prévue |
 | V6.9.14 | Équipage et garde-robe | 🔜 prévue |
 | V6.9.15 | Confort de l'interface et accessibilité | 🔜 prévue |
+| **V7** | Modifications : 357 propositions du second tri | 🔜 prévue |
+| V7.1 | Corrections et banc d'essai (2 lots) | 🔜 prévue |
+| V7.2 | Cabine et monde extérieur (4 lots) | 🔜 prévue |
+| V7.3 | Salle de contrôle et console (5 lots) | 🔜 prévue |
+| V7.4 | Caméras et confort de l'écran (2 lots) | 🔜 prévue |
+| V7.5 | Régénération de la C.A.T. (6 lots) | 🔜 prévue |
+| V7.6 | Vol libre et rayon tracteur (5 lots) | 🔜 prévue |
+| V7.7 | Systèmes du TARDIS (7 lots) | 🔜 prévue |
+| V7.8 | Voyage : modes, zones et destinations (11 lots) | 🔜 prévue |
+| V7.9 | Équipage, visiteurs et RP (7 lots) | 🔜 prévue |
+| V7.10 | Sauvegarde et plusieurs TARDIS (3 lots) | 🔜 prévue |
 | **V8** | Sécurisation des scripts | 🔜 prévue |
 | **V9** | Optimisation et nettoyage du code | 🔜 prévue |
 | **V10** | Refonte presque totale de l'organisation des fichiers | 🔜 prévue |
@@ -79,6 +92,30 @@ Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant 
 **Bilan des versions faites** (cartes fermées) : 64 ✨ Fonctionnalité, 16 🔧 Tâche, 10 🐛 Bug.
 
 **Comment c'est décidé :** 🐛 bug = la version corrige surtout des défauts ; ✨ fonctionnalité = elle ajoute surtout quelque chose de visible en jeu ; 🔧 tâche = travail technique sans nouveauté pour le joueur (sécurité, nettoyage, organisation, outils, docs). Priorité : 🟠 haute = prochain lot, sécurité (V8) ou prérequis de beaucoup d'autres lots ; 🟡 moyenne = fonctionnalité prévue utile ; 🟢 basse = mise en scène, polish. Une étape prend la priorité la plus haute de ses lots ouverts.
+
+---
+## V7 — Modifications
+
+**Sujet :** les 357 propositions gardées au second tri des 1200 (05/11/2026) : surtout des graphismes (187) et des changements de jeu (155), plus 12 techniques et 3 de menus.
+
+**Structure :** 1 version, 10 sous-versions (V7.1 à V7.10), chacune découpée en sous-sous-versions (V7.x.y) de 10 propositions au plus. Le détail de chaque sous-sous-version (propositions, Studio, raison de sa place) est dans **[PLAN_V7.md](PLAN_V7.md)**.
+
+| Sous-version | Sous-sous-versions | Propositions | Dates prévues |
+|---|---|---|---|
+| **V7.1 — Corrections et banc d'essai** | V7.1.1, V7.1.2 | 14 | 18/11 → 21/11 |
+| **V7.2 — Cabine et monde extérieur** | V7.2.1, V7.2.2, V7.2.3, V7.2.4 | 29 | 22/11 → 29/11 |
+| **V7.3 — Salle de contrôle et console** | V7.3.1, V7.3.2, V7.3.3, V7.3.4, V7.3.5 | 31 | 30/11 → 09/12 |
+| **V7.4 — Caméras et confort de l'écran** | V7.4.1, V7.4.2 | 15 | 10/12 → 13/12 |
+| **V7.5 — Régénération de la C.A.T.** | V7.5.1, V7.5.2, V7.5.3, V7.5.4, V7.5.5, V7.5.6 | 38 | 14/12 → 25/12 |
+| **V7.6 — Vol libre et rayon tracteur** | V7.6.1, V7.6.2, V7.6.3, V7.6.4, V7.6.5 | 37 | 26/12 → 04/01/27 |
+| **V7.7 — Systèmes du TARDIS** | V7.7.1, V7.7.2, V7.7.3, V7.7.4, V7.7.5, V7.7.6, V7.7.7 | 53 | 05/01/27 → 18/01/27 |
+| **V7.8 — Voyage : modes, zones et destinations** | V7.8.1, V7.8.2, V7.8.3, V7.8.4, V7.8.5, V7.8.6, V7.8.7, V7.8.8, V7.8.9, V7.8.10, V7.8.11 | 76 | 19/01/27 → 09/02/27 |
+| **V7.9 — Équipage, visiteurs et RP** | V7.9.1, V7.9.2, V7.9.3, V7.9.4, V7.9.5, V7.9.6, V7.9.7 | 45 | 10/02/27 → 23/02/27 |
+| **V7.10 — Sauvegarde et plusieurs TARDIS** | V7.10.1, V7.10.2, V7.10.3 | 19 | 24/02/27 → 01/03/27 |
+
+**Ordre :** corrections et banc d'essai d'abord, puis la cabine, la salle, les caméras, la régénération, le vol libre, les systèmes, le voyage, l'équipage, et enfin la sauvegarde et la préparation des 3 TARDIS. Une règle de jeu passe avant son effet visuel ; un socle passe avant ce qui l'utilise.
+
+**Décisions à prendre avant certains lots :** signal d'orage (G-31, V7.2.4) ; option pour couper le départ portes ouvertes (C-17, V7.8.2) ; vraie mort ou non (V7.5.5) ; pilotage à distance réservé coupé par défaut (C-97).
 
 ---
 ## V8 — Sécurisation des scripts
