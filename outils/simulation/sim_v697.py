@@ -137,6 +137,7 @@ prelude3 = """
 local def = { Nom = "TARDIS_1" }
 local Config = { nomEquipe = function() return "C.A.T." end, NomArrivee = "Arrivee" }
 local interieur = ...
+local spawnsEquipes = {} -- V6.9.10.2 : spawns réutilisés de Studio (vide ici)
 """
 R3 = {}
 def charger3():

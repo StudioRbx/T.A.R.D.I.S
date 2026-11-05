@@ -45,7 +45,7 @@ Entre parenthèses : le nom utilisé dans le code ou dans `TardisConfig`, quand 
 
 | Terme | Sens |
 |---|---|
-| **Extérieur** (`EXTERIEURE`) / **Intérieur** | La cabine bleue, et la salle plus grande que la cabine. |
+| **Extérieur** (`EXTERIEURE`) / **Intérieur** (`INTERIEURE`) | La cabine bleue, et la salle plus grande que la cabine. La salle est soit le dossier `INTERIEURE` lui-même (quand il contient directement `Portail` ou `Rotor`, V6.9.10.2), soit le Model qu'il contient. |
 | **Racine** | La Part principale (PrimaryPart) de l'extérieur, par laquelle le TARDIS est déplacé. |
 | **Lampe** | Le fanal au sommet de la cabine ; elle clignote pendant les voyages. |
 | **Portail** | La vue de l'intérieur à travers la porte ouverte, et le passage d'un côté à l'autre. |

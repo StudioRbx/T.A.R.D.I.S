@@ -973,7 +973,7 @@ local function pointArriveeInterieur()
 	if portailInt then
 		return portailInt.CFrame * CFrame.new(0, -portailInt.Size.Y / 2 + 3, 5) * CFrame.Angles(0, math.pi, 0)
 	end
-	return interieur:GetPivot() + Vector3.new(0, 4, 0)
+	return Config.pivot(interieur) + Vector3.new(0, 4, 0)
 end
 local function renaitre()
 	local liste = interne("listeDestinations") or {}

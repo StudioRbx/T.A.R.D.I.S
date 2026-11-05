@@ -77,7 +77,7 @@ return function(contexte)
 		purge()
 
 		-- Diagnostic : un plan de lumière cyan balaie la salle du sol au plafond
-		local boiteCF, boiteTaille = interieur:GetBoundingBox()
+		local boiteCF, boiteTaille = Config.boite(interieur)
 		exterieur:GetAttributeChangedSignal("TechDiagnostic"):Connect(function()
 			if not jeSuisDedans() then return end
 			local plan = partTemporaire({ Name = "TardisBalayage", Material = Enum.Material.Neon, Color = C.cyan, Transparency = 0.82,

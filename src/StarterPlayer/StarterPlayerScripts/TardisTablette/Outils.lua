@@ -322,7 +322,7 @@ return function(contexte)
 		ligneTexte(c, tostring(f.Confinement or ""), 5)
 		ligneTexte(c, "Dernière position connue : " .. tostring(exterieur:GetAttribute("Position") or "?"), 6, C.cyan, 12)
 	end)
-	local boiteIntOutils, tailleIntOutils = interieur:GetBoundingBox()
+	local boiteIntOutils, tailleIntOutils = Config.boite(interieur)
 	joueurDedans = function(autre)
 		local racine = autre.Character and autre.Character:FindFirstChild("HumanoidRootPart")
 		if not racine then return false end

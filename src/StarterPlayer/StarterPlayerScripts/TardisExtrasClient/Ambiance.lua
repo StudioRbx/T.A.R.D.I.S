@@ -208,7 +208,7 @@ return function(contexte)
 	--------------------------------------------------------------------
 	do
 		local rotor = interieur:FindFirstChild(Config.NomRotor or "Rotor")
-		local support = rotor and (rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true)) or interieur.PrimaryPart
+		local support = rotor and (rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true)) or Config.partPrincipale(interieur)
 		local assets = ReplicatedStorage:FindFirstChild("TardisAssets")
 		local sons = assets and assets:FindFirstChild("Sons")
 		local moteurs = {}

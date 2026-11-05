@@ -7,10 +7,21 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 128 tests** — ⬜ 110 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 134 tests** — ⬜ 116 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.2 — Nouvelle hiérarchie de l'intérieur
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Ouvrir la porte du TARDIS, regarder dedans depuis la rue, puis entrer et ressortir | l'intérieur se voit par la porte ; on passe d'un côté à l'autre sans coupure | ⬜ |  |
+| Output au démarrage | aucune attente infinie (« Infinite yield ») sur `Portail` ou `Rotor` ; « spawn « Spawn C.A.T » utilisé pour l'équipe « C.A.T. » » et pareil pour la C.T.A.T. | ⬜ |  |
+| Rejoindre l'équipe C.A.T., puis C.T.A.T. (ou se régénérer) | on apparaît sur `Spawn C.A.T`, puis sur `Spawn C.T.A.T` ; aucun spawn `TardisSpawn_…` n'apparaît dans `INTERIEURE` | ⬜ |  |
+| Toucher un spawn de l'autre équipe | on ne change pas d'équipe | ⬜ |  |
+| Pendant un voyage, à bord | les effets de la salle (couleurs, secousses, vortex) se font bien à l'intérieur | ⬜ |  |
+| Tomber hors de la carte (membre de l'équipe) | retour dans le TARDIS, sur le spawn de son équipe | ⬜ |  |
 
 ## V6.9.10.1 — Ajustements Studio
 

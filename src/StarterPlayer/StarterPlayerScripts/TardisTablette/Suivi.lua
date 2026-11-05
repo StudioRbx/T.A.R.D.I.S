@@ -12,7 +12,7 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- Mises à jour lentes (télémétrie, occupants, distances, statistiques)
 	--------------------------------------------------------------------
-	local boiteCF, boiteTaille = interieur:GetBoundingBox()
+	local boiteCF, boiteTaille = Config.boite(interieur)
 	local function dansInterieur(position)
 		local p = boiteCF:PointToObjectSpace(position)
 		return math.abs(p.X) <= boiteTaille.X / 2 and math.abs(p.Y) <= boiteTaille.Y / 2 and math.abs(p.Z) <= boiteTaille.Z / 2

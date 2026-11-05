@@ -26,6 +26,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
   - **écran ingénieur** : `Console › Ecran-Ingenieure` (avec le tiret ; même attribut `FaceEcran`) ;
   - **casier** : `Console › Casier` (pièce ou Model) ; **jukebox** : `Console › JukeBox` (J et B majuscules) ;
   - **touches** : E pour les commandes de la console, F pour Vol libre, Z pour le jukebox, l'écran ingénieur et le casier de la console (chacun a aussi un clic) ;
+- **V6.9.10.2, l'intérieur** : les pièces peuvent être directement dans le dossier `INTERIEURE` (`Portail` et `Rotor` doivent y être en enfants directs) ; les SpawnLocations **`Spawn C.A.T`** et **`Spawn C.T.A.T`** y sont réutilisés (le nom doit finir par le nom de l'équipe ; pas besoin de régler leur couleur, le script s'en charge) ;
 - supprimer les scripts du kit désactivés (`Default Mainscript`, `README:`, les `Move` / `MainPhase` des portes).
 
 ## 3. Équipes

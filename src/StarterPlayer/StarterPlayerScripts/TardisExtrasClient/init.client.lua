@@ -23,7 +23,7 @@ local exterieur, interieur = Config.modeles(def)
 local remote = ReplicatedStorage:WaitForChild(Config.canal(def, "TardisCommande"))
 local E = Config.Etats
 
-local boiteInt, tailleInt = interieur:GetBoundingBox()
+local boiteInt, tailleInt = Config.boite(interieur) -- Model ou dossier (V6.9.10.2)
 local function dansInterieur(position)
 	local local_ = boiteInt:PointToObjectSpace(position)
 	return math.abs(local_.X) <= tailleInt.X / 2 + 20 and math.abs(local_.Y) <= tailleInt.Y / 2 + 20 and math.abs(local_.Z) <= tailleInt.Z / 2 + 20

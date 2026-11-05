@@ -246,7 +246,7 @@ local teinte = Instance.new("ColorCorrectionEffect")
 teinte.Name = "TardisAmbiance"
 teinte.Parent = Lighting
 local noirActuel, rougeActuel = 0, 0 -- 0 = rien, 1 = effet complet (lissés)
-local boiteCF, boiteTaille = interieur:GetBoundingBox()
+local boiteCF, boiteTaille = Config.boite(interieur) -- Model ou dossier (V6.9.10.2)
 
 local function dansInterieur(position)
 	local p = boiteCF:PointToObjectSpace(position)
@@ -688,7 +688,7 @@ RunService.RenderStepped:Connect(function(dt)
 		if forceEtatSalle < 0.002 and not cibleCouleurSalle then forceEtatSalle = 0 end
 		lisserNeons(dt, horsTension, cibleCouleurSalle) -- V6.9.10.1 : néons de la salle
 		-- Trois exemplaires tournent (un par TARDIS) : on ne travaille que si la caméra est près de cette salle
-		if (workspace.CurrentCamera.CFrame.Position - interieur:GetPivot().Position).Magnitude > 350 then return end
+		if (workspace.CurrentCamera.CFrame.Position - Config.pivot(interieur).Position).Magnitude > 350 then return end
 		peindreNeons()
 		if not listeLumieres then
 			listeLumieres = {}
@@ -1211,7 +1211,7 @@ do
 	local teinteMode = Instance.new("ColorCorrectionEffect")
 	teinteMode.Name = "TardisTeinteMode_" .. def.Nom
 	teinteMode.Parent = Lighting
-	local supportRotor = rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true) or interieur.PrimaryPart
+	local supportRotor = rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true) or Config.partPrincipale(interieur)
 	local lumiereRotor = Instance.new("PointLight")
 	lumiereRotor.Brightness, lumiereRotor.Range, lumiereRotor.Shadows = 0, 40, false
 	lumiereRotor.Parent = supportRotor

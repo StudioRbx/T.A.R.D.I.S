@@ -517,15 +517,39 @@ exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
 	direAuxPilotes("Paradoxe : la cabine a encaissé le choc (intégrité " .. tostring(exterieur:GetAttribute("PointsDeVie") or "?") .. " %).", false)
 end)
 
+local spawnsEquipes = {} -- nom d'équipe → SpawnLocation utilisé (V6.9.10.2)
 -- Spawns dans le TARDIS (V6.7.1, Config.Equipe.SpawnDansLeTardis ; V6.9.5 : aussi la C.T.A.T.) : un SpawnLocation
 -- réservé à chaque équipe, sur la Part "Arrivee" de l'intérieur si elle existe, sinon juste derrière la porte intérieure.
 -- La C.T.A.T. (Config.EquipeTechnique) est créée dans Teams si elle n'existe pas ; elle ne se régénère pas.
 if def.Nom == Config.Tardis[1].Nom then
 	local Teams = game:GetService("Teams")
+	-- V6.9.10.2 : un SpawnLocation déjà posé dans l'intérieur pour l'équipe (« Spawn C.A.T », « Spawn C.T.A.T »…) est réutilisé :
+	-- son nom, sans points ni espaces, se termine par celui de l'équipe. Sinon, le spawn est créé comme avant.
+	local function compacter(texte) return (string.gsub(string.upper(texte), "[%.%s_%-]", "")) end
+	local function spawnDeStudio(nom)
+		local cle = compacter(nom)
+		for _, objet in interieur:GetChildren() do
+			if objet:IsA("SpawnLocation") and objet.Name ~= "TardisSpawn_" .. def.Nom .. "_" .. nom then
+				local n = compacter(objet.Name)
+				if n == cle or string.sub(n, -#cle) == cle then return objet end
+			end
+		end
+		return nil
+	end
 	local function placerSpawn(nom, decalage)
 		local equipe = Teams:FindFirstChild(nom) or Teams:WaitForChild(nom, 30)
 		if not equipe then
 			warn("[TARDIS] Spawn dans le TARDIS : l'équipe « " .. nom .. " » n'existe pas dans Teams.")
+			return
+		end
+		local existant = spawnDeStudio(nom)
+		if existant then
+			existant.Neutral = false
+			existant.TeamColor = equipe.TeamColor
+			existant.AllowTeamChangeOnTouch = false
+			existant:SetAttribute("TardisEquipe", nom)
+			spawnsEquipes[nom] = existant
+			print("[TARDIS] " .. def.Nom .. " : spawn « " .. existant.Name .. " » utilisé pour l'équipe « " .. nom .. " ».")
 			return
 		end
 		local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
@@ -536,7 +560,7 @@ if def.Nom == Config.Tardis[1].Nom then
 		elseif portail and portail:IsA("BasePart") then
 			cf = portail.CFrame * CFrame.new(0, -portail.Size.Y / 2 + 0.5, 5) * CFrame.Angles(0, math.pi, 0)
 		else
-			cf = interieur:GetPivot()
+			cf = Config.pivot(interieur)
 		end
 		local spawn = Instance.new("SpawnLocation")
 		spawn.Name = "TardisSpawn_" .. def.Nom .. "_" .. nom
@@ -549,6 +573,7 @@ if def.Nom == Config.Tardis[1].Nom then
 		spawn.AllowTeamChangeOnTouch = false
 		spawn.Duration = 0
 		spawn.Parent = interieur
+		spawnsEquipes[nom] = spawn
 		print("[TARDIS] " .. def.Nom .. " : spawn de l'équipe « " .. nom .. " » placé dans l'intérieur.")
 	end
 	if (Config.Equipe or {}).SpawnDansLeTardis ~= false then
@@ -692,7 +717,7 @@ local function pointDeSecours(joueur, personnage)
 	if sure and not recent and solSous(sure, personnage) then return sure end
 	positionsSures[joueur.UserId] = nil
 	-- Sinon : le spawn de l'équipe dans le TARDIS, ou la Part Arrivee de l'intérieur
-	local spawn = interieur:FindFirstChild("TardisSpawn_" .. def.Nom .. "_" .. Config.nomEquipe())
+	local spawn = spawnsEquipes[Config.nomEquipe()] or interieur:FindFirstChild("TardisSpawn_" .. def.Nom .. "_" .. Config.nomEquipe())
 	local arrivee = interieur:FindFirstChild(Config.NomArrivee or "Arrivee")
 	local part = (spawn and spawn:IsA("BasePart") and spawn) or (arrivee and arrivee:IsA("BasePart") and arrivee) or nil
 	return part and (part.CFrame + Vector3.new(0, 3, 0)) or nil
@@ -971,7 +996,7 @@ local function donnerOutil(joueur, cle)
 		elseif cle == "Extincteur" then
 			exterieur:SetAttribute("ExtincteurJet", string.format("%s\t%.2f", joueur.Name, workspace:GetServerTimeNow()))
 			local console = interieur:FindFirstChild("Console")
-			local centre = console and (console:IsA("Model") and console:GetPivot().Position or partDe(console).Position) or interieur:GetPivot().Position
+			local centre = console and (console:IsA("Model") and console:GetPivot().Position or partDe(console).Position) or Config.pivot(interieur).Position
 			if exterieur:GetAttribute("Incendie") and not exterieur:GetAttribute("IncendieEteint") and (racine.Position - centre).Magnitude < 12 then
 				exterieur:SetAttribute("IncendieEteint", workspace:GetServerTimeNow())
 				dire(joueur, "Flammes éteintes… pour l'instant. Fermez la vanne avec la clé à molette.", true)

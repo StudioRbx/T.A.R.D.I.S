@@ -505,7 +505,7 @@ local function decoller(mode)
 end
 
 -- Calcule où poser le TARDIS sur un joueur : au sol, exactement à sa position, porte dans la direction de son regard
-local boiteInterieurCF, boiteInterieurTaille = interieur:GetBoundingBox()
+local boiteInterieurCF, boiteInterieurTaille = Config.boite(interieur) -- Model ou dossier (V6.9.10.2)
 
 dansInterieur = function(position)
 	local p = boiteInterieurCF:PointToObjectSpace(position)

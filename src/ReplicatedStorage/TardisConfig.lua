@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.1"
+Config.Version = "6.9.10.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -471,16 +471,63 @@ function Config.attendreMonTardis(joueur)
 	end
 end
 -- Les deux Models d'un TARDIS, dans sa hiérarchie (attend qu'ils existent)
+-- Intérieur (V6.9.10.2) : deux organisations possibles dans Studio.
+--   1. un seul Model dans INTERIEURE, qui contient tout (organisation d'origine) ;
+--   2. les pièces directement dans le dossier INTERIEURE (Portail, Rotor, Console, Controls…) : le dossier est alors la salle.
+-- Le dossier est choisi dès qu'il contient directement le Portail ou le Rotor ; sinon, le premier Model.
+local function salleDe(dossierInt)
+	if dossierInt:FindFirstChild(Config.NomPortailInt) or dossierInt:FindFirstChild(Config.NomRotor) then return dossierInt end
+	return dossierInt:FindFirstChildWhichIsA("Model")
+end
 function Config.modeles(def)
 	local dossier = workspace:WaitForChild(Config.NomDossierTardis):WaitForChild(def.Nom)
 	local dossierExt = dossier:WaitForChild(Config.NomDossierExterieur)
 	local dossierInt = dossier:WaitForChild(Config.NomDossierInterieur)
-	local exterieur, interieur = dossierExt:FindFirstChildWhichIsA("Model"), dossierInt:FindFirstChildWhichIsA("Model")
+	local exterieur, interieur = dossierExt:FindFirstChildWhichIsA("Model"), salleDe(dossierInt)
 	while not exterieur or not interieur do
 		task.wait(0.5)
-		exterieur, interieur = dossierExt:FindFirstChildWhichIsA("Model"), dossierInt:FindFirstChildWhichIsA("Model")
+		exterieur, interieur = dossierExt:FindFirstChildWhichIsA("Model"), salleDe(dossierInt)
 	end
 	return exterieur, interieur
+end
+
+-- Boîte englobante d'un Model ou d'un dossier (V6.9.10.2) : un dossier n'a pas de GetBoundingBox. Pour un dossier,
+-- la boîte est calculée une fois sur toutes ses pièces (alignée sur les axes du monde), puis gardée en mémoire.
+local boitesCalculees = setmetatable({}, { __mode = "k" })
+function Config.boite(objet)
+	if objet:IsA("Model") then return objet:GetBoundingBox() end
+	if objet:IsA("BasePart") then return objet.CFrame, objet.Size end
+	local memo = boitesCalculees[objet]
+	if memo then return memo[1], memo[2] end
+	local mini, maxi = nil, nil
+	for _, part in objet:GetDescendants() do
+		if part:IsA("BasePart") then
+			local demi = part.Size / 2
+			for _, coin in { Vector3.new(-1, -1, -1), Vector3.new(1, 1, 1), Vector3.new(-1, 1, 1), Vector3.new(1, -1, -1),
+				Vector3.new(1, -1, 1), Vector3.new(-1, 1, -1), Vector3.new(1, 1, -1), Vector3.new(-1, -1, 1) } do
+				local p = part.CFrame:PointToWorldSpace(demi * coin)
+				mini = mini and mini:Min(p) or p
+				maxi = maxi and maxi:Max(p) or p
+			end
+		end
+	end
+	if not mini then return CFrame.new(), Vector3.zero end
+	local cf, taille = CFrame.new((mini + maxi) / 2), maxi - mini
+	boitesCalculees[objet] = { cf, taille }
+	return cf, taille
+end
+-- Repère d'un Model, d'une pièce ou d'un dossier (le centre de sa boîte) (V6.9.10.2)
+function Config.pivot(objet)
+	if objet:IsA("PVInstance") then return objet:GetPivot() end
+	return (Config.boite(objet))
+end
+-- Pièce principale : PrimaryPart d'un Model, sinon le Portail ou la première pièce trouvée (V6.9.10.2)
+function Config.partPrincipale(objet)
+	if objet:IsA("BasePart") then return objet end
+	if objet:IsA("Model") and objet.PrimaryPart then return objet.PrimaryPart end
+	local portail = objet:FindFirstChild(Config.NomPortailInt)
+	if portail and portail:IsA("BasePart") then return portail end
+	return objet:FindFirstChildWhichIsA("BasePart", true)
 end
 -- Le dossier des destinations : à la racine du Workspace, ou dans le dossier TARDIS (attend qu'il existe)
 local cacheDestinations = nil

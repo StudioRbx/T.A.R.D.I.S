@@ -137,7 +137,7 @@ return function(contexte)
 		if exterieur:GetAttribute("SurEau") == true or exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end
 		local pivot = exterieur:GetPivot()
 		-- Posé dans la salle (paradoxe Catastrophe) : pas de marque, le rayon traverserait le plancher (correction de relecture V6.9.9)
-		local okBoite, centreSalle, tailleSalle = pcall(function() return interieur:GetBoundingBox() end)
+		local okBoite, centreSalle, tailleSalle = pcall(function() return Config.boite(interieur) end)
 		if okBoite and centreSalle and tailleSalle and tailleSalle.Magnitude > 1 then
 			local relatif = centreSalle:PointToObjectSpace(pivot.Position)
 			if math.abs(relatif.X) <= tailleSalle.X / 2 and math.abs(relatif.Y) <= tailleSalle.Y / 2 and math.abs(relatif.Z) <= tailleSalle.Z / 2 then return end
