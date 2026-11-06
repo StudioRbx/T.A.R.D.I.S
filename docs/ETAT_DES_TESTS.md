@@ -7,10 +7,23 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 149 tests** — ⬜ 131 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 157 tests** — ⬜ 139 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.6 — Menus « Hologramme de confinement », premier passage
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Touche T | le menu rapide au nouveau style : plaque, bande, tableau des destinations avec statut, puces, DÉMAT / REMAT | ⬜ |  |
+| Menu ouvert : ↑ ↓ puis Entrée | la ligne jaune se déplace, Entrée lance la démat | ⬜ |  |
+| Touche Y | la tablette : onglets en colonne, vue Navigation comme la maquette | ⬜ |  |
+| Lever l'alerte | la bande de danger des menus passe au rouge | ⬜ |  |
+| Technicien C.T.A.T. : touche Y | la tablette technicien : tableau des pannes, intervention guidée, segments | ⬜ |  |
+| Réglages › thème | « Hologramme de confinement » en premier ; les anciens thèmes marchent encore | ⬜ |  |
+| Importer les 3 images de `assets/interface/` et coller leurs identifiants dans `Config.Interface.Images` | coins vraiment coupés et lignes de balayage | ⬜ |  |
+| Sur téléphone | onglets de la tablette en ligne, boutons faciles à toucher | ⬜ |  |
 
 ## V6.9.10.5 — Retours du test dans Studio : Vol libre, casier, tenues, jukebox, écran ingénieur
 

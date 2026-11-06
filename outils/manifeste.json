@@ -1,5 +1,5 @@
 {
- "version": "6.9.10.5",
+ "version": "6.9.10.6",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 79026,
-   "empreinte": 841201172
+   "taille": 79872,
+   "empreinte": 1061398490
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -25,8 +25,8 @@
    "nom": "TardisUI",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 32299,
-   "empreinte": 2050997667
+   "taille": 80534,
+   "empreinte": 281223775
   },
   {
    "fichier": "src/ServerScriptService/TardisDiagnostic.lua",
@@ -160,8 +160,8 @@
    "nom": "TardisMenu",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 48789,
-   "empreinte": 58586315
+   "taille": 45137,
+   "empreinte": 1297097229
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisPortail.client.lua",
@@ -196,8 +196,8 @@
    "nom": "TardisTablette",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 9417,
-   "empreinte": 2069285800
+   "taille": 9546,
+   "empreinte": 977264182
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisVolLibre.client.lua",
@@ -367,8 +367,8 @@
    "nom": "TabletteTechnicien",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 50704,
-   "empreinte": 2079633186
+   "taille": 53535,
+   "empreinte": 2047375951
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Construction.lua",
@@ -376,8 +376,8 @@
    "nom": "Construction",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 49300,
-   "empreinte": 1294573344
+   "taille": 52901,
+   "empreinte": 1375266515
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Etat.lua",
@@ -385,8 +385,8 @@
    "nom": "Etat",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 14940,
-   "empreinte": 1907494847
+   "taille": 17835,
+   "empreinte": 1734728857
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Journal.lua",
@@ -403,8 +403,8 @@
    "nom": "Navigation",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 13487,
-   "empreinte": 945863764
+   "taille": 13349,
+   "empreinte": 1630962565
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Outils.lua",
@@ -421,8 +421,8 @@
    "nom": "Ouverture",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 5525,
-   "empreinte": 137265677
+   "taille": 6288,
+   "empreinte": 1805046879
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Placement.lua",
@@ -448,8 +448,8 @@
    "nom": "Suivi",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 12572,
-   "empreinte": 975792765
+   "taille": 12562,
+   "empreinte": 1538714893
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Volet.lua",
@@ -457,8 +457,8 @@
    "nom": "Volet",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 19206,
-   "empreinte": 1793221681
+   "taille": 18701,
+   "empreinte": 612488526
   },
   {
    "fichier": "src/Workspace/TARDIS/TARDIS_x/EXTERIEURE/TARDISDoors/LeftDoor/Shut.server.lua",

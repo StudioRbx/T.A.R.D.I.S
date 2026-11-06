@@ -28,6 +28,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
   - **écran ingénieur (V6.9.10.5)** : l'affichage remplit maintenant toute la face Top (fini la bande étroite au milieu) ; s'il est encore à l'envers ou tourné, l'attribut **`RotationEcran`** (`0`, `90`, `180`, `270` ou `Auto`) sur la pièce ou le Model `Ecran-Ingenieure` reste là pour le remettre droit ; l'Output dit au démarrage la face, le sens et la taille de l'image ;
   - **touches** : E pour les commandes de la console, F pour Vol libre, Z pour le jukebox, l'écran ingénieur et le casier de la console (chacun a aussi un clic) ;
 - **V6.9.10.2, l'intérieur** : les pièces peuvent être directement dans le dossier `INTERIEURE` (`Portail` et `Rotor` doivent y être en enfants directs) ; les SpawnLocations **`Spawn C.A.T`** et **`Spawn C.T.A.T`** y sont réutilisés (le nom doit finir par le nom de l'équipe ; pas besoin de régler leur couleur, le script s'en charge) ;
+- **V6.9.10.6, les menus** : facultatif, pour de vrais coins coupés et les lignes de balayage : importer les 3 images de `assets/interface/` (Gestionnaire de ressources › Importer), puis coller leurs identifiants dans `Config.Interface.Images` (mode d'emploi : `assets/interface/LISEZMOI.md`) ;
 - supprimer les scripts du kit désactivés (`Default Mainscript`, `README:`, les `Move` / `MainPhase` des portes).
 
 ## 3. Équipes

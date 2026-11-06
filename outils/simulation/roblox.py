@@ -472,8 +472,15 @@ def _defauts(classe):
     if classe == "BlurEffect": return {"Size": 24, "Enabled": True}
     if classe == "ParticleEmitter": return {"Rate": 5, "Enabled": True}
     if classe in ("Beam", "Trail", "Fire", "Smoke", "Sparkles"): return {"Enabled": True}
+    # V6.9.10.6 : objets d'interface, comme dans Roblox (lus par les menus avant d'être écrits : ZIndex, transparences…)
+    if classe in INTERFACE:
+        d = {"ZIndex": 1, "BackgroundTransparency": 0, "Visible": True, "Rotation": 0, "LayoutOrder": 0}
+        if classe in ("TextLabel", "TextButton", "TextBox"): d.update({"Text": "", "TextTransparency": 0})
+        if classe in ("ImageLabel", "ImageButton"): d.update({"ImageTransparency": 0, "Image": ""})
+        return d
     return {}
 LUMIERES = ("PointLight", "SpotLight", "SurfaceLight")
+INTERFACE = ("Frame", "TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "ScrollingFrame", "CanvasGroup", "ViewportFrame")
 
 # ---------------------------------------------------------------- Instances
 class Instance:
@@ -621,11 +628,15 @@ class Instance:
     def m_SetCore(s, *a): return []
     def m_GetMouse(s): return Instance("Mouse")
     def m_IsStudio(s): return True
-    def m_IsServer(s): return s.extra.get("serveur", True)
-    def m_IsClient(s): return not s.extra.get("serveur", True)
+    # (V6.9.10.6) RunService:IsClient() suit le monde (game.extra["serveur"], posé par monde())
+    def _cote(s): return s.parent if s.ClassName == "RunService" and s.parent is not None and "serveur" not in s.extra else s
+    def m_IsServer(s): return s._cote().extra.get("serveur", True)
+    def m_IsClient(s): return not s._cote().extra.get("serveur", True)
     def m_BindToRenderStep(s, nom, priorite=None, f=None, *a): s.extra.setdefault("rendu", {})[nom] = f; return []
     def m_UnbindFromRenderStep(s, nom, *a): s.extra.setdefault("rendu", {}).pop(nom, None); return []
     def m_GetRankInGroup(s, g): return 0
+    def m_ReleaseFocus(s, *a): s.extra["focus"] = False; return []  # (V6.9.10.6) TextBox
+    def m_CaptureFocus(s, *a): s.extra["focus"] = True; return []
     def m_PivotTo(s, cf): s.props["Pivot"] = cf; return []
     def m_GetScale(s): return s.props.get("Scale", 1)
     def m_ScaleTo(s, e): s.props["Scale"] = e; return []
