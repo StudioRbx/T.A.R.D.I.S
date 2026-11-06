@@ -7,10 +7,18 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 167 tests** — ⬜ 149 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 170 tests** — ⬜ 152 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.9 — Le leurre disparaît à chaque départ
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Déployer un leurre (tablette), puis lancer un voyage | le leurre s'efface en fondu dès la dématérialisation | ⬜ |  |
+| Déployer un leurre, puis lancer le vol libre | le leurre s'efface au départ du vol libre | ⬜ |  |
+| Regarder la tuile « Leurre » de la tablette, leurre déployé | elle affiche « ACTIF · retirer » ; un clic retire le leurre | ⬜ |  |
 
 ## V6.9.10.8 — Invites de la console remises à leur place, bouton Vol libre retrouvé
 

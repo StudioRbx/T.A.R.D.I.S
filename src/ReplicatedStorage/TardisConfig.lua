@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.8"
+Config.Version = "6.9.10.9"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)

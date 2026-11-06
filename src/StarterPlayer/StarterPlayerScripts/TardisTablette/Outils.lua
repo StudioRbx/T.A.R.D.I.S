@@ -82,7 +82,7 @@ return function(contexte)
 		majTuile(O.rappel, false, "Vient à moi", C.cyan, pose and alimente and not porte and not bloque)
 		majTuile(O.minuterie, resteMinuterie ~= nil, resteMinuterie and string.format("Décollage : %d s", resteMinuterie) or "Départ différé", C.ambre,
 			(pose and alimente and not porte and not bloque) or resteMinuterie ~= nil)
-		local leurreActif = workspace:FindFirstChild("TardisLeurre") ~= nil
+		local leurreActif = workspace:FindFirstChild("TardisLeurre_" .. def.Nom) ~= nil
 		majTuile(O.leurre, leurreActif, leurreActif and "ACTIF · retirer" or (choix and "Faux TARDIS" or "Choisis un lieu"), C.cyan, leurreActif or choix ~= nil)
 		majTuile(O.rotation, false, "Ajuster position", C.vert, pose and alimente and not porte and not bloque)
 		majTuile(O.replay, false, UI.replayDisponible and "Dernier vol" or "Aucun vol", C.cyan, UI.replayDisponible == true)
@@ -305,7 +305,7 @@ return function(contexte)
 	end)
 	O.leurre.bouton.Activated:Connect(function()
 		if O.leurre.bouton:GetAttribute("Disponible") == false then return end
-		if workspace:FindFirstChild("TardisLeurre") then
+		if workspace:FindFirstChild("TardisLeurre_" .. def.Nom) then
 			remote:FireServer("Leurre", { retirer = true })
 			return
 		end

@@ -44,8 +44,8 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V6.9.10.8)
-- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (167 tests de la V6.7 à la V6.9.10.8, dont 18 sans objet ; 149 encore à faire).
+## 6. Tests en jeu et releases (V6.9.10.9)
+- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (170 tests de la V6.7 à la V6.9.10.9, dont 18 sans objet ; 152 encore à faire).
 - **Releases GitHub à jour** : les 33 versions de la V6.5 à la V6.9.10.8 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)

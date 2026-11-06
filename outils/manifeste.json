@@ -1,5 +1,5 @@
 {
- "version": "6.9.10.8",
+ "version": "6.9.10.9",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -17,7 +17,7 @@
    "classe": "ModuleScript",
    "parTardis": false,
    "taille": 81113,
-   "empreinte": 20961221
+   "empreinte": 517167468
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -43,8 +43,8 @@
    "nom": "TardisExtras",
    "classe": "Script",
    "parTardis": false,
-   "taille": 72381,
-   "empreinte": 259555783
+   "taille": 72938,
+   "empreinte": 1986126277
   },
   {
    "fichier": "src/ServerScriptService/TardisLiaisonPortes.server.lua",
@@ -412,8 +412,8 @@
    "nom": "Outils",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 44991,
-   "empreinte": 31822102
+   "taille": 45015,
+   "empreinte": 891401482
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisTablette/Ouverture.lua",

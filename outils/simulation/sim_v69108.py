@@ -29,7 +29,7 @@ I, G, game, pilote = monde(serveur=True)
 rs = game.m_FindFirstChild("ReplicatedStorage")
 tache(lambda: R.update(Config=premier(appeler(G["require"], [rs.m_FindFirstChild("TardisConfig")]))))
 Config = R["Config"]
-verifier("1. Vrai TardisConfig chargé, version 6.9.10.8", Config is not None and Config.get("Version") == "6.9.10.8" and not roblox.ERREURS, (Config and Config.get("Version"), roblox.ERREURS[:3]))
+verifier("1. Vrai TardisConfig chargé, version 6.9.10.8 ou suivante", Config is not None and tuple(int(x) for x in str(Config.get("Version")).split(".")) >= (6, 9, 10, 8) and not roblox.ERREURS, (Config and Config.get("Version"), roblox.ERREURS[:3]))
 IC, BV = Config.get("InvitesConsole"), Config.get("BoutonVolLibre")
 verifier("1. Config.InvitesConsole.HauteurInvite = false : invites de la console sur leur commande", IC.get("HauteurInvite") is False, IC.get("HauteurInvite"))
 verifier("1. Config.BoutonVolLibre.HauteurInvite = 1,5 : seule l'invite « Vol libre » reste relevée", BV.get("HauteurInvite") == 1.5, BV.get("HauteurInvite"))

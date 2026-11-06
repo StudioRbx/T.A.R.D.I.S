@@ -102,8 +102,8 @@ versions = [v["version"] for v in release.suivies()]
 verifier("release.py : V6.5 → V6.9.7 suivies, sans plages", versions[0] == "V6.5" and "V6.9.7" in versions and not any("–" in v for v in versions), versions[:3])
 manquantes = [v for v in release.suivies() if release.tag_de(v["version"]) not in release.publiees()]
 attendues = [v["version"] for v in release.suivies() if suivi_versions.cle_tri(v["version"]) > (6, 6, 6)]
-verifier("release.py : à rattraper = tout ce qui suit V6.6.6 (au moins V6.7 → V6.9.7)",
-         [m["version"] for m in manquantes] == attendues and len(attendues) >= 14 and attendues[0] == "V6.7", [m["version"] for m in manquantes])
+verifier("release.py : à rattraper = seulement des versions après V6.6.6 (V6.7 → … suivies ; vide quand tout est publié)",
+         all(m["version"] in attendues for m in manquantes) and len(attendues) >= 14 and attendues[0] == "V6.7", [m["version"] for m in manquantes])
 titre, texte = release.texte_release(next(v for v in release.suivies() if v["version"] == "V6.9.7"))
 verifier("Texte de release : titre, tag et lien vers l'état des tests",
          titre == "V6.9.7 — Corrections : TARDIS bloqué ou perdu" and "`v6.9.7`" in texte and "ETAT_DES_TESTS.md" in texte, titre)

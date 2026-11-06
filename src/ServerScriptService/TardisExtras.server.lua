@@ -471,6 +471,16 @@ local function creerLeurre(cible)
 	task.delay(90, function() if leurre == copie then retirerLeurre() end end)
 	return true
 end
+-- (V6.9.10.9) Le leurre disparaît à chaque départ du TARDIS : dématérialisation, début du vol libre ou saut en vol libre
+exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+	if exterieur:GetAttribute("Etat") == E.Demat then retirerLeurre() end
+end)
+exterieur:GetAttributeChangedSignal("VolLibre"):Connect(function()
+	if exterieur:GetAttribute("VolLibre") ~= nil then retirerLeurre() end
+end)
+exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
+	if exterieur:GetAttribute("VolPhase") == E.Demat then retirerLeurre() end
+end)
 
 --------------------------------------------------------------------
 -- Personnalisation : couleur de la cabine, texte de l'enseigne
