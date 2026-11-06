@@ -3,6 +3,8 @@
 687 propositions mises « Plus tard » : 662 du second tri des 1200 (numéros T-, G-, M-, C-) et 25 du premier tri des 200 (numéros A-, par exemple A-5 = proposition 5 de [PROPOSITIONS_200.md](PROPOSITIONS_200.md)).
 Rangées en 10 sous-versions et 112 sous-sous-versions de 10 propositions au plus. La V13 vient après tout le reste : V7 modifications, V8 sécurisation, V9 nettoyage, V10 fichiers, V11 les 3 TARDIS, V12 la console.
 
+**Retrié le 06/11/2026** : 161 gardées, 9 encore plus tard, 17 abandonnées, 500 pas triées (elles restent ici). Le détail est dans [TRI_PLUS_TARD.md](TRI_PLUS_TARD.md) ; ce plan sera refait avec les gardées.
+
 ## V13.1 — Outils, tests et documentation (15 lots, 94 propositions)
 
 Renforcer le banc d'essai, l'analyseur, la synchro et la documentation avant le reste de la V13, pour que chaque lot suivant soit vérifié pour de vrai.
