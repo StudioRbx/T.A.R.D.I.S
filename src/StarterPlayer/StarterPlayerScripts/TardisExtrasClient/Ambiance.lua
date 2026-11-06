@@ -1,5 +1,6 @@
 -- StarterPlayerScripts > TardisExtrasClient > Ambiance (ModuleScript)
 -- Hologramme, écrans vivants, gravité folle, moteur et vapeur, écrans de diagnostic, vent du vortex à bord (V6.9.10)
+-- (V6.9.12) Sons des pannes (Panne_Vapeur, Panne_Feu, Panne_Grincement, Panne_Etincelles : facultatifs, absents = silence)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
@@ -370,6 +371,7 @@ return function(contexte)
 
 		-- Vapeur de refroidissement : un jet sous chaque plaque "Grille", par bouffées aléatoires (les mêmes pour tous)
 		local grilles = {}
+		local partsGrilles = {} -- (V6.9.12) les pièces, pour retrouver la grille en surcharge comme le serveur (Config.grilleEnPanne)
 		for _, objet in interieur:GetDescendants() do
 			if objet:IsA("BasePart") and (objet.Name == "Grille" or (objet.Parent and objet.Parent.Name == "Grilles")) then
 				local point = creer("Attachment", { Position = Vector3.new(0, -objet.Size.Y / 2 - 0.3, 0), Parent = objet })
@@ -377,7 +379,8 @@ return function(contexte)
 					Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1) }),
 					Size = NumberSequence.new(1, 3), Lifetime = NumberRange.new(0.8, 1.6), Speed = NumberRange.new(8, 14), SpreadAngle = Vector2.new(10, 10),
 					EmissionDirection = Enum.NormalId.Top, Rate = 0, Rotation = NumberRange.new(0, 360), RotSpeed = NumberRange.new(-30, 30), Parent = point })
-				table.insert(grilles, { jet = jet, periode = 0, phase = 0 })
+				table.insert(grilles, { jet = jet, part = objet, periode = 0, phase = 0 })
+				table.insert(partsGrilles, objet) -- (V6.9.12)
 			end
 		end
 		local reglagesVapeur = Config.Vapeur or {}
@@ -393,9 +396,10 @@ return function(contexte)
 					local intensite = exterieur:GetAttribute("VapeurIntensite") or reglagesVapeur.Intensite or 1
 					local alimente = exterieur:GetAttribute("Alimentation") ~= false
 					local temps = workspace:GetServerTimeNow()
-					local surcharge = exterieur:GetAttribute("VapeurSurcharge")
-					for i, g in grilles do
-						if surcharge == i then
+					-- (V6.9.12) la grille désignée par le serveur (attribut TardisGrille), plus seulement la n-ième de la liste
+					local enPanne = Config.grilleEnPanne(exterieur, interieur, partsGrilles)
+					for _, g in grilles do
+						if enPanne and g.part == enPanne then
 							g.jet.Rate = 160 -- surcharge : jet constant et fort (panne, à régler à la visseuse)
 						else
 							local bouffee = ((temps + g.phase) % g.periode) < 0.7
@@ -403,6 +407,78 @@ return function(contexte)
 						end
 					end
 				end
+			end)
+		end
+
+		-- (V6.9.12) Sons des pannes, chez chaque joueur, positionnés dans la salle (le volume des réglages s'applique tout
+		-- seul, comme pour l'alarme). Tous facultatifs (TardisAssets › Sons, ou Config.Sons) : un son absent = silence.
+		--   Panne_Vapeur : sifflement en boucle sur la grille en surcharge ; Panne_Feu : crépitement en boucle sur la
+		--   console en feu ; Panne_Grincement : grincement au hasard (8 à 15 s) pendant une avarie ou une coupure ;
+		--   Panne_Etincelles : une fois, quand on clique sur le rotor en panne (attribut PanneEtincelles du serveur).
+		do
+			local partConsole = Config.partDe(interieur:FindFirstChild("Console")) or support
+			local enBoucle = {} -- [nom] = { son, part }
+			local prochaineRechercheSons, prochainGrincement = 0, 0
+			local function modeleSon(nom)
+				if os.clock() >= prochaineRechercheSons or not sons then
+					prochaineRechercheSons = os.clock() + 2 -- les Sound peuvent arriver plus tard (créés par le serveur)
+					local dossier = ReplicatedStorage:FindFirstChild("TardisAssets")
+					sons = (dossier and dossier:FindFirstChild("Sons")) or sons
+				end
+				local modele = sons and sons:FindFirstChild(nom)
+				if modele and modele:IsA("Sound") then return modele end
+				return nil
+			end
+			local function boucle(nom, part)
+				local actuel = enBoucle[nom]
+				if actuel and (not part or actuel.part ~= part or not actuel.son.Parent) then
+					actuel.son:Destroy()
+					enBoucle[nom] = nil
+					actuel = nil
+				end
+				if part and not actuel then
+					local modele = modeleSon(nom)
+					if modele then
+						local son = modele:Clone()
+						son.Name = "Tardis" .. nom
+						son.Looped = true
+						son.RollOffMaxDistance = 40
+						son.Parent = part
+						son:Play()
+						enBoucle[nom] = { son = son, part = part }
+					end
+				end
+			end
+			local function unCoup(nom, part)
+				local modele = part and modeleSon(nom)
+				if not modele then return end
+				local son = modele:Clone()
+				son.Name = "Tardis" .. nom
+				son.Looped = false
+				son.RollOffMaxDistance = 40
+				son.Parent = part
+				son:Play()
+				task.delay(math.max(tonumber(son.TimeLength) or 0, 5) + 1, function() son:Destroy() end) -- (le son peut ne pas être encore chargé)
+			end
+			task.spawn(function()
+				while true do
+					task.wait(0.25)
+					local detruit = exterieur:GetAttribute("Detruit") == true
+					local grille = (not detruit) and Config.grilleEnPanne(exterieur, interieur, partsGrilles) or nil
+					boucle("Panne_Vapeur", grille)
+					local feu = not detruit and exterieur:GetAttribute("Incendie") == true and not exterieur:GetAttribute("IncendieEteint") -- IncendieEteint = heure de l'extincteur
+					boucle("Panne_Feu", feu and partConsole or nil)
+					local grince = not detruit and (exterieur:GetAttribute("Avarie") == true or exterieur:GetAttribute("RedemarrageRequis") == true)
+					if grince and os.clock() >= prochainGrincement then
+						if prochainGrincement > 0 then unCoup("Panne_Grincement", support) end
+						prochainGrincement = os.clock() + 8 + math.random() * 7
+					elseif not grince then
+						prochainGrincement = 0
+					end
+				end
+			end)
+			exterieur:GetAttributeChangedSignal("PanneEtincelles"):Connect(function()
+				unCoup("Panne_Etincelles", support)
 			end)
 		end
 	end

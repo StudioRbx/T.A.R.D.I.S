@@ -18,12 +18,14 @@ local OPTIONNELLES = {
 	{ "Sol", "styles de sol" },
 	{ "SiegeEquipage", "sièges d'équipage" },
 	{ "Grille", "vapeur des grilles" },
+	{ "Zones", "zones des pannes" }, -- (V6.9.12) dossier facultatif : situe les pannes (diagnostic, tablette technicien)
 }
 
 -- Sons optionnels (ceux des voyages viennent de Config.Modes)
 local SONS_OPTIONNELS = { "Camouflage", "Decamouflage", "Alarme", "Cloitre", "Reparation", "Chute", "Impact",
 	"Moteur_Pose", "Moteur_Vol", "Moteur_Urgence", "Regeneration", "Intercom",
-	"Vortex", "Frein" } -- V6.9.10 : vent du vortex à bord, crissement du frein d'urgence (facultatif)
+	"Vortex", "Frein", -- V6.9.10 : vent du vortex à bord, crissement du frein d'urgence (facultatif)
+	"Panne_Vapeur", "Panne_Feu", "Panne_Grincement", "Panne_Etincelles" } -- (V6.9.12) sons des pannes (facultatifs)
 
 local function chercherDans(racine, nom)
 	return racine:FindFirstChild(nom, true) ~= nil

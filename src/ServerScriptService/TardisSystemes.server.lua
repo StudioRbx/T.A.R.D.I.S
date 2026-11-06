@@ -2,6 +2,8 @@
 -- Systèmes du TARDIS : points de vie et avarie, énergie et fissures des boucliers, pannes (surcharge de vapeur,
 -- incendie, coupure après N voyages), régénération des pilotes, outils des techniciens (chiffon, visseuse,
 -- clé à molette, extincteur), saleté de la cabine, électricité statique, stabilisateur.
+-- (V6.9.12) Socle commun des pannes : annonce unique (effet sur le vol, qui répare), historique des 20 dernières pannes
+-- (attribut HistoriquePannes), zone de la panne (dossier Zones facultatif), fréquence réglable (FrequencePannes).
 -- S'appuie sur TardisServeur à travers le pont "TardisInterne" (ServerStorage).
 
 local Players = game:GetService("Players")
@@ -45,6 +47,86 @@ end
 local rotorPart = partDe(interieur:FindFirstChild(Config.NomRotor or "Rotor"))
 
 --------------------------------------------------------------------
+-- (V6.9.12) Socle commun des pannes : fiche de chaque panne, annonce, historique
+--------------------------------------------------------------------
+-- (V6.9.12) Ce que chaque panne fait au vol et qui peut la réparer : la même annonce pour toutes les pannes
+local FICHES_PANNES = {
+	Avarie = { titre = "Avarie (intégrité à 0 %)", court = "AVARIE : RÉPARER LE ROTOR",
+		effet = "décollage impossible, portes ouvertes, tension coupée", repare = "pilote ou technicien : maintenir E 5 s sur le rotor" },
+	Vapeur = { titre = "Surcharge de vapeur", court = "SURCHARGE DE VAPEUR",
+		effet = "aucun effet sur le vol", repare = "technicien : visseuse sur la grille (3 fois)" },
+	Incendie = { titre = "Incendie de console", court = "INCENDIE DE CONSOLE",
+		effet = "aucun effet sur le vol", repare = "extincteur sur la console, puis clé à molette sur la vanne (maintenir E 4 s)" },
+	Coupure = { titre = "Système coupé", court = "SYSTÈME COUPÉ : REDÉMARRAGE REQUIS",
+		effet = "décollage impossible, tension coupée", repare = "maintenir E sur le levier d'alimentation, ou redémarrage à distance (tablette technicien)" },
+	Bouclier = { titre = "Bouclier tombé", court = "BOUCLIER TOMBÉ",
+		effet = "bouclier coupé, la cabine prend les tirs", repare = "pilote : relancer le bouclier depuis le menu" },
+	AirVicie = { titre = "Air vicié", court = "AIR VICIÉ",
+		effet = "aucun effet sur le vol", repare = "technicien : purge ou régulation de l'air (tablette technicien)" },
+}
+-- (V6.9.12) Historique des pannes de ce TARDIS : 20 au plus, la plus récente d'abord, publié en JSON dans l'attribut
+-- HistoriquePannes (lu par la tablette technicien). « Réparé par » reste une simple mention : aucun compteur par joueur.
+local HttpService = game:GetService("HttpService")
+local HISTORIQUE_PANNES_MAX = 20
+local historiquePannes = {}
+local function publierHistorique()
+	local ok, json = pcall(function() return HttpService:JSONEncode(historiquePannes) end)
+	if ok and type(json) == "string" then exterieur:SetAttribute("HistoriquePannes", json) end
+end
+-- (V6.9.12) Ouvre une ligne d'historique (une seule ligne ouverte par type de panne à la fois)
+local function ouvrirPanne(cle, details)
+	local fiche = FICHES_PANNES[cle]
+	if not fiche then return false end
+	for _, entree in historiquePannes do
+		if entree.type == cle and not entree.fin then return false end
+	end
+	table.insert(historiquePannes, 1, { type = cle, titre = fiche.titre, detail = details, debut = os.time() })
+	while #historiquePannes > HISTORIQUE_PANNES_MAX do table.remove(historiquePannes) end
+	publierHistorique()
+	return true
+end
+-- (V6.9.12) Ferme la ligne ouverte de cette panne : heure de fin et, si on le sait, qui l'a réglée (joueur ou nom)
+local function fermerPanne(cle, par)
+	local fiche = FICHES_PANNES[cle]
+	if not fiche then return false end
+	local nom = nil
+	if typeof(par) == "Instance" and par:IsA("Player") then nom = par.DisplayName elseif type(par) == "string" and par ~= "" then nom = par end
+	for _, entree in historiquePannes do
+		if entree.type == cle and not entree.fin then
+			entree.fin = os.time()
+			entree.par = nom
+			publierHistorique()
+			local bus = ServerStorage:FindFirstChild("TardisEvenements")
+			if bus then
+				bus:Fire("Journal", { categorie = "Panne", tardis = def.Nom,
+					message = string.format("%s : %s, panne réglée%s.", def.Nom, fiche.titre, nom and (" par " .. nom) or "") })
+			end
+			return true
+		end
+	end
+	return false
+end
+-- (V6.9.12) Annonce commune : alerte sur l'écran de la console, message aux pilotes et techniciens (effet sur le vol,
+-- qui répare), ligne d'historique
+local function signalerPanne(cle, details)
+	local fiche = FICHES_PANNES[cle]
+	if not fiche then return end
+	interne("alerter", fiche.court)
+	direAuxPilotes(string.format("PANNE : %s%s · EFFET SUR LE VOL : %s · QUI RÉPARE : %s.", fiche.titre,
+		details and (" (" .. details .. ")") or "", fiche.effet, fiche.repare), false)
+	ouvrirPanne(cle, details)
+end
+-- (V6.9.12) Chemin d'une pièce depuis l'intérieur (« Grilles/Grille »), publié pour que le client trouve la même pièce
+local function cheminDepuisInterieur(objet)
+	local noms = {}
+	while objet and objet ~= interieur do
+		table.insert(noms, 1, objet.Name)
+		objet = objet.Parent
+	end
+	return objet == interieur and table.concat(noms, "/") or nil
+end
+
+--------------------------------------------------------------------
 -- Points de vie et avarie
 --------------------------------------------------------------------
 local pvMax = S.PointsDeVie or 10000
@@ -54,18 +136,19 @@ local function publierPV()
 	exterieur:SetAttribute("PV", math.floor(pv))
 	exterieur:SetAttribute("PVMax", pvMax)
 end
+local dernierReparateurRotor = nil -- (V6.9.12) le dernier joueur qui a réparé au rotor (mention dans l'historique)
 local function avarie(actif)
 	if (exterieur:GetAttribute("Avarie") == true) == actif then return end
 	exterieur:SetAttribute("Avarie", actif)
 	if actif then
-		interne("alerter", "AVARIE : RÉPARER LE ROTOR")
-		direAuxPilotes("AVARIE : le TARDIS est à 0 % d'intégrité. Portes ouvertes, tension coupée. Réparez le rotor (maintenir E).", false)
+		signalerPanne("Avarie") -- (V6.9.12) annonce commune (alerte, effet sur le vol, qui répare) + historique
 		interne("reglerAlimentation", false)
 		exterieur:SetAttribute("Verrouille", false)
 		interne("ouvrirPortes")
 	else
 		direAuxPilotes("Réparation suffisante : les systèmes repartent.", true)
 		interne("reglerAlimentation", true)
+		fermerPanne("Avarie", dernierReparateurRotor) -- (V6.9.12)
 	end
 end
 local function degats(montant, raison)
@@ -139,6 +222,7 @@ if rotorPart then
 	prompt.Triggered:Connect(function(joueur)
 		if not (estPilote(joueur) or estTechnicien(joueur)) then return end
 		if pv >= pvMax then dire(joueur, "Le TARDIS est déjà intact.", true) return end
+		dernierReparateurRotor = joueur -- (V6.9.12)
 		reparer(S.ReparationParMaintien or 1500)
 		exterieur:SetAttribute("ReparationTemps", workspace:GetServerTimeNow())
 		interne("jouer", "Reparation", false)
@@ -165,8 +249,7 @@ local function surveillerBouclier(modele)
 			exterieur:SetAttribute("BouclierJoueurs", false)
 			exterieur:SetAttribute("BouclierBalles", false)
 			exterieur:SetAttribute("BouclierComplet", false)
-			interne("alerter", "BOUCLIER TOMBÉ")
-			direAuxPilotes("Le bouclier est tombé sous les tirs. Relance-le depuis le menu.", false)
+			signalerPanne("Bouclier") -- (V6.9.12) annonce commune + historique
 		else
 			exterieur:SetAttribute("BouclierEnergie", energie)
 		end
@@ -186,29 +269,33 @@ task.spawn(function()
 	dossier.ChildAdded:Connect(function(modele) task.spawn(surveillerBouclier, modele) end)
 	for _, modele in dossier:GetChildren() do task.spawn(surveillerBouclier, modele) end
 end)
+-- (V6.9.12) Bouclier relancé (il repart à pleine énergie) : la panne se ferme dans l'historique
+exterieur:GetAttributeChangedSignal("BouclierEnergie"):Connect(function()
+	if (tonumber(exterieur:GetAttribute("BouclierEnergie")) or 0) > 0 then fermerPanne("Bouclier") end
+end)
 
 --------------------------------------------------------------------
 -- Pannes : surcharge de vapeur (visseuse), incendie (extincteur + clé à molette), coupure après N voyages
 --------------------------------------------------------------------
-local grilles = {}
-for _, objet in interieur:GetDescendants() do
-	if objet:IsA("BasePart") and (objet.Name == "Grille" or (objet.Parent and objet.Parent.Name == "Grilles")) then table.insert(grilles, objet) end
-end
+-- (V6.9.12) Les grilles sont numérotées (attribut TardisGrille) : le client retrouve la même grille que le serveur
+local grilles = Config.grillesDe(interieur)
+for numero, grille in grilles do grille:SetAttribute("TardisGrille", numero) end
 local function panneVapeur()
 	if #grilles == 0 or exterieur:GetAttribute("VapeurSurcharge") then return false end
 	local index = math.random(#grilles)
+	local grille = grilles[index]
+	exterieur:SetAttribute("VapeurGrille", cheminDepuisInterieur(grille)) -- (V6.9.12) chemin de la grille, pour le client
 	exterieur:SetAttribute("VapeurSurcharge", index)
 	exterieur:SetAttribute("VapeurSurchargeAvancement", 0)
-	interne("alerter", "SURCHARGE DE VAPEUR")
-	direAuxPilotes("PANNE : surcharge de vapeur sur une grille. Un technicien doit la régler avec la visseuse (3 fois).", false)
+	local zone = Config.zoneDe(interieur, grille) -- (V6.9.12) zone de la panne (dossier Zones, sinon autour de la console)
+	signalerPanne("Vapeur", string.format("grille n°%d%s", index, zone and (", zone " .. zone) or ""))
 	return true
 end
 local function panneIncendie()
 	if exterieur:GetAttribute("Incendie") then return false end
 	exterieur:SetAttribute("Incendie", true)
 	exterieur:SetAttribute("IncendieEteint", nil)
-	interne("alerter", "INCENDIE DE CONSOLE")
-	direAuxPilotes("PANNE : des flammes sur la console. L'extincteur les éteint, la clé à molette sur la vanne coupe le problème.", false)
+	signalerPanne("Incendie") -- (V6.9.12) annonce commune + historique
 	return true
 end
 -- Les flammes repartent 20 s après l'extincteur tant que la vanne n'est pas fermée
@@ -244,6 +331,7 @@ do
 			exterieur:SetAttribute("IncendieEteint", nil)
 			interne("jouer", "Reparation", false)
 			direAuxPilotes("Vanne fermée par " .. joueur.DisplayName .. " : incendie terminé.", true)
+			fermerPanne("Incendie", joueur) -- (V6.9.12)
 		end)
 	end
 end
@@ -261,9 +349,8 @@ exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 			task.delay(2, function()
 				exterieur:SetAttribute("RedemarrageRequis", true)
 				interne("reglerAlimentation", false)
-				interne("alerter", "SYSTÈME COUPÉ : REDÉMARRAGE REQUIS")
-				direAuxPilotes(string.format("Après %d voyages consécutifs, le système s'est coupé. Maintiens E %d s sur le levier d'alimentation pour redémarrer.",
-					voyagesConsecutifs, S.RedemarrageDuree or 10), false)
+				-- (V6.9.12) annonce commune + historique (la durée du maintien est rappelée dans le détail)
+				signalerPanne("Coupure", string.format("après %d voyages consécutifs, maintenir E %d s", voyagesConsecutifs, S.RedemarrageDuree or 10))
 			end)
 		end
 	end
@@ -299,21 +386,42 @@ do
 			interne("reglerAlimentation", true)
 			interne("jouer", "Reparation", false)
 			direAuxPilotes("Système redémarré par " .. joueur.DisplayName .. ".", true)
+			fermerPanne("Coupure", joueur) -- (V6.9.12)
 		end)
 	end
 end
--- Pannes aléatoires, très rares
+-- (V6.9.12) Pannes aléatoires : liste pondérée (une future panne s'y ajoute d'une ligne) ; si la panne tirée est
+-- impossible (pas de grille, déjà en cours), on tente les autres
+local PANNES_ALEATOIRES = {
+	{ nom = "Vapeur", declencher = panneVapeur, poids = 1 },
+	{ nom = "Incendie", declencher = panneIncendie, poids = 1 },
+}
+local function tirerPanneAleatoire()
+	local restantes = table.clone(PANNES_ALEATOIRES)
+	while #restantes > 0 do
+		local total = 0
+		for _, panne in restantes do total += math.max(tonumber(panne.poids) or 0, 0) end
+		if total <= 0 then return nil end
+		local tirage, choisie = math.random() * total, #restantes
+		for i, panne in restantes do
+			local poids = math.max(tonumber(panne.poids) or 0, 0)
+			if poids > 0 and tirage <= poids then choisie = i break end
+			tirage -= poids
+		end
+		local panne = table.remove(restantes, choisie)
+		if panne.declencher() then return panne.nom end
+	end
+	return nil
+end
+-- (V6.9.12) Fréquence réglable (Config.Systemes.FrequencePannes : Aucune, Rare, Normale, Frequente) ; Aucune = la boucle s'arrête
 task.spawn(function()
 	while true do
-		local mini, maxi = S.PannesIntervalleMin or 1200, S.PannesIntervalleMax or 2400
+		local mini, maxi = Config.intervallePannes(S)
+		if not mini then return end
 		task.wait(mini + math.random() * math.max(maxi - mini, 0))
 		local etat, occupe = interne("etat")
 		if etat == E.Pose and not occupe and exterieur:GetAttribute("Alimentation") ~= false and not exterieur:GetAttribute("Detruit") then
-			if math.random() < 0.5 then
-				if not panneVapeur() then panneIncendie() end
-			else
-				if not panneIncendie() then panneVapeur() end
-			end
+			tirerPanneAleatoire()
 		end
 	end
 end)
@@ -981,16 +1089,17 @@ local function donnerOutil(joueur, cle)
 			exterieur:SetAttribute("Nettoyage", workspace:GetServerTimeNow())
 			dire(joueur, salete > 0 and string.format("Nettoyage : encore %d %% de saleté.", salete) or "La cabine est propre.", true)
 		elseif cle == "Visseuse" then
-			local index = exterieur:GetAttribute("VapeurSurcharge")
-			local grille = index and grilles[index]
+			local grille = Config.grilleEnPanne(exterieur, interieur, grilles) -- (V6.9.12) même grille que celle du client
 			if not grille then dire(joueur, "Aucune surcharge de vapeur à régler.", false) return end
 			if (racine.Position - grille.Position).Magnitude > 8 then dire(joueur, "Approche-toi de la grille en surcharge.", false) return end
 			local avancement = (exterieur:GetAttribute("VapeurSurchargeAvancement") or 0) + 1
 			exterieur:SetAttribute("VapeurSurchargeAvancement", avancement)
 			if avancement >= 3 then
 				exterieur:SetAttribute("VapeurSurcharge", nil)
+				exterieur:SetAttribute("VapeurGrille", nil) -- (V6.9.12)
 				interne("jouer", "Reparation", false)
 				direAuxPilotes("Surcharge de vapeur réglée par " .. joueur.DisplayName .. ".", true)
+				fermerPanne("Vapeur", joueur) -- (V6.9.12)
 			else
 				dire(joueur, string.format("Réglage %d/3…", avancement), true)
 			end
@@ -1220,9 +1329,10 @@ local function commandeTechnique(joueur, donnees)
 		if type(systeme) ~= "string" or not SYSTEMES_REGULES[systeme] or type(valeur) ~= "number" or valeur ~= valeur then return end
 		if valeur < 0 or valeur > 100 then return end
 		valeur = math.floor(valeur + 0.5)
+		-- (V6.9.12) l'auteur est noté avant la nouvelle valeur (l'historique des pannes le lit quand l'air remonte)
+		exterieur:SetAttribute("TechDernier", string.format("%s\tRégulation %s : %d %%\t%.2f", joueur.DisplayName, string.lower(systeme), valeur, workspace:GetServerTimeNow()))
 		exterieur:SetAttribute("Regul" .. systeme, valeur)
 		if systeme == "Vapeur" then exterieur:SetAttribute("VapeurIntensite", intensiteVapeur(valeur)) end
-		exterieur:SetAttribute("TechDernier", string.format("%s\tRégulation %s : %d %%\t%.2f", joueur.DisplayName, string.lower(systeme), valeur, workspace:GetServerTimeNow()))
 
 	elseif commande == "Energie" then
 		local ok, erreur = interne("basculerAlimentation")
@@ -1250,6 +1360,7 @@ local function commandeTechnique(joueur, donnees)
 			interne("reglerAlimentation", true)
 			interne("jouer", "Reparation", false)
 			direAuxPilotes("Système redémarré à distance par " .. joueur.DisplayName .. ".", true)
+			fermerPanne("Coupure", joueur) -- (V6.9.12)
 		end)
 
 	elseif commande == "Purger" then
@@ -1261,6 +1372,8 @@ local function commandeTechnique(joueur, donnees)
 		interne("jouer", "Reparation", false)
 		task.delay(duree, function()
 			exterieur:SetAttribute("TechPurgeFin", nil)
+			-- (V6.9.12) l'auteur de la purge est noté avant que l'air remonte (l'historique des pannes le lit)
+			exterieur:SetAttribute("TechDernier", string.format("%s\t%s\t%.2f", joueur.DisplayName, "Purge de l'air", workspace:GetServerTimeNow()))
 			exterieur:SetAttribute("RegulAir", 100)
 			dire(joueur, "Purge terminée : air à 100 %.", true)
 		end)
@@ -1268,10 +1381,18 @@ local function commandeTechnique(joueur, donnees)
 	elseif commande == "Diagnostic" then
 		exterieur:SetAttribute("TechDiagnostic", workspace:GetServerTimeNow())
 		local defauts = {}
-		if exterieur:GetAttribute("Avarie") then table.insert(defauts, "avarie (intégrité à 0 %)") end
-		if exterieur:GetAttribute("RedemarrageRequis") then table.insert(defauts, "redémarrage requis") end
-		if exterieur:GetAttribute("VapeurSurcharge") then table.insert(defauts, "fuite de vapeur") end
-		if exterieur:GetAttribute("Incendie") then table.insert(defauts, "incendie de console") end
+		-- (V6.9.12) chaque panne située dans sa zone (dossier Zones de l'intérieur, sinon par rapport à la console)
+		local function situer(texte, objet)
+			local zone = objet and Config.zoneDe(interieur, objet)
+			return zone and (texte .. " (zone " .. zone .. ")") or texte
+		end
+		if exterieur:GetAttribute("Avarie") then table.insert(defauts, situer("avarie (intégrité à 0 %) au rotor", rotorPart)) end
+		if exterieur:GetAttribute("RedemarrageRequis") then table.insert(defauts, situer("redémarrage requis au levier d'alimentation", trouverChemin("Alimentation"))) end
+		if exterieur:GetAttribute("VapeurSurcharge") then
+			local grille, numero = Config.grilleEnPanne(exterieur, interieur, grilles)
+			table.insert(defauts, situer(numero and string.format("fuite de vapeur : grille n°%d", numero) or "fuite de vapeur", grille))
+		end
+		if exterieur:GetAttribute("Incendie") then table.insert(defauts, situer("incendie de console", interieur:FindFirstChild("Console"))) end
 		if exterieur:GetAttribute("Alimentation") == false then table.insert(defauts, "hors tension") end
 		if (exterieur:GetAttribute("RegulAir") or 100) < (TECH.SeuilAirVicie or 25) then table.insert(defauts, "air vicié") end
 		if (exterieur:GetAttribute("RegulEnergie") or 0) > (TECH.SurtensionAuDessus or 90) then table.insert(defauts, "surtension") end
@@ -1300,7 +1421,7 @@ task.spawn(function()
 				exterieur:SetAttribute("RegulAir", air)
 				local seuil = TECH.SeuilAirVicie or 25
 				if avant >= seuil and air < seuil then
-					direAuxPilotes("Air vicié dans la salle : purge ou régulation de l'air nécessaire (tablette technicien).", false)
+					signalerPanne("AirVicie", string.format("air à %d %%", air)) -- (V6.9.12) annonce commune + historique
 				end
 			end
 		end
@@ -1309,6 +1430,18 @@ task.spawn(function()
 			if panneVapeur() then direAuxPilotes("Surtension : une grille de vapeur a lâché. Baisse la régulation de l'énergie.", false) end
 		end
 	end
+end)
+-- (V6.9.12) Air revenu au-dessus du seuil (purge ou régulation) : la panne « air vicié » se ferme dans l'historique, avec
+-- le technicien de la dernière action (TechDernier) si elle date de moins de 10 s
+exterieur:GetAttributeChangedSignal("RegulAir"):Connect(function()
+	if (tonumber(exterieur:GetAttribute("RegulAir")) or 100) < (TECH.SeuilAirVicie or 25) then return end
+	local par = nil
+	local dernier = exterieur:GetAttribute("TechDernier")
+	if type(dernier) == "string" then
+		local nom, quand = string.match(dernier, "^(.-)\t.-\t([%d%.]+)$")
+		if nom and tonumber(quand) and workspace:GetServerTimeNow() - tonumber(quand) < 10 then par = nom end
+	end
+	fermerPanne("AirVicie", par)
 end)
 
 local derniereMaintenance = {}

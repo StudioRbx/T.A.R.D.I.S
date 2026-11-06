@@ -7,10 +7,22 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 176 tests** — ⬜ 152 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 183 tests** — ⬜ 159 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.12 — Pannes : le socle commun
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Régler `Config.Systemes.FrequencePannes = "Frequente"`, attendre posé | une panne au hasard toutes les 8 à 15 min ; avec `"Aucune"`, plus aucune | ⬜ |  |
+| Provoquer une surcharge de vapeur | un seul message « PANNE : Surcharge de vapeur (grille n°…, zone …) · EFFET SUR LE VOL : aucun effet sur le vol · QUI RÉPARE : … » | ⬜ |  |
+| Réparer la grille à la visseuse, puis tablette technicien › « HISTORIQUE » | la panne est en vert, avec début → fin et « réparé par » ton nom | ⬜ |  |
+| Créer un dossier `Zones` (Parts invisibles) dans l'intérieur, puis une panne | la tablette affiche « · ZONE » suivi du nom de la Part ; sans dossier : Console, Avant, Arrière, Gauche ou Droite | ⬜ |  |
+| Tablette technicien, grille en surcharge | la carte désigne la grille qui fume (même grille chez tous les joueurs) | ⬜ |  |
+| Ajouter les sons `Panne_*`, puis vapeur, incendie, avarie et clic sur le rotor | sifflement sur la grille, crépitement sur la console (coupé par l'extincteur), grincements, étincelles | ⬜ |  |
+| Clic sur le rotor pendant une avarie | quelques étincelles orange, le rotor n'accélère pas | ⬜ |  |
 
 ## V6.9.11 — Navigation et fiches de lieux
 

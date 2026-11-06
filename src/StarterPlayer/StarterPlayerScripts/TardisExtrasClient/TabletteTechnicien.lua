@@ -6,6 +6,8 @@
 --   • Pilote : outil « Ingénierie » de sa tablette (attribut local TardisTabletteTech = nom du TARDIS).
 -- Effets visibles par tous à bord : purge de l'air (jets aux grilles), balayage du diagnostic, air vicié.
 -- Toutes les commandes sont revérifiées par le serveur (TardisSystemes, action "Tech").
+-- (V6.9.12) Zone de chaque panne dans son titre (dossier Zones facultatif), bouton HISTORIQUE (20 dernières pannes :
+-- début, fin, « réparé par », publiées par le serveur dans l'attribut HistoriquePannes).
 
 return function(contexte)
 	local C, Config, E, Lighting, Players, RunService = contexte.C, contexte.Config, contexte.E, contexte.Lighting, contexte.Players, contexte.RunService
@@ -24,10 +26,7 @@ return function(contexte)
 		if objet:IsA("Model") then return objet.PrimaryPart or objet:FindFirstChildWhichIsA("BasePart", true) end
 		return objet:FindFirstChildWhichIsA("BasePart", true)
 	end
-	local grilles = {}
-	for _, objet in interieur:GetDescendants() do
-		if objet:IsA("BasePart") and (objet.Name == "Grille" or (objet.Parent and objet.Parent.Name == "Grilles")) then table.insert(grilles, objet) end
-	end
+	local grilles = Config.grillesDe(interieur) -- (V6.9.12) même recherche que le serveur (TardisConfig)
 	local rotorPart = partDe(interieur:FindFirstChild(Config.NomRotor or "Rotor"))
 	local consolePart = partDe(interieur:FindFirstChild("Console"))
 	local vannePart = partDe(interieur:FindFirstChild("Vanne", true)) or rotorPart
@@ -228,10 +227,12 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- (V6.9.10.6 : tableau des pannes PANNE | ZONE | ÉTAT, puis l'intervention guidée de la panne choisie)
 	local tableauPannes, guide
+	local historique, boutonHistorique, contenuInterventions -- (V6.9.12)
 	do
 		local cadre, contenu = panneau(346, 66, 368, 558, "INTERVENTIONS", "◆", C.ambre)
+		-- (V6.9.12) le compteur laisse la place au bouton HISTORIQUE, à droite du titre
 		local compteur = texte({ Name = "Compteur", Text = "", Font = UI.POLICE_CODE, TextSize = 11, TextColor3 = C.vert, TextXAlignment = Enum.TextXAlignment.Right,
-			Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, -14, 0, 16), Parent = cadre })
+			Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, -120, 0, 16), Parent = cadre })
 		UI.pile(10).Parent = contenu
 		tableauPannes = UI.tableau(contenu, {
 			{ cle = "panne", titre = "Panne", largeur = UDim.new(1, -200) },
@@ -242,6 +243,14 @@ return function(contexte)
 		guide = creer("Frame", { Name = "Intervention", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.panneau,
 			LayoutOrder = 2, Parent = contenu }, { UI.coin(8), UI.marges(12), UI.pile(5) })
 		T.compteurInterventions = compteur
+		-- (V6.9.12) Historique des pannes : il prend la place du tableau et de l'intervention guidée tant qu'il est ouvert
+		historique = creer("ScrollingFrame", { Name = "HistoriquePannes", Position = contenu.Position, Size = contenu.Size, BackgroundTransparency = 1,
+			BorderSizePixel = 0, ScrollBarThickness = 4, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			Visible = false, Parent = cadre }, { UI.pile(6) })
+		boutonHistorique = bouton(cadre, "Historique", "secondaire", UDim2.fromOffset(96, 20), UDim2.new(1, -110, 0, 4))
+		boutonHistorique.Name = "BoutonHistorique"
+		boutonHistorique.TextSize = 10
+		contenuInterventions = contenu
 	end
 
 	--------------------------------------------------------------------
@@ -426,6 +435,13 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- Lecture des pannes : chaque intervention a ses étapes, son outil et sa cible
 	--------------------------------------------------------------------
+	-- (V6.9.12) Zone d'une pièce de l'intérieur, gardée en mémoire une fois trouvée (les zones ne bougent pas)
+	local zonesConnues = {}
+	local function zoneDeCible(cible)
+		if typeof(cible) ~= "Instance" or not cible:IsDescendantOf(interieur) then return nil end
+		if zonesConnues[cible] == nil then zonesConnues[cible] = Config.zoneDe(interieur, cible) or false end
+		return zonesConnues[cible] or nil
+	end
 	local function lirePannes()
 		local liste = {}
 		local maintenant = workspace:GetServerTimeNow()
@@ -447,7 +463,7 @@ return function(contexte)
 		end
 		local index = exterieur:GetAttribute("VapeurSurcharge")
 		if index then
-			local grille = grilles[index]
+			local grille = Config.grilleEnPanne(exterieur, interieur, grilles) -- (V6.9.12) la grille désignée par le serveur
 			local avancement = exterieur:GetAttribute("VapeurSurchargeAvancement") or 0
 			table.insert(liste, { cle = "vapeur", titre = string.format("FUITE DE VAPEUR : GRILLE N°%d", index), couleur = C.orange, outil = "Visseuse", cible = grille,
 				nomCible = string.format("GRILLE N°%d", index), etapes = {
@@ -504,6 +520,11 @@ return function(contexte)
 				{ "Prends le chiffon.", aLOutil("Chiffon") },
 				{ "Sors et frotte la cabine (clique à moins de 10 studs, −15 % par passage).", false },
 			} })
+		end
+		-- (V6.9.12) La zone de la panne (dossier Zones de l'intérieur, sinon par rapport à la console) dans son titre
+		for _, panne in liste do
+			local zone = zoneDeCible(panne.cible)
+			if zone then panne.titre = panne.titre .. "  ·  ZONE " .. UI.majuscules(zone) end
 		end
 		return liste
 	end
@@ -649,6 +670,61 @@ return function(contexte)
 		T.compteurInterventions.TextColor3 = #liste == 0 and C.vert or C.orange
 		return #liste
 	end
+
+	--------------------------------------------------------------------
+	-- (V6.9.12) Historique des pannes : « ● TITRE », le détail, puis « 06/11 14:32 → 14:40 · réparé par X » (heure locale)
+	--------------------------------------------------------------------
+	local HttpService = game:GetService("HttpService")
+	local vueHistorique, dernierHistorique = false, false -- false = rien affiché encore (différent de nil : pas d'historique)
+	local function horairePanne(entree)
+		local debut = tonumber(entree.debut)
+		local fin = tonumber(entree.fin)
+		local texteHoraire = debut and os.date("%d/%m %H:%M", debut) or "—"
+		if not fin then return texteHoraire .. "  ·  en cours" end
+		texteHoraire ..= " → " .. os.date("%H:%M", fin)
+		if type(entree.par) == "string" and entree.par ~= "" then texteHoraire ..= "  ·  réparé par " .. entree.par end
+		return texteHoraire
+	end
+	local function majHistorique()
+		if not vueHistorique then return end
+		local json = exterieur:GetAttribute("HistoriquePannes")
+		if json == dernierHistorique then return end
+		dernierHistorique = json
+		for _, e in historique:GetChildren() do
+			if not e:IsA("UIListLayout") then e:Destroy() end
+		end
+		local ok, liste = false, nil
+		if type(json) == "string" and json ~= "" then ok, liste = pcall(function() return HttpService:JSONDecode(json) end) end
+		if not ok or type(liste) ~= "table" or #liste == 0 then
+			texte({ Name = "Vide", Text = "Aucune panne depuis le démarrage du serveur.", TextSize = 12, TextColor3 = C.texte2, TextWrapped = true,
+				AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, -8, 0, 0), LayoutOrder = 1, Parent = historique })
+			return
+		end
+		for i, entree in liste do
+			if type(entree) == "table" and i <= 20 then
+				local couleur = entree.fin and C.vert or C.orange
+				local ligne = creer("Frame", { Name = "Entree" .. i, Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.panneau,
+					BackgroundTransparency = 0.3, LayoutOrder = i, Parent = historique }, { UI.coin(6), UI.marges(8), UI.pile(2) })
+				texte({ Name = "TitreEntree", Text = "●  " .. UI.majuscules(tostring(entree.titre or entree.type or "Panne")), Font = UI.POLICE_GRAS, TextSize = 12,
+					TextColor3 = couleur, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 1, Parent = ligne })
+				if type(entree.detail) == "string" and entree.detail ~= "" then
+					texte({ Name = "Detail", Text = entree.detail, TextSize = 11, TextColor3 = C.texte2, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y,
+						Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 2, Parent = ligne })
+				end
+				texte({ Name = "Horaire", Text = horairePanne(entree), Font = UI.POLICE_CODE, TextSize = 11, TextColor3 = entree.fin and C.texte2 or C.orange,
+					TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 3, Parent = ligne })
+			end
+		end
+	end
+	boutonHistorique.Activated:Connect(function()
+		vueHistorique = not vueHistorique
+		contenuInterventions.Visible = not vueHistorique
+		historique.Visible = vueHistorique
+		boutonHistorique.Text = vueHistorique and "◂ PANNES" or "HISTORIQUE"
+		dernierHistorique = false
+		majHistorique()
+	end)
+	exterieur:GetAttributeChangedSignal("HistoriquePannes"):Connect(majHistorique)
 
 	--------------------------------------------------------------------
 	-- Mise à jour

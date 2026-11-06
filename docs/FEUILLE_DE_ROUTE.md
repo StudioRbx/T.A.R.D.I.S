@@ -14,7 +14,7 @@
 | V6.9.9 | Effets visuels du voyage | ✅ faite (05/11) |
 | V6.9.10 | Vol libre et vortex | ✅ faite (05/11) |
 | V6.9.11 | Navigation et fiches de lieux | ✅ faite (06/11) |
-| V6.9.12 | Pannes : le socle commun | 🔜 prévue |
+| V6.9.12 | Pannes : le socle commun | ✅ faite (06/11) |
 | V6.9.13 | Nouvelles pannes et outils du technicien | 🔜 prévue |
 | V6.9.14 | Équipage et garde-robe | 🔜 prévue |
 | V6.9.15 | Confort de l'interface et accessibilité | 🔜 prévue |
@@ -54,7 +54,7 @@ Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant 
 | V6.9.9 — Effets visuels du voyage | [#92](https://github.com/StudioRbx/T.A.R.D.I.S/issues/92) | ✨ Fonctionnalité | 🟠 Haute | moyen | 04/11 → 05/11 |
 | V6.9.10 — Vol libre et vortex | [#93](https://github.com/StudioRbx/T.A.R.D.I.S/issues/93) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 06/11 → 07/11 |
 | ✅ V6.9.11 — Navigation et fiches de lieux | [#94](https://github.com/StudioRbx/T.A.R.D.I.S/issues/94) | ✨ Fonctionnalité | faite | petit | 06/11 → 06/11 |
-| V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | 🟠 Haute | moyen | 10/11 → 11/11 |
+| ✅ V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
 | V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 12/11 → 13/11 |
 | V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 14/11 → 15/11 |
 | V6.9.15 — Confort de l'interface et accessibilité | [#98](https://github.com/StudioRbx/T.A.R.D.I.S/issues/98) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 16/11 → 17/11 |
@@ -355,7 +355,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* Ces propositions touchent toutes resoudreDestination, modeAutorise et atterrir(), avec un faible risque. La fiche (144) s'affiche dans le bandeau d'arrivée, qui n'appartient ni à T ni à Y : elle survit à la V12. Elle sert aussi de source unique à la bibliothèque (56), repoussée avec les autres salles en V11.6. Pour la 8, la logique reste côté serveur et l'interface est minimale : la base deviendra un réglage par TARDIS en V11 et un bouton BASE sur la console en V12.2. La 1 complète seulement le poste du copilote. La 16 ne désarme jamais une urgence imposée.
 
-### V6.9.12 — Pannes : le socle commun
+### V6.9.12 — Pannes : le socle commun ✅ faite (06/11)
 
 **Objectif :** Rendre la fréquence des pannes réglable, dire aux pilotes l'effet de chaque panne sur le vol, garder l'historique des réparations, situer les pannes par zone et leur donner un son.
 

@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.11"
+Config.Version = "6.9.12"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -676,6 +676,10 @@ Config.Sons = {
 	Moteur_Pose = 0, Moteur_Vol = 0, Moteur_Urgence = 0,
 	Vortex = 0, -- (V6.9.10) vent cosmique en boucle, à bord seulement, pendant le vol dans le vortex (Config.AmbianceVortex)
 	Frein = 0,  -- (V6.9.10) crissement temporel du freinage d'urgence en vol libre (facultatif)
+	-- (V6.9.12) Sons des pannes, joués chez chaque joueur (absents ou 0 = silence) : sifflement en boucle sur la grille
+	-- en surcharge, crépitement en boucle sur la console en feu, grincement au hasard pendant une avarie ou une coupure,
+	-- étincelles brèves quand on clique sur le rotor en panne
+	Panne_Vapeur = 0, Panne_Feu = 0, Panne_Grincement = 0, Panne_Etincelles = 0,
 	-- Replis intégrés à Roblox (toujours disponibles) : à remplacer par de vrais sons de TARDIS si tu en as
 	Chute = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.9 },
 	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
@@ -832,12 +836,50 @@ Config.Systemes = {
 	ReparationParMaintien = 1500,   -- PV rendus à chaque maintien de E (5 s) sur le rotor
 	DegatsChoc = 25, DegatsChute = 80, DegatsBalle = 4, DegatsExplosion = 300,
 	BouclierCoups = 250,            -- balles encaissées avant que le bouclier ne tombe
-	PannesIntervalleMin = 20 * 60,  -- délai entre deux pannes aléatoires (secondes)
-	PannesIntervalleMax = 40 * 60,
+	-- (V6.9.12) Fréquence des pannes aléatoires : "Aucune", "Rare", "Normale" ou "Frequente" (voir Config.FrequencesPannes).
+	-- Les pannes causées par les réglages (surtension, coupure après N voyages) ne dépendent pas de ce réglage.
+	FrequencePannes = "Normale",
+	PannesIntervalleMin = 20 * 60,  -- délai entre deux pannes aléatoires (secondes) : utilisé seulement si FrequencePannes
+	PannesIntervalleMax = 40 * 60,  -- est vide ou inconnu (valeurs sur mesure)
 	VoyagesAvantCoupure = 15,       -- après N voyages consécutifs, le système se coupe (10 s sur l'alimentation pour redémarrer)
 	RedemarrageDuree = 10,
 	SaleteParVoyage = 8,            -- % de saleté gagné à chaque atterrissage (le chiffon en enlève 15)
 	DegatsStatique = 0.5,           -- dégâts d'un arc statique (toucher la cabine pendant une démat)
+}
+
+-- (V6.9.12) Préréglages de la fréquence des pannes aléatoires (Config.Systemes.FrequencePannes) : délai entre deux
+-- tirages, en secondes. Aucune = la boucle des pannes aléatoires s'arrête.
+Config.FrequencesPannes = {
+	Aucune = false,
+	Rare = { Min = 40 * 60, Max = 80 * 60 },
+	Normale = { Min = 20 * 60, Max = 40 * 60 },
+	Frequente = { Min = 8 * 60, Max = 15 * 60 },
+}
+-- (V6.9.12) Délai entre deux pannes aléatoires : (mini, maxi) en secondes, ou nil si les pannes aléatoires sont coupées.
+-- Préréglage nommé d'abord ; sinon les valeurs sur mesure PannesIntervalleMin / PannesIntervalleMax.
+function Config.intervallePannes(systemes)
+	systemes = systemes or Config.Systemes or {}
+	local reglage = Config.FrequencesPannes and Config.FrequencesPannes[systemes.FrequencePannes or ""]
+	if reglage == false then return nil end
+	local mini, maxi
+	if type(reglage) == "table" then
+		mini, maxi = reglage.Min, reglage.Max
+	else
+		mini, maxi = systemes.PannesIntervalleMin, systemes.PannesIntervalleMax
+	end
+	mini = (type(mini) == "number" and mini == mini) and math.max(mini, 1) or 1200
+	maxi = (type(maxi) == "number" and maxi == maxi) and maxi or 2400
+	return mini, math.max(maxi, mini)
+end
+
+-- (V6.9.12) Zones de l'intérieur, pour situer les pannes (diagnostic, tablette technicien). À construire dans Studio
+-- (facultatif) : un dossier « Zones » dans l'intérieur, avec des Parts invisibles, sans collision et ancrées, qui
+-- couvrent chaque zone et portent son nom (Console, Couloir, Salle des machines…). On peut aussi mettre un attribut
+-- texte « Zone » sur une pièce de panne (grille, vanne, levier). Sans rien : la zone est donnée par rapport à la console.
+Config.ZonesPannes = {
+	Dossier = "Zones",   -- (V6.9.12) nom du dossier des zones dans l'intérieur
+	Attribut = "Zone",   -- (V6.9.12) attribut texte facultatif posé sur une pièce (ou sur son parent)
+	PresConsole = 8,     -- (V6.9.12) sans dossier Zones : à moins de N studs (à l'horizontale) de la console = « Console »
 }
 
 -- Régénération : les joueurs de cette équipe ne meurent pas, ils se régénèrent (invulnérables pendant la régénération)
@@ -923,6 +965,75 @@ function Config.partDe(objet)
 	if not objet then return nil end
 	if objet:IsA("BasePart") then return objet end
 	return (objet:IsA("Model") and objet.PrimaryPart) or objet:FindFirstChildWhichIsA("BasePart", true)
+end
+-- (V6.9.12) Les grilles de vapeur de l'intérieur : pièces nommées "Grille" ou rangées dans un dossier "Grilles"
+-- (le serveur les numérote avec l'attribut TardisGrille, pour que le client trouve la même sans dépendre de l'ordre)
+function Config.grillesDe(interieur)
+	local grilles = {}
+	if not interieur then return grilles end
+	for _, objet in interieur:GetDescendants() do
+		if objet:IsA("BasePart") and (objet.Name == "Grille" or (objet.Parent and objet.Parent.Name == "Grilles")) then table.insert(grilles, objet) end
+	end
+	return grilles
+end
+-- (V6.9.12) La grille en surcharge (VapeurSurcharge = son numéro) : celle qui porte ce numéro (attribut TardisGrille posé
+-- par le serveur), sinon celle du chemin publié par le serveur (attribut VapeurGrille, « Grilles/Grille »), sinon la
+-- n-ième de la liste (comme avant). Renvoie la pièce et son numéro, ou nil.
+function Config.grilleEnPanne(exterieur, interieur, grilles)
+	local index = exterieur and exterieur:GetAttribute("VapeurSurcharge")
+	if type(index) ~= "number" or not interieur then return nil end
+	grilles = grilles or Config.grillesDe(interieur)
+	for _, grille in grilles do
+		if grille:GetAttribute("TardisGrille") == index then return grille, index end
+	end
+	local chemin = exterieur:GetAttribute("VapeurGrille")
+	if type(chemin) == "string" and chemin ~= "" then
+		local objet = interieur
+		for nom in string.gmatch(chemin, "[^/]+") do objet = objet and objet:FindFirstChild(nom) end
+		if objet and objet ~= interieur and objet:IsA("BasePart") then return objet, index end
+	end
+	local grille = grilles[index]
+	if grille then return grille, index end
+	return nil
+end
+-- (V6.9.12) La zone de l'intérieur où se trouve un objet (une pièce, un Model) : son attribut « Zone » (ou celui de son
+-- parent), sinon la Part du dossier Zones qui le contient, sinon la zone la plus proche ; sans dossier Zones, la direction
+-- par rapport à la console (Console, Avant, Arrière, Gauche, Droite). nil si rien ne permet de le situer. Ne lève jamais
+-- d'erreur.
+function Config.zoneDe(interieur, objet)
+	local ok, zone = pcall(function()
+		if not (interieur and objet) then return nil end
+		local reglages = Config.ZonesPannes or {}
+		local cle = reglages.Attribut or "Zone"
+		for _, porteur in { objet, objet.Parent } do
+			local valeur = porteur:GetAttribute(cle)
+			if type(valeur) == "string" and valeur ~= "" then return valeur end
+		end
+		local part = Config.partDe(objet)
+		if not part then return nil end
+		local position = part.Position
+		local dossier = interieur:FindFirstChild(reglages.Dossier or "Zones")
+		if dossier then
+			local plusProche, distance = nil, math.huge
+			for _, z in dossier:GetDescendants() do
+				if z:IsA("BasePart") then
+					local relatif, demi = z.CFrame:PointToObjectSpace(position), z.Size / 2
+					if math.abs(relatif.X) <= demi.X and math.abs(relatif.Y) <= demi.Y and math.abs(relatif.Z) <= demi.Z then return z.Name end
+					local d = (z.Position - position).Magnitude
+					if d < distance then plusProche, distance = z.Name, d end
+				end
+			end
+			if plusProche then return plusProche end
+		end
+		local console = interieur:FindFirstChild("Console")
+		if not console then return nil end
+		local relatif = Config.pivot(console):PointToObjectSpace(position)
+		if math.sqrt(relatif.X * relatif.X + relatif.Z * relatif.Z) <= (reglages.PresConsole or 8) then return "Console" end
+		if math.abs(relatif.Z) >= math.abs(relatif.X) then return relatif.Z < 0 and "Avant" or "Arrière" end
+		return relatif.X < 0 and "Gauche" or "Droite"
+	end)
+	if ok and type(zone) == "string" then return zone end
+	return nil
 end
 -- (V6.9.10.5) Toutes les pièces d'une commande (elle-même si c'est une pièce, et celles qu'elle contient), sauf celles
 -- d'une commande « exclu » rangée dedans (Colors dans le Selecteur)

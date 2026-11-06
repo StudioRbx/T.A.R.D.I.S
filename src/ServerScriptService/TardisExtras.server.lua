@@ -844,6 +844,8 @@ end
 -- Intérieur : rotor interactif, console de secours, murs, styles, jukebox, tenues
 --------------------------------------------------------------------
 -- Rotor interactif : un clic (pas de bouton) fait jaillir des étincelles et accélère le rotor 3 s
+-- (V6.9.12) Pendant une avarie ou une coupure (tension coupée) : étincelles brèves et rougeoyantes, sans accélérer le
+-- rotor ; l'attribut PanneEtincelles fait jouer le son Panne_Etincelles chez les joueurs (s'il existe)
 do
 	local rotor = interieur:FindFirstChild(Config.NomRotor or "Rotor")
 	if rotor then
@@ -857,23 +859,31 @@ do
 			clic.MaxActivationDistance = 12
 			clic.Parent = piece
 			clic.MouseClick:Connect(function(joueur)
-				if os.clock() - dernierClic < 0.5 or exterieur:GetAttribute("Alimentation") == false then return end
+				if os.clock() - dernierClic < 0.5 then return end
+				-- (V6.9.12) rotor en panne (avarie ou redémarrage requis) : quelques étincelles, rien d'autre
+				local enPanne = exterieur:GetAttribute("Avarie") == true or exterieur:GetAttribute("RedemarrageRequis") == true
+				if not enPanne and exterieur:GetAttribute("Alimentation") == false then return end
 				dernierClic = os.clock()
-				exterieur:SetAttribute("RotorBoost", workspace:GetServerTimeNow())
+				if enPanne then
+					exterieur:SetAttribute("PanneEtincelles", workspace:GetServerTimeNow())
+				else
+					exterieur:SetAttribute("RotorBoost", workspace:GetServerTimeNow())
+				end
 				local point = Instance.new("Attachment")
 				point.Parent = piece
 				local etincelles = Instance.new("ParticleEmitter")
-				etincelles.Color = ColorSequence.new(Color3.fromRGB(180, 230, 255), Color3.fromRGB(255, 200, 120))
+				etincelles.Color = enPanne and ColorSequence.new(Color3.fromRGB(255, 170, 60), Color3.fromRGB(255, 60, 30))
+					or ColorSequence.new(Color3.fromRGB(180, 230, 255), Color3.fromRGB(255, 200, 120))
 				etincelles.LightEmission = 1
 				etincelles.Size = NumberSequence.new(0.2, 0)
 				etincelles.Speed = NumberRange.new(6, 14)
-				etincelles.Lifetime = NumberRange.new(0.3, 0.7)
+				etincelles.Lifetime = enPanne and NumberRange.new(0.15, 0.4) or NumberRange.new(0.3, 0.7)
 				etincelles.SpreadAngle = Vector2.new(180, 180)
 				etincelles.Rate = 0
 				etincelles.Parent = point
-				etincelles:Emit(40)
+				etincelles:Emit(enPanne and 15 or 40)
 				task.delay(2, function() point:Destroy() end)
-				interne("jouer", "Reparation", false)
+				if not enPanne then interne("jouer", "Reparation", false) end
 			end)
 		end
 	end
