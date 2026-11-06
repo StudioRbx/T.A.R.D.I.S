@@ -56,7 +56,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 
 ## 6. Tests en jeu et releases (V6.9.14)
 - Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (204 tests de la V6.7 à la V6.9.14, dont 6 réussis et 18 sans objet ; 180 encore à faire).
-- **Releases GitHub à jour** : les 37 versions de la V6.5 à la V6.9.13 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+- **Releases GitHub à jour** : les 38 versions de la V6.5 à la V6.9.14 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.
