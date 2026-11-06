@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.4"
+Config.Version = "6.9.10.5"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -85,13 +85,26 @@ Config.JukeboxConsole = {
 -- Invites du jukebox, de l'écran ingénieur et du casier de la console (V6.9.10.1, relecture) : une autre touche que E,
 -- pour ne pas cacher les invites du Selecteur, du levier et de l'alerte (Roblox n'affiche qu'une invite par touche), et
 -- aucune touche du vol libre (le pilote peut voler depuis la console). Chacune a aussi un clic.
+-- Invites un peu au-dessus des commandes (V6.9.10.5) : chaque invite de la console (Selecteur, levier, alimentation,
+-- alerte, démarrage, verrou, vol libre, casier, jukebox) est posée sur un point d'attache au-dessus du haut de la commande
+-- (pièce ou Model), et non plus au centre d'une de ses pièces (cachée dans la console quand la commande est un Model).
 Config.InvitesConsole = {
 	Touche = "Z",            -- (V6.9.10.1) clavier
 	Manette = "DPadRight",   -- (V6.9.10.1) manette
+	HauteurInvite = 1.5,     -- (V6.9.10.5) studs au-dessus du haut de la commande (Selecteur, levier, casier, jukebox…)
 }
 Config.BoutonVolLibre = {
 	Touche = "F",            -- (V6.9.10.1) touche de l'invite (manette : Y)
-	Distance = 10,           -- (V6.9.10.1) distance du clic et de l'invite (studs)
+	Distance = 10,           -- (V6.9.10.1) distance du clic et de l'invite (studs) ; V6.9.10.5 : au moins 10
+	HauteurInvite = 1.5,     -- (V6.9.10.5) l'invite « Vol libre » flotte tant de studs au-dessus du bouton (Model Colors : clic sur tout le Model)
+}
+-- Casiers (tenues) : la caméra se place face au joueur sans jamais entrer dans un mur (V6.9.10.5). Elle essaie devant,
+-- devant à gauche, devant à droite et plus haut, garde la place la plus dégagée, et ne bouge pas si tout est bouché.
+Config.Casiers = {
+	DistanceCamera = 7,      -- (V6.9.10.5) distance voulue entre la tête du joueur et la caméra (studs)
+	DistanceMinimale = 2.5,  -- (V6.9.10.5) en dessous de ce dégagement, cette place est refusée
+	Marge = 0.5,             -- (V6.9.10.5) la caméra s'arrête tant de studs avant un mur
+	DistanceFermeture = 12,  -- (V6.9.10.5) le menu des tenues se ferme si on s'éloigne de plus de tant de studs
 }
 Config.NomPortesInt = "PortesInterieures" -- Folder des portes de l'intérieur (cachées quand la porte est ouverte)
 Config.NomArrivee = "Arrivee"             -- Part optionnelle de l'intérieur : où arrivent les joueurs embarqués
@@ -585,7 +598,10 @@ Config.DureesRoles = {
 	{ nom = "7 jours", secondes = 7 * 24 * 3600 },
 }
 
--- Tenues (casiers, régénération du pilote) : identifiants du haut (shirt) et du bas (pants)
+-- Tenues (casiers, régénération du pilote) : identifiants du haut (shirt) et du bas (pants).
+-- (V6.9.10.5) Ce sont les identifiants des vêtements du CATALOGUE (le nombre dans l'adresse de la page de l'objet), pas
+-- ceux de leur image : le serveur (TardisTenues) retrouve l'image de chaque vêtement au démarrage. Un identifiant qui
+-- ne mène à aucun vêtement est listé dans l'Output ; cette tenue garde alors les vêtements actuels du joueur.
 Config.Tenues = {
 	{ nom = "Pannaro", description = "Tenue de soirée, festive", pieces = 3, shirt = 100019804704944, pant = 121690600465062, categorie = "Festive" },
 	{ nom = "Abete", description = "Tenue classique, verte", pieces = 3, shirt = 130782275960154, pant = 135250026467746, categorie = "Comité d'Éthique" },
@@ -616,11 +632,25 @@ Config.StylesConsole = {
 	{ nom = "Obsidienne", couleur = Color3.fromRGB(25, 25, 30), materiau = Enum.Material.Glass },
 }
 
--- Jukebox (tablette › Ambiance) : musiques audibles SEULEMENT à bord (V6.7.3 : son local, en fondu quand on entre
--- ou sort). categorie = "Action" : la piste fait partie de la playlist Action (lecture aléatoire, enchaînée).
--- Les identifiants doivent être des sons publics (ou appartenant au jeu) : à vérifier dans la Toolbox de Studio.
+-- Jukebox (tablette › Ambiance, et Console › JukeBox) : musiques audibles SEULEMENT à bord (V6.7.3 : son local, en fondu
+-- quand on entre ou sort). categorie = "Action" : la piste fait partie de la playlist Action (lecture aléatoire, enchaînée).
+-- Deux sources, réunies et triées par catégorie puis par nom (V6.9.10.5) :
+--   1. le dossier ReplicatedStorage › TardisAssets › Jukebox (créé au démarrage s'il manque) : glisse-y des Sound depuis
+--      la Toolbox de Studio (onglet Audio, catégorie Music). Chaque Sound = une piste : son nom = celui du Sound, sa
+--      catégorie = son attribut texte « Categorie » (facultatif ; sinon le nom du sous-dossier où il est rangé). Le
+--      Volume et la vitesse (PlaybackSpeed) du Sound sont gardés ;
+--   2. la liste ci-dessous : { nom = ..., id = <identifiant du son>, categorie = ... } (sons publics ou du jeu).
+-- Ambiance Doctor Who : la musique officielle de la série appartient à la BBC (ses copies mises sur Roblox enfreignent
+-- les règles et sont supprimées) : prends des musiques libres « dans l'esprit ». Mots à chercher dans la Toolbox
+-- (Audio › Music) : "sci-fi orchestral", "time travel", "space mystery", "adventure orchestral", "electronic suspense",
+-- "synth arpeggio". Catégories proposées : « Thèmes », « Ambiance de bord », « Vortex », « Action », « Émotion ».
 Config.Jukebox = {
 	-- { nom = "Nom de la musique", id = 1234567890, categorie = "Action" },
+}
+Config.JukeboxDossier = {
+	Nom = "Jukebox",                 -- (V6.9.10.5) dossier de ReplicatedStorage › TardisAssets où glisser les Sound
+	AttributCategorie = "Categorie", -- (V6.9.10.5) attribut texte d'un Sound : sa catégorie (sa playlist)
+	Categories = { "Thèmes", "Ambiance de bord", "Vortex", "Action", "Émotion" }, -- (V6.9.10.5) ordre d'affichage (les autres après, puis les pistes sans catégorie)
 }
 
 -- Sons créés au démarrage s'ils n'existent pas déjà dans ReplicatedStorage › TardisAssets › Sons (V6.7.3).
@@ -865,6 +895,151 @@ function Config.partDe(objet)
 	if not objet then return nil end
 	if objet:IsA("BasePart") then return objet end
 	return (objet:IsA("Model") and objet.PrimaryPart) or objet:FindFirstChildWhichIsA("BasePart", true)
+end
+-- (V6.9.10.5) Toutes les pièces d'une commande (elle-même si c'est une pièce, et celles qu'elle contient), sauf celles
+-- d'une commande « exclu » rangée dedans (Colors dans le Selecteur)
+function Config.piecesDe(objet, exclu)
+	local pieces = {}
+	if not objet then return pieces end
+	local function libre(part) return not (exclu and (part == exclu or part:IsDescendantOf(exclu))) end
+	if objet:IsA("BasePart") and libre(objet) then table.insert(pieces, objet) end
+	for _, part in objet:GetDescendants() do
+		if part:IsA("BasePart") and libre(part) then table.insert(pieces, part) end
+	end
+	return pieces
+end
+-- (V6.9.10.5) Où brancher le clic d'une commande : un ClickDetector rangé dans un Model répond sur TOUTES ses pièces
+-- (dans une pièce, seulement sur elle) ; un dossier n'en accepte pas : on prend alors sa pièce
+function Config.cibleClic(objet)
+	if not objet then return nil end
+	if objet:IsA("Model") or objet:IsA("BasePart") then return objet end
+	return Config.partDe(objet)
+end
+-- (V6.9.10.5) Point d'attache d'une invite, un peu AU-DESSUS d'une commande (pièce ou Model) : « hauteur » studs au-dessus
+-- du haut de sa boîte (selon la verticale du monde), au milieu de la boîte ; seules ses pièces visibles comptent (s'il y
+-- en a). « support » = la pièce qui porte le point (il suit ses mouvements), sinon la première pièce de la commande.
+-- Renvoie l'Attachment et sa position dans le monde ; nil si la commande n'a aucune pièce.
+function Config.pointInvite(objet, hauteur, exclu, support, nom)
+	local pieces = Config.piecesDe(objet, exclu)
+	local visibles = {}
+	for _, part in pieces do
+		if part.Transparency < 0.95 then table.insert(visibles, part) end
+	end
+	if #visibles > 0 then pieces = visibles end
+	support = support or pieces[1]
+	if not support then return nil end
+	if #pieces == 0 then pieces = { support } end
+	local minX, maxX, minZ, maxZ, haut = math.huge, -math.huge, math.huge, -math.huge, -math.huge
+	for _, part in pieces do
+		local cf, taille = part.CFrame, part.Size
+		local d, h, a, c = cf.RightVector, cf.UpVector, cf.LookVector, cf.Position
+		-- demi-étendue de la pièce (boîte orientée) le long de chaque axe du monde
+		local ex = (math.abs(d.X) * taille.X + math.abs(h.X) * taille.Y + math.abs(a.X) * taille.Z) / 2
+		local ey = (math.abs(d.Y) * taille.X + math.abs(h.Y) * taille.Y + math.abs(a.Y) * taille.Z) / 2
+		local ez = (math.abs(d.Z) * taille.X + math.abs(h.Z) * taille.Y + math.abs(a.Z) * taille.Z) / 2
+		minX, maxX = math.min(minX, c.X - ex), math.max(maxX, c.X + ex)
+		minZ, maxZ = math.min(minZ, c.Z - ez), math.max(maxZ, c.Z + ez)
+		haut = math.max(haut, c.Y + ey)
+	end
+	local point = Vector3.new((minX + maxX) / 2, haut + (tonumber(hauteur) or 1.5), (minZ + maxZ) / 2)
+	local attache = Instance.new("Attachment")
+	attache.Name = nom or "TardisInvite"
+	attache.Position = support.CFrame:PointToObjectSpace(point)
+	attache.Parent = support
+	return attache, point
+end
+
+-- (V6.9.10.5) Identifiant d'un vêtement de Config.Tenues (nombre, « 123 » ou « rbxassetid://123 ») : un entier, ou nil
+function Config.idVetement(valeur)
+	if type(valeur) == "string" then valeur = tonumber(string.match(valeur, "%d+") or "") end
+	if type(valeur) ~= "number" or valeur ~= valeur or valeur <= 0 or valeur == math.huge then return nil end
+	return math.floor(valeur)
+end
+-- (V6.9.10.5) Attribut où le serveur publie l'image d'un vêtement pour l'aperçu des joueurs (« Shirt_123 », « Pants_456 »,
+-- dans ReplicatedStorage › TardisAssets › Tenues) : le texte rbxassetid de l'image, "" si introuvable, absent = en cours
+function Config.cleVetement(genre, valeur)
+	local id = Config.idVetement(valeur)
+	return id and (genre .. "_" .. string.format("%d", id)) or nil
+end
+
+-- (V6.9.10.5) Dossier des Sound du jukebox (ReplicatedStorage › TardisAssets › Jukebox) ; « creer » : créé s'il manque
+-- (le serveur le fait au démarrage)
+function Config.dossierJukebox(creer)
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local nom = (Config.JukeboxDossier or {}).Nom or "Jukebox"
+	local assets = ReplicatedStorage:FindFirstChild("TardisAssets")
+	if not assets and creer then
+		assets = Instance.new("Folder")
+		assets.Name = "TardisAssets"
+		assets.Parent = ReplicatedStorage
+	end
+	local dossier = assets and assets:FindFirstChild(nom)
+	if not dossier and assets and creer then
+		dossier = Instance.new("Folder")
+		dossier.Name = nom
+		dossier.Parent = assets
+	end
+	return dossier
+end
+-- (V6.9.10.5) Pistes du jukebox : celles de Config.Jukebox et les Sound du dossier, triées par catégorie (l'ordre de
+-- Config.JukeboxDossier.Categories, puis les autres, puis les pistes sans catégorie) puis par nom. Le serveur et chaque
+-- joueur font le même calcul, si bien qu'un numéro de piste (attribut « Jukebox ») désigne la même musique partout. La
+-- liste est rangée DANS Config.Jukebox (mêmes numéros pour la tablette, la console et la lecture à bord), et renvoyée.
+-- Une piste du dossier : { nom = Sound.Name, categorie = …, son = le Sound }.
+local jukeboxRange, pistesDeConfig, dossierJukeboxSuivi = nil, {}, nil
+function Config.pistesJukebox()
+	if type(Config.Jukebox) ~= "table" then Config.Jukebox = {} end
+	if Config.Jukebox ~= jukeboxRange then
+		-- Première fois (ou Config.Jukebox remplacé) : ses pistes écrites à la main sont gardées à part
+		pistesDeConfig = {}
+		for _, piste in Config.Jukebox do
+			if type(piste) == "table" and piste.son == nil then table.insert(pistesDeConfig, piste) end
+		end
+		jukeboxRange = Config.Jukebox
+	end
+	local reglages = Config.JukeboxDossier or {}
+	local attribut = reglages.AttributCategorie or "Categorie"
+	local pistes = {}
+	for _, piste in pistesDeConfig do table.insert(pistes, piste) end
+	local dossier = Config.dossierJukebox(false)
+	if dossier then
+		for _, son in dossier:GetDescendants() do
+			if son:IsA("Sound") and son.SoundId ~= "" then
+				local categorie = son:GetAttribute(attribut)
+				if (type(categorie) ~= "string" or categorie == "") and son.Parent ~= dossier and son.Parent:IsA("Folder") then categorie = son.Parent.Name end
+				table.insert(pistes, { nom = son.Name, categorie = (type(categorie) == "string" and categorie ~= "") and categorie or nil, son = son })
+			end
+		end
+		if dossierJukeboxSuivi ~= dossier then
+			-- Un Sound ajouté ou retiré en jeu : la liste suit (tablette comprise)
+			dossierJukeboxSuivi = dossier
+			dossier.DescendantAdded:Connect(function() task.defer(Config.pistesJukebox) end)
+			dossier.DescendantRemoving:Connect(function() task.defer(Config.pistesJukebox) end)
+		end
+	end
+	local ordre = reglages.Categories or {}
+	local function rang(categorie)
+		if not categorie then return #ordre + 2 end
+		for i, nom in ordre do
+			if nom == categorie then return i end
+		end
+		return #ordre + 1
+	end
+	local function cle(piste)
+		if piste.son then return "2" .. piste.son.SoundId .. "|" .. piste.son:GetFullName() end
+		return "1" .. tostring(piste.id)
+	end
+	table.sort(pistes, function(a, b)
+		local ra, rb = rang(a.categorie), rang(b.categorie)
+		if ra ~= rb then return ra < rb end
+		if (a.categorie or "") ~= (b.categorie or "") then return (a.categorie or "") < (b.categorie or "") end
+		local na, nb = string.lower(tostring(a.nom)), string.lower(tostring(b.nom))
+		if na ~= nb then return na < nb end
+		return cle(a) < cle(b)
+	end)
+	table.clear(jukeboxRange)
+	for i, piste in pistes do jukeboxRange[i] = piste end
+	return jukeboxRange
 end
 
 -- Nom de mode valide ("Normal", "Urgence", "Express", "Sauvetage", "Catastrophe"). Accepte aussi un booléen :

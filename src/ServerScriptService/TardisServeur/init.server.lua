@@ -30,8 +30,12 @@ local function enPart(objet, exclu)
 end
 
 -- Le Selecteur garde son prompt sur une autre pièce que le bouton Vol libre (Console › Selecteur › Colors, V6.9.10.1)
-local selecteur = enPart(Config.Trouver(interieur, "Selecteur"), Config.trouverCommande(interieur, "VolLibre"))
-local levier = enPart(Config.Trouver(interieur, "Levier"))
+-- (V6.9.10.5 : les commandes entières sont gardées, pour poser leur invite au-dessus d'elles, voir creerPrompt)
+local objetSelecteur = Config.Trouver(interieur, "Selecteur")
+local objetVolLibre = Config.trouverCommande(interieur, "VolLibre")
+local selecteur = enPart(objetSelecteur, objetVolLibre)
+local objetLevier = Config.Trouver(interieur, "Levier")
+local levier = enPart(objetLevier)
 
 assert(exterieur.PrimaryPart, "[TARDIS] Le Model extérieur doit avoir un PrimaryPart (la base).")
 
@@ -1013,15 +1017,20 @@ end)
 --------------------------------------------------------------------
 -- Commandes de la console (ProximityPrompt : validées par le serveur)
 --------------------------------------------------------------------
-local function creerPrompt(part, action)
+-- (V6.9.10.5) L'invite est posée sur un point d'attache un peu AU-DESSUS de la commande (Config.InvitesConsole.HauteurInvite) :
+-- « objet » = la commande entière (pièce ou Model) qui donne la hauteur, « part » = la pièce qui porte le point, « exclu » =
+-- une commande rangée dedans qui a sa propre invite (Colors dans le Selecteur). Avant : au centre d'une seule pièce, cachée
+-- dans la console quand la commande est un Model, ou au même endroit qu'une autre invite. Renvoie l'invite et son point.
+local function creerPrompt(part, action, objet, exclu, hauteur)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = action
 	prompt.ObjectText = "Console"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 8
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = part
-	return prompt
+	local attache, point = Config.pointInvite(objet or part, hauteur or (Config.InvitesConsole or {}).HauteurInvite, exclu, part)
+	prompt.Parent = attache or part
+	return prompt, point
 end
 
 local dernierUsage = 0
@@ -1032,8 +1041,8 @@ local function disponible()
 	return true
 end
 
-local promptSelecteur = creerPrompt(selecteur, "Changer de destination")
-local promptLevier = creerPrompt(levier, "Décoller")
+local promptSelecteur, pointSelecteur = creerPrompt(selecteur, "Changer de destination", objetSelecteur, objetVolLibre)
+local promptLevier = creerPrompt(levier, "Décoller", objetLevier)
 
 promptSelecteur.Triggered:Connect(function(joueur)
 	if not pilotes[joueur] then return end -- réservé aux joueurs autorisés (Config.Pilotes)
@@ -1101,7 +1110,7 @@ local function brancherCommande(cle, texteActif, texteInactif, attribut, valeurA
 				.. (secours and (" ni " .. table.concat(secours, " › ")) or "") .. " (aucune Part). Elle ne répond pas ; le reste marche.")
 			return
 		end
-		local prompt = creerPrompt(part, texteInactif)
+		local prompt = creerPrompt(part, texteInactif, objet)
 		local function majTexte()
 			prompt.ActionText = (exterieur:GetAttribute(attribut) == valeurActive) and texteActif or texteInactif
 		end
@@ -1134,12 +1143,13 @@ brancherCommande("Demarrage", "Débloquer le démarrage", "Bloquer le démarrage
 -- Levier de verrouillage des portes (Console > LeverLeft > Main > Lever > Main)
 if Config.Chemins.Verrou then
 	task.spawn(function()
-		local partVerrou = enPart(Config.Trouver(interieur, "Verrou"))
+		local objetVerrou = Config.Trouver(interieur, "Verrou")
+		local partVerrou = enPart(objetVerrou)
 		if not partVerrou then
 			warn("[TARDIS] Commande de verrouillage introuvable (aucune Part)")
 			return
 		end
-		local promptVerrou = creerPrompt(partVerrou, "Verrouiller les portes")
+		local promptVerrou = creerPrompt(partVerrou, "Verrouiller les portes", objetVerrou)
 
 		local function majTexteVerrou()
 			promptVerrou.ActionText = exterieur:GetAttribute("PortesVerrouillees")
@@ -2100,25 +2110,37 @@ remote.OnServerEvent:Connect(traiterOrdre)
 -- libre pour le pilote qui l'actionne, par le même chemin que l'action « VolLibreDebut » de la tablette (traiterOrdre :
 -- pilote, maintenance, détruit, délai entre deux ordres, puis demarrerVolLibre : posé, porté, courant, démarrage…).
 -- Rien pour un non-pilote. Un refus s'affiche sur les écrans de destination, comme pour les autres commandes.
+-- (V6.9.10.5) Colors est un Model : avant, l'invite ET le clic allaient sur UNE seule de ses pièces (Config.partDe : le
+-- PrimaryPart, vide, sinon la première pièce trouvée, souvent cachée dans le Selecteur, là où est aussi son invite) :
+-- le bouton visible ne répondait pas au clic et l'invite « Vol libre » ne se voyait pas. Maintenant : le clic est sur
+-- tout le Model, l'invite sur un point d'attache au-dessus du bouton (Config.BoutonVolLibre.HauteurInvite).
 --------------------------------------------------------------------
 if Config.Chemins.VolLibre then
 	task.spawn(function()
-		local partVol = Config.partDe(Config.trouverCommande(interieur, "VolLibre", 10))
+		local objetVol = Config.trouverCommande(interieur, "VolLibre", 10)
+		local partVol = Config.partDe(objetVol)
 		if not partVol then
 			warn("[TARDIS] Bouton Vol libre (" .. table.concat(Config.Chemins.VolLibre, " › ") .. ") introuvable : le vol libre reste dans la tablette.")
 			return
 		end
 		local reglagesBouton = Config.BoutonVolLibre or {}
-		local promptVol = creerPrompt(partVol, "Vol libre")
+		local distanceVol = math.max(tonumber(reglagesBouton.Distance) or 10, 10)
+		local promptVol, pointVol = creerPrompt(partVol, "Vol libre", objetVol, nil, reglagesBouton.HauteurInvite or 1.5)
 		promptVol.Name = "TardisVolLibre"
-		promptVol.MaxActivationDistance = reglagesBouton.Distance or 10
+		promptVol.MaxActivationDistance = distanceVol
+		promptVol.RequiresLineOfSight = false
 		local okTouche, touche = pcall(function() return Enum.KeyCode[reglagesBouton.Touche or "F"] end)
 		promptVol.KeyboardKeyCode = okTouche and touche or Enum.KeyCode.F -- pas E : l'invite du Selecteur reste visible
 		promptVol.GamepadKeyCode = Enum.KeyCode.ButtonY
+		-- Les deux invites (Selecteur, touche E ; Vol libre, touche F) presque au même endroit : écartées à l'écran
+		if pointSelecteur and pointVol and (pointSelecteur - pointVol).Magnitude < 2 then
+			promptVol.UIOffset = Vector2.new(0, -40)
+			promptSelecteur.UIOffset = Vector2.new(0, 40)
+		end
 		local clicVol = Instance.new("ClickDetector")
 		clicVol.Name = "TardisVolLibre"
-		clicVol.MaxActivationDistance = reglagesBouton.Distance or 10
-		clicVol.Parent = partVol
+		clicVol.MaxActivationDistance = distanceVol
+		clicVol.Parent = Config.cibleClic(objetVol) or partVol
 		local function lancerDepuisConsole(joueur)
 			if not pilotes[joueur] then return end
 			traiterOrdre(joueur, "VolLibreDebut", nil, function(ok, message)

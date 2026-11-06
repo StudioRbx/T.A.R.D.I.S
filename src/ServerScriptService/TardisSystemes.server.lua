@@ -412,19 +412,18 @@ local function choisirDescription(joueur, humanoid)
 	end
 	return nil, "avatars introuvables"
 end
--- Une tenue de Config.Tenues (quand aucun avatar n'est disponible, ou quand l'avatar n'a pas de vêtements classiques)
+-- Une tenue de Config.Tenues (quand aucun avatar n'est disponible, ou quand l'avatar n'a pas de vêtements classiques).
+-- (V6.9.10.5) Par TardisTenues : les identifiants du catalogue sont changés en vraies images (avant, mis tels quels :
+-- le joueur ressortait sans vêtements). Une tenue introuvable : on en essaie une autre, sinon il garde les siens.
+local Tenues = require(script.Parent:WaitForChild("TardisTenues"))
 local function habillerTenueJeu(personnage)
-	local tenues = Config.Tenues or {}
-	if #tenues == 0 then return end
-	local tenue = tenues[math.random(#tenues)]
-	local shirt = personnage:FindFirstChildOfClass("Shirt") or Instance.new("Shirt")
-	shirt.Name = "Shirt"
-	shirt.ShirtTemplate = "rbxassetid://" .. tenue.shirt
-	shirt.Parent = personnage
-	local pants = personnage:FindFirstChildOfClass("Pants") or Instance.new("Pants")
-	pants.Name = "Pants"
-	pants.PantsTemplate = "rbxassetid://" .. tenue.pant
-	pants.Parent = personnage
+	local tenues = {}
+	for _, tenue in Config.Tenues or {} do table.insert(tenues, tenue) end
+	for _ = 1, math.min(#tenues, 3) do
+		local tenue = table.remove(tenues, math.random(#tenues))
+		if Tenues.appliquer(personnage, tenue) then return true end
+	end
+	return false
 end
 -- Applique l'avatar puis vérifie que tous ses accessoires sont arrivés (ApplyDescription en perd parfois) : jusqu'à 3 essais
 local function appliquerDescription(personnage, humanoid, description)
@@ -451,12 +450,14 @@ local function changerApparence(joueur, personnage, humanoid, description, origi
 	if description and appliquerDescription(personnage, humanoid, description) then
 		-- Un avatar sans vêtements classiques (que des vêtements 3D, retirés en R6) reçoit une tenue du jeu
 		local habille = personnage:FindFirstChildOfClass("Shirt") or personnage:FindFirstChildOfClass("Pants")
-		if not habille then habillerTenueJeu(personnage) end
-		print(string.format("[TARDIS] Régénération de %s : %s%s", joueur.Name, origine or "avatar", habille and "" or " + tenue du jeu"))
+		local tenueMise = (not habille) and habillerTenueJeu(personnage)
+		print(string.format("[TARDIS] Régénération de %s : %s%s", joueur.Name, origine or "avatar",
+			habille and "" or (tenueMise and " + tenue du jeu" or " (tenue du jeu introuvable)")))
 		return
 	end
-	habillerTenueJeu(personnage)
-	print(string.format("[TARDIS] Régénération de %s : tenue du jeu (%s)", joueur.Name, description and "avatar non appliqué" or origine or "aucun avatar"))
+	local tenueMise = habillerTenueJeu(personnage)
+	print(string.format("[TARDIS] Régénération de %s : %s (%s)", joueur.Name, tenueMise and "tenue du jeu" or "vêtements gardés, tenue du jeu introuvable",
+		description and "avatar non appliqué" or origine or "aucun avatar"))
 end
 -- Le corps tient-il encore ? (une commande :kill ou une explosion casse toutes les articulations)
 local function corpsIntact(personnage)

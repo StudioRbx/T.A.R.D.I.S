@@ -941,22 +941,32 @@ appliquerStyleConsole = function(style)
 	end
 end
 
--- Tenues (casiers, régénération) : haut et bas appliqués au personnage
+-- Tenues (casiers, régénération) : haut et bas appliqués au personnage.
+-- (V6.9.10.5) Config.Tenues donne les identifiants du CATALOGUE : avant, ils étaient mis tels quels comme image
+-- (ShirtTemplate = "rbxassetid://" .. id), ce qui ne s'affiche pas (joueur sans vêtements). TardisTenues retrouve la vraie
+-- image de chaque vêtement (une fois par identifiant), et la tenue est mise ici, sur le serveur seulement. Introuvable :
+-- le joueur garde ses vêtements et lit un court message. Le joueur reçoit « __tenue » (réussi ou non) pour son aperçu.
+local Tenues = require(script.Parent:WaitForChild("TardisTenues"))
+Tenues.demarrer()
+local tenuesEnCours = {} -- [joueur] = vrai pendant qu'une tenue se met (une à la fois)
 local function appliquerTenue(joueur, index)
 	local tenue = (Config.Tenues or {})[index]
 	local personnage = joueur.Character
-	if not tenue or not personnage then return false end
-	local shirt = personnage:FindFirstChildOfClass("Shirt") or Instance.new("Shirt")
-	shirt.Name = "Shirt"
-	shirt.ShirtTemplate = "rbxassetid://" .. tenue.shirt
-	shirt.Parent = personnage
-	local pants = personnage:FindFirstChildOfClass("Pants") or Instance.new("Pants")
-	pants.Name = "Pants"
-	pants.PantsTemplate = "rbxassetid://" .. tenue.pant
-	pants.Parent = personnage
-	personnage:SetAttribute("TardisTenue", index)
+	if not tenue or not personnage or tenuesEnCours[joueur] then return false end
+	tenuesEnCours[joueur] = true
+	task.spawn(function()
+		local ok = Tenues.appliquer(personnage, tenue)
+		tenuesEnCours[joueur] = nil
+		if ok then
+			personnage:SetAttribute("TardisTenue", index)
+		else
+			remote:FireClient(joueur, "__console", "Tenue « " .. tostring(tenue.nom) .. " » indisponible : tu gardes tes vêtements.", false)
+		end
+		remote:FireClient(joueur, "__tenue", ok == true, index)
+	end)
 	return true
 end
+Players.PlayerRemoving:Connect(function(joueur) tenuesEnCours[joueur] = nil end)
 
 --------------------------------------------------------------------
 -- Auto-destruction : 20 s de compte à rebours (secousses, rouge, alarme), puis explosion : joueurs, objets
@@ -1127,9 +1137,15 @@ do
 		remote:FireClient(joueur, "__jukebox", part)
 	end
 	Players.PlayerRemoving:Connect(function(joueur) derniersJukebox[joueur] = nil end)
+	-- (V6.9.10.5) Le dossier des musiques (ReplicatedStorage › TardisAssets › Jukebox) existe toujours : le propriétaire y
+	-- glisse des Sound de la Toolbox ; la liste des pistes (Config.pistesJukebox) les réunit à Config.Jukebox
+	Config.dossierJukebox(true)
+	Config.pistesJukebox()
 	if (Config.Chemins or {}).JukeBox then
 		task.spawn(function()
-			local part = Config.partDe(Config.trouverCommande(interieur, "JukeBox", 10))
+			-- (V6.9.10.5) pièce ou Model : clic sur tout le Model, invite au-dessus du jukebox (Config.InvitesConsole.HauteurInvite)
+			local objet = Config.trouverCommande(interieur, "JukeBox", 10)
+			local part = Config.partDe(objet)
 			if not part then return end -- facultatif : sans jukebox sur la console, la tablette le garde
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.Name = "TardisJukebox"
@@ -1144,12 +1160,12 @@ do
 			local okManette, manette = pcall(function() return Enum.KeyCode[invites.Manette or "DPadRight"] end)
 			prompt.KeyboardKeyCode = okTouche and touche or Enum.KeyCode.Z
 			prompt.GamepadKeyCode = okManette and manette or Enum.KeyCode.DPadRight
-			prompt.Parent = part
+			prompt.Parent = Config.pointInvite(objet, invites.HauteurInvite, nil, part, "TardisJukebox") or part
 			prompt.Triggered:Connect(function(joueur) ouvrirJukebox(joueur, part) end)
 			local clic = Instance.new("ClickDetector")
 			clic.Name = "TardisJukebox"
 			clic.MaxActivationDistance = 12
-			clic.Parent = part
+			clic.Parent = Config.cibleClic(objet) or part
 			clic.MouseClick:Connect(function(joueur) ouvrirJukebox(joueur, part) end)
 		end)
 	end
@@ -1358,23 +1374,33 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		dire(joueur, exterieur:GetAttribute("Reflets") and "Reflets des vitres activés." or "Reflets des vitres désactivés.", true)
 
 	elseif action == "Jukebox" then
-		local index = typeof(donnees) == "table" and tonumber(donnees.index)
-		local liste = typeof(donnees) == "table" and donnees.liste
-		if type(liste) == "string" and #liste <= 30 then
+		-- (V6.9.10.5) Les pistes de Config.Jukebox ET du dossier TardisAssets › Jukebox, numérotées comme chez les joueurs
+		-- (Config.pistesJukebox) ; seules une piste ou une playlist connues sont acceptées (sinon la musique continue)
+		local pistes = Config.pistesJukebox()
+		local index = typeof(donnees) == "table" and donnees.index or nil
+		local liste = typeof(donnees) == "table" and donnees.liste or nil
+		if liste ~= nil then
 			-- Playlist (V6.7.3) : toutes les pistes d'une catégorie, en ordre aléatoire
 			local nombre = 0
-			for _, piste in Config.Jukebox or {} do if piste.categorie == liste then nombre += 1 end end
+			if type(liste) == "string" and #liste <= 30 then
+				for _, piste in pistes do if piste.categorie == liste then nombre += 1 end end
+			end
 			if nombre > 0 then
 				exterieur:SetAttribute("Jukebox", liste)
 				exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
 				dire(joueur, string.format("Jukebox : playlist %s (%d piste(s), aléatoire).", liste, nombre), true)
 			else
-				dire(joueur, "Aucune piste « " .. liste .. " » dans Config.Jukebox.", false)
+				dire(joueur, "Playlist inconnue du jukebox.", false)
 			end
-		elseif index and (Config.Jukebox or {})[index] then
-			exterieur:SetAttribute("Jukebox", math.floor(index))
-			exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
-			dire(joueur, "Jukebox : " .. Config.Jukebox[index].nom .. ".", true)
+		elseif index ~= nil then
+			local numero = type(index) == "number" and index or nil
+			if numero and numero >= 1 and numero <= #pistes and numero == math.floor(numero) then -- (ni NaN, ni infini, ni 2,5)
+				exterieur:SetAttribute("Jukebox", numero)
+				exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
+				dire(joueur, "Jukebox : " .. tostring(pistes[numero].nom) .. ".", true)
+			else
+				dire(joueur, "Piste inconnue du jukebox.", false)
+			end
 		else
 			exterieur:SetAttribute("Jukebox", nil)
 			dire(joueur, "Jukebox arrêté.", true)

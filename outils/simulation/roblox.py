@@ -463,7 +463,8 @@ def _defauts(classe):
     v3 = lambda x, y, z: Valeur("Vector3", [x, y, z])
     if classe in ("Part", "MeshPart", "UnionOperation", "WedgePart"):
         return {"Transparency": 0, "Size": v3(4, 1, 2), "Color": Couleur(0.64, 0.64, 0.64), "Material": Valeur("Enum.Material.Plastic"),
-                "CFrame": Valeur("CFrame"), "Position": v3(0, 0, 0), "Anchored": False, "CanCollide": True, "Reflectance": 0}
+                "CFrame": Valeur("CFrame"), "Position": v3(0, 0, 0), "Anchored": False, "CanCollide": True, "Reflectance": 0,
+                "CanQuery": True}  # V6.9.10.5 : lu par la caméra des casiers (rayons)
     if classe in ("PointLight", "SpotLight", "SurfaceLight"):
         return {"Brightness": 1, "Range": 8, "Color": Couleur(1, 1, 1), "Enabled": True, "Shadows": False}
     if classe == "Model": return {"PrimaryPart": None}  # V6.9.10.1 : comme Roblox, pas de PrimaryPart par défaut

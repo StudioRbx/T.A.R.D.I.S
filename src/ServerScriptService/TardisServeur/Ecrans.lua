@@ -150,10 +150,15 @@ return function(contexte)
 		return 0, false
 	end
 
-	-- Taille (studs) d'une face : largeur et hauteur de l'image de la SurfaceGui posée dessus
+	-- Taille (studs) d'une face : largeur et hauteur de l'image de la SurfaceGui posée dessus.
+	-- Top et Bottom (V6.9.10.5) : Roblox oriente le haut de l'image vers la face Right de la pièce (+X, voir repereFace),
+	-- donc la HAUTEUR de l'image court le long de X et sa LARGEUR le long de Z (sa droite = (-normale):Cross(haut) = +Z
+	-- pour Top) : (Size.Z, Size.X). Avant : (Size.X, Size.Z), à l'envers ; une fois tournées d'un quart de tour, les
+	-- couches de l'affichage recevaient des proportions inversées et l'écran ingénieur n'était plus qu'une bande étroite
+	-- au milieu de la face.
 	local function tailleFace(part, face)
 		local taille = part.Size
-		if face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then return taille.X, taille.Z end
+		if face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then return taille.Z, taille.X end
 		if face == Enum.NormalId.Left or face == Enum.NormalId.Right then return taille.Z, taille.Y end
 		return taille.X, taille.Y
 	end
@@ -222,7 +227,8 @@ return function(contexte)
 		ecran.gui.Face = face
 		ecran.gui.PixelsPerStud = pps
 		-- Sens (V6.9.10.4) : les trois couches (affichage, hors tension, détruit) tournent ensemble ; tournées d'un quart
-		-- de tour, elles échangent largeur et hauteur pour remplir toujours toute la face
+		-- de tour, elles échangent largeur et hauteur pour remplir toujours toute la face (V6.9.10.5 : avec la vraie taille
+		-- de l'image, voir tailleFace, elles la remplissent exactement)
 		local rotation, rotationAutoChoisie = rotationDe(ecran, face)
 		ecran.rotation, ecran.rotationAuto = rotation, rotationAutoChoisie
 		local quart = rotation % 180 == 90 and largeur > 0 and hauteur > 0

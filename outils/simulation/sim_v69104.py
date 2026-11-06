@@ -9,7 +9,9 @@ de côté, il suit le haut de la pièce. L'écran ingénieur (RotationEcran = Au
      minimales de texte suivent la hauteur lue.
   4. RotationEcran sur la pièce ou le Model : 0, 90, 180, 270, « auto », valeur inconnue (avertissement, 0) ; changé en jeu.
   5. Écrans de destination : jamais tournés par défaut ; RotationEcran accepté.
-  6. Ligne de l'Output : le sens de chaque écran."""
+  6. Ligne de l'Output : le sens de chaque écran.
+  7. (V6.9.10.5) Image de la face Top telle que Roblox la fait (largeur le long de Z, hauteur le long de X) : les couches
+     tournées la remplissent exactement, plaque au grand côté le long de X ou de Z, sens 0, 90, 180, 270 et Auto."""
 import os, sys, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from monde import *
@@ -76,8 +78,10 @@ gui_de = lambda p, nom="TardisEcranDestination": (enfant_classe(p, "SurfaceGui",
 face_de = lambda g: g.props["Face"].nom.split(".")[-1] if g is not None else None
 toile = lambda g, p: tuple(round(x * g.props["PixelsPerStud"], 3) for x in taille_face(p, face_de(g))) if g is not None else (0, 0)
 def taille_face(p, face):
+    """Taille (studs) de l'image d'une SurfaceGui, comme dans Roblox. V6.9.10.5 : sur Top et Bottom, le haut de l'image va
+    vers la face Right (+X) : la largeur court le long de Z et la hauteur le long de X (avant : (X, Z), à l'envers)."""
     s = p.props["Size"]
-    if face in ("Top", "Bottom"): return (s.x, s.z)
+    if face in ("Top", "Bottom"): return (s.z, s.x)
     if face in ("Left", "Right"): return (s.z, s.y)
     return (s.x, s.y)
 
@@ -196,6 +200,58 @@ S = charger(complet, avancer=0.05)
 L = ([l for l in S["sortie"] if "écrans de la console" in l] or [""])[0]
 verifier("6. L'Output donne le sens de chaque écran (0° pour la destination, auto pour l'ingénieur)",
          "face Front, sens 0° (1024 × 614 px)" in L and re.search(r"ingénieur « Console › Ecran-Ingenieure » : face Top \(auto\), sens \d+° \(auto\)", L) is not None, L)
+
+# ================================================================== 7. (V6.9.10.5) Les couches tournées remplissent EXACTEMENT la face Top
+# Image de la face Top dans Roblox : largeur le long de Z, hauteur le long de X (haut de l'image = face Right). Une fois
+# tournées, les couches doivent couvrir toute l'image (ni bande étroite, ni débord), et le contenu lu doit avoir toute la
+# largeur de la face dans le sens de la lecture.
+def emprise(c, Wp, Hp):
+    """Taille (pixels) occupée sur l'image par une couche (taille relative, rotation en degrés)."""
+    lw, lh = c.props["Size"].args[0] * Wp, c.props["Size"].args[1] * Hp
+    t = math.radians(c.props.get("Rotation", 0))
+    return abs(math.cos(t)) * lw + abs(math.sin(t)) * lh, abs(math.sin(t)) * lw + abs(math.cos(t)) * lh, lw, lh
+def largeur_lue_studs(p, gui):
+    """Étendue de la face (studs) le long de la droite du texte lu."""
+    R = p.props["CFrame"].R
+    n, h = repere(R, face_de(gui))
+    d = cross(neg(n), h)
+    t = math.radians(champ(gui, "Fond").props.get("Rotation", 0))
+    droite = Vec3(math.cos(t) * d.x - math.sin(t) * h.x, math.cos(t) * d.y - math.sin(t) * h.y, math.cos(t) * d.z - math.sin(t) * h.z)
+    taille = p.props["Size"]
+    return abs(dot(droite, col(R, 0))) * taille.x + abs(dot(droite, col(R, 2))) * taille.z
+CAS_TOP = [("grand côté le long de X", (3, 0.2, 2)), ("grand côté le long de Z", (2, 0.2, 3))]
+for nom_cas, taille in CAS_TOP:
+    for sens in (90, 270, 0, 180, "Auto"):
+        def plaque(console, taille=taille, sens=sens):
+            p = piece("Ecran-Ingenieure", console, (4, 4, 0), taille, _rz(-A30)); p.attrs["FaceEcran"] = "Top"; p.attrs["RotationEcran"] = sens
+            return {"ing": p}
+        S = charger(plaque); gi = gui_de(S["ing"], "TardisEcranIngenieur")
+        if gi is None: verifier(f"7. Face Top, {nom_cas}, sens {sens}", False, S["erreurs"][:2]); continue
+        Wp, Hp = toile(gi, S["ing"])
+        couches = [champ(gi, n_) for n_ in ("Fond", "Veille", "Detruit")]
+        empr = [emprise(c, Wp, Hp) for c in couches]
+        remplit = all(abs(e[0] - Wp) < 0.5 and abs(e[1] - Hp) < 0.5 for e in empr)
+        lue = largeur_lue_studs(S["ing"], gi)
+        pleine = abs(empr[0][2] / gi.props["PixelsPerStud"] - lue) < 0.01
+        verifier(f"7. Face Top, {nom_cas}, sens {sens} (→ {champ(gi, 'Fond').props.get('Rotation', 0)}°) : les 3 couches remplissent exactement l'image "
+                 f"({Wp:.0f} × {Hp:.0f} px), le texte a toute la largeur de la face ({lue:g} studs)", remplit and pleine and not S["erreurs"],
+                 ([(round(e[0]), round(e[1])) for e in empr], (Wp, Hp), round(empr[0][2] / gi.props["PixelsPerStud"], 3), lue, S["erreurs"][:2]))
+# Le cas de la capture du propriétaire (V6.9.10.4) : avec l'ancienne taille (X, Z), la couche tournée d'un quart de tour
+# ne couvrait qu'une bande étroite au milieu de la face (2/3 de la largeur lue × toute la hauteur, pour 3 × 2 studs)
+def plaque_90(console):
+    p = piece("Ecran-Ingenieure", console, (4, 4, 0), (3, 0.2, 2), _rz(-A30)); p.attrs["RotationEcran"] = 90
+    return {"ing": p}
+S = charger(plaque_90)
+p_ = S["ing"]; gi = gui_de(p_, "TardisEcranIngenieur")
+Wp, Hp = toile(gi, p_)
+ancienne = (2 * 2 / 3, 3 * 3 / 2)  # tailles qu'avait la couche avec (X, Z) : (Z/X, X/Z) de la vraie image (2 × 3 studs)
+vraie = emprise(champ(gi, "Fond"), Wp, Hp)
+verifier("7. Sans la correction, la couche tournée ne faisait que 1,33 stud de large lu sur 3 (la bande étroite de la capture) ; maintenant 3",
+         abs(ancienne[0] - 4 / 3) < 1e-9 and abs(vraie[2] / gi.props["PixelsPerStud"] - 3) < 0.01, (ancienne, round(vraie[2] / gi.props["PixelsPerStud"], 3)))
+L = ([l for l in S["sortie"] if "écrans de la console" in l] or [""])[0]
+verifier("7. Ligne de l'Output : taille de l'image lue, quart de tour (3 studs de large → 1024 px, 2 de haut → 683 px)", "face Top (auto), sens 90° (1024 × 683 px)" in L, L)
+src_ecrans = SRC_ECRANS[SRC_ECRANS.index("local function tailleFace"):SRC_ECRANS.index("local function finesse")]
+verifier("7. Code : tailleFace rend (Size.Z, Size.X) pour Top et Bottom", "return taille.Z, taille.X end" in src_ecrans and "return taille.X, taille.Z" not in src_ecrans, src_ecrans[:200])
 
 print("\n".join("  ✓ " + o for o in OK)); print("\n".join("  ✗ " + k for k in KO))
 print(f"V6.9.10.4 : {len(OK)}/{len(OK) + len(KO)} vérifications réussies")

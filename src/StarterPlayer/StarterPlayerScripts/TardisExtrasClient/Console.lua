@@ -2,8 +2,8 @@
 -- Commandes de la console qui ouvrent un panneau (V6.9.10.1). Le serveur décide qui peut, ce module ne fait qu'afficher :
 --   « __energie » : menu de gestion de l'énergie (clic sur Console › Ecran-Ingenieure, pilotes et ingénieurs) :
 --     intégrité, énergie, boucliers, et la régulation (énergie, air, vapeur) par l'action existante « Tech / Reguler » ;
---   « __jukebox » : panneau du jukebox (Console › JukeBox, pilotes) : pistes et playlists de Config.Jukebox, par
---     l'action existante « Jukebox » ;
+--   « __jukebox » : panneau du jukebox (Console › JukeBox, pilotes) : pistes et playlists de Config.Jukebox et du dossier
+--     ReplicatedStorage › TardisAssets › Jukebox (V6.9.10.5, Config.pistesJukebox), par l'action existante « Jukebox » ;
 --   « __console » : un message court (« Réservé aux pilotes. »…) en bas de l'écran.
 -- Chaque panneau se ferme avec son bouton, Échap, ou en s'éloignant de l'objet. Aucune boucle par image : mises à jour
 -- sur les changements d'attributs, et une vérification de la distance toutes les 0,5 s tant qu'un panneau est ouvert.
@@ -237,7 +237,8 @@ return function(contexte)
 			if not e:IsA("UIListLayout") then e:Destroy() end
 		end
 		local enCours = exterieur:GetAttribute("Jukebox")
-		local pistes = Config.Jukebox or {}
+		-- (V6.9.10.5) Config.Jukebox ET les Sound du dossier TardisAssets › Jukebox, triés comme sur le serveur
+		local pistes = Config.pistesJukebox()
 		local categories, ordreCategories = {}, {}
 		for _, piste in pistes do
 			if piste.categorie and not categories[piste.categorie] then
@@ -249,7 +250,9 @@ return function(contexte)
 		local ordre = 0
 		if #pistes == 0 then
 			ordre += 1
-			texte({ Name = "Vide", Text = "Aucune musique : Config.Jukebox est vide.", TextSize = 12, TextColor3 = C.texte2, TextWrapped = true,
+			texte({ Name = "Vide", Text = "Aucune musique : la liste est vide. Pour la remplir, glisse des Sound (Toolbox de Studio › Audio › Music) dans "
+				.. "ReplicatedStorage › TardisAssets › " .. ((Config.JukeboxDossier or {}).Nom or "Jukebox") .. ", ou ajoute des pistes à Config.Jukebox.",
+				TextSize = 12, TextColor3 = C.texte2, TextWrapped = true,
 				AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = ordre, Parent = listeJukebox })
 		end
 		for _, categorie in ordreCategories do
@@ -279,6 +282,13 @@ return function(contexte)
 	fermerJukebox.Name = "Fermer"
 	exterieur:GetAttributeChangedSignal("Jukebox"):Connect(function()
 		if ouvert and ouvert.gui == guiJukebox then construireJukebox() end
+	end)
+	-- (V6.9.10.5) La liste des pistes (rangée dans Config.Jukebox, lue aussi par la tablette) suit le dossier du jukebox
+	-- dès qu'il est arrivé chez le joueur
+	task.spawn(function()
+		local assets = game:GetService("ReplicatedStorage"):WaitForChild("TardisAssets", 30)
+		if assets then assets:WaitForChild((Config.JukeboxDossier or {}).Nom or "Jukebox", 30) end
+		Config.pistesJukebox()
 	end)
 
 	--------------------------------------------------------------------

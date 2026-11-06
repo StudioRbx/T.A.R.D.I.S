@@ -100,7 +100,7 @@ cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 def bloc(debut, fin="\n}"):
     i = cfgsrc.index(debut); return cfgsrc[i:cfgsrc.index(fin, i)]
 blocs = [bloc("Config.Ecrans = {"), bloc("Config.EcranIngenieur = {"), bloc("Config.JukeboxConsole = {"), bloc("Config.BoutonVolLibre = {"), bloc("Config.NeonsSalle = {"), bloc("Config.InvitesConsole = {")]
-nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l) and "(V6.9.10.3)" not in l and "(V6.9.10.4)" not in l]  # V6.9.10.3 : réglages des écrans ajoutés depuis (sim_v69103)
+nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l) and "(V6.9.10.3)" not in l and "(V6.9.10.4)" not in l and "(V6.9.10.5)" not in l]  # V6.9.10.3 : réglages des écrans ajoutés depuis (sim_v69103) ; V6.9.10.5 : hauteur des invites (sim_v69105)
 nouvelles += [l for l in cfgsrc.splitlines() if re.match(r"\s*(Alerte|VolLibre|EcranIngenieur|Casier|JukeBox) = \{ \"Console\"", l) or l.startswith("Config.CheminsFacultatifs") or l.startswith("Config.CheminsSecours")]
 verifier("Chaque nouveau réglage est marqué « (V6.9.10.1) »", len(nouvelles) == 24 and all("(V6.9.10.1)" in l for l in nouvelles),
          (len(nouvelles), [l for l in nouvelles if "(V6.9.10.1)" not in l][:3]))
@@ -413,7 +413,7 @@ ALERTES = []
 debut = serveur.index("local ACTIONS_AILLEURS = {}")
 fin_ = serveur.index("Players.PlayerRemoving:Connect(function(joueur)\n\tdernierOrdre[joueur] = nil")
 en_part = serveur[serveur.index("local function enPart(objet, exclu)"):serveur.index("-- Le Selecteur garde son prompt")]
-creer_prompt = serveur[serveur.index("local function creerPrompt(part, action)"):serveur.index("local dernierUsage = 0")]
+creer_prompt = serveur[serveur.index("local function creerPrompt("):serveur.index("local dernierUsage = 0")]
 prelude = """
 local remote, exterieur, interieur, Config, E, V, pilotes, alerter = ...
 local Players = game:GetService("Players")
@@ -436,7 +436,7 @@ H.avancer(0.1)
 verifier("4. Vrai gestionnaire des ordres (traiterOrdre) et bloc du bouton Vol libre chargés", S is not None and not roblox.ERREURS, roblox.ERREURS[:3])
 tache(lambda: R.update(sel=premier(appeler(S.get("enPart"), [PV_["selecteur"], PV_["colors"]]))))
 verifier("4. Le Selecteur garde son prompt sur une autre pièce que Colors", R["sel"] is PV_["selecteur"].enfants[0], R["sel"] and R["sel"].Name)
-pv_ = enfant_classe(PV_["colors"], "ProximityPrompt"); cv_ = enfant_classe(PV_["colors"], "ClickDetector")
+pv_ = [e for e in descendants(PV_["colors"]) if e.ClassName == "ProximityPrompt"]; cv_ = enfant_classe(PV_["colors"], "ClickDetector")  # V6.9.10.5 : invite sur un point d'attache
 verifier("4. Colors : une invite « Vol libre » (touche F, pas E) et un clic", len(pv_) == 1 and len(cv_) == 1 and pv_[0].props["ActionText"] == "Vol libre"
          and pv_[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.F", pv_ and pv_[0].props)
 verifier("4. L'invite est active TARDIS posé", pv_[0].props.get("Enabled") is True)
@@ -480,11 +480,12 @@ def brancher_alerte(salle_):
 salleN = Instance("Model", "Salle"); PN = console_reelle(salleN)
 xa, sortie = brancher_alerte(salleN)
 bn = PN["console"].m_FindFirstChild("Datapanel").m_FindFirstChild("Redbutton").m_FindFirstChild("Button")
-verifier("Relecture 7. Nouveau chemin : invite sur Datapanel › Redbutton › Button", enfant_classe(bn, "ProximityPrompt") and not [l for l in sortie if "introuvable" in l], sortie)
+invites_de = lambda o: [e for e in descendants(o) if e.ClassName == "ProximityPrompt"]  # V6.9.10.5 : invites sur un point d'attache
+verifier("Relecture 7. Nouveau chemin : invite sur Datapanel › Redbutton › Button", invites_de(bn) and not [l for l in sortie if "introuvable" in l], sortie)
 salleA = Instance("Model", "Salle"); PA = console_reelle(salleA); PA["console"].m_FindFirstChild("Datapanel").set_parent(None)
 ciA = Instance("Model", "Circuit", PA["console"]); clA = Instance("Model", "Cloister", ciA); sw = Instance("Part", "Switch", clA)
 xa, sortie = brancher_alerte(salleA)
-pa_sw = enfant_classe(sw, "ProximityPrompt")
+pa_sw = invites_de(sw)
 verifier("Relecture 7. Place pas encore mise à jour : l'ancien Circuit › Cloister › Switch répond, avec un avertissement", pa_sw and [l for l in sortie if "ancien emplacement utilisé" in l], sortie)
 n = len(ALERTES); declencher(pa_sw[0], "Triggered", pilote); H.avancer(0.1)
 verifier("Relecture 7. … et déclenche bien l'alerte", xa.attrs.get("Alerte") is True and ALERTES[n:] == ["ALERTE GÉNÉRALE"], ALERTES[n:])
@@ -575,7 +576,7 @@ verifier("5. Action « Interphone » (pilote ou non) : ignorée par le serveur, 
 
 
 # ================================================================== 9. Jukebox de la console (serveur)
-pj = enfant_classe(PX["jukebox"], "ProximityPrompt"); cj = enfant_classe(PX["jukebox"], "ClickDetector")
+pj = [e for e in descendants(PX["jukebox"]) if e.ClassName == "ProximityPrompt"]; cj = enfant_classe(PX["jukebox"], "ClickDetector")  # V6.9.10.5 : invite sur un point d'attache
 verifier("8. Console › JukeBox : invite « Musique » et clic", len(pj) == 1 and len(cj) == 1 and pj[0].props["ActionText"] == "Musique")
 verifier("Relecture 9. Invite du jukebox : touche Z", pj[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z")
 n = len(canalX.extra.get("envoisClient", []))
@@ -768,7 +769,7 @@ autreCasier = Instance("Part", "Casier", salleC)
 IM = module_client("Interactions")
 verifier("Module Interactions chargé (client)", IM is not None and IM.get("afficherInvitation") is not None and not roblox.ERREURS, roblox.ERREURS[:3])
 porte = PC["casier"].enfants[0]
-pc_ = enfant_classe(porte, "ProximityPrompt"); cc_ = enfant_classe(porte, "ClickDetector")
+pc_ = [e for e in descendants(PC["casier"]) if e.ClassName == "ProximityPrompt"]; cc_ = enfant_classe(PC["casier"], "ClickDetector")  # V6.9.10.5 : invite au-dessus, clic sur tout le Model
 verifier("7. Console › Casier (Model) trouvé : invite « Choisir une tenue » (appui court) et clic", len(pc_) == 1 and pc_[0].props["ActionText"] == "Choisir une tenue" and pc_[0].props["HoldDuration"] == 0 and len(cc_) == 1,
          [(e.props.get("ActionText"), e.props.get("HoldDuration")) for e in pc_])
 verifier("Relecture 9. Invite du casier de la console : touche Z", pc_[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z")

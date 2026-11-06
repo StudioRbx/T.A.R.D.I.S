@@ -7,10 +7,22 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 142 tests** — ⬜ 124 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 149 tests** — ⬜ 131 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.5 — Retours du test dans Studio : Vol libre, casier, tenues, jukebox, écran ingénieur
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Près du Selecteur | deux invites visibles au-dessus de la console : E (destination) et F (Vol libre) | ⬜ |  |
+| Pilote : cliquer n'importe où sur `Colors`, ou F | le vol libre démarre | ⬜ |  |
+| Ouvrir le casier de la console | la caméra montre le personnage, jamais l'intérieur d'un mur | ⬜ |  |
+| Essayer une tenue, puis « Garder cette tenue » | les vrais vêtements à l'essai, puis sur le personnage | ⬜ |  |
+| Output au démarrage | aucune ligne « Tenues : vêtements introuvables » (sinon, corriger les numéros listés) | ⬜ |  |
+| Glisser des sons dans `ReplicatedStorage › TardisAssets › Jukebox`, puis ouvrir le jukebox | les pistes apparaissent, rangées par catégorie, et se jouent à bord | ⬜ |  |
+| Regarder l'écran ingénieur | l'affichage remplit tout l'écran, texte à l'endroit | ⬜ |  |
 
 ## V6.9.10.4 — Sens du texte des écrans de la console
 

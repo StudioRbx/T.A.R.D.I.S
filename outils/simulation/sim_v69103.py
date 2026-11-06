@@ -89,8 +89,10 @@ gui_de = lambda p, nom="TardisEcranDestination": (enfant_classe(p, "SurfaceGui",
 face_de = lambda g: g.props["Face"].nom.split(".")[-1] if g is not None else None
 toile = lambda g, p: tuple(round(x * g.props["PixelsPerStud"], 3) for x in taille_face(p, face_de(g))) if g is not None else (0, 0)
 def taille_face(p, face):
+    """Taille (studs) de l'image d'une SurfaceGui, comme dans Roblox. V6.9.10.5 : sur Top et Bottom, le haut de l'image va
+    vers la face Right (+X) : la largeur court le long de Z et la hauteur le long de X (avant : (X, Z), à l'envers)."""
     s = p.props["Size"]
-    if face in ("Top", "Bottom"): return (s.x, s.z)
+    if face in ("Top", "Bottom"): return (s.z, s.x)
     if face in ("Left", "Right"): return (s.z, s.y)
     return (s.x, s.y)
 
@@ -118,7 +120,8 @@ S["petit"].__lua_setindex__("Size", Vec3(4, 2.4, 0.1))  # la pièce grandit dans
 verifier("2. La pièce change de taille (4 × 2,4 studs) : finesse recalculée (256 pixels par stud, toujours 1024 × 614)", g["petit"].props["PixelsPerStud"] == 256 and toile(g["petit"], S["petit"]) == (1024.0, 614.4),
          (g["petit"].props["PixelsPerStud"], toile(g["petit"], S["petit"])))
 S["petit"].m_SetAttribute("FaceEcran", "Top")
-verifier("2. La face change (FaceEcran = Top) : finesse recalculée pour cette face (4 × 0,1 studs)", face_de(g["petit"]) == "Top" and toile(g["petit"], S["petit"])[0] == 1024.0, toile(g["petit"], S["petit"]))
+verifier("2. La face change (FaceEcran = Top) : finesse recalculée pour cette face (image de 0,1 × 4 studs : Z en largeur, X en hauteur)",
+         face_de(g["petit"]) == "Top" and toile(g["petit"], S["petit"]) == (25.6, 1024.0), toile(g["petit"], S["petit"]))
 S["petit"].m_SetAttribute("FaceEcran", None)
 
 # ================================================================== 3. Lisibilité
@@ -168,7 +171,8 @@ verifier("4. Contenu présent : intégrité (PV), énergie, air, vapeur, bouclie
 verifier("4. Noms des lignes et titre affichés", [texte_de(champ(gi, "Nom_" + c)) for c in ("integrite", "energie", "air", "vapeur", "bouclier")] == ["INTÉGRITÉ", "ÉNERGIE", "AIR", "VAPEUR", "BOUCLIER"]
          and "INGÉNIERIE" in texte_de(champ(gi, "Titre")))
 ti = toile(gi, S["ing"])
-verifier("4. Écran ingénieur net : 1024 × 683 pixels (face Top de 3 × 2 studs)", ti == (1024.0, round(2 * 1024 / 3, 3)), ti)
+verifier("4. Écran ingénieur net : 683 × 1024 pixels (face Top de 3 × 2 studs : l'image a 2 studs de large le long de Z et 3 de haut le long de X)",
+         ti == (round(2 * 1024 / 3, 3), 1024.0), ti)
 labels_i = [e for e in descendants(champ(gi, "Fond")) if e.ClassName == "TextLabel"]
 verifier("4. Chaque ligne de l'écran ingénieur fait au moins 8 % de sa hauteur (avant : 6,5 %)", all(e.props["Size"].args[1] >= 0.08 for e in labels_i), {e.Name: e.props["Size"].args[1] for e in labels_i})
 verifier("4. Valeurs avec une taille de texte minimale", all(champ(champ(gi, "Valeur_" + c), "TailleMinimale") is not None for c in ("integrite", "energie", "air", "vapeur", "bouclier")))
@@ -282,7 +286,7 @@ L = lignes[0] if lignes else ""
 verifier("6. Elle nomme le TARDIS et chaque écran de destination, avec sa face et sa taille en pixels",
          L.startswith("[TARDIS] TARDIS_1 · écrans de la console : ") and L.count("destination « Console › Ecran » : face ") == 2
          and "face Front, sens 0° (1024 × 614 px)" in L and "face Back, sens 0° (1024 × 614 px)" in L, L)
-verifier("6. … et l'écran ingénieur : la pièce choisie dans le Model et sa face automatique", "ingénieur « Console › Ecran-Ingenieure › Vitre » : face Top (auto), sens 180° (auto) (1024 × 683 px)" in L, L)
+verifier("6. … et l'écran ingénieur : la pièce choisie dans le Model et sa face automatique", "ingénieur « Console › Ecran-Ingenieure › Vitre » : face Top (auto), sens 180° (auto) (683 × 1024 px)" in L, L)  # V6.9.10.5 : vraie image de la face Top
 n6 = len(roblox.SORTIE); H.avancer(12)
 verifier("6. Pas de deuxième ligne ensuite (12 s plus tard)", not [l for l in roblox.SORTIE[n6:] if "écrans de la console" in l], roblox.SORTIE[n6:])
 tard = piece("Ecran", S["console"], (0, 4, 0), (2, 1.2, 0.1))

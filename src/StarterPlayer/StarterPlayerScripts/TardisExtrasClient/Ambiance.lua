@@ -251,15 +251,28 @@ return function(contexte)
 		end
 		-- Jukebox (V6.7.3) : son LOCAL (pas positionné), audible seulement à bord, en fondu quand on entre ou sort.
 		-- Attribut "Jukebox" : un numéro de piste (en boucle) ou un nom de playlist ("Action" : aléatoire, enchaînée).
+		-- (V6.9.10.5) Pistes : Config.Jukebox et les Sound du dossier TardisAssets › Jukebox (Config.pistesJukebox, mêmes
+		-- numéros que sur le serveur). Une piste du dossier joue une copie de son Sound (son volume et sa vitesse gardés).
 		local jukebox, jukeboxIndex, presence = nil, nil, 0
+		local volumeJukebox = 0.5
 		local playlist, positionPlaylist = nil, 0
-		local function piste(index) return (Config.Jukebox or {})[index] end
+		local function piste(index) return Config.pistesJukebox()[index] end
 		local function jouerPiste(index, enBoucle)
 			if jukebox then jukebox:Destroy() jukebox = nil end
 			local p = piste(index)
 			if not p then return end
-			jukebox = creer("Sound", { Name = "TardisJukebox", SoundId = "rbxassetid://" .. tostring(p.id), Looped = enBoucle, Volume = 0,
-				Parent = game:GetService("SoundService") })
+			if typeof(p.son) == "Instance" and p.son:IsA("Sound") then
+				volumeJukebox = p.son.Volume
+				jukebox = p.son:Clone()
+				jukebox.Name = "TardisJukebox"
+				jukebox.Looped = enBoucle
+				jukebox.Volume = 0
+				jukebox.Parent = game:GetService("SoundService")
+			else
+				volumeJukebox = 0.5
+				jukebox = creer("Sound", { Name = "TardisJukebox", SoundId = "rbxassetid://" .. tostring(p.id), Looped = enBoucle, Volume = 0,
+					Parent = game:GetService("SoundService") })
+			end
 			jukebox:Play()
 			if not enBoucle then
 				local courant = jukebox
@@ -307,7 +320,7 @@ return function(contexte)
 		end
 		local function nouvellePlaylist(categorie)
 			local liste = {}
-			for i, p in Config.Jukebox or {} do
+			for i, p in Config.pistesJukebox() do
 				if p.categorie == categorie then table.insert(liste, i) end
 			end
 			for i = #liste, 2, -1 do
@@ -349,7 +362,7 @@ return function(contexte)
 				end
 			end
 			presence += (((jeSuisDedans() and alimente) and 1 or 0) - presence) * math.min(dt * 1.2, 1)
-			if jukebox then jukebox.Volume = 0.5 * UI.volume() * presence end
+			if jukebox then jukebox.Volume = volumeJukebox * UI.volume() * presence end
 			-- V6.9.10 : vent du vortex (alimente est déjà faux hors tension, détruit, ou en Silencieux avec SilenceABord)
 			majVortex(dt, etat, alimente)
 		end)
