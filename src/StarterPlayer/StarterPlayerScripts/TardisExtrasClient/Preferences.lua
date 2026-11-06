@@ -42,12 +42,16 @@ return function(contexte)
 		local carte = creer("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 360, 0, 90), Size = UDim2.fromOffset(340, 0),
 			AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.05, Parent = gui },
 		{ UI.coin(14), UI.contour(C.ambre, 2, 0.1), UI.marges(14), UI.pile(4) })
+		-- (V6.9.15, proposition 72) taille de l'interface ; cachée assez loin à droite pour ne pas dépasser, même agrandie
+		local echelleCarte = UI.suivreTaille(carte)
+		local CACHEE = UDim2.new(1, math.max(360, math.ceil(340 * echelleCarte.Scale) + 20), 0, 90)
+		carte.Position = CACHEE
 		texte({ Text = "◆  " .. (info.Titre or "DÉCOUVERTE"), Font = UI.POLICE_GRAS, TextSize = 15, TextColor3 = C.ambre, LayoutOrder = 1, Parent = carte })
 		texte({ Text = info.Texte or "", TextSize = 12, TextColor3 = C.texte, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = carte })
 		UI.son("Notification")
 		animer(carte, 0.6, { Position = UDim2.new(1, -20, 0, 90) }, Enum.EasingStyle.Back)
 		task.delay(7, function()
-			animer(carte, 0.4, { Position = UDim2.new(1, 360, 0, 90) }).Completed:Wait()
+			animer(carte, 0.4, { Position = CACHEE }).Completed:Wait() -- (V6.9.15 : CACHEE)
 			gui:Destroy()
 		end)
 	end

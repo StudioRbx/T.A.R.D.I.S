@@ -288,7 +288,8 @@ return function(contexte)
 		while true do
 			task.wait(0.25)
 			if gui.Enabled then
-				echelle.Scale = math.clamp(workspace.CurrentCamera.ViewportSize.Y / (HAUTEUR + 60), 0.55, 1)
+				-- (V6.9.15, proposition 72) × la taille de l'interface choisie dans les réglages
+				echelle.Scale = math.clamp(workspace.CurrentCamera.ViewportSize.Y / (HAUTEUR + 60), 0.55, 1) * UI.tailleInterface()
 				maj()
 			end
 		end

@@ -8,6 +8,8 @@
 -- V6.9.10.6 : charte « Hologramme de confinement » : plaque (titre, badge, ligne de données, bande de danger), tableau
 -- des destinations DESTINATION | DIST. | STATUT (zones REFUSE et SANS_EXPRESS), puces des modes, boutons à coins coupés,
 -- ligne d'aide ; ↑ ↓ choisissent une destination et Entrée lance DÉMAT (REMAT dans le vortex) tant que le menu est ouvert.
+-- V6.9.15 : le menu se déplace en glissant son en-tête (position gardée dans les préférences, rétablie depuis les
+-- réglages de la tablette) ; option « ouverture des menus sans animation » ; le menu fermé ne dépasse plus à grande taille.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -52,6 +54,57 @@ local FERME = UDim2.new(0, -LARGEUR - 24, POSITION_Y, 0)
 local tiroir, corps = UI.panneauCoupe({ Name = "Tiroir", AnchorPoint = Vector2.new(0, 0.5), Position = FERME, Size = UDim2.fromOffset(LARGEUR, 560),
 	BackgroundColor3 = C.fond, Parent = gui }, { coupe = 16, rayon = 18, balayage = false }) -- (balayage : UI.lignesEcran, plus bas)
 local echelleTiroir = creer("UIScale", { Parent = tiroir })
+
+--------------------------------------------------------------------
+-- Position du menu (V6.9.15, proposition 80) : la préférence « positionMenu » = { x = bord gauche, y = centre vertical },
+-- en proportion de l'écran (elle suit donc un changement de taille d'écran). Sans préférence : à gauche, comme avant.
+--------------------------------------------------------------------
+local glisser = nil       -- (V6.9.15) glissement de l'en-tête en cours
+local finAnimation = 0    -- (V6.9.15) pas de glissement pendant l'animation d'ouverture
+local hauteurTiroir = 560 -- (V6.9.15) hauteur du tiroir avant l'échelle (tenue à jour par majTaille)
+local function tailleEcran()
+	local largeur, hauteur = 1920, 1080
+	pcall(function()
+		local ecran = camera.ViewportSize
+		if ecran.X > 0 and ecran.Y > 0 then largeur, hauteur = ecran.X, ecran.Y end
+	end)
+	return largeur, hauteur
+end
+-- (V6.9.15) Garde le menu entier à l'écran : bord gauche et centre vertical en pixels
+local function bornerMenu(gauche, centre)
+	local largeurEcran, hauteurEcran = tailleEcran()
+	local s = echelleTiroir.Scale
+	local largeur, hauteur = LARGEUR * s, hauteurTiroir * s
+	gauche = math.clamp(gauche, 0, math.max(0, largeurEcran - largeur))
+	centre = math.clamp(centre, math.min(hauteur / 2, hauteurEcran / 2), math.max(hauteurEcran - hauteur / 2, hauteurEcran / 2))
+	return math.floor(gauche + 0.5), math.floor(centre + 0.5)
+end
+-- (V6.9.15) Place choisie en pixels (bord gauche, centre vertical), déjà bornée ; nil sans préférence valable
+local function placeChoisie()
+	local p = UI.pref("positionMenu", nil)
+	if type(p) ~= "table" or type(p.x) ~= "number" or type(p.y) ~= "number" or p.x ~= p.x or p.y ~= p.y then return nil end
+	local largeurEcran, hauteurEcran = tailleEcran()
+	return bornerMenu(math.clamp(p.x, 0, 1) * largeurEcran, math.clamp(p.y, 0, 1) * hauteurEcran)
+end
+local function positionOuverte()
+	local gauche, centre = placeChoisie()
+	if not gauche then return OUVERT end
+	return UDim2.new(0, gauche, 0, centre)
+end
+-- (V6.9.15) Fermé : caché à gauche, à la hauteur choisie ; à une taille d'interface > 100 %, il ne dépasse plus de l'écran
+local function positionFermee()
+	local x = -math.ceil(LARGEUR * math.max(echelleTiroir.Scale, 1)) - 24
+	local _, centre = placeChoisie()
+	if not centre then return UDim2.new(0, x, POSITION_Y, 0) end
+	return UDim2.new(0, x, 0, centre)
+end
+-- (V6.9.15) Bord gauche et centre vertical du menu ouvert, en pixels
+local function pixelsOuverts()
+	local gauche, centre = placeChoisie()
+	if gauche then return gauche, centre end
+	local _, hauteurEcran = tailleEcran()
+	return 12, POSITION_Y * hauteurEcran
+end
 
 --------------------------------------------------------------------
 -- En-tête : la plaque (titre, badge d'accès, ligne de données, bande de danger rouge pendant l'alerte)
@@ -205,6 +258,7 @@ local T = {
 -- Pied de page : la ligne d'aide (les touches)
 UI.ligneAide(contenu, "↑ ↓ choisir  ·  Entrée DÉMAT  ·  T fermer", { Name = "AideTouches", TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 98 })
 UI.ligneAide(contenu, "Y tablette  ·  E portes et console", { TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 99 })
+UI.ligneAide(contenu, "Glisser l'en-tête : déplacer le menu", { Name = "AideDeplacer", TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 100 }) -- (V6.9.15)
 
 -- Matière de l'écran : lignes de balayage (anciens thèmes : lignes fines et vignette), au-dessus du contenu, sous les voiles
 local lignes = UI.lignesEcran(tiroir, 28, 0.93)
@@ -612,20 +666,69 @@ end
 
 local function basculerMenu()
 	ouvert = not ouvert
-	animer(tiroir, 0.45, { Position = ouvert and OUVERT or FERME }, ouvert and Enum.EasingStyle.Quint or Enum.EasingStyle.Quad,
-		ouvert and Enum.EasingDirection.Out or Enum.EasingDirection.In)
+	glisser = nil -- (V6.9.15)
+	-- (V6.9.15, proposition 81) « Ouverture des menus sans animation » : le tiroir est posé d'un coup, sans balayage
+	local instantane = UI.ouvertureInstantanee()
+	if instantane then
+		tiroir.Position = ouvert and positionOuverte() or positionFermee()
+		finAnimation = 0
+	else
+		animer(tiroir, 0.45, { Position = ouvert and positionOuverte() or positionFermee() }, ouvert and Enum.EasingStyle.Quint or Enum.EasingStyle.Quad,
+			ouvert and Enum.EasingDirection.Out or Enum.EasingDirection.In) -- (V6.9.15 : à la position choisie)
+		finAnimation = os.clock() + 0.45
+	end
 	brancherClavier(ouvert)
 	if ouvert then
-		-- Allumage : la ligne de balayage traverse le tiroir (sauf « Réduire les effets »)
-		balayage.Visible = not UI.effetsReduits()
+		-- Allumage : la ligne de balayage traverse le tiroir (sauf « Réduire les effets », et V6.9.15 : sans animation)
+		balayage.Visible = not UI.effetsReduits() and not instantane
 		balayage.Position = UDim2.new(0, 0, 0, -4)
-		animer(balayage, 0.7, { Position = UDim2.new(0, 0, 1, 4) }, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 0.1)
+		if not instantane then
+			animer(balayage, 0.7, { Position = UDim2.new(0, 0, 1, 4) }, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 0.1)
+		end
 		UI.son("Notification")
 		majInterface()
 	else
 		recherche:ReleaseFocus()
 	end
 end
+
+-- Glisser l'en-tête (V6.9.15, proposition 80) : la plaque du menu ouvert se prend à la souris ou au doigt ; au-delà de
+-- 6 px, le menu suit (sans jamais sortir de l'écran) ; au lâcher, la position est gardée dans les préférences.
+-- Un simple clic sur l'en-tête ne déplace rien.
+plaque.cadre.Active = true
+plaque.cadre.InputBegan:Connect(function(input)
+	if not ouvert or os.clock() < finAnimation then return end
+	local tactile = input.UserInputType == Enum.UserInputType.Touch
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and not tactile then return end
+	local gauche, centre = pixelsOuverts() -- (le menu ouvert, hors animation, est toujours à sa place)
+	glisser = { x = input.Position.X, y = input.Position.Y, tactile = tactile, entree = input, bouge = false,
+		gauche = gauche, centre = centre, actuelGauche = gauche, actuelCentre = centre }
+end)
+UserInputService.InputChanged:Connect(function(input)
+	local g = glisser
+	if not g or not ouvert then return end
+	if g.tactile then
+		if input ~= g.entree and input.UserInputType ~= Enum.UserInputType.Touch then return end
+	elseif input.UserInputType ~= Enum.UserInputType.MouseMovement then
+		return
+	end
+	local dx, dy = input.Position.X - g.x, input.Position.Y - g.y
+	if not g.bouge and math.abs(dx) + math.abs(dy) < 6 then return end
+	g.bouge = true
+	local gauche, centre = bornerMenu(g.gauche + dx, g.centre + dy)
+	g.actuelGauche, g.actuelCentre = gauche, centre
+	tiroir.Position = UDim2.new(0, gauche, 0, centre)
+end)
+UserInputService.InputEnded:Connect(function(input)
+	local g = glisser
+	if not g then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+	glisser = nil
+	if not g.bouge or not ouvert then return end
+	local largeurEcran, hauteurEcran = tailleEcran()
+	local gauche, centre = g.actuelGauche, g.actuelCentre
+	UI.setPref("positionMenu", { x = math.floor(gauche / largeurEcran * 1000 + 0.5) / 1000, y = math.floor(centre / hauteurEcran * 1000 + 0.5) / 1000 })
+end)
 
 -- La tablette (script TardisTablette) écoute cet attribut local du joueur
 boutonTablette.Activated:Connect(function()
@@ -710,8 +813,13 @@ if Config.BoutonsTactiles ~= false and UserInputService.TouchEnabled and not Use
 	boutonTactile("T", "menu", 1, basculerMenu)
 	boutonTactile("Y", "tablette", 2, function() joueur:SetAttribute("TardisTablette", not joueur:GetAttribute("TardisTablette")) end)
 	-- Le menu ouvert recouvre le bord gauche : les boutons se décalent à sa droite
+	-- (V6.9.15 : seulement si le menu est resté près du bord gauche ; déplacé ailleurs, ils restent au bord)
 	RunService.Heartbeat:Connect(function()
-		local cible = ouvert and UDim2.new(0, 12 + LARGEUR * echelleTiroir.Scale + 10, 0.38, 0) or UDim2.new(0, 8, 0.38, 0)
+		local cible = UDim2.new(0, 8, 0.38, 0)
+		if ouvert then
+			local gauche = (glisser and glisser.bouge) and glisser.actuelGauche or (pixelsOuverts())
+			if gauche < 70 then cible = UDim2.new(0, gauche + LARGEUR * echelleTiroir.Scale + 10, 0.38, 0) end
+		end
 		if barreTactile.Position ~= cible then barreTactile.Position = barreTactile.Position:Lerp(cible, 0.25) end
 	end)
 end
@@ -816,11 +924,15 @@ local function majTaille()
 	local ecran = camera.ViewportSize
 	local echelle = math.clamp(ecran.Y / 820, 0.72, 1) * UI.tailleInterface()
 	echelleTiroir.Scale = echelle
-	tiroir.Size = UDim2.fromOffset(LARGEUR, math.clamp(ecran.Y * HAUTEUR_ECRAN / echelle, 380, 760))
+	hauteurTiroir = math.clamp(ecran.Y * HAUTEUR_ECRAN / echelle, 380, 760) -- (V6.9.15 : gardée pour bornerMenu)
+	tiroir.Size = UDim2.fromOffset(LARGEUR, hauteurTiroir)
+	-- (V6.9.15) le menu reste entier à l'écran à sa nouvelle taille (ouvert : à sa place ; fermé : bien caché)
+	if not glisser then tiroir.Position = ouvert and positionOuverte() or positionFermee() end
 end
 camera:GetPropertyChangedSignal("ViewportSize"):Connect(majTaille)
 UI.prefsChangees.Event:Connect(function(cle)
 	if cle == "taille" then majTaille() end
+	if cle == "positionMenu" and not glisser then tiroir.Position = ouvert and positionOuverte() or positionFermee() end -- (V6.9.15)
 	if cle == "theme" then construireListe() end -- les couleurs posées à la volée (statuts, état) suivent le nouveau thème
 end)
 majTaille()

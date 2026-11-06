@@ -30,6 +30,7 @@ return function(contexte)
 		local bandeau = creer("ScreenGui", { Name = "TardisReplay", ResetOnSpawn = false, Enabled = false, Parent = joueur:WaitForChild("PlayerGui") })
 		local etiquette = texte({ Text = "REPLAY DU DERNIER VOL  ·  Échap pour quitter", Font = UI.POLICE_GRAS, TextSize = 16, TextColor3 = C.cyan,
 			TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 60), Size = UDim2.fromOffset(500, 24), Parent = bandeau })
+		UI.suivreTaille(etiquette) -- (V6.9.15, proposition 72) taille de l'interface
 
 		local function arreter()
 			if not rejoue then return end

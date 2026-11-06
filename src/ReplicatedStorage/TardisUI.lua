@@ -1348,8 +1348,70 @@ end
 
 -- Option « réduire les effets » (joueurs sensibles) : saccades d'urgence, flashs, secousses et thème Flashbang adoucis
 -- (V6.9.10.6 : coupe aussi les lignes de balayage et la lueur des menus)
+-- (V6.9.15, proposition 188) Activée d'office sur téléphone (tactile sans clavier), où les flashs et les secousses
+-- fatiguent plus vite sur un petit écran. Le choix du téléphone est gardé à part (clé « effetsReduitsMobile ») : le
+-- réglage de l'ordinateur ne change pas, et un joueur qui la coupe sur son téléphone la retrouve coupée ensuite.
+function UI.estMobile()
+	local tactile = false
+	pcall(function()
+		local UserInputService = game:GetService("UserInputService")
+		tactile = UserInputService.TouchEnabled == true and UserInputService.KeyboardEnabled ~= true
+	end)
+	return tactile
+end
+
+-- (V6.9.15) Clé de préférence de l'option sur cet appareil
+function UI.cleEffetsReduits()
+	return UI.estMobile() and "effetsReduitsMobile" or "effetsReduits"
+end
+
 function UI.effetsReduits()
-	return UI.pref("effetsReduits", false) == true
+	return UI.pref(UI.cleEffetsReduits(), UI.estMobile()) == true -- (V6.9.15) vrai par défaut sur téléphone
+end
+
+-- (V6.9.15) Change l'option sur cet appareil ; prévient aussi sous le nom « effetsReduits » pour tous les écouteurs
+function UI.setEffetsReduits(actif)
+	local cle = UI.cleEffetsReduits()
+	UI.setPref(cle, actif == true)
+	if cle ~= "effetsReduits" then UI.prefsChangees:Fire("effetsReduits") end
+end
+
+-- (V6.9.15, proposition 81) « Ouverture des menus sans animation » : la tablette et le menu rapide s'ouvrent et se
+-- ferment d'un coup, sans glissement, flou progressif ni balayage
+function UI.ouvertureInstantanee()
+	return UI.pref("ouvertureRapide", false) == true
+end
+
+-- (V6.9.15, proposition 78) « Fermer la tablette en cliquant à côté » (désactivé par défaut : un clic à côté ne
+-- ferme rien, comme avant)
+function UI.fermerDehors()
+	return UI.pref("fermerDehors", false) == true
+end
+
+-- (V6.9.15, proposition 190) Sous-titres des sons importants (activés par défaut)
+function UI.sousTitres()
+	return UI.pref("sousTitres", true) ~= false
+end
+
+-- (V6.9.15, proposition 72) Fait suivre à un élément d'interface la taille choisie dans les réglages : un UIScale (le
+-- sien, ou créé) vaut base × taille ; « base » est un nombre ou une fonction (échelle automatique). Renvoie l'UIScale
+-- et la fonction de mise à jour. Le lien se coupe tout seul quand l'élément est détruit.
+function UI.suivreTaille(objet, base)
+	local echelle = objet:IsA("UIScale") and objet or objet:FindFirstChildOfClass("UIScale") or creer("UIScale", { Parent = objet })
+	local function maj()
+		local b = type(base) == "function" and base() or tonumber(base) or 1
+		echelle.Scale = b * UI.tailleInterface()
+	end
+	maj()
+	local lien
+	lien = UI.prefsChangees.Event:Connect(function(cle)
+		if not echelle.Parent then
+			if lien then lien:Disconnect() end
+			return
+		end
+		if cle == "taille" then maj() end
+	end)
+	return echelle, maj
 end
 UI.prefsChangees.Event:Connect(function(cle)
 	if cle == "effetsReduits" then UI.majDecor() end

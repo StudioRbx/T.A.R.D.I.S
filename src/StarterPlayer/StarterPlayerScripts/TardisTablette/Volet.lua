@@ -146,17 +146,37 @@ return function(contexte)
 			boutonLigne(UI.pref("confirmations", true) ~= false and "Confirmation des actions dangereuses : activée" or "Confirmation des actions dangereuses : désactivée",
 				ordre, nil, function() UI.setPref("confirmations", UI.pref("confirmations", true) == false) afficherReglages() end)
 			ordre += 1
-			boutonLigne(UI.effetsReduits() and "Réduire les effets : activé (moins de flashs, de saccades et de secousses ; menus sans balayage ni lueur)" or "Réduire les effets : désactivé",
-				ordre, UI.effetsReduits() and C.bleu or nil, function() UI.setPref("effetsReduits", not UI.effetsReduits()) afficherReglages() end)
+			-- (V6.9.15) activé d'office sur téléphone ; le choix du téléphone est gardé à part (UI.setEffetsReduits)
+			boutonLigne(UI.effetsReduits() and "Réduire les effets : activé (moins de flashs, de saccades et de secousses ; menus sans balayage ni lueur)"
+				or (UI.estMobile() and "Réduire les effets : désactivé (activé d'office sur téléphone)" or "Réduire les effets : désactivé"),
+				ordre, UI.effetsReduits() and C.bleu or nil, function() UI.setEffetsReduits(not UI.effetsReduits()) afficherReglages() end)
 			ordre += 1
 			-- Aucun flash (V6.9.9) : l'activer active aussi « réduire les effets » (qu'on peut ensuite couper à part)
 			boutonLigne(UI.sansFlash() and "Aucun flash : activé (ni éclat, ni stroboscope, ni voile blanc)" or "Aucun flash : désactivé",
 				ordre, UI.sansFlash() and C.bleu or nil, function()
 					local actif = not UI.sansFlash()
 					UI.setPref("sansFlash", actif)
-					if actif and not UI.effetsReduits() then UI.setPref("effetsReduits", true) end
+					if actif and not UI.effetsReduits() then UI.setEffetsReduits(true) end -- (V6.9.15) sur cet appareil
 					afficherReglages()
 				end)
+			-- Sous-titres des sons importants (V6.9.15, proposition 190)
+			ordre += 1
+			boutonLigne(UI.sousTitres() and "Sous-titres des sons : activés (démat, remat, alarme, explosion, musique…)" or "Sous-titres des sons : désactivés",
+				ordre, UI.sousTitres() and C.bleu or nil, function() UI.setPref("sousTitres", not UI.sousTitres()) afficherReglages() end)
+			-- Ouverture des menus sans animation (V6.9.15, proposition 81)
+			ordre += 1
+			boutonLigne(UI.ouvertureInstantanee() and "Ouverture des menus sans animation : activée (tablette et menu rapide d'un coup)"
+				or "Ouverture des menus sans animation : désactivée", ordre, UI.ouvertureInstantanee() and C.bleu or nil,
+				function() UI.setPref("ouvertureRapide", not UI.ouvertureInstantanee()) afficherReglages() end)
+			-- Fermer la tablette en cliquant à côté (V6.9.15, proposition 78)
+			ordre += 1
+			boutonLigne(UI.fermerDehors() and "Fermer la tablette en cliquant à côté : activé" or "Fermer la tablette en cliquant à côté : désactivé",
+				ordre, UI.fermerDehors() and C.bleu or nil, function() UI.setPref("fermerDehors", not UI.fermerDehors()) afficherReglages() end)
+			-- Position du menu rapide (V6.9.15, proposition 80) : il se déplace en glissant son en-tête ; ce bouton le remet à gauche
+			ordre += 1
+			boutonLigne(type(UI.pref("positionMenu", nil)) == "table" and "Menu rapide : rétablir sa position (à gauche)"
+				or "Menu rapide : à sa place (glisse son en-tête pour le déplacer)", ordre, nil,
+				function() UI.setPref("positionMenu", nil) afficherReglages() end)
 			ordre += 1
 			boutonLigne(UI.debutant() and "Mode débutant : activé (l'essentiel seulement)" or "Mode débutant : désactivé", ordre,
 				UI.debutant() and C.bleu or nil, function() UI.setPref("debutant", not UI.debutant()) afficherReglages() end)
@@ -281,7 +301,8 @@ return function(contexte)
 		W.btnAide.Activated:Connect(function()
 			V.ouvrir("aide", "AIDE")
 			local aide = {
-				{ "MENUS", "T : menu classique · Y : tablette (la croix rouge la ferme) · E sur la console et devant les portes." },
+				{ "MENUS", "T : menu classique · Y : tablette (la croix rouge la ferme ; un clic à côté aussi si l'option des réglages est activée) · "
+					.. "glisse l'en-tête du menu rapide pour le déplacer · E sur la console et devant les portes." }, -- (V6.9.15)
 				{ "VOYAGER", "Choisis une destination (lieu, joueur, coordonnées, historique, retour), puis Dématérialiser et Matérialiser. Urgence et Invisible sont des options." },
 				{ "PORTER", "Quand il est réduit : E pour le ramasser, V pour changer de mode, G pour le poser, X pour la téléportation de poche vers la destination choisie." },
 				{ "VOL LIBRE", "Tuile Vol libre. Regarde où tu veux aller. F vitesse · U urgence · V vortex · B saut · O portes · X démat/remat · C tonneau · Ctrl frein · R rayon tracteur · Espace ×2 chute · G se poser." },
@@ -297,7 +318,7 @@ return function(contexte)
 		end)
 	end
 
-	-- Touche Y : ouvre la tablette. Seule la croix rouge la ferme.
+	-- Touche Y : ouvre la tablette. Seule la croix rouge la ferme (V6.9.15 : ou un clic à côté, si l'option est activée).
 	UserInputService.InputBegan:Connect(function(input, traite)
 		if traite or S.placement or input.KeyCode ~= UI.touche("tablette", R.TOUCHE) then return end
 		if joueur:GetAttribute("TardisPilote_" .. def.Nom) ~= true or exterieur:GetAttribute("VolLibre") == joueur.UserId then return end

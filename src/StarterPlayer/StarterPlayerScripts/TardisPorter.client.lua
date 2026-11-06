@@ -115,6 +115,7 @@ cadre.Position = UDim2.new(0.5, 0, 1, -24)
 cadre.Size = UDim2.fromOffset(520, 44)
 cadre.BackgroundTransparency = 1
 cadre.Parent = gui
+UI.suivreTaille(cadre) -- (V6.9.15, proposition 72) les boutons du port suivent la taille de l'interface
 
 local pile = Instance.new("UIListLayout")
 pile.FillDirection = Enum.FillDirection.Horizontal

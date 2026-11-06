@@ -152,7 +152,9 @@ extras = lire("ServerScriptService/TardisExtras.server.lua")
 verifier("Serveur : les préférences sont gardées telles quelles (pas de liste de clés à compléter)", "prefs[joueur.UserId] = donnees" in extras and "sansFlash" not in extras)
 volet = lire("StarterPlayer/StarterPlayerScripts/TardisTablette/Volet.lua")
 verifier("Tablette (réglages) : interrupteur « Aucun flash », qui active aussi « réduire les effets »",
-         'UI.setPref("sansFlash", actif)' in volet and 'if actif and not UI.effetsReduits() then UI.setPref("effetsReduits", true) end' in volet)
+         'UI.setPref("sansFlash", actif)' in volet and ('if actif and not UI.effetsReduits() then UI.setPref("effetsReduits", true) end' in volet
+                                                         # V6.9.15 : l'option se règle par appareil (UI.setEffetsReduits)
+                                                         or 'if actif and not UI.effetsReduits() then UI.setEffetsReduits(true) end' in volet))
 
 # ------------------------------------------------------------------ 3. TardisEffets : le script entier, image par image
 perso = Instance("Model", "Pilote", ws); hrp = Instance("Part", "HumanoidRootPart", perso); joueur.props["Character"] = perso  # à bord

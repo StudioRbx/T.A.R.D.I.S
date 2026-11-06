@@ -7,10 +7,29 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 204 tests** — ⬜ 180 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 218 tests** — ⬜ 194 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.15 — Confort de l'interface et accessibilité
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Ouvrir la tablette sur téléphone (émulateur), onglet Réglages | « Réduire les effets : activé », menus sans balayage ni lueur | ⬜ |  |
+| Couper « Réduire les effets » sur téléphone, revenir | toujours coupé sur téléphone ; sur ordinateur, le réglage n'a pas changé | ⬜ |  |
+| Partir en Classique, puis en Urgence | « [Dématérialisation] », puis « [Dématérialisation · Urgence] » en bas de l'écran pendant 4 s | ⬜ |  |
+| Lancer une alerte à bord, puis une piste du jukebox | « [Alarme du TARDIS] », puis « [Musique : nom de la piste] » | ⬜ |  |
+| Partir en Silencieux | aucun sous-titre | ⬜ |  |
+| Couper « Sous-titres des sons » dans les réglages, repartir | aucun sous-titre | ⬜ |  |
+| Taille de l'interface à 140 %, ouvrir le copilote, la caméra du toit, le TARDIS porté | tout est plus grand ; le bouton Orbite ne chevauche pas « Quitter » | ⬜ |  |
+| Taille à 140 %, fermer le menu rapide (T) | le menu fermé ne dépasse plus du bord gauche | ⬜ |  |
+| Activer « Ouverture des menus sans animation », ouvrir la tablette (Y) et le menu (T) | ils s'ouvrent et se ferment d'un coup, sans glissement ni balayage | ⬜ |  |
+| Activer « Fermer la tablette en cliquant à côté », cliquer à côté | la tablette se ferme ; un clic sur un fond vide dans la tablette ne la ferme pas | ⬜ |  |
+| Sans l'option, cliquer à côté | la tablette reste ouverte (seule la croix la ferme) | ⬜ |  |
+| Glisser l'en-tête du menu rapide, le fermer, le rouvrir, puis revenir en jeu plus tard | il se rouvre là où on l'a laissé | ⬜ |  |
+| Glisser le menu contre un bord | il reste entier à l'écran | ⬜ |  |
+| Réglages, « Menu rapide : rétablir sa position » | le menu revient à gauche | ⬜ |  |
 
 ## V6.9.14 — Équipage et garde-robe
 

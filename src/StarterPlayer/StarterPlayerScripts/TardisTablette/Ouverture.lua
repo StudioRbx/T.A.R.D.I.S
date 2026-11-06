@@ -2,6 +2,8 @@
 -- Ouverture et fermeture animées de la tablette
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 -- V6.9.10.6 : la disposition suit l'écran (onglets en ligne sur téléphone, W.majCompact) ; les widgets se rangent par vue.
+-- V6.9.15 : option « ouverture des menus sans animation » (tout est posé d'un coup) et option « fermer la tablette en
+-- cliquant à côté » (un clic sur le voile, hors de la tablette).
 
 return function(contexte)
 	local LARGEUR_VOLET, R, S, UI, V, W = contexte.LARGEUR_VOLET, contexte.R, contexte.S, contexte.UI, contexte.V, contexte.W
@@ -63,13 +65,30 @@ return function(contexte)
 		W.gui.Enabled = true
 		W.voile.Visible = true
 		W.tablette.Visible = true
-		W.voile.BackgroundTransparency = 1
-		animer(W.voile, 0.35, { BackgroundTransparency = 0.45 })
 		W.flou.Enabled = true
-		animer(W.flou, 0.45, { Size = 18 })
-
 		if W.majCompact then W.majCompact() end
 		local base = echelleBase()
+		-- (V6.9.15, proposition 81) Sans animation : tout est posé à sa place finale, d'un coup
+		if UI.ouvertureInstantanee() then
+			W.voile.BackgroundTransparency = 0.45
+			W.flou.Size = 18
+			W.echelle.Scale = base
+			W.tablette.Rotation = 0
+			W.tablette.Position = UDim2.fromScale(0.5, 0.5)
+			for _, cadre in panneaux do
+				local echelle = cadre:FindFirstChildOfClass("UIScale")
+				if echelle then echelle.Scale = 1 end
+			end
+			W.balayageEcran.Position = UDim2.new(0, 0, 1, 4)
+			UI.son("Notification")
+			joueur:SetAttribute("TardisTablette", true)
+			construireListe()
+			return
+		end
+		W.voile.BackgroundTransparency = 1
+		animer(W.voile, 0.35, { BackgroundTransparency = 0.45 })
+		animer(W.flou, 0.45, { Size = 18 })
+
 		W.echelle.Scale = base * 0.86
 		W.tablette.Position = UDim2.fromScale(0.5, 0.57)
 		-- (V6.9.10.6 : plus d'inclinaison à l'ouverture : un cadre tourné ne coupe plus ce qui dépasse, la bande de danger déborderait)
@@ -101,6 +120,16 @@ return function(contexte)
 		if not S.ouvert then return end
 		S.ouvert = false
 		W.recherche:ReleaseFocus()
+		-- (V6.9.15, proposition 81) Sans animation : la tablette disparaît tout de suite
+		if UI.ouvertureInstantanee() then
+			W.voile.BackgroundTransparency = 1
+			W.flou.Size = 0
+			W.tablette.Visible = false
+			W.voile.Visible = false
+			W.flou.Enabled = false
+			if not garderAttribut then joueur:SetAttribute("TardisTablette", false) end
+			return
+		end
 		animer(W.voile, 0.25, { BackgroundTransparency = 1 })
 		animer(W.flou, 0.3, { Size = 0 })
 		animer(W.echelle, 0.25, { Scale = echelleBase() * 0.9 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -115,7 +144,26 @@ return function(contexte)
 	end
 
 	W.fermer.Activated:Connect(function() fermer() end)
-	-- Le voile ne ferme rien : seule la croix rouge en haut à droite ferme la tablette
+	-- Le voile ne ferme rien : seule la croix rouge en haut à droite ferme la tablette...
+	-- (V6.9.15, proposition 78) ... sauf si l'option « fermer la tablette en cliquant à côté » est activée : un clic (ou
+	-- un toucher) sur le voile, HORS du cadre de la tablette, la ferme alors comme la croix. Le clic sur un fond non
+	-- cliquable de la tablette traverse jusqu'au voile : on vérifie donc la position. Jamais pendant un placement.
+	local function horsTablette(entree)
+		local dehors = true
+		pcall(function()
+			local x, y = entree.Position.X, entree.Position.Y
+			local ok, decalage = pcall(function() return game:GetService("GuiService"):GetGuiInset() end)
+			if ok and typeof(decalage) == "Vector2" then x, y = x + decalage.X, y + decalage.Y end -- (le voile ignore la barre du haut)
+			local coin, taille = W.tablette.AbsolutePosition, W.tablette.AbsoluteSize
+			dehors = x < coin.X or y < coin.Y or x > coin.X + taille.X or y > coin.Y + taille.Y
+		end)
+		return dehors
+	end
+	W.voile.Activated:Connect(function(entree)
+		if not UI.fermerDehors() or not S.ouvert or S.placement then return end
+		if entree ~= nil and not horsTablette(entree) then return end
+		fermer()
+	end)
 
 	-- Boucliers
 	W.boutonBoucliers.Activated:Connect(function()

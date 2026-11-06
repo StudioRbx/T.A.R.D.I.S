@@ -43,7 +43,7 @@ return function(contexte)
 	local function afficher(entete, message)
 		jeton += 1
 		local moi = jeton
-		echelle.Scale = math.clamp(workspace.CurrentCamera.ViewportSize.X / 900, 0.6, 1)
+		echelle.Scale = math.clamp(workspace.CurrentCamera.ViewportSize.X / 900, 0.6, 1) * UI.tailleInterface() -- (V6.9.15, proposition 72)
 		titre.Text = "◆  " .. tostring(entete) .. "  ◆"
 		corps.Text = ""
 		bandeau.Visible = true

@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.14"
+Config.Version = "6.9.15"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -790,6 +790,25 @@ Config.Maintenance = {
 -- Annonce de bord (V6.9.3, ajout C17) : « Matérialisation dans 3… 2… 1… » à la fin de l'arrivée, à l'écran des joueurs
 -- à bord (bips sauf en Silencieux). Le « Départ dans 3… 2… 1… » a été retiré en V6.9.5.
 Config.AnnonceBord = { Actif = true, Bip = true, Secondes = 3 }
+
+-- Sous-titres des sons importants (V6.9.15, proposition 190) : un bandeau en bas de l'écran écrit ce qu'on entend
+-- (démat, remat, alarme, auto-destruction, explosion, musique du jukebox), pour les joueurs qui jouent sans le son.
+-- Chaque joueur peut les couper (tablette › Réglages › « Sous-titres des sons »). Rien en mode Silencieux (aucun son).
+-- Duree : secondes d'affichage ; Portee : distance (studs) à la cabine pour les sons du dehors (à bord : toujours) ;
+-- Textes : %s reçoit le mode (« · Urgence ») ou le nom de la musique.
+Config.SousTitres = {
+	Actif = true,   -- (V6.9.15) false = aucun sous-titre pour personne
+	Duree = 4,      -- (V6.9.15)
+	Portee = 120,   -- (V6.9.15)
+	Textes = {      -- (V6.9.15)
+		Demat = "[Dématérialisation%s]",
+		Remat = "[Matérialisation%s]",
+		Alarme = "[Alarme du TARDIS]",
+		AutoDestruction = "[Alarme d'auto-destruction]",
+		Explosion = "[Explosion]",
+		Musique = "[Musique : %s]",
+	},
+}
 
 -- Signalisation (V6.9.3) : traînée lumineuse au sol après un Rapide (ajout C15), enseigne « POLICE BOX » qui clignote
 -- selon le mode pendant la démat et la remat (ajout C16).

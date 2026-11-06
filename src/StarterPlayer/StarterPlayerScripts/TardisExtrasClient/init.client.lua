@@ -169,6 +169,11 @@ require(script:WaitForChild("Maintenance"))({ C = C, Config = Config, UI = UI, a
 require(script:WaitForChild("Supervision"))({ Config = Config, ReplicatedStorage = ReplicatedStorage, def = def })
 
 --------------------------------------------------------------------
+-- (V6.9.15) Sous-titres des sons importants (démat, remat, alarme, musique…) : module SousTitres
+--------------------------------------------------------------------
+require(script:WaitForChild("SousTitres"))({ C = C, Config = Config, E = E, UI = UI, creer = creer, def = def, exterieur = exterieur, jeSuisDedans = jeSuisDedans, joueur = joueur, maRacine = maRacine, texte = texte })
+
+--------------------------------------------------------------------
 -- Volume des sons et découverte : module Preferences
 --------------------------------------------------------------------
 require(script:WaitForChild("Preferences"))({ C = C, Config = Config, UI = UI, afficherInvitation = afficherInvitation, animer = animer, creer = creer, exterieur = exterieur, interieur = interieur, joueur = joueur, remote = remote, texte = texte })

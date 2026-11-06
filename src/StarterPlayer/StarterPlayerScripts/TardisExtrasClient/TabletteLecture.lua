@@ -13,6 +13,7 @@ return function(contexte)
 		local gui = creer("ScreenGui", { Name = "TardisTabletteLecture", ResetOnSpawn = false, Enabled = false, Parent = joueur:WaitForChild("PlayerGui") })
 		local panneau = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -20, 0.5, 0), Size = UDim2.fromOffset(360, 520),
 			BackgroundColor3 = C.fond, BackgroundTransparency = 0.06, Parent = gui }, { UI.coin(16), UI.contour(C.cyan, 1.5, 0.3), UI.marges(14) })
+		UI.suivreTaille(panneau) -- (V6.9.15, proposition 72) taille de l'interface
 		texte({ Text = "◆  TABLETTE TARDIS  ·  LECTURE SEULE", Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.cyan, Size = UDim2.new(1, 0, 0, 18), Parent = panneau })
 		local infos = texte({ Text = "", Font = UI.POLICE_CODE, TextSize = 12, TextColor3 = C.texte, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
 			Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 150), Parent = panneau })

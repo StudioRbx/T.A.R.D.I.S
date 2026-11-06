@@ -827,6 +827,7 @@ return function(contexte)
 				local carte = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromOffset(380, 0),
 					AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.05, Parent = gui },
 				{ UI.coin(14), UI.contour(C.ambre, 2, 0.2), UI.marges(14), UI.pile(8) })
+				UI.suivreTaille(carte) -- (V6.9.15, proposition 72) taille de l'interface
 				texte({ Text = "◆  L'ÉNERGIE DE RÉGÉNÉRATION MONTE", Font = UI.POLICE_GRAS, TextSize = 14, TextColor3 = C.ambre, LayoutOrder = 1, Parent = carte })
 				texte({ Text = "Ne rien faire : tu te régénères. Refuser : c'est la fin de cette vie.", TextSize = 12, TextColor3 = C.texte, TextWrapped = true,
 					AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = carte })

@@ -51,11 +51,14 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **V6.9.14, les vêtements** (facultatif : 0 = rien n'est appliqué) : identifiants du **catalogue** `shirt` / `pant` des nouvelles tenues Chronos, Nebula, Atelier, Soudeur et Gala dans `Config.Tenues` (cachées tant qu'ils valent 0) ; uniformes dans `Config.Equipe.Uniforme` (C.A.T.) et `Config.EquipeTechnique.Uniforme` (C.T.A.T.) ; emblème des badges dans `Config.Equipe.BadgeImage` et `Config.EquipeTechnique.BadgeImage`.
 - **V6.9.13, les sons des nouvelles pannes** (tous facultatifs : un son absent = silence) : **`Panne_FuiteAir`** (sifflement en boucle, sur la fuite d'air), **`RotorBloque`** (raclement court, à chaque départ tenté rotor bloqué), **`Soudure`** (grésillement court, à chaque passage du soudeur). Leurs identifiants dans `Config.Sons` (aujourd'hui 0), ou des Sound de ces noms dans `TardisAssets › Sons`.
 
+- **V6.9.15, les sous-titres des sons** (rien à construire) : les phrases, la durée (4 s) et la portée dehors (120 studs) se règlent dans `Config.SousTitres` ; `Actif = false` les coupe chez tout le monde. Chaque joueur peut aussi les couper dans les réglages de la tablette.
+
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V6.9.14)
-- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (204 tests de la V6.7 à la V6.9.14, dont 6 réussis et 18 sans objet ; 180 encore à faire).
+## 6. Tests en jeu et releases (V6.9.15)
+- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (218 tests de la V6.7 à la V6.9.15, dont 6 réussis et 18 sans objet ; 194 encore à faire).
+- **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
 - **Releases GitHub à jour** : les 38 versions de la V6.5 à la V6.9.14 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)

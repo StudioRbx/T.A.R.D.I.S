@@ -17,7 +17,7 @@
 | V6.9.12 | Pannes : le socle commun | ✅ faite (06/11) |
 | V6.9.13 | Nouvelles pannes et outils du technicien | ✅ faite (06/11) |
 | V6.9.14 | Équipage et garde-robe | ✅ faite (06/11) |
-| V6.9.15 | Confort de l'interface et accessibilité | 🔜 prévue |
+| V6.9.15 | Confort de l'interface et accessibilité | ✅ faite (06/11) |
 | **V7** | Modifications : 357 propositions du second tri | 🔜 prévue |
 | V7.1 | Corrections et banc d'essai (2 lots) | 🔜 prévue |
 | V7.2 | Cabine et monde extérieur (4 lots) | 🔜 prévue |
@@ -57,7 +57,7 @@ Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant 
 | ✅ V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
 | ✅ V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | faite | gros | 06/11 → 06/11 |
 | ✅ V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
-| V6.9.15 — Confort de l'interface et accessibilité | [#98](https://github.com/StudioRbx/T.A.R.D.I.S/issues/98) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 16/11 → 17/11 |
+| ✅ V6.9.15 — Confort de l'interface et accessibilité | [#98](https://github.com/StudioRbx/T.A.R.D.I.S/issues/98) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
 | **V8 · Sécurisation des scripts** | [#99](https://github.com/StudioRbx/T.A.R.D.I.S/issues/99) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 28/11 |
 | V8 — Sécurité : banc d'essai, audits et sauvegarde | [#100](https://github.com/StudioRbx/T.A.R.D.I.S/issues/100) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 21/11 |
 | V8.1 — Sécurité : garde-barrière unique et pont interne | [#101](https://github.com/StudioRbx/T.A.R.D.I.S/issues/101) | 🔧 Tâche | 🟠 Haute | moyen | 22/11 → 25/11 |
@@ -395,7 +395,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* 63 et 90 partagent le même code d'habillage (appliquerTenue, habillerTenueJeu) : les faire ensemble évite d'y revenir deux fois. Les nouvelles tenues vont en fin de liste, ou bien la clé des favoris passe au nom de la tenue. La 90 ne s'applique pas pendant une régénération (enAttente). Le retour de l'uniforme après une régénération reste un réglage fixe dans Config, jamais un choix du joueur (la 112 a été refusée). La 89 passe par Config, avec une garde « premier TARDIS » pour qu'il n'y ait pas trois badges après la V11. Seule construction importante : les portes (54), qui gardent le masquage actuel si le rangement est absent. TARDIS_2 et TARDIS_3 fonctionnent donc sans rien changer jusqu'à la V11.
 
-### V6.9.15 — Confort de l'interface et accessibilité
+### V6.9.15 — Confort de l'interface et accessibilité ✅ faite (06/11)
 
 **Objectif :** Apporter les derniers réglages utiles jusqu'à la V12 (taille partout, fermeture par clic à côté, ouverture sans animation, menu déplaçable) et ceux qui survivront à la V12 (effets réduits par défaut sur mobile, sous-titres).
 

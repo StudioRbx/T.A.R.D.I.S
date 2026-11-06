@@ -94,6 +94,23 @@ local AIDE_ORBITE = "Orbite autour de la cabine · Clic droit + souris pour la h
 aide.Text = AIDE_TOIT
 aide.Parent = gui
 
+-- (V6.9.15, proposition 72) Les boutons et l'aide suivent la taille de l'interface ; le bouton Orbite et l'aide se
+-- recalent pour ne jamais chevaucher « Quitter » (à 100 % : exactement les positions d'avant)
+local echellesCamera = {}
+local function placerBoutonsCamera()
+	local s = UI.tailleInterface()
+	for _, echelle in echellesCamera do echelle.Scale = s end
+	boutonOrbite.Position = UDim2.new(0.5, math.floor(130 * s + 10 + 0.5), 1, -30)
+	aide.Position = UDim2.new(0.5, 0, 1, -math.floor(30 + 44 * s + 8 + 0.5))
+end
+for _, objet in { quitter, boutonOrbite, aide } do
+	local echelle = Instance.new("UIScale")
+	echelle.Parent = objet
+	table.insert(echellesCamera, echelle)
+end
+placerBoutonsCamera()
+UI.prefsChangees.Event:Connect(function(cle) if cle == "taille" then placerBoutonsCamera() end end)
+
 local prompt = Instance.new("ProximityPrompt")
 prompt.ActionText = "Caméra extérieure"
 prompt.ObjectText = "Console"

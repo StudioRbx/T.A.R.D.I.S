@@ -114,6 +114,7 @@ return function(contexte)
 			local panneau = creer("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 20, 1, -20), Size = UDim2.fromOffset(190, 0),
 				AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.1, Parent = gui },
 			{ UI.coin(12), UI.contour(C.ambre, 1, 0.4), UI.marges(10), UI.pile(5) })
+			UI.suivreTaille(panneau) -- (V6.9.15, proposition 72) taille de l'interface
 			texte({ Text = "◆  TECHNICIEN", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.ambre, LayoutOrder = 1, Parent = panneau })
 			local ordre = 1
 			for _, info in { { "Chiffon", "Chiffon (nettoyer la cabine)" }, { "Visseuse", "Visseuse (surcharge de vapeur)" }, { "CleMolette", "Clé à molette (vanne)" },

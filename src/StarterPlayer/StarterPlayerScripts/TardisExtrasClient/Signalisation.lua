@@ -33,6 +33,7 @@ return function(contexte)
 		Parent = joueur:WaitForChild("PlayerGui") })
 	local cadre = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.16, 0), Size = UDim2.fromOffset(420, 92),
 		BackgroundTransparency = 1, Visible = false, Parent = gui })
+	UI.suivreTaille(cadre) -- (V6.9.15, proposition 72) l'annonce suit la taille de l'interface (le chiffre garde sa propre pulsation)
 	local phrase = texte({ Text = "", Font = UI.POLICE_GRAS, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.texte2,
 		Size = UDim2.new(1, 0, 0, 20), TextStrokeTransparency = 0.6, Parent = cadre })
 	local chiffre = texte({ Text = "", Font = UI.POLICE_TITRE, TextSize = 56, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.ambre,
