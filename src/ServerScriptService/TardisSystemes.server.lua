@@ -538,12 +538,45 @@ end
 local Tenues = require(script.Parent:WaitForChild("TardisTenues"))
 local function habillerTenueJeu(personnage)
 	local tenues = {}
-	for _, tenue in Config.Tenues or {} do table.insert(tenues, tenue) end
+	for _, tenue in Config.Tenues or {} do
+		-- (V6.9.14) Seulement les tenues disponibles (identifiants donnés) et pas celles marquées regeneration = false
+		if Config.tenueDisponible(tenue) and tenue.regeneration ~= false then table.insert(tenues, tenue) end
+	end
 	for _ = 1, math.min(#tenues, 3) do
 		local tenue = table.remove(tenues, math.random(#tenues))
 		if Tenues.appliquer(personnage, tenue) then return true end
 	end
 	return false
+end
+-- (V6.9.14) Uniforme de l'équipe (Config.Equipe.Uniforme pour la C.A.T., Config.EquipeTechnique.Uniforme pour la
+-- C.T.A.T.) : mis par le serveur à l'apparition d'un membre et quand un joueur rejoint l'équipe. Identifiants à 0 : rien
+-- n'est fait, il garde ses vêtements. Jamais pendant une régénération, sauf « apresRegeneration » (réglage fixe de Config).
+local function mettreUniforme(joueur, personnage, apresRegeneration)
+	local equipe = joueur.Team
+	local uniforme = equipe and Config.uniformeDe(equipe.Name)
+	if not uniforme or not personnage.Parent then return false end
+	if not apresRegeneration and (personnage:GetAttribute("TardisRegeneration") ~= nil or personnage:GetAttribute("TardisRegenChoix") ~= nil) then return false end
+	if not Tenues.appliquer(personnage, uniforme) then return false end
+	personnage:SetAttribute("TardisTenue", nil) -- (V6.9.14) ce n'est plus la tenue d'un casier
+	return true
+end
+-- (V6.9.14) Après une régénération : l'uniforme n'est remis par-dessus la nouvelle apparence que si le réglage fixe
+-- Uniforme.ApresRegeneration de l'équipe est vrai (faux par défaut : la régénération garde ses nouveaux vêtements)
+local function uniformeApresRegeneration(joueur, personnage)
+	local reglages = Config.reglagesEquipe(joueur.Team and joueur.Team.Name)
+	local uniforme = reglages and reglages.Uniforme
+	if type(uniforme) ~= "table" or uniforme.ApresRegeneration ~= true then return false end
+	return mettreUniforme(joueur, personnage, true)
+end
+-- (V6.9.14) Attend que l'avatar du joueur soit chargé (sinon ses vêtements arrivent après l'uniforme) : 8 s au plus
+local function attendreApparence(joueur, personnage)
+	local ok, charge = pcall(function() return joueur:HasAppearanceLoaded() end)
+	if ok and charge == true then return end
+	local fini = false
+	local connexion = joueur.CharacterAppearanceLoaded:Connect(function() fini = true end)
+	local limite = os.clock() + 8
+	while not fini and os.clock() < limite and personnage.Parent do task.wait(0.2) end
+	connexion:Disconnect()
 end
 -- Applique l'avatar puis vérifie que tous ses accessoires sont arrivés (ApplyDescription en perd parfois) : jusqu'à 3 essais
 local function appliquerDescription(personnage, humanoid, description)
@@ -573,11 +606,13 @@ local function changerApparence(joueur, personnage, humanoid, description, origi
 		local tenueMise = (not habille) and habillerTenueJeu(personnage)
 		print(string.format("[TARDIS] Régénération de %s : %s%s", joueur.Name, origine or "avatar",
 			habille and "" or (tenueMise and " + tenue du jeu" or " (tenue du jeu introuvable)")))
+		uniformeApresRegeneration(joueur, personnage) -- (V6.9.14) seulement si Uniforme.ApresRegeneration = true
 		return
 	end
 	local tenueMise = habillerTenueJeu(personnage)
 	print(string.format("[TARDIS] Régénération de %s : %s (%s)", joueur.Name, tenueMise and "tenue du jeu" or "vêtements gardés, tenue du jeu introuvable",
 		description and "avatar non appliqué" or origine or "aucun avatar"))
+	uniformeApresRegeneration(joueur, personnage) -- (V6.9.14) seulement si Uniforme.ApresRegeneration = true
 end
 -- Le corps tient-il encore ? (une commande :kill ou une explosion casse toutes les articulations)
 local function corpsIntact(personnage)
@@ -846,6 +881,8 @@ end
 
 local function surveillerPersonnage(joueur, personnage)
 	if def.Nom ~= Config.Tardis[1].Nom then return end -- un seul exemplaire gère la régénération
+	-- (V6.9.14) Corps neuf d'une régénération (corps disloqué) : noté tout de suite, avant toute attente
+	local corpsDeRegeneration = enAttente[joueur.UserId] ~= nil
 	local humanoid = personnage:WaitForChild("Humanoid", 10)
 	if not humanoid then return end
 	-- Dans l'équipe : pas de mort normale (le client fait de même, voir TardisExtrasClient)
@@ -859,6 +896,18 @@ local function surveillerPersonnage(joueur, personnage)
 	majEligible()
 	local connexionEquipe = joueur:GetPropertyChangedSignal("Team"):Connect(majEligible)
 	personnage.AncestryChanged:Connect(function() if not personnage:IsDescendantOf(game) then connexionEquipe:Disconnect() end end)
+	-- (V6.9.14) Uniforme de l'équipe à l'apparition (jamais sur le corps neuf d'une régénération, qui garde la nouvelle
+	-- apparence), puis quand le joueur change d'équipe (sauf pendant une régénération)
+	if not corpsDeRegeneration then
+		task.spawn(function()
+			attendreApparence(joueur, personnage)
+			if enAttente[joueur.UserId] == nil then mettreUniforme(joueur, personnage) end
+		end)
+	end
+	local connexionUniforme = joueur:GetPropertyChangedSignal("Team"):Connect(function()
+		if enAttente[joueur.UserId] == nil and personnage.Parent then task.spawn(mettreUniforme, joueur, personnage) end
+	end)
+	personnage.AncestryChanged:Connect(function() if not personnage:IsDescendantOf(game) then connexionUniforme:Disconnect() end end)
 
 	-- Articulations gardées (V6.7.1) : une commande :kill (BreakJoints) ou une explosion casse toutes les articulations.
 	-- Pour un membre de la C.A.T., chacune est ressoudée à l'instant même : le corps ne tombe plus en miettes avant de se
@@ -989,6 +1038,7 @@ local function surveillerPersonnage(joueur, personnage)
 			personnage:PivotTo(CFrame.lookAt(attente.position, attente.position + regard.Unit))
 		end
 		if not attente.habille then habillerTenueJeu(personnage) end
+		uniformeApresRegeneration(joueur, personnage) -- (V6.9.14) seulement si Uniforme.ApresRegeneration = true
 		derouler(false)
 	end
 

@@ -17,6 +17,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **`SiegeEquipage`** : sièges de l'équipage ;
 - **`Grille`** (ou un dossier `Grilles`) : vapeur et purge ;
 - sous-dossiers de destinations **`REFUSE`** et **`SANS_EXPRESS`** si tu veux des zones interdites ;
+- **V6.9.14** (tout facultatif) : dans `PortesInterieures` de TARDIS_1, deux Models **`Gauche`** et **`Droite`** (les pièces de chaque battant), chacun avec une Part **`Charniere`** (petite, ancrée, invisible) sur l'axe de rotation, la Part `Portail` en dehors : les portes intérieures s'ouvrent avec les extérieures ; sans eux, elles sont seulement cachées. À reproduire dans les autres TARDIS ;
 - **V6.9.13** (tout facultatif) :
   - dans l'intérieur de TARDIS_1, un dossier **`Structure`** (ou **`Breches`**) de Parts **ancrées et invisibles**, aux endroits où une brèche peut s'ouvrir ; sans lui, la brèche est sur la console ;
   - un dossier **`Conduits`** (ou des Parts **`FuiteAir`**), lieux des fuites d'air ; sans lui, la fuite est sur une grille ;
@@ -47,13 +48,14 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **V6.9.10.5, les tenues** (`Config.Tenues`) : les nombres `shirt` / `pant` sont les identifiants des vêtements du **catalogue** (le nombre dans l'adresse de la page de l'objet). Le serveur retrouve tout seul leur image au démarrage. Si l'Output affiche `[TARDIS] Tenues : vêtements introuvables…`, les tenues listées ont un identifiant qui ne mène à aucun vêtement (objet supprimé, privé, ou mauvais nombre) : corrige-le ; en attendant, le joueur qui les choisit garde ses vêtements.
 - **V6.9.10** : un son **« Vortex »** (vent cosmique, en boucle) : son identifiant dans `Config.Sons.Vortex` (aujourd'hui 0), ou un Sound « Vortex » dans `TardisAssets › Sons`. Sans lui, pas de vent du vortex à bord (le diagnostic le signale). **En option**, un son **« Frein »** (crissement temporel du freinage d'urgence en vol libre) : `Config.Sons.Frein` ou un Sound « Frein ». Rien à construire pour l'orbite : le bouton **BoutonCamera** de la console suffit.
 - **V6.9.12, les sons des pannes** (tous facultatifs : un son absent = silence) : **`Panne_Vapeur`** (sifflement en boucle, sur la grille en surcharge), **`Panne_Feu`** (crépitement en boucle, sur la console en feu), **`Panne_Grincement`** (grincement court, joué au hasard pendant une avarie), **`Panne_Etincelles`** (grésillement court, au clic sur le rotor en panne). Leurs identifiants dans `Config.Sons` (aujourd'hui 0), ou des Sound de ces noms dans `TardisAssets › Sons`.
+- **V6.9.14, les vêtements** (facultatif : 0 = rien n'est appliqué) : identifiants du **catalogue** `shirt` / `pant` des nouvelles tenues Chronos, Nebula, Atelier, Soudeur et Gala dans `Config.Tenues` (cachées tant qu'ils valent 0) ; uniformes dans `Config.Equipe.Uniforme` (C.A.T.) et `Config.EquipeTechnique.Uniforme` (C.T.A.T.) ; emblème des badges dans `Config.Equipe.BadgeImage` et `Config.EquipeTechnique.BadgeImage`.
 - **V6.9.13, les sons des nouvelles pannes** (tous facultatifs : un son absent = silence) : **`Panne_FuiteAir`** (sifflement en boucle, sur la fuite d'air), **`RotorBloque`** (raclement court, à chaque départ tenté rotor bloqué), **`Soudure`** (grésillement court, à chaque passage du soudeur). Leurs identifiants dans `Config.Sons` (aujourd'hui 0), ou des Sound de ces noms dans `TardisAssets › Sons`.
 
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V6.9.13)
-- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (192 tests de la V6.7 à la V6.9.13, dont 6 réussis et 18 sans objet ; 168 encore à faire).
+## 6. Tests en jeu et releases (V6.9.14)
+- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (204 tests de la V6.7 à la V6.9.14, dont 6 réussis et 18 sans objet ; 180 encore à faire).
 - **Releases GitHub à jour** : les 37 versions de la V6.5 à la V6.9.13 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)

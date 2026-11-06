@@ -16,7 +16,7 @@
 | V6.9.11 | Navigation et fiches de lieux | ✅ faite (06/11) |
 | V6.9.12 | Pannes : le socle commun | ✅ faite (06/11) |
 | V6.9.13 | Nouvelles pannes et outils du technicien | ✅ faite (06/11) |
-| V6.9.14 | Équipage et garde-robe | 🔜 prévue |
+| V6.9.14 | Équipage et garde-robe | ✅ faite (06/11) |
 | V6.9.15 | Confort de l'interface et accessibilité | 🔜 prévue |
 | **V7** | Modifications : 357 propositions du second tri | 🔜 prévue |
 | V7.1 | Corrections et banc d'essai (2 lots) | 🔜 prévue |
@@ -56,7 +56,7 @@ Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant 
 | ✅ V6.9.11 — Navigation et fiches de lieux | [#94](https://github.com/StudioRbx/T.A.R.D.I.S/issues/94) | ✨ Fonctionnalité | faite | petit | 06/11 → 06/11 |
 | ✅ V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
 | ✅ V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | faite | gros | 06/11 → 06/11 |
-| V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 14/11 → 15/11 |
+| ✅ V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
 | V6.9.15 — Confort de l'interface et accessibilité | [#98](https://github.com/StudioRbx/T.A.R.D.I.S/issues/98) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 16/11 → 17/11 |
 | **V8 · Sécurisation des scripts** | [#99](https://github.com/StudioRbx/T.A.R.D.I.S/issues/99) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 28/11 |
 | V8 — Sécurité : banc d'essai, audits et sauvegarde | [#100](https://github.com/StudioRbx/T.A.R.D.I.S/issues/100) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 21/11 |
@@ -382,7 +382,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* Ce sont les ajouts à risque moyen, isolés après le socle. 118 et 119 se branchent sur le tirage de la 117. La 119 crée au passage une seule fonction « raison de blocage au départ », utilisée par decoller, demarrerVolLibre et teleporterEnPoche, ce que la V9 aurait de toute façon regroupé. 127 et 128 sont des Tools du sac : ils survivent à la V12. Les affichages restent dans les cartes existantes de la tablette technicien, sans nouvel écran dans la tablette Y. Ce lot doit précéder la 58 (salle des machines).
 
-### V6.9.14 — Équipage et garde-robe
+### V6.9.14 — Équipage et garde-robe ✅ faite (06/11)
 
 **Objectif :** Donner une identité visible aux équipes (badges, uniformes), ranger la garde-robe par catégorie et animer les portes intérieures.
 

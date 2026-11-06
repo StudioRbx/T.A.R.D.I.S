@@ -1,5 +1,5 @@
 {
- "version": "6.9.13",
+ "version": "6.9.14",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 95177,
-   "empreinte": 1288022611
+   "taille": 100477,
+   "empreinte": 1506444229
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -43,8 +43,8 @@
    "nom": "TardisExtras",
    "classe": "Script",
    "parTardis": false,
-   "taille": 73715,
-   "empreinte": 1120072083
+   "taille": 73836,
+   "empreinte": 1960578645
   },
   {
    "fichier": "src/ServerScriptService/TardisLiaisonPortes.server.lua",
@@ -97,8 +97,8 @@
    "nom": "TardisSystemes",
    "classe": "Script",
    "parTardis": false,
-   "taille": 92007,
-   "empreinte": 1485498159
+   "taille": 95482,
+   "empreinte": 967609117
   },
   {
    "fichier": "src/ServerScriptService/TardisTenues.lua",
@@ -106,8 +106,8 @@
    "nom": "TardisTenues",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 8215,
-   "empreinte": 137222392
+   "taille": 8679,
+   "empreinte": 1509299931
   },
   {
    "fichier": "src/ServerScriptService/TardisServeur/Ecrans.lua",
@@ -151,8 +151,8 @@
    "nom": "TardisExtrasClient",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 13310,
-   "empreinte": 204740856
+   "taille": 13719,
+   "empreinte": 639185488
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisMenu.client.lua",
@@ -169,8 +169,8 @@
    "nom": "TardisPortail",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 16479,
-   "empreinte": 1075545350
+   "taille": 21098,
+   "empreinte": 1814962055
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisPorter.client.lua",
@@ -227,6 +227,15 @@
    "empreinte": 1220467217
   },
   {
+   "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Badges.lua",
+   "parent": "StarterPlayer/StarterPlayerScripts/TardisExtrasClient",
+   "nom": "Badges",
+   "classe": "ModuleScript",
+   "parTardis": false,
+   "taille": 3661,
+   "empreinte": 1499534546
+  },
+  {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Boucliers.lua",
    "parent": "StarterPlayer/StarterPlayerScripts/TardisExtrasClient",
    "nom": "Boucliers",
@@ -277,8 +286,8 @@
    "nom": "Interactions",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 20582,
-   "empreinte": 1225555823
+   "taille": 22725,
+   "empreinte": 148363275
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Intercom.lua",

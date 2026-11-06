@@ -139,6 +139,11 @@ require(script:WaitForChild("TabletteTechnicien"))({ C = C, Config = Config, E =
 require(script:WaitForChild("ScannerTechnicien"))({ C = C, Config = Config, UI = UI, UserInputService = UserInputService, camera = camera, creer = creer, def = def, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, texte = texte })
 
 --------------------------------------------------------------------
+-- (V6.9.14) Badges des équipes C.A.T. et C.T.A.T. au-dessus de la tête (premier TARDIS seulement) : module Badges
+--------------------------------------------------------------------
+require(script:WaitForChild("Badges"))({ C = C, Config = Config, Players = Players, UI = UI, creer = creer, def = def, joueur = joueur, texte = texte })
+
+--------------------------------------------------------------------
 -- Annonce intégrée de l'intercom du site (V6.7.3) : module Intercom
 --------------------------------------------------------------------
 require(script:WaitForChild("Intercom"))({ C = C, Config = Config, ReplicatedStorage = ReplicatedStorage, UI = UI, animer = animer, creer = creer, def = def, joueur = joueur, texte = texte })

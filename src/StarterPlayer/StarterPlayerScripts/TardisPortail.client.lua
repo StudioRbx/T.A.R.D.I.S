@@ -331,7 +331,97 @@ end)
 -- Portes intérieures : cachées quand la porte du TARDIS est ouverte
 --------------------------------------------------------------------
 local portesInt = interieur:FindFirstChild(NOM_PORTES_INT)
+--------------------------------------------------------------------
+-- (V6.9.14) Portes intérieures animées : si PortesInterieures est rangé en deux Models « Gauche » et « Droite » (chacun
+-- avec une Part « Charniere » sur l'axe, sinon son PrimaryPart), chaque battant tourne autour de sa charnière en même
+-- temps que le battant extérieur du même côté (LeftOpen / RightOpen de TARDISDoors ; sans eux : PorteOuverte). Tout se
+-- passe chez le joueur (comme le masquage), seulement TARDIS posé et porte assez grande. Le battant ne bloque plus le
+-- passage dès qu'il commence à s'ouvrir, et redevient solide une fois refermé. Rangement absent ou incomplet : le
+-- masquage d'avant (plus bas) est gardé.
+--------------------------------------------------------------------
+local REGLAGES_PORTES = Config.PortesInterieuresAnimees or {}
+local function charniereDe(modele)
+	if not (modele and modele:IsA("Model")) then return nil end
+	local charniere = modele:FindFirstChild("Charniere", true)
+	if charniere and charniere:IsA("BasePart") then return charniere end
+	return modele.PrimaryPart
+end
+local battantsAnimes = nil
 if portesInt then
+	local gauche, droite = portesInt:FindFirstChild("Gauche"), portesInt:FindFirstChild("Droite")
+	if charniereDe(gauche) and charniereDe(droite) then
+		battantsAnimes = { { modele = gauche, valeur = "LeftOpen", signe = 1 }, { modele = droite, valeur = "RightOpen", signe = -1 } }
+	elseif gauche or droite then
+		warn("[TARDIS] " .. def.Nom .. " : " .. NOM_PORTES_INT .. " doit contenir deux Models « Gauche » et « Droite », chacun avec une Part « Charniere » : portes intérieures seulement cachées.")
+	end
+end
+if battantsAnimes then
+	local duree = math.max(tonumber(REGLAGES_PORTES.Duree) or 0.5, 0.05)
+	local function etatPermet()
+		return exterieur:GetAttribute("Etat") == E.Pose and (exterieur:GetAttribute("Echelle") or 1) >= SEUIL_PORTES - 0.001
+	end
+	for _, battant in battantsAnimes do
+		local modele = battant.modele
+		local angleAttribut = modele:GetAttribute(REGLAGES_PORTES.AttributAngle or "Angle") -- posé dans Studio (facultatif)
+		battant.angleMax = math.rad(type(angleAttribut) == "number" and angleAttribut or battant.signe * (tonumber(REGLAGES_PORTES.Angle) or 90))
+		battant.ouverture = 0 -- 0 = fermé, 1 = grand ouvert
+		battant.collisions = {}
+		for _, objet in modele:GetDescendants() do
+			if objet:IsA("BasePart") then battant.collisions[objet] = objet.CanCollide end
+		end
+		local function valeurOuvert()
+			local valeur = dossierPortes and dossierPortes:FindFirstChild(battant.valeur)
+			if valeur and valeur:IsA("BoolValue") then return valeur.Value == true end
+			return exterieur:GetAttribute("PorteOuverte") == true
+		end
+		local function poser(t)
+			-- Rotation autour de l'axe vertical de la charnière, depuis la position fermée retenue
+			local axe = battant.charniereFermee * CFrame.Angles(0, battant.angleMax * t, 0)
+			modele:PivotTo(axe * battant.relatif)
+		end
+		local function solide(oui)
+			for objet, origine in battant.collisions do
+				if objet.Parent then objet.CanCollide = oui and origine end
+			end
+		end
+		local enMouvement = false
+		local function animer()
+			if enMouvement then return end
+			enMouvement = true
+			local precedent = os.clock()
+			while true do
+				local cible = (etatPermet() and valeurOuvert()) and 1 or 0
+				if battant.ouverture == cible then break end
+				if battant.ouverture == 0 then
+					-- Position fermée relue à chaque ouverture (l'intérieur a pu être déplacé)
+					local charniere = charniereDe(modele)
+					if not charniere then break end -- charnière retirée : le battant reste où il est
+					battant.charniereFermee = charniere.CFrame
+					battant.relatif = battant.charniereFermee:Inverse() * modele:GetPivot()
+					solide(false)
+				end
+				task.wait()
+				local maintenant = os.clock()
+				local pas = math.max(maintenant - precedent, 1 / 60) / duree
+				precedent = maintenant
+				battant.ouverture = cible > battant.ouverture and math.min(battant.ouverture + pas, 1) or math.max(battant.ouverture - pas, 0)
+				poser(battant.ouverture)
+				if battant.ouverture == 0 then solide(true) end
+			end
+			enMouvement = false
+		end
+		battant.animer = animer
+		local valeur = dossierPortes and dossierPortes:FindFirstChild(battant.valeur)
+		if valeur and valeur:IsA("BoolValue") then
+			valeur.Changed:Connect(function() task.spawn(animer) end)
+		end
+		for _, attribut in { "PorteOuverte", "Etat", "Echelle" } do
+			exterieur:GetAttributeChangedSignal(attribut):Connect(function() task.spawn(animer) end)
+		end
+		task.spawn(animer)
+	end
+end
+if portesInt and not battantsAnimes then
 	local origines = {}
 	for _, objet in portesInt:GetDescendants() do
 		if objet:IsA("BasePart") then

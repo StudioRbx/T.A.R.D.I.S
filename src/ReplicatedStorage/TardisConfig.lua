@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.13"
+Config.Version = "6.9.14"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -109,6 +109,16 @@ Config.Casiers = {
 	DistanceFermeture = 12,  -- (V6.9.10.5) le menu des tenues se ferme si on s'éloigne de plus de tant de studs
 }
 Config.NomPortesInt = "PortesInterieures" -- Folder des portes de l'intérieur (cachées quand la porte est ouverte)
+-- (V6.9.14) Portes intérieures animées (facultatif, construit dans Studio) : si PortesInterieures contient deux Models
+-- « Gauche » et « Droite », chacun avec une Part « Charniere » (sinon son PrimaryPart) posée sur l'axe de rotation, les
+-- battants tournent autour de leur charnière avec les battants extérieurs (LeftOpen / RightOpen de TARDISDoors). Sans ce
+-- rangement, les portes intérieures sont seulement cachées comme avant. Un attribut nombre « Angle » (degrés, signé) sur
+-- un des deux Models remplace l'angle ci-dessous pour ce battant (signe inverse = il tourne de l'autre côté).
+Config.PortesInterieuresAnimees = {
+	Angle = 90,   -- (V6.9.14) angle d'ouverture (degrés) : Gauche tourne de +Angle, Droite de -Angle
+	Duree = 0.5,  -- (V6.9.14) secondes pour s'ouvrir ou se fermer
+	AttributAngle = "Angle", -- (V6.9.14) nom de l'attribut nombre (posé dans Studio sur Gauche ou Droite) qui change l'angle d'un battant
+}
 Config.NomArrivee = "Arrivee"             -- Part optionnelle de l'intérieur : où arrivent les joueurs embarqués
 Config.NomDossierPortes = "TARDISDoors"   -- Model des battants extérieurs
 
@@ -203,6 +213,13 @@ Config.PorteeSons = { Dehors = { Min = 12, Max = 220 }, Dedans = { Min = 8, Max 
 Config.Equipe = {
 	Nom = "C.A.T.", -- nom exact de la Team dans Studio › Teams (Cellule d'Autorité Temporelle)
 	SpawnDansLeTardis = true, -- un SpawnLocation réservé à l'équipe est créé dans l'intérieur (sur la Part "Arrivee", sinon derrière la porte)
+	-- (V6.9.14) Uniforme mis à chaque apparition d'un membre (et quand un joueur rejoint l'équipe) : identifiants du
+	-- CATALOGUE du haut (shirt) et du bas (pant), comme Config.Tenues. 0 = pas d'uniforme : le joueur garde ses vêtements.
+	-- Jamais pendant une régénération. ApresRegeneration est un réglage fixe du jeu (pas un choix du joueur) : vrai =
+	-- l'uniforme est remis par-dessus la nouvelle apparence ; faux = la régénération garde ses nouveaux vêtements.
+	Uniforme = { Actif = true, shirt = 0, pant = 0, ApresRegeneration = false },
+	Badge = true,   -- (V6.9.14) badge « C.A.T. » au-dessus de la tête des membres (vu par les autres joueurs ; false = aucun)
+	BadgeImage = 0, -- (V6.9.14) identifiant d'une image (Decal publiée) pour l'emblème du badge ; 0 = texte seul
 }
 
 -- L'équipe C.T.A.T. — Cellule Technique d'Autorité Temporelle (ajoutée le 02/11, V6.9.5) : l'équipe officielle des
@@ -213,6 +230,9 @@ Config.EquipeTechnique = {
 	Creer = true,                            -- crée la Team dans Teams si elle n'existe pas encore
 	DonneLeRoleTechnicien = true,            -- ses joueurs sont techniciens du TARDIS (tablette technicien, outils, maintenance)
 	SpawnDansLeTardis = true,                -- ses joueurs apparaissent dans le TARDIS, à côté du spawn de la C.A.T.
+	Uniforme = { Actif = true, shirt = 0, pant = 0 }, -- (V6.9.14) uniforme à l'apparition (identifiants du catalogue) ; 0 = aucun
+	Badge = true,                            -- (V6.9.14) badge « C.T.A.T. » au-dessus de la tête des membres (false = aucun)
+	BadgeImage = 0,                          -- (V6.9.14) identifiant d'une image pour l'emblème ; 0 = texte seul
 }
 
 -- Empreinte temporelle (V6.6.2) : après un départ visible, une silhouette translucide du TARDIS reste
@@ -617,16 +637,26 @@ Config.DureesRoles = {
 -- (V6.9.10.5) Ce sont les identifiants des vêtements du CATALOGUE (le nombre dans l'adresse de la page de l'objet), pas
 -- ceux de leur image : le serveur (TardisTenues) retrouve l'image de chaque vêtement au démarrage. Un identifiant qui
 -- ne mène à aucun vêtement est listé dans l'Output ; cette tenue garde alors les vêtements actuels du joueur.
+-- (V6.9.14) Le casier range les tenues par catégorie (favoris en premier). Une tenue dont le haut ou le bas vaut 0 est
+-- « en attente » : ni dans les casiers, ni tirée à la régénération, tant que ses identifiants ne sont pas donnés.
+-- regeneration = false : la tenue n'est jamais tirée au hasard après une régénération (elle reste dans les casiers).
+-- Les nouvelles tenues vont TOUJOURS à la fin de la liste : les favoris des joueurs sont rangés par numéro de tenue.
 Config.Tenues = {
-	{ nom = "Pannaro", description = "Tenue de soirée, festive", pieces = 3, shirt = 100019804704944, pant = 121690600465062, categorie = "Festive" },
+	{ nom = "Pannaro", description = "Tenue de soirée, festive", pieces = 3, shirt = 100019804704944, pant = 121690600465062, categorie = "Festive", regeneration = false },
 	{ nom = "Abete", description = "Tenue classique, verte", pieces = 3, shirt = 130782275960154, pant = 135250026467746, categorie = "Comité d'Éthique" },
 	{ nom = "Corde", description = "Tenue élégante, beige", pieces = 3, shirt = 76558494418103, pant = 105107391069292, categorie = "Ressources Humaines" },
 	{ nom = "Fausto", description = "Tenue élégante, bleu encre", pieces = 3, shirt = 88333401988867, pant = 114724562684426, categorie = "Bureau de l'Admin" },
 	{ nom = "Vittorio", description = "Tenue bureautique, bleu nuit", pieces = 2, shirt = 80041210803159, pant = 92288629740957, categorie = "Bureau de l'Admin" },
 	{ nom = "Bluastro", description = "Tenue élégante, bleu nuit", pieces = 3, shirt = 129300251186581, pant = 93694737125546, categorie = "Bureau de l'Admin" },
 	{ nom = "Bosco", description = "Tenue de soirée, verte empire", pieces = 3, shirt = 71805702832032, pant = 140628082900995, categorie = "Comité d'Éthique" },
-	{ nom = "Azzurro Regale", description = "Tenue de soirée, festive", pieces = 2, shirt = 136905636988372, pant = 115784919982763, categorie = "Festive" },
-	{ nom = "Canard", description = "Tenue de riche, blanc et or", pieces = 3, shirt = 12608642007, pant = 12608643961, categorie = "Festive" },
+	{ nom = "Azzurro Regale", description = "Tenue de soirée, festive", pieces = 2, shirt = 136905636988372, pant = 115784919982763, categorie = "Festive", regeneration = false },
+	{ nom = "Canard", description = "Tenue de riche, blanc et or", pieces = 3, shirt = 12608642007, pant = 12608643961, categorie = "Festive", regeneration = false },
+	-- (V6.9.14) Nouvelles tenues : à compléter dans Studio avec les identifiants du catalogue (0 = cachée en attendant)
+	{ nom = "Chronos", description = "Manteau long de voyageur, brun", pieces = 3, shirt = 0, pant = 0, categorie = "Voyage" },
+	{ nom = "Nebula", description = "Veste de voyage, bleu nuit", pieces = 2, shirt = 0, pant = 0, categorie = "Voyage" },
+	{ nom = "Atelier", description = "Combinaison de travail, grise", pieces = 2, shirt = 0, pant = 0, categorie = "Technique" },
+	{ nom = "Soudeur", description = "Tablier et gants de protection", pieces = 3, shirt = 0, pant = 0, categorie = "Technique" },
+	{ nom = "Gala", description = "Smoking de gala, noir", pieces = 3, shirt = 0, pant = 0, categorie = "Festive", regeneration = false },
 }
 
 -- Styles de l'intérieur (menu Customisation) : appliqués aux pièces des dossiers "Murs" et "Sol" de l'intérieur
@@ -1329,6 +1359,37 @@ end
 -- Nom de l'équipe (C.A.T.)
 function Config.nomEquipe()
 	return (Config.Regeneration and Config.Regeneration.Equipe) or (Config.Equipe and Config.Equipe.Nom) or "C.A.T."
+end
+
+-- (V6.9.14) Une tenue est disponible si son haut et son bas ont un identifiant valide (0 ou absent = en attente : ni
+-- dans les casiers, ni au tirage de la régénération, ni en uniforme)
+function Config.tenueDisponible(tenue)
+	return type(tenue) == "table" and Config.idVetement(tenue.shirt) ~= nil and Config.idVetement(tenue.pant) ~= nil
+end
+-- (V6.9.14) Réglages d'une des deux équipes du TARDIS d'après le nom d'une Team : Config.Equipe (C.A.T.) ou
+-- Config.EquipeTechnique (C.T.A.T.) ; nil pour toute autre équipe
+function Config.reglagesEquipe(nomEquipe)
+	if type(nomEquipe) ~= "string" or nomEquipe == "" then return nil end
+	if nomEquipe == Config.nomEquipe() then return Config.Equipe or {} end
+	local technique = Config.EquipeTechnique
+	if type(technique) == "table" and nomEquipe == (technique.Nom or "C.T.A.T.") then return technique end
+	return nil
+end
+-- (V6.9.14) Uniforme d'une équipe (une tenue { nom, shirt, pant }), ou nil : autre équipe, Actif = false, ou identifiants
+-- à 0 (rien n'est appliqué, aucune erreur)
+function Config.uniformeDe(nomEquipe)
+	local reglages = Config.reglagesEquipe(nomEquipe)
+	local uniforme = reglages and reglages.Uniforme
+	if type(uniforme) ~= "table" or uniforme.Actif == false or not Config.tenueDisponible(uniforme) then return nil end
+	return { nom = "Uniforme " .. nomEquipe, shirt = uniforme.shirt, pant = uniforme.pant }
+end
+-- (V6.9.14) Badge d'une équipe au-dessus de la tête : { texte, image } (image = texte rbxassetid, ou nil = texte seul),
+-- ou nil : autre équipe, ou Badge = false
+function Config.badgeDe(nomEquipe)
+	local reglages = Config.reglagesEquipe(nomEquipe)
+	if not reglages or reglages.Badge == false then return nil end
+	local image = Config.idVetement(reglages.BadgeImage)
+	return { texte = nomEquipe, image = image and ("rbxassetid://" .. string.format("%d", image)) or nil }
 end
 
 -- Mode du voyage en cours d'un TARDIS (attribut "Mode" de son extérieur)

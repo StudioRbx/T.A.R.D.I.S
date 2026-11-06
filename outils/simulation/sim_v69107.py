@@ -351,10 +351,13 @@ verifier("4. Plaque : « CASIER », badge = l'équipe du joueur (« C.A.T. »), 
          texte_de(trouve(pq, "Titre")) == "CASIER" and texte_de(trouve(pq, "BadgePlaque")) == "C.A.T." and trouve(pq, "BadgePlaque").props["Visible"] is True
          and texte_de(trouve(pq, "SousLigne")) == "CHOISIR UNE TENUE" and trouve(pq, "BandeDanger") is not None, (texte_de(trouve(pq, "BadgePlaque")),))
 grille = trouve(cgui, "Tenues")
-tuiles = lambda: sorted(enfants(grille, "Tenue"), key=lambda e: e.props["LayoutOrder"])
-gl = enfants(grille, classe="UIGridLayout")
-verifier("4. Grille de tuiles : une par tenue (%d), deux colonnes, 80 px de haut (cible tactile)" % TEN.longueur(),
-         len(tuiles()) == TEN.longueur() and gl and gl[0].props["CellSize"].args[0] == 0.5 and gl[0].props["CellSize"].args[3] == 80)
+# (V6.9.14) Les tuiles sont rangées dans des groupes par catégorie (une grille par groupe) ; seules les tenues disponibles
+# (identifiants donnés) sont montrées
+tuiles = lambda: sorted([e for e in descendants(grille) if e.Name == "Tenue"], key=lambda e: e.props["LayoutOrder"])
+gl = [e for e in descendants(grille) if e.ClassName == "UIGridLayout"]
+NB_DISPO = sum(1 for i in range(1, TEN.longueur() + 1) if (TEN.get(i).get("shirt") or 0) > 0 and (TEN.get(i).get("pant") or 0) > 0)
+verifier("4. Grille de tuiles : une par tenue disponible (%d), deux colonnes, 80 px de haut (cible tactile)" % NB_DISPO,
+         len(tuiles()) == NB_DISPO and gl and gl[0].props["CellSize"].args[0] == 0.5 and gl[0].props["CellSize"].args[3] == 80)
 tuile = lambda nom: next(e for e in tuiles() if texte_de(trouve(e, "Nom")) == nom.upper())
 nom2, nom3, nom4 = TEN.get(2).get("nom"), TEN.get(3).get("nom"), TEN.get(4).get("nom")
 t2 = tuile(nom2)
@@ -586,8 +589,9 @@ echap(W); recevoir(W, "__jukebox", W["juke"])
 verifier("Images 9 tranches : panneau du jukebox, sans erreur", enfants(trouve(W["pg"].m_FindFirstChild("TardisJukeboxConsole"), "Carte"), "FondCoupe") and not roblox.ERREURS, roblox.ERREURS[:3])
 echap(W)
 declencher([e for e in descendants(W["casier"]) if e.ClassName == "ProximityPrompt"][0], "Triggered")
-tuileI = enfants(trouve(W["pg"].m_FindFirstChild("TardisCasier"), "Tenues"), "Tenue")[0]
-appuyer(tuileI); tuileI = sorted(enfants(trouve(W["pg"].m_FindFirstChild("TardisCasier"), "Tenues"), "Tenue"), key=lambda e: e.props["LayoutOrder"])[0]
+tuilesI = lambda: sorted([e for e in descendants(trouve(W["pg"].m_FindFirstChild("TardisCasier"), "Tenues")) if e.Name == "Tenue"], key=lambda e: e.props["LayoutOrder"])  # (V6.9.14) groupes
+tuileI = tuilesI()[0]
+appuyer(tuileI); tuileI = tuilesI()[0]
 verifier("Images 9 tranches : tuiles du casier à coins coupés, la tenue essayée en jaune (image de fond), sans erreur",
          enfants(tuileI, "FondCoupe") and rgb(enfants(tuileI, "FondCoupe")[0].props["ImageColor3"]) == JETONS["jaune"] and enfants(tuileI, "FondCoupe")[0].props["ImageTransparency"] == 0
          and not roblox.ERREURS, roblox.ERREURS[:3])

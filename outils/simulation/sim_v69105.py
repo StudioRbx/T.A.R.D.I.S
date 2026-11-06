@@ -286,6 +286,7 @@ verifier("3. Aucune erreur", not roblox.ERREURS, roblox.ERREURS[:3])
 sss = game.m_FindFirstChild("ServerScriptService")
 mt = Instance("ModuleScript", "TardisTenues", sss); mt.extra["chemin"] = DEPOT + "/ServerScriptService/TardisTenues.lua"
 TENUES = [(Config.get("Tenues").get(i).get("nom"), Config.get("Tenues").get(i).get("shirt"), Config.get("Tenues").get(i).get("pant")) for i in range(1, Config.get("Tenues").longueur() + 1)]
+TENUES = [t for t in TENUES if (t[1] or 0) > 0 and (t[2] or 0) > 0]  # (V6.9.14) tenues en attente (identifiants à 0) : ignorées par le serveur
 IMAGE = {}
 for i, (nom, s, p_) in enumerate(TENUES):
     IMAGE[s] = ("Shirt", "rbxassetid://%d" % (70000000 + i)); IMAGE[p_] = ("Pants", "rbxassetid://%d" % (80000000 + i))

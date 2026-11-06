@@ -155,8 +155,16 @@ function Tenues.demarrer()
 	dossierApercu()
 	task.spawn(function()
 		local echecs = {}
-		for _, tenue in Config.Tenues or {} do
-			if type(tenue) == "table" then
+		-- (V6.9.14) Les tenues en attente (identifiants à 0) sont ignorées sans rien dire ; les uniformes des équipes
+		-- (Config.uniformeDe) sont résolus avec les tenues
+		local aResoudre = {}
+		for _, tenue in Config.Tenues or {} do table.insert(aResoudre, tenue) end
+		for _, nomEquipe in { Config.nomEquipe(), (Config.EquipeTechnique or {}).Nom } do
+			local uniforme = Config.uniformeDe(nomEquipe)
+			if uniforme then table.insert(aResoudre, uniforme) end
+		end
+		for _, tenue in aResoudre do
+			if Config.tenueDisponible(tenue) then
 				for _, info in { { "Shirt", tenue.shirt, "haut" }, { "Pants", tenue.pant, "bas" } } do
 					if not Tenues.image(info[1], info[2]) then
 						local id = Config.idVetement(info[2])

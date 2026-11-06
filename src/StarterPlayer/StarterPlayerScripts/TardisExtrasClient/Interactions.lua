@@ -87,9 +87,10 @@ return function(contexte)
 			end)
 		end
 		-- Grille des tenues (deux colonnes de tuiles de 80 px)
+		-- (V6.9.14) Rangée par catégorie : la liste empile les groupes (un en-tête, puis sa grille de deux colonnes)
 		local liste = creer("ScrollingFrame", { Name = "Tenues", Position = UDim2.fromOffset(0, 104), Size = UDim2.new(1, 0, 1, -164), BackgroundTransparency = 1,
 			BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = C.cyan, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = panneau },
-		{ creer("UIGridLayout", { CellSize = UDim2.new(0.5, -6, 0, 80), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+		{ creer("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
 		local rangeeBas = creer("Frame", { Name = "Boutons", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 46),
 			BackgroundTransparency = 1, Parent = panneau }, { UI.pile(8, true) })
 		local garder = UI.boutonCoupe(rangeeBas, "Enfiler", "principal", { Name = "Enfiler", Size = UDim2.new(0.5, -4, 1, 0), LayoutOrder = 1 })
@@ -187,16 +188,49 @@ return function(contexte)
 		local construire
 		construire = function()
 			for _, e in liste:GetChildren() do
-				if not e:IsA("UIGridLayout") then e:Destroy() end
+				if not e:IsA("UIListLayout") then e:Destroy() end -- (V6.9.14) les groupes sont refaits
 			end
 			local favoris = type(UI.prefs.tenuesFavorites) == "table" and UI.prefs.tenuesFavorites or {}
-			local ordre = {}
-			for i in Config.Tenues or {} do table.insert(ordre, i) end
-			table.sort(ordre, function(a, b)
-				local fa, fb = favoris[tostring(a)] == true, favoris[tostring(b)] == true
-				if fa ~= fb then return fa end
-				return a < b
-			end)
+			-- (V6.9.14) Groupes : les favoris d'abord, puis une catégorie par groupe (dans l'ordre de Config.Tenues), les
+			-- tenues sans catégorie à la fin. Les tenues en attente (identifiants à 0) ne sont pas montrées. Les favoris
+			-- restent rangés par numéro de tenue (les nouvelles tenues vont à la fin de Config.Tenues).
+			local groupes, parNom, autres = {}, {}, { nom = "Autres", tenues = {} }
+			local function groupe(nom)
+				if not parNom[nom] then
+					parNom[nom] = { nom = nom, tenues = {} }
+					table.insert(groupes, parNom[nom])
+				end
+				return parNom[nom]
+			end
+			groupe("Favoris")
+			for i, tenue in Config.Tenues or {} do
+				if Config.tenueDisponible(tenue) then
+					local categorie = type(tenue.categorie) == "string" and tenue.categorie ~= "" and tenue.categorie or nil
+					local cible = favoris[tostring(i)] == true and parNom.Favoris or (categorie and groupe(categorie)) or autres
+					table.insert(cible.tenues, i)
+				end
+			end
+			table.insert(groupes, autres)
+			local ordre, cadreDe = {}, {}
+			for numero, g in groupes do
+				if #g.tenues > 0 then
+					texte({ Name = "Entete", Text = UI.majuscules(g.nom) .. "  ·  " .. #g.tenues, Font = UI.POLICE_CODE, TextSize = 11,
+						TextColor3 = g == parNom.Favoris and C.ambre or C.cyan, TextXAlignment = Enum.TextXAlignment.Left,
+						Size = UDim2.new(1, -8, 0, 16), LayoutOrder = numero * 2 - 1, Parent = liste })
+					local cadre = creer("Frame", { Name = "Groupe", BackgroundTransparency = 1, Size = UDim2.new(1, -4, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+						LayoutOrder = numero * 2, Parent = liste },
+					{ creer("UIGridLayout", { CellSize = UDim2.new(0.5, -6, 0, 80), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+					cadre:SetAttribute("Categorie", g.nom)
+					for _, i in g.tenues do
+						table.insert(ordre, i)
+						cadreDe[i] = cadre
+					end
+				end
+			end
+			if #ordre == 0 then -- (V6.9.14) aucune tenue disponible : un mot plutôt qu'un casier vide
+				texte({ Name = "AucuneTenue", Text = "Aucune tenue dans ce casier pour l'instant.", Font = UI.POLICE_CODE, TextSize = 12,
+					TextColor3 = C.texte2, TextWrapped = true, Size = UDim2.new(1, -8, 0, 40), LayoutOrder = 1, Parent = liste })
+			end
 			-- (V6.9.10.7) La tenue portée (gardée au casier, attribut du personnage posé par le serveur) est signalée
 			local personnageActuel = joueur.Character
 			local tenueActuelle = personnageActuel and personnageActuel:GetAttribute("TardisTenue")
@@ -206,7 +240,7 @@ return function(contexte)
 				-- Tuile (maquette) : fond très légèrement éclairci, la tenue essayée en jaune (texte sombre), coins coupés
 				local choisie = apercu == i
 				local b = creer("TextButton", { Name = "Tenue", BackgroundColor3 = choisie and C.ambre or C.texte, BackgroundTransparency = choisie and 0 or 0.94, Text = "",
-					AutoButtonColor = false, LayoutOrder = rang, Parent = liste }, { UI.coin(8) })
+					AutoButtonColor = false, LayoutOrder = rang, Parent = cadreDe[i] }, { UI.coin(8) }) -- (V6.9.14) dans la grille de son groupe
 				b:SetAttribute("Choisie", choisie)
 				UI.decouper(b, UI.JETONS.coupeBouton, { contour = choisie and C.ambre or C.ligne, transparenceContour = 0.2 })
 				texte({ Name = "Nom", Text = UI.majuscules(tenue.nom), Font = UI.POLICE_GRAS, TextSize = 14, TextColor3 = choisie and C.sombre or C.texte,

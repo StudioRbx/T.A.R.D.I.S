@@ -973,6 +973,7 @@ local function appliquerTenue(joueur, index)
 	local tenue = (Config.Tenues or {})[index]
 	local personnage = joueur.Character
 	if not tenue or not personnage or tenuesEnCours[joueur] then return false end
+	if not Config.tenueDisponible(tenue) then return false end -- (V6.9.14) tenue en attente (identifiants à 0) : refusée
 	tenuesEnCours[joueur] = true
 	task.spawn(function()
 		local ok = Tenues.appliquer(personnage, tenue)

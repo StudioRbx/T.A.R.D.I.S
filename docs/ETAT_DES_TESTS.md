@@ -7,10 +7,27 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 192 tests** — ⬜ 168 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 204 tests** — ⬜ 180 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.14 — Équipage et garde-robe
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Ouvrir un casier | tenues rangées par groupe : FESTIVE, COMITÉ D'ÉTHIQUE, RESSOURCES HUMAINES, BUREAU DE L'ADMIN (avec leur nombre), sans Chronos, Nebula, Atelier, Soudeur ni Gala | ⬜ |  |
+| Mettre une tenue en favori, rouvrir le casier | un groupe FAVORIS en ambre, en tête | ⬜ |  |
+| Donner des identifiants à Chronos dans `Config.Tenues`, relancer | Chronos dans un groupe VOYAGE, et elle s'enfile | ⬜ |  |
+| Régénérer plusieurs fois | jamais Pannaro, Azzurro Regale ni Canard comme nouvelle tenue | ⬜ |  |
+| Régler `Config.Equipe.Uniforme` (shirt, pant), apparaître dans la C.A.T. | l'uniforme est mis une fois l'avatar chargé | ⬜ |  |
+| Uniforme à 0, apparaître | ses propres vêtements, rien dans l'Output | ⬜ |  |
+| Passer de Visiteurs à la C.A.T. | l'uniforme est mis | ⬜ |  |
+| Se régénérer avec l'uniforme réglé | la nouvelle apparence est gardée (`ApresRegeneration` faux) | ⬜ |  |
+| Deux joueurs, l'un dans la C.A.T. | l'autre voit le badge « C.A.T. » au-dessus de sa tête, à sa couleur ; pas de badge sur soi | ⬜ |  |
+| Changer d'équipe vers la C.T.A.T. puis Visiteurs | le badge devient « C.T.A.T. », puis disparaît | ⬜ |  |
+| Ranger `PortesInterieures` en `Gauche` / `Droite` avec `Charniere`, ouvrir la porte | les battants intérieurs tournent avec les extérieurs, on passe ; refermés, ils sont solides | ⬜ |  |
+| Sans ce rangement, ouvrir la porte | portes intérieures cachées comme avant, la Part `Portail` visible | ⬜ |  |
 
 ## V6.9.13 — Nouvelles pannes et outils du technicien
 
