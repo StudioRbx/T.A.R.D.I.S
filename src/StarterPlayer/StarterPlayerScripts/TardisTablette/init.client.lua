@@ -40,8 +40,8 @@ local R = {
 -- Tous les éléments d'interface (W) et l'état de la tablette (S), rangés dans deux tables
 -- pour rester loin de la limite de 200 variables locales de Luau.
 local W = {}
-local V = {} -- volet latéral (outils, réglages, aide), construit plus bas
-local LARGEUR_VOLET = 454 -- largeur du volet + son écart
+local V = {} -- volet (outils, réglages, aide), construit plus bas ; V6.9.10.6 : une vue de la tablette (onglets Outils, Réglages, Aide)
+local LARGEUR_VOLET = 0 -- V6.9.10.6 : le volet est dans la tablette, il ne demande plus de place à côté
 local S = {
 	ouvert = false,
 	mode = "lieux",          -- "lieux", "joueurs", "coord"
@@ -74,7 +74,7 @@ local TAILLE_MIN = Config.TailleMin or 0.25
 --------------------------------------------------------------------
 -- Construction de la tablette : panneaux, écran, barre du haut, colonnes A, B, C et dock : module Construction
 --------------------------------------------------------------------
-local Construction = require(script:WaitForChild("Construction"))({ C = C, Commandes = Commandes, Config = Config, Lighting = Lighting, R = R, TAILLE_MIN = TAILLE_MIN, UI = UI, W = W, creer = creer, exterieur = exterieur, joueur = joueur, remote = remote, seuilPortes = seuilPortes, texte = texte })
+local Construction = require(script:WaitForChild("Construction"))({ C = C, Commandes = Commandes, Config = Config, Lighting = Lighting, R = R, TAILLE_MIN = TAILLE_MIN, UI = UI, V = V, W = W, creer = creer, def = def, exterieur = exterieur, joueur = joueur, remote = remote, seuilPortes = seuilPortes, texte = texte })
 local panneaux = Construction.panneaux
 
 --------------------------------------------------------------------

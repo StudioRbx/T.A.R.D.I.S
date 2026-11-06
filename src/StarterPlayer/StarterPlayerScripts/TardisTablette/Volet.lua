@@ -10,50 +10,49 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- Réglages (thème de l'interface, sons, touches) et aide intégrée
 	--------------------------------------------------------------------
-	-- Volet latéral : un panneau qui s'ouvre à droite de la tablette (outils, réglages, aide).
-	-- V.ouvrir(nom, titre) affiche une page vide et renvoie son conteneur ; V.retour() revient aux outils ; V.fermer() le range.
+	-- Volet : V6.9.10.6, une vue de la tablette (onglets Outils, Réglages et Aide ; l'export du journal allume l'onglet Journal),
+	-- dans un panneau de la charte. V.ouvrir(nom, titre) affiche une page vide et renvoie son conteneur ; V.retour() revient
+	-- aux outils ; V.fermer() revient à la vue Navigation.
 	do
-		local volet = creer("Frame", { Position = UDim2.new(1, 14, 0, 0), Size = UDim2.new(0, 440, 1, 0), BackgroundColor3 = C.ecran,
-			BackgroundTransparency = 0.02, Visible = false, ZIndex = 60, Parent = W.tablette }, { UI.coin(22), UI.contour(C.ambre, 2, 0.25), UI.marges(16) })
-		creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(170, 180, 205)), Parent = volet })
-		local titre = texte({ Text = "", Font = UI.POLICE_GRAS, TextSize = 16, TextColor3 = C.ambre, Size = UDim2.new(1, -40, 0, 24), ZIndex = 61, Parent = volet })
-		local croix = creer("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, -4), Size = UDim2.fromOffset(32, 32),
-			BackgroundColor3 = Color3.fromRGB(90, 30, 40), Text = "×", Font = UI.POLICE_GRAS, TextSize = 22, TextColor3 = C.texte, ZIndex = 61, Parent = volet },
-		{ UI.coin(9), UI.contour(C.rouge, 1, 0.4) })
-		croix:SetAttribute("CouleurBase", Color3.fromRGB(90, 30, 40))
-		UI.rendreVivant(croix)
+		local volet, interieurVolet = UI.panneauCoupe({ Name = "Volet", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.panneau, BackgroundTransparency = 0.1,
+			ZIndex = 60, Parent = W.vueVolet }, { coupe = 12, rayon = 22, lueur = false, balayage = false, contour = C.ligne, transparenceContour = 0.3, marges = 16 })
+		UI.decor(creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(170, 180, 205)), Parent = volet }), "horsConfinement")
+		local titre = texte({ Text = "", Font = UI.POLICE_TITRE, TextSize = 14, TextColor3 = C.ambre, Size = UDim2.new(1, 0, 0, 24), ZIndex = 61, Parent = interieurVolet })
+		UI.couleurSelonTheme(titre, "TextColor3", C.ambre, "texte")
 		-- Accueil : la grille des outils
 		local accueil = creer("ScrollingFrame", { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 1, -34), BackgroundTransparency = 1, BorderSizePixel = 0,
-			ScrollBarThickness = 5, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 61, Parent = volet })
+			ScrollBarThickness = 5, ScrollBarImageColor3 = C.cyan, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 61, Parent = interieurVolet })
 		local grille = creer("Frame", { Size = UDim2.new(1, -12, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 61, Parent = accueil },
 		{ UI.pile(8) })
-		-- Pages : le contenu d'un outil, des réglages ou de l'aide
-		local defilement = creer("ScrollingFrame", { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 1, -76), BackgroundTransparency = 1,
-			BorderSizePixel = 0, ScrollBarThickness = 5, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
-			Visible = false, ZIndex = 61, Parent = volet })
+		-- Pages : le contenu d'un outil, des réglages ou de l'aide (largeur de lecture limitée)
+		local defilement = creer("ScrollingFrame", { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 1, -86), BackgroundTransparency = 1,
+			BorderSizePixel = 0, ScrollBarThickness = 5, ScrollBarImageColor3 = C.cyan, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			Visible = false, ZIndex = 61, Parent = interieurVolet })
 		local contenu = creer("Frame", { Size = UDim2.new(1, -12, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
-			ZIndex = 61, Parent = defilement }, { UI.pile(8) })
-		local retourBtn = creer("TextButton", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 34),
-			BackgroundColor3 = C.panneauClair, Text = "◄  Retour aux outils", Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.texte, Visible = false,
-			ZIndex = 61, Parent = volet }, { UI.coin(8) })
-		retourBtn:SetAttribute("CouleurBase", C.panneauClair)
-		UI.rendreVivant(retourBtn)
-		local surcouche = volet
+			ZIndex = 61, Parent = defilement }, { UI.pile(8), creer("UISizeConstraint", { MaxSize = Vector2.new(760, math.huge) }) })
+		local retourBtn = UI.boutonCoupe(interieurVolet, "◄  Retour aux outils", "secondaire", { Name = "Retour", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0),
+			Size = UDim2.new(0, 320, 0, UI.JETONS.cible), Font = UI.POLICE_GRAS, TextSize = 13, Visible = false, ZIndex = 61 })
 		V.grille = grille
 		V.actif = nil
 
 		local function vider()
 			for _, e in contenu:GetChildren() do
-				if not e:IsA("UIListLayout") then e:Destroy() end
+				if not e:IsA("UIListLayout") and not e:IsA("UISizeConstraint") then e:Destroy() end
 			end
+		end
+		-- L'onglet allumé pour une page du volet
+		local function ongletDe(nom)
+			if nom == "reglages" or nom == "aide" then return nom end
+			if nom == "export" then return "journal" end
+			return "outils"
 		end
 		function V.ouvrir(nom, nouveauTitre)
 			vider()
-			titre.Text = nouveauTitre or ""
+			titre.Text = UI.majuscules(nouveauTitre or "")
 			accueil.Visible = false
 			defilement.Visible = true
-			retourBtn.Visible = true
-			volet.Visible = true
+			retourBtn.Visible = ongletDe(nom) == "outils"
+			W.afficherVue("volet", ongletDe(nom))
 			V.actif = nom
 			V.majDisposition()
 			return contenu
@@ -64,45 +63,33 @@ return function(contexte)
 			accueil.Visible = true
 			defilement.Visible = false
 			retourBtn.Visible = false
-			volet.Visible = true
+			W.afficherVue("volet", "outils")
 			V.actif = "outils"
 			V.majDisposition()
 		end
 		function V.fermer()
-			volet.Visible = false
 			V.actif = nil
+			W.afficherVue("navigation")
 			V.majDisposition()
 		end
-		croix.Activated:Connect(V.fermer)
 		retourBtn.Activated:Connect(V.retour)
-		W.btnOutils.Activated:Connect(function() if V.actif == "outils" then V.fermer() else V.retour() end end)
+		W.btnOutils.Activated:Connect(V.retour)
 		W.boutonOutilsDock.Activated:Connect(V.retour)
 
 		local function ligne(txt, ordre, couleur, taille)
 			return texte({ Text = txt, TextSize = taille or 13, TextColor3 = couleur or C.texte, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y,
 				LayoutOrder = ordre, ZIndex = 62, Parent = contenu })
 		end
+		-- (V6.9.10.6 : 44 px de haut, cible tactile)
 		local function boutonLigne(txt, ordre, couleur, action)
-			local b = creer("TextButton", { Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = couleur or C.panneauClair, Text = txt, Font = UI.POLICE_GRAS,
-				TextSize = 13, TextColor3 = C.texte, LayoutOrder = ordre, ZIndex = 62, Parent = contenu }, { UI.coin(8) })
+			local b = creer("TextButton", { Size = UDim2.new(1, 0, 0, UI.JETONS.cible), BackgroundColor3 = couleur or C.panneauClair, Text = txt, Font = UI.POLICE_GRAS,
+				TextSize = 13, TextColor3 = C.texte, TextWrapped = true, LayoutOrder = ordre, ZIndex = 62, Parent = contenu }, { UI.coin(8), UI.contour(C.ligne, 1, 0.5) })
 			b:SetAttribute("CouleurBase", couleur or C.panneauClair)
 			UI.rendreVivant(b)
 			b.Activated:Connect(action)
 			return b
 		end
 		V.ligne, V.bouton = ligne, boutonLigne
-		local function ligne(txt, ordre, couleur, taille)
-			return texte({ Text = txt, TextSize = taille or 13, TextColor3 = couleur or C.texte, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y,
-				LayoutOrder = ordre, ZIndex = 62, Parent = contenu })
-		end
-		local function boutonLigne(txt, ordre, couleur, action)
-			local b = creer("TextButton", { Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = couleur or C.panneauClair, Text = txt, Font = UI.POLICE_GRAS,
-				TextSize = 13, TextColor3 = C.texte, LayoutOrder = ordre, ZIndex = 62, Parent = contenu }, { UI.coin(8) })
-			b:SetAttribute("CouleurBase", couleur or C.panneauClair)
-			UI.rendreVivant(b)
-			b.Activated:Connect(action)
-			return b
-		end
 
 		local TOUCHES = {
 			{ "menu", "Ouvrir le menu classique", "T" }, { "tablette", "Ouvrir la tablette", "Y" },
@@ -159,7 +146,7 @@ return function(contexte)
 			boutonLigne(UI.pref("confirmations", true) ~= false and "Confirmation des actions dangereuses : activée" or "Confirmation des actions dangereuses : désactivée",
 				ordre, nil, function() UI.setPref("confirmations", UI.pref("confirmations", true) == false) afficherReglages() end)
 			ordre += 1
-			boutonLigne(UI.effetsReduits() and "Réduire les effets : activé (moins de flashs, de saccades et de secousses)" or "Réduire les effets : désactivé",
+			boutonLigne(UI.effetsReduits() and "Réduire les effets : activé (moins de flashs, de saccades et de secousses ; menus sans balayage ni lueur)" or "Réduire les effets : désactivé",
 				ordre, UI.effetsReduits() and C.bleu or nil, function() UI.setPref("effetsReduits", not UI.effetsReduits()) afficherReglages() end)
 			ordre += 1
 			-- Aucun flash (V6.9.9) : l'activer active aussi « réduire les effets » (qu'on peut ensuite couper à part)
@@ -232,12 +219,11 @@ return function(contexte)
 			ligne(string.format("Serveur par mode : %s   ·   temps gagné : %s", parMode(serveur.parMode), UI.formatTemps(serveur.tempsGagne or 0)), ordre, C.texte2, 12)
 			ordre += 1
 			ligne("THÈME DE L'INTERFACE", ordre, C.texte2, 11)
-			-- (le volet est déjà visible)
+			-- (le volet est déjà visible) V6.9.10.6 : « Hologramme de confinement » d'abord (thème par défaut) ; le choix est gardé
 			for _, nom in UI.ORDRE_THEMES do
 				ordre += 1
-				boutonLigne(UI.THEMES[nom].nom or nom, ordre, UI.pref("theme", "Cristal") == nom and C.bleu or nil, function()
-					UI.appliquerTheme(nom)
-					UI.setPref("theme", nom)
+				boutonLigne(UI.THEMES[nom].nom or nom, ordre, (UI.themeActuel() or UI.pref("theme", UI.THEME_DEFAUT)) == nom and C.bleu or nil, function()
+					UI.choisirTheme(nom)
 					afficherReglages()
 				end)
 			end

@@ -41,10 +41,10 @@ return function(contexte)
 		W.occCompte.Text = #noms .. " à bord"
 		W.occListe.Text = #noms == 0 and "Personne à bord." or table.concat(noms, "  ·  ")
 
-		-- Distances dans la liste
+		-- Distances dans le tableau (colonne DIST.)
 		for _, element in S.boutonsChoix do
 			local distance = distanceDe(element.choix)
-			element.distance.Text = distance and string.format("%d studs", distance) or ""
+			element.ligne.regler("dist", distance and string.format("%d", distance) or "—")
 		end
 		majFiche()
 
@@ -81,7 +81,7 @@ return function(contexte)
 					if not vues[id] then
 						vues[id] = true
 						baliseCourante = tonumber(id)
-						W.alerteBaliseTexte.Text = "●  BALISE DE DÉTRESSE\n" .. nom .. " appelle le TARDIS."
+						W.alerteBaliseNotif.regler("Balise de détresse : " .. nom .. " appelle le TARDIS.", "alerte", "BALISE")
 						journaliser("Balise de détresse : " .. nom .. ".", C.rouge)
 						if S.ouvert then notifier("Balise : " .. nom .. " appelle le TARDIS (voir l'alerte).", true) end
 						W.alerteBalise.Visible = true
@@ -109,7 +109,7 @@ return function(contexte)
 			end
 			jetonAlerte += 1
 			local moi = jetonAlerte
-			W.alerteTexte.Text = "●  SENTINELLE\n" .. message
+			W.alerteNotif.regler(message, "attention", "SENTINELLE")
 			W.alerte.Visible = true
 			W.alerte.Position = UDim2.new(1, 340, 0, 90)
 			animer(W.alerte, 0.45, { Position = UDim2.new(1, -20, 0, 90) }, Enum.EasingStyle.Back)
@@ -176,13 +176,10 @@ return function(contexte)
 		local enMouvement = e.etat ~= E.Pose
 		local vitesse = enMouvement and 3 or 1
 
-		-- Décor : emblème, vortex, grand cadran, horloge
-		for i, anneau in W.anneaux do
-			anneau.Rotation += dt * (i % 2 == 0 and -1 or 1) * (20 + i * 18) * vitesse
+		-- Décor : grand cadran des anciens thèmes (caché en Confinement : rien ne tourne), horloge
+		if W.cadranFond.Visible and not UI.effetsReduits() then
+			W.cadranFond.Rotation += dt * 2 * vitesse
 		end
-		W.vortexHaut.Rotation = (t * 8 * vitesse) % 360
-		W.vortexHaut.Offset = Vector2.new(math.sin(t * 0.3) * 0.4, 0)
-		W.cadranFond.Rotation += dt * 2 * vitesse
 		W.horloge.Text = os.date("%H:%M:%S")
 
 		-- Anneau de statut (il respire avec le moteur : Config.Souffle), et progression sur les grands boutons
@@ -251,8 +248,8 @@ return function(contexte)
 			or (e.etat == E.Vol and "VORTEX") or (enMouvement and "TRANSITION") or "STABLE"
 		W.stabilite.TextColor3 = couleurBarres == C.cyan and C.vert or couleurBarres
 
-		-- Grands boutons qui luisent ; en confirmation de paradoxe, MATÉRIALISER clignote en rouge
-		local lueur = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3))
+		-- Grands boutons qui luisent (lueur fixe avec « Réduire les effets ») ; en confirmation de paradoxe, REMAT clignote en rouge
+		local lueur = UI.effetsReduits() and 0.35 or (0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3)))
 		W.demat.Lueur.Transparency = W.demat:GetAttribute("Disponible") and lueur or 0.7
 		local arme = Commandes.paradoxeArme()
 		if arme ~= S.confirmationAffichee then

@@ -1,6 +1,7 @@
 -- StarterPlayerScripts > TardisTablette > Ouverture (ModuleScript)
 -- Ouverture et fermeture animées de la tablette
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
+-- V6.9.10.6 : la disposition suit l'écran (onglets en ligne sur téléphone, W.majCompact) ; les widgets se rangent par vue.
 
 return function(contexte)
 	local LARGEUR_VOLET, R, S, UI, V, W = contexte.LARGEUR_VOLET, contexte.R, contexte.S, contexte.UI, contexte.V, contexte.W
@@ -15,20 +16,23 @@ return function(contexte)
 		local largeur = R.LARGEUR + (V.actif and LARGEUR_VOLET or 0) -- volet ouvert : il faut aussi lui faire de la place
 		return math.clamp(math.min(ecran.X * 0.95 / largeur, ecran.Y * 0.92 / R.HAUTEUR), 0.4, 1.25) * UI.tailleInterface()
 	end
-	-- Disposition : échelle de la tablette, et décalage vers la gauche quand le volet est ouvert
+	-- Disposition : échelle de la tablette, onglets en colonne ou en ligne (téléphone) ; V6.9.10.6 : le volet est une vue
+	-- de la tablette, il ne la décale plus
 	local function majDisposition()
+		if W.majCompact then W.majCompact() end
 		local echelle = echelleBase()
 		W.echelle.Scale = echelle
 		W.tablette.Position = UDim2.new(0.5, V.actif and -(LARGEUR_VOLET * echelle) / 2 or 0, 0.5, 0)
 	end
 	V.majDisposition = majDisposition
 
-	-- Widgets : les panneaux masqués libèrent leur place, les autres remontent dans leur colonne
+	-- Widgets : les panneaux masqués libèrent leur place, les autres remontent dans leur colonne (une colonne par vue et par x)
 	local function appliquerWidgets()
 		local colonnes = {}
 		for _, p in W.panneauxListe do
-			colonnes[p.x] = colonnes[p.x] or {}
-			table.insert(colonnes[p.x], p)
+			local cle = tostring(p.vue) .. ":" .. tostring(p.x)
+			colonnes[cle] = colonnes[cle] or {}
+			table.insert(colonnes[cle], p)
 		end
 		for _, liste in colonnes do
 			table.sort(liste, function(a, b) return a.y < b.y end)
@@ -36,7 +40,7 @@ return function(contexte)
 			for _, p in liste do
 				local visible = UI.widgetVisible(p.widget)
 				p.cadre.Visible = visible
-				if visible then
+				if visible and not p.fixe then
 					p.cadre.Position = UDim2.fromOffset(p.x, y)
 					y += p.hauteur + 12
 				end
@@ -46,7 +50,7 @@ return function(contexte)
 	UI.prefsChangees.Event:Connect(function(cle)
 		if cle == "widgets" or cle == "debutant" then appliquerWidgets() end
 		if cle == "taille" and S.ouvert then majDisposition() end
-		if cle == "tri" then construireListe() end
+		if cle == "tri" or cle == "theme" then construireListe() end -- (thème : statuts et cartes d'état aux nouvelles couleurs)
 	end)
 	appliquerWidgets()
 
@@ -64,17 +68,20 @@ return function(contexte)
 		W.flou.Enabled = true
 		animer(W.flou, 0.45, { Size = 18 })
 
+		if W.majCompact then W.majCompact() end
 		local base = echelleBase()
 		W.echelle.Scale = base * 0.86
 		W.tablette.Position = UDim2.fromScale(0.5, 0.57)
-		W.tablette.Rotation = -1.5
+		-- (V6.9.10.6 : plus d'inclinaison à l'ouverture : un cadre tourné ne coupe plus ce qui dépasse, la bande de danger déborderait)
+		W.tablette.Rotation = 0
 		animer(W.echelle, 0.55, { Scale = base }, Enum.EasingStyle.Back)
-		animer(W.tablette, 0.55, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, Enum.EasingStyle.Back)
-		-- Allumage de l'écran : il part du noir et s'éclaire en un quart de seconde
-		W.ecran.BackgroundTransparency = 0
-		local ecranOrigine = W.ecran.BackgroundColor3
-		W.ecran.BackgroundColor3 = Color3.new(0, 0, 0)
-		animer(W.ecran, 0.3, { BackgroundColor3 = ecranOrigine }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.08)
+		animer(W.tablette, 0.55, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
+		-- Allumage de l'écran (anciens thèmes) : il part du noir et s'éclaire en un quart de seconde
+		if not UI.estConfinement() then
+			local ecranOrigine = UI.C.ecran
+			W.ecran.BackgroundColor3 = Color3.new(0, 0, 0)
+			animer(W.ecran, 0.3, { BackgroundColor3 = ecranOrigine }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.08)
+		end
 		-- Les panneaux s'allument les uns après les autres, par colonne
 		for i, cadre in panneaux do
 			local echelle = cadre:FindFirstChildOfClass("UIScale")
@@ -116,12 +123,15 @@ return function(contexte)
 		W.choixBoucliers.Visible = not W.choixBoucliers.Visible
 	end)
 
-	-- Vol libre : la tablette se range pour laisser voir le TARDIS
-	W.tuiles.volLibre.bouton.Activated:Connect(function()
-		if W.tuiles.volLibre.bouton:GetAttribute("Disponible") == false then return end
-		remote:FireServer("VolLibreDebut")
-		task.delay(0.15, function() fermer() end)
-	end)
+	-- Vol libre : la tablette se range pour laisser voir le TARDIS (tuile des systèmes, bouton VOL LIBRE de la vue
+	-- Navigation et bouton de la vue Vol libre : la même action)
+	for _, bouton in { W.tuiles.volLibre.bouton, W.boutonVolLibre, W.boutonLancerVol } do
+		bouton.Activated:Connect(function()
+			if bouton:GetAttribute("Disponible") == false then return end
+			remote:FireServer("VolLibreDebut")
+			task.delay(0.15, function() fermer() end)
+		end)
+	end
 
 
 	joueur:GetAttributeChangedSignal("TardisTablette"):Connect(function()

@@ -25,7 +25,9 @@ UI = R.get("UI")
 verifier("TardisUI se charge", UI is not None and not roblox.ERREURS, roblox.ERREURS[:2])
 C = UI.get("C")
 rgb = lambda v: tuple(int(a) for a in v.args)
-verifier("Rôle « creux » dans la palette de départ", C.get("creux") is not None and rgb(C.get("creux")) == (4, 10, 24), C.get("creux"))
+# (V6.9.10.6 : la palette de départ est gardée dans UI.BASE ; chez un joueur, le thème par défaut Confinement s'applique d'office)
+verifier("Rôle « creux » dans la palette de départ", UI.get("BASE").get("creux") is not None and rgb(UI.get("BASE").get("creux")) == (4, 10, 24)
+         and C.get("creux") is not None and rgb(C.get("creux")) == rgb(UI.get("THEMES").get("Confinement").get("creux")), C.get("creux"))
 themes = UI.get("THEMES")
 noms = ["Gallifrey", "Cristal", "PoliceBox"]
 verifier("Chaque thème donne sa couleur « creux »", all(themes.get(n).get("creux") is not None for n in noms))
@@ -86,9 +88,10 @@ serveur = lire("ServerScriptService/TardisServeur/init.server.lua")
 ecrans = lire("ServerScriptService/TardisServeur/Ecrans.lua")
 verifier("Écran de la console : « DESTINATION » puis le lieu", 'textes.Etiquette.Text = "DESTINATION"' in ecrans and "t.Destination.Text = dest and string.upper(dest.Name)" in ecrans)
 menu = lire("StarterPlayer/StarterPlayerScripts/TardisMenu.client.lua")
+# (V6.9.10.6 : le champ vient de UI.champRecherche, « Rechercher une destination » comme sur la charte)
 verifier("Menu rapide : champ de recherche relié à la liste",
-         'PlaceholderText = "Rechercher…"' in menu and 'recherche:GetPropertyChangedSignal("Text"):Connect(construireListe)' in menu
-         and "string.lower(recherche.Text)" in menu)
+         "local recherche = UI.champRecherche(" in menu and 'PlaceholderText = "Rechercher une destination"' in lire("ReplicatedStorage/TardisUI.lua")
+         and 'recherche:GetPropertyChangedSignal("Text"):Connect(construireListe)' in menu and "string.lower(recherche.Text)" in menu)
 
 # ------------------------------------------------------------------ 4. Outils de suivi
 sys.path.insert(0, os.path.join(RACINE, "outils"))

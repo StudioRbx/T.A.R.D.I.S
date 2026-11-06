@@ -1137,4 +1137,14 @@ function Config.bloqueParMaintenance(exterieur, action)
 	return type(raison) == "string" and raison or "maintenance"
 end
 
+-- Interface « Hologramme de confinement » (V6.9.10.6) : le style de tous les menus du TARDIS (thème par défaut, voir TardisUI).
+-- Images : les 3 images 9 tranches de assets/interface (voir assets/interface/LISEZMOI.md). Importe-les dans Studio
+-- (Gestionnaire de ressources, ou Importer), puis copie leurs identifiants ici. 0 = image absente : les menus gardent
+-- alors des coins droits avec un petit trait en biais dans les coins coupés, et pas de lignes de balayage.
+Config.Interface = { -- (V6.9.10.6)
+	Images = { CoinFond = 0, CoinBord = 0, Balayage = 0 }, -- (V6.9.10.6) fond à coins coupés, bord à coins coupés, lignes de balayage
+	-- Badge à droite du titre de chaque menu (texte libre) (V6.9.10.6)
+	Badges = { Menu = "ACCÈS NIV. 3", Tablette = "PILOTE", Technicien = "TECHNICIEN", Energie = "C.T.A.T." }, -- (V6.9.10.6)
+}
+
 return Config

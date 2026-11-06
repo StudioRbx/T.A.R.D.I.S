@@ -12,53 +12,57 @@ return function(contexte)
 	-- Liste des lieux et des joueurs
 	--------------------------------------------------------------------
 	local construireListe -- définie plus bas (l'étoile des favoris en a besoin)
+	-- V6.9.10.6 : une ligne du tableau DESTINATION | DIST. | STATUT (lieux : ACCORDÉ, REFUSÉ ou SANS RAPIDE selon les zones
+	-- REFUSE et SANS_EXPRESS ; joueurs : leur pseudo ; historique : le mode du voyage ; retour : RETOUR)
 	local function ajouterElement(texteEl, c, ordre)
-		local bouton = creer("TextButton", { Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = C.panneau, Text = "",
-			LayoutOrder = ordre, Parent = W.liste }, { UI.coin(7) })
-		creer("Frame", { Name = "Barre", Size = UDim2.new(0, 3, 1, -10), Position = UDim2.fromOffset(4, 5),
-			BackgroundColor3 = C.ambre, Visible = false, Parent = bouton }, { UI.coin(99) })
-		texte({ Text = (c.type == "lieu" and "◆") or (c.type == "precedent" and "◄") or (c.type == "historique" and "►") or "●", TextSize = 16, TextColor3 = C.ambre,
-			TextXAlignment = Enum.TextXAlignment.Center,
-			Position = UDim2.fromOffset(12, 0), Size = UDim2.new(0, 22, 1, 0), Parent = bouton })
-		texte({ Text = texteEl, Font = UI.POLICE_GRAS, TextSize = 13, Position = UDim2.fromOffset(42, 4),
-			Size = UDim2.new(1, -150, 0, 18), TextTruncate = Enum.TextTruncate.AtEnd, Parent = bouton })
-		local sous = texte({ Text = (c.type == "joueur" and ("@" .. (c.pseudo or ""))) or (c.type == "precedent" and "Retour au point de départ")
-			or (c.type == "historique" and c.sous) or (c.type == "lieu" and UI.estFavori(c.nom) and "Favori") or "Destination enregistrée", TextSize = 11,
-			TextColor3 = C.texte2, Position = UDim2.fromOffset(42, 21), Size = UDim2.new(1, -150, 0, 14),
-			TextTruncate = Enum.TextTruncate.AtEnd, Parent = bouton })
-		local distance = texte({ Text = "", Font = UI.POLICE_CODE, TextSize = 12, TextColor3 = C.cyan,
-			TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
-			Size = UDim2.fromOffset(100, 16), Parent = bouton })
-		bouton:SetAttribute("CouleurBase", C.panneau)
-		UI.rendreVivant(bouton)
-		bouton.Activated:Connect(function()
-			S.choix = c
-			majInterface()
-		end)
+		local statut, couleurStatut, discret = "—", C.texte2, false
+		if c.type == "lieu" then
+			local code, libelle, couleur = UI.statutDestination(c.nom)
+			statut, couleurStatut, discret = libelle, couleur, code == "REFUSE"
+		elseif c.type == "precedent" then
+			statut, couleurStatut = "RETOUR", C.cyan
+		elseif c.type == "historique" then
+			statut, couleurStatut = string.format("VOYAGE %d", c.index or 0), C.texte2
+		elseif c.type == "joueur" then
+			statut, couleurStatut = "@" .. (c.pseudo or ""), C.texte2
+		end
+		local distance = distanceDe(c)
+		local ligne = W.tableauDest.ajouter({ nom = texteEl, dist = distance and string.format("%d", distance) or "—", statut = statut },
+			{ couleurs = { statut = couleurStatut, dist = discret and C.texte2 or nil }, discret = discret, ordre = ordre, nom = "Destination",
+				action = function()
+					S.choix = c
+					majInterface()
+				end })
+		local bouton = ligne.bouton
+		bouton:SetAttribute("Statut", statut)
+		-- Repère à gauche : le type de destination (pour un lieu, c'est l'étoile des favoris)
+		if c.type ~= "lieu" then
+			texte({ Name = "Type", Text = (c.type == "precedent" and "◄") or (c.type == "historique" and "►") or "●", TextSize = 12,
+				TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.fromOffset(6, 0), Size = UDim2.new(0, 20, 1, 0), Parent = bouton })
+		end
 		if c.type == "lieu" then
 			-- Étiquette de catégorie (couleur) si la destination en a une
 			local categorie = S.categories[c.nom] and (Config.Categories or {})[S.categories[c.nom]]
 			if categorie then
-				creer("Frame", { Name = "Categorie", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -150, 0.5, 0), Size = UDim2.fromOffset(8, 22),
-					BackgroundColor3 = categorie.couleur, Parent = bouton }, { UI.coin(99) })
-				sous.Text = categorie.nom .. "  ·  " .. sous.Text
+				creer("Frame", { Name = "Categorie", Position = UDim2.fromOffset(0, 8), Size = UDim2.new(0, 3, 1, -16), BackgroundColor3 = categorie.couleur,
+					BorderSizePixel = 0, Parent = bouton })
 			end
-			-- Étoile de favori : les favoris remontent en tête de liste
+			-- Étoile de favori (le repère de gauche) : les favoris remontent en tête de liste
 			local favori = UI.estFavori(c.nom)
-			local etoile = creer("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -118, 0.5, 0), Size = UDim2.fromOffset(26, 26),
-				BackgroundTransparency = 1, Text = favori and "●" or "○", Font = UI.POLICE_GRAS, TextSize = 16,
-				TextColor3 = favori and C.ambre or C.texte2, Parent = bouton })
+			local etoile = creer("TextButton", { Name = "Favori", Position = UDim2.fromOffset(4, 0), Size = UDim2.new(0, 24, 1, 0),
+				BackgroundTransparency = 1, Text = favori and "●" or "○", Font = UI.POLICE_GRAS, TextSize = 14,
+				TextColor3 = favori and C.ambre or C.texte2, ZIndex = 2, Parent = bouton })
 			etoile.Activated:Connect(function()
 				UI.basculerFavori(c.nom)
 				construireListe()
 			end)
 		end
-		S.boutonsChoix[cleDe(c)] = { bouton = bouton, distance = distance, sous = sous, choix = c }
-		table.insert(S.elementsListe, bouton)
+		S.boutonsChoix[cleDe(c)] = { bouton = bouton, ligne = ligne, choix = c }
+		table.insert(S.elementsListe, ligne)
 	end
 
 	construireListe = function()
-		for _, element in S.elementsListe do element:Destroy() end
+		W.tableauDest.vider()
 		table.clear(S.elementsListe)
 		table.clear(S.boutonsChoix)
 
@@ -139,12 +143,11 @@ return function(contexte)
 		majInterface()
 	end
 
-	local POSITIONS_SEGMENT = { lieux = 0, joueurs = 1, coord = 2, histo = 3 }
 	local function changerMode(nouveau)
 		S.mode = nouveau
-		animer(W.curseur, 0.25, { Position = UDim2.new(POSITIONS_SEGMENT[nouveau] / 4, 3, 0, 3) })
-		for nom, bouton in W.segments3 do
-			bouton.TextColor3 = nom == nouveau and C.texte or C.texte2
+		-- (V6.9.10.6 : quatre puces, la choisie en jaune)
+		for nom, puce in W.segments3 do
+			puce.regler(nom == nouveau)
 		end
 		local enCoord = nouveau == "coord"
 		W.liste.Visible = not enCoord
@@ -155,8 +158,8 @@ return function(contexte)
 		end
 		construireListe()
 	end
-	for nom, bouton in W.segments3 do
-		bouton.Activated:Connect(function() changerMode(nom) end)
+	for nom, puce in W.segments3 do
+		puce.bouton.Activated:Connect(function() changerMode(nom) end)
 	end
 	W.recherche:GetPropertyChangedSignal("Text"):Connect(construireListe)
 	W.boutonCategorie.Activated:Connect(function()
@@ -168,9 +171,8 @@ return function(contexte)
 
 	local function choisirFiger(valeur)
 		S.figer = valeur
-		animer(W.curseurJoueur, 0.25, { Position = valeur and UDim2.new(0.5, 1, 0, 2) or UDim2.fromOffset(2, 2) })
-		W.boutonDernierePos.TextColor3 = valeur and C.texte2 or C.texte
-		W.boutonSurLui.TextColor3 = valeur and C.texte or C.texte2
+		W.puceDernierePos.regler(not valeur)
+		W.puceSurLui.regler(valeur)
 		majFiche()
 	end
 	W.boutonDernierePos.Activated:Connect(function() choisirFiger(false) end)
@@ -231,6 +233,13 @@ return function(contexte)
 	W.tuiles.portes.bouton.Activated:Connect(function()
 		if W.tuiles.portes.bouton:GetAttribute("Disponible") == false then return end
 		remote:FireServer("Portes")
+	end)
+	-- ALERTE (V6.9.10.6, vue Navigation) : le protocole de siège existant (bouclier + verrou + alerte), avec confirmation ;
+	-- un second appui en siège le lève
+	W.boutonAlerte.Activated:Connect(function()
+		if W.boutonAlerte:GetAttribute("Disponible") == false then return end
+		if exterieur:GetAttribute("Siege") then remote:FireServer("Siege") return end
+		UI.confirmer(W.boutonAlerte, function() remote:FireServer("Siege") end)
 	end)
 
 	remote.OnClientEvent:Connect(notifier)

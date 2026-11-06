@@ -108,83 +108,67 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- La tablette
 	--------------------------------------------------------------------
+	-- V6.9.10.6 : charte « Hologramme de confinement » : plaque (INGÉNIERIE, badge TECHNICIEN, nombre de pannes, bande de
+	-- danger rouge pendant l'alerte), tableau des pannes PANNE | ZONE | ÉTAT, intervention guidée de la panne choisie,
+	-- jauges à segments et boutons à coins coupés.
 	local LARGEUR, HAUTEUR = 1040, 664
 	local gui = creer("ScreenGui", { Name = "TardisTabletteTechnicien_" .. def.Nom, ResetOnSpawn = false, Enabled = false, DisplayOrder = 21,
 		IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = joueur:WaitForChild("PlayerGui") })
-	local tablette = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(LARGEUR, HAUTEUR),
-		BackgroundColor3 = C.fond, Parent = gui }, { UI.coin(28), UI.contour(C.ambre, 2, 0.35) })
+	local tablette = UI.panneauCoupe({ Name = "TabletteTechnicien", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(LARGEUR, HAUTEUR), BackgroundColor3 = C.fond, BackgroundTransparency = 0.04, Parent = gui }, { coupe = 16, rayon = 28, balayage = false })
 	-- Libère la souris (vue à la première personne) sans voile : le technicien voit la salle et ses outils restent
 	-- utilisables hors de la tablette (seule la tablette capte les clics)
 	creer("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", AutoButtonColor = false, Modal = true, ZIndex = 0, Parent = tablette })
 	local echelle = creer("UIScale", { Parent = tablette })
-	creer("UIGradient", { Rotation = 35, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 160, 180)), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 235, 245)) }), Parent = tablette })
-	creer("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 4, Transparency = 0.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = tablette })
-	local ecran = creer("Frame", { Position = UDim2.fromOffset(14, 14), Size = UDim2.new(1, -28, 1, -28), BackgroundColor3 = C.ecran, ClipsDescendants = true,
-		Parent = tablette }, { UI.coin(18), UI.contour(Color3.new(0, 0, 0), 2, 0.4) })
-	creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 140, 175)), Parent = ecran })
+	UI.decor(creer("UIGradient", { Rotation = 35, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 160, 180)), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 235, 245)) }), Parent = tablette }), "horsConfinement")
+	local ecran = creer("Frame", { Name = "Ecran", Position = UDim2.fromOffset(14, 14), Size = UDim2.new(1, -28, 1, -28), BackgroundColor3 = C.ecran, ClipsDescendants = true,
+		Parent = tablette }, { UI.coin(18), UI.decor(UI.contour(Color3.new(0, 0, 0), 2, 0.4), "horsConfinement") })
+	UI.fondSelonTheme(ecran, 0, 1)
+	UI.decor(creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 140, 175)), Parent = ecran }), "horsConfinement")
 
-	-- En-tête
-	local entete = creer("Frame", { Size = UDim2.new(1, 0, 0, 54), BackgroundColor3 = C.blanc, Parent = ecran }, { UI.coin(18) })
-	local degrade = creer("UIGradient", { Color = UI.degradeEntete(), Parent = entete })
-	creer("Frame", { Position = UDim2.new(0, 0, 1, -18), Size = UDim2.new(1, 0, 0, 18), BackgroundColor3 = C.blanc, BorderSizePixel = 0, Parent = entete },
-	{ creer("UIGradient", { Color = UI.degradeEntete() }) })
-	UI.verre(entete, 0.1, 18)
-	creer("Frame", { Position = UDim2.new(0, 0, 0, 54), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.ambre, BackgroundTransparency = 0.3, BorderSizePixel = 0, Parent = ecran })
-	local roue = creer("Frame", { Position = UDim2.fromOffset(14, 9), Size = UDim2.fromOffset(36, 36), BackgroundTransparency = 1, ZIndex = 3, Parent = entete },
-	{ UI.coin(99), UI.contour(C.ambre, 2, 0.1) })
-	for k = 0, 7 do
-		local a = k / 8 * math.pi * 2
-		creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5 + math.cos(a) * 0.5, 0, 0.5 + math.sin(a) * 0.5, 0), Rotation = math.deg(a),
-			Size = UDim2.fromOffset(7, 4), BackgroundColor3 = C.ambre, BorderSizePixel = 0, ZIndex = 4, Parent = roue })
-	end
-	creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(10, 10), BackgroundColor3 = C.cyan, ZIndex = 4,
-		Parent = roue }, { UI.coin(99) })
-	texte({ Text = "T.A.R.D.I.S.  ·  INGÉNIERIE", Font = UI.POLICE_TITRE, TextSize = 17, Position = UDim2.fromOffset(62, 8), Size = UDim2.fromOffset(330, 22), ZIndex = 3, Parent = entete })
-	texte({ Text = "TABLETTE TECHNICIEN  ·  " .. def.Nom .. "  ·  V" .. tostring(Config.Version or "?"), Font = UI.POLICE_CODE, TextSize = 10, TextColor3 = C.texte2,
-		Position = UDim2.fromOffset(62, 31), Size = UDim2.fromOffset(330, 14), ZIndex = 3, Parent = entete })
-	local pastille = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 410, 0.5, 0), Size = UDim2.fromOffset(0, 30), AutomaticSize = Enum.AutomaticSize.X,
-		BackgroundColor3 = C.fond, BackgroundTransparency = 0.25, ZIndex = 3, Parent = entete },
-	{ UI.coin(99), creer("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 14) }), UI.pile(8, true), creer("UISizeConstraint", { MaxSize = Vector2.new(360, 30) }) })
+	-- En-tête : la plaque ; à droite la pastille d'état, l'horloge et la fermeture
+	local plaque = UI.plaque(ecran, "Ingénierie", UI.texteBadge("Technicien", "TECHNICIEN"), UI.codeObjet(def) .. "  ·  " .. def.Nom,
+		{ position = UDim2.fromOffset(14, 8), taille = UDim2.new(1, -28, 0, 50), badgeColle = true, droite = 470, largeurBande = LARGEUR, exterieur = exterieur })
+	local entete = plaque.cadre
+	local pastille = creer("Frame", { Name = "Pastille", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -160, 0, 0), Size = UDim2.fromOffset(0, 30),
+		AutomaticSize = Enum.AutomaticSize.X, BackgroundColor3 = C.panneau, BackgroundTransparency = 0.25, ZIndex = 3, Parent = entete },
+	{ UI.coin(99, true), creer("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 14) }), UI.pile(8, true), creer("UISizeConstraint", { MaxSize = Vector2.new(300, 30) }) })
 	pastille:FindFirstChildOfClass("UIListLayout").VerticalAlignment = Enum.VerticalAlignment.Center
-	local contourPastille = UI.contour(C.vert, 1.5, 0.3)
+	local contourPastille = UI.contour(C.vert, 1, 0.3)
 	contourPastille.Parent = pastille
-	local pointPastille = creer("Frame", { Size = UDim2.fromOffset(9, 9), BackgroundColor3 = C.vert, LayoutOrder = 1, ZIndex = 4, Parent = pastille }, { UI.coin(99) })
+	local pointPastille = creer("Frame", { Size = UDim2.fromOffset(9, 9), BackgroundColor3 = C.vert, LayoutOrder = 1, ZIndex = 4, Parent = pastille }, { UI.coin(99, true) })
 	local textePastille = texte({ Text = "Nominal", Font = UI.POLICE_GRAS, TextSize = 13, Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X,
 		LayoutOrder = 2, ZIndex = 4, Parent = pastille })
 	local horloge = texte({ Text = "00:00:00", Font = UI.POLICE_CODE, TextSize = 15, TextColor3 = C.cyan, TextXAlignment = Enum.TextXAlignment.Right,
-		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -64, 0.5, 0), Size = UDim2.fromOffset(90, 20), ZIndex = 3, Parent = entete })
-	local boutonFermer = creer("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(36, 36),
-		BackgroundColor3 = Color3.fromRGB(90, 30, 40), Text = "×", Font = UI.POLICE_GRAS, TextSize = 22, TextColor3 = C.texte, ZIndex = 3, Parent = entete },
-	{ UI.coin(10), UI.contour(C.rouge, 1, 0.4) })
-	boutonFermer:SetAttribute("CouleurBase", Color3.fromRGB(90, 30, 40))
-	UI.rendreVivant(boutonFermer)
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -54, 0, 5), Size = UDim2.fromOffset(92, 20), ZIndex = 3, Parent = entete })
+	local boutonFermer = UI.boutonCoupe(entete, "×", "danger", { Name = "Fermer", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, -4),
+		Size = UDim2.fromOffset(44, 40), Font = UI.POLICE_GRAS, TextSize = 22, ZIndex = 3 })
 
-	-- Panneau à bande de titre (même style que la tablette de pilotage)
+	-- Panneau à coins coupés (même style que la tablette de pilotage)
 	local panneaux = {}
 	local function panneau(x, y, largeur, hauteur, titre, icone, couleur)
 		couleur = couleur or C.ambre
-		local cadre = creer("Frame", { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(largeur, hauteur), BackgroundColor3 = C.panneau,
-			BackgroundTransparency = 0.1, Parent = ecran }, { UI.coin(12), UI.contour(C.bleu, 1, 0.35),
-			creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(200, 208, 226)) }) })
+		local cadre = UI.panneauCoupe({ Name = "Panneau", Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(largeur, hauteur), BackgroundColor3 = C.panneau,
+			BackgroundTransparency = 0.1, Parent = ecran }, { coupe = 12, rayon = 12, lueur = false, balayage = false, contour = C.ligne, transparenceContour = 0.3 })
+		UI.decor(creer("UIGradient", { Rotation = 90, Color = ColorSequence.new(C.blanc, Color3.fromRGB(200, 208, 226)), Parent = cadre }), "horsConfinement")
 		creer("UIScale", { Parent = cadre })
-		creer("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre },
-		{ UI.coin(12), creer("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.84), NumberSequenceKeypoint.new(1, 1) }) }) })
-		creer("Frame", { Position = UDim2.fromOffset(12, 26), Size = UDim2.new(1, -24, 0, 1), BackgroundColor3 = couleur, BackgroundTransparency = 0.7, BorderSizePixel = 0, Parent = cadre })
-		creer("Frame", { Size = UDim2.fromOffset(24, 3), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre }, { UI.coin(2) })
-		creer("Frame", { Size = UDim2.fromOffset(3, 16), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre }, { UI.coin(2) })
-		texte({ Text = icone .. "  " .. titre, Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = couleur, Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -28, 0, 16), Parent = cadre })
+		UI.decor(creer("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre },
+		{ UI.coin(12), creer("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.84), NumberSequenceKeypoint.new(1, 1) }) }) }), "horsConfinement")
+		UI.couleurSelonTheme(creer("Frame", { Name = "Filet", Position = UDim2.fromOffset(12, 26), Size = UDim2.new(1, -24, 0, 1), BackgroundColor3 = couleur,
+			BackgroundTransparency = 0.6, BorderSizePixel = 0, Parent = cadre }), "BackgroundColor3", couleur, "ligne")
+		UI.decor(creer("Frame", { Size = UDim2.fromOffset(24, 3), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre }, { UI.coin(2) }), "horsConfinement")
+		UI.decor(creer("Frame", { Size = UDim2.fromOffset(3, 16), BackgroundColor3 = couleur, BorderSizePixel = 0, Parent = cadre }, { UI.coin(2) }), "horsConfinement")
+		UI.couleurSelonTheme(texte({ Name = "TitrePanneau", Text = icone .. "  " .. UI.majuscules(titre), Font = UI.POLICE_TITRE, TextSize = 11, TextColor3 = couleur,
+			Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -28, 0, 16), Parent = cadre }), "TextColor3", couleur, "texte")
 		local contenu = creer("Frame", { Position = UDim2.fromOffset(12, 34), Size = UDim2.new(1, -24, 1, -44), BackgroundTransparency = 1, Parent = cadre })
 		table.insert(panneaux, cadre)
 		return cadre, contenu
 	end
 
-	local function bouton(parent, txt, couleur, taille, position)
-		local b = creer("TextButton", { Size = taille, Position = position or UDim2.new(), BackgroundColor3 = couleur or C.panneauClair, Text = txt, Font = UI.POLICE_GRAS,
-			TextSize = 12, TextColor3 = C.texte, TextWrapped = true, Parent = parent }, { UI.coin(9), UI.contour(C.cyan, 1, 0.55) })
-		UI.verre(b, 0.1, 9)
-		b:SetAttribute("CouleurBase", b.BackgroundColor3)
-		UI.rendreVivant(b)
+	-- Bouton à coins coupés de la charte (variante : "principal", "secondaire" ou "danger")
+	local function bouton(parent, txt, variante, taille, position)
+		local b = UI.boutonCoupe(parent, txt, variante or "secondaire", { Size = taille, Position = position or UDim2.new(), Font = UI.POLICE_GRAS, TextSize = 12 })
 		return b
 	end
 	local function envoyer(commande, donnees)
@@ -199,16 +183,13 @@ return function(contexte)
 	local J = {}
 	do
 		local _, contenu = panneau(14, 66, 320, 286, "SYSTÈMES", "●", C.vert)
-		UI.pile(6).Parent = contenu
+		UI.pile(4).Parent = contenu
+		-- Jauges à segments (V6.9.10.6) : 10 segments, la valeur exacte à côté
 		local function jauge(cle, nom, ordre)
-			local cadre = creer("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = ordre, Parent = contenu })
-			texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.texte2, Size = UDim2.new(1, -90, 0, 14), Parent = cadre })
-			local valeur = texte({ Text = "—", Font = UI.POLICE_CODE, TextSize = 12, TextColor3 = C.vert, TextXAlignment = Enum.TextXAlignment.Right,
-				Position = UDim2.new(1, -90, 0, 0), Size = UDim2.fromOffset(90, 14), Parent = cadre })
-			local fond = creer("Frame", { Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 9), BackgroundColor3 = C.gris, Parent = cadre },
-			{ UI.coin(99), UI.contour(Color3.new(0, 0, 0), 1, 0.7) })
-			local barre = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.vert, Parent = fond }, { UI.coin(99) })
-			J[cle] = { valeur = valeur, barre = barre }
+			J[cle] = UI.jaugeSegments(contenu, nom, { ordre = ordre, nomObjet = "Jauge_" .. cle, hauteurSegment = 8, largeurValeur = 100 })
+			J[cle].nom.TextSize = 11
+			J[cle].nom.TextColor3 = C.texte2
+			J[cle].valeur.TextSize = 12
 		end
 		jauge("integrite", "INTÉGRITÉ DE LA STRUCTURE", 1)
 		jauge("tension", "TENSION (RÉGULATION DE L'ÉNERGIE)", 2)
@@ -227,7 +208,7 @@ return function(contexte)
 			texte({ Text = nom, TextSize = 11, TextColor3 = C.texte2, Size = UDim2.new(0.42, 0, 1, 0), Parent = l })
 			T[cle] = texte({ Text = "—", Font = UI.POLICE_CODE, TextSize = 11, TextColor3 = C.cyan, TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd,
 				Position = UDim2.fromScale(0.42, 0), Size = UDim2.new(0.58, 0, 1, 0), Parent = l })
-			creer("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.bleu,
+			creer("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.ligne,
 				BackgroundTransparency = 0.6, BorderSizePixel = 0, Parent = l })
 		end
 		ligne("etat", "État", 1)
@@ -245,13 +226,21 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- Colonne B : interventions guidées
 	--------------------------------------------------------------------
-	local listeInterventions
+	-- (V6.9.10.6 : tableau des pannes PANNE | ZONE | ÉTAT, puis l'intervention guidée de la panne choisie)
+	local tableauPannes, guide
 	do
 		local cadre, contenu = panneau(346, 66, 368, 558, "INTERVENTIONS", "◆", C.ambre)
 		local compteur = texte({ Name = "Compteur", Text = "", Font = UI.POLICE_CODE, TextSize = 11, TextColor3 = C.vert, TextXAlignment = Enum.TextXAlignment.Right,
 			Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, -14, 0, 16), Parent = cadre })
-		listeInterventions = creer("ScrollingFrame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
-			ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = contenu }, { UI.pile(8) })
+		UI.pile(10).Parent = contenu
+		tableauPannes = UI.tableau(contenu, {
+			{ cle = "panne", titre = "Panne", largeur = UDim.new(1, -200) },
+			{ cle = "zone", titre = "Zone", largeur = UDim.new(0, 100) },
+			{ cle = "etat", titre = "État", largeur = UDim.new(0, 100), donnees = true },
+		}, { nom = "Pannes", taille = UDim2.new(1, 0, 0, 20 + 44 * 5), ordre = 1 })
+		-- Intervention guidée : les étapes de la panne choisie (✓ fait, ▸ en cours, · à faire), l'outil et la cible
+		guide = creer("Frame", { Name = "Intervention", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.panneau,
+			LayoutOrder = 2, Parent = contenu }, { UI.coin(8), UI.marges(12), UI.pile(5) })
 		T.compteurInterventions = compteur
 	end
 
@@ -269,14 +258,14 @@ return function(contexte)
 				Position = UDim2.new(1, -60, 0, 0), Size = UDim2.fromOffset(60, 14), Parent = cadre })
 			local piste = creer("TextButton", { Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, Text = "", Parent = cadre })
 			local rail = creer("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.new(1, 0, 0, 7), BackgroundColor3 = C.gris,
-				Parent = piste }, { UI.coin(99), UI.contour(Color3.new(0, 0, 0), 1, 0.7) })
-			local remplissage = creer("Frame", { Size = UDim2.fromScale(0.5, 1), BackgroundColor3 = couleur, Parent = rail }, { UI.coin(99) })
+				Parent = piste }, { UI.coin(99, true), UI.decor(UI.contour(Color3.new(0, 0, 0), 1, 0.7), "horsConfinement") })
+			local remplissage = creer("Frame", { Size = UDim2.fromScale(0.5, 1), BackgroundColor3 = couleur, Parent = rail }, { UI.coin(99, true) })
 			for _, repere in reperes or {} do
 				creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(repere / 100, 0.5), Size = UDim2.fromOffset(2, 15), BackgroundColor3 = C.rouge,
 					BorderSizePixel = 0, Parent = rail })
 			end
 			local poignee = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18), BackgroundColor3 = C.texte,
-				Parent = piste }, { UI.coin(99), UI.contour(couleur, 2, 0) })
+				Parent = piste }, { UI.coin(99, true), UI.contour(couleur, 2, 0) })
 			local c = { glisse = false, valeur = 50 }
 			local function afficher(v)
 				c.valeur = v
@@ -316,14 +305,14 @@ return function(contexte)
 	end
 	local B = {}
 	do
-		local _, contenu = panneau(726, 292, 286, 138, "COMMANDES", "■", C.ambre)
-		-- (V6.9.4 : 3 colonnes, pour le bouton MAINTENANCE)
-		creer("UIGridLayout", { CellSize = UDim2.new(1 / 3, -6, 0, 40), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = contenu })
-		B.energie = bouton(contenu, "ÉNERGIE", C.panneauClair, UDim2.new())
-		B.redemarrer = bouton(contenu, "REDÉMARRER À DISTANCE", C.panneauClair, UDim2.new())
-		B.purger = bouton(contenu, "PURGER L'AIR", C.panneauClair, UDim2.new())
-		B.diagnostic = bouton(contenu, "DIAGNOSTIC", C.panneauClair, UDim2.new())
-		B.maintenance = bouton(contenu, "MAINTENANCE", C.panneauClair, UDim2.new())
+		local _, contenu = panneau(726, 292, 286, 142, "COMMANDES", "■", C.ambre)
+		-- (V6.9.4 : 3 colonnes, pour le bouton MAINTENANCE ; V6.9.10.6 : boutons à coins coupés de 44 px, REDÉMARRER en principal)
+		creer("UIGridLayout", { CellSize = UDim2.new(1 / 3, -6, 0, UI.JETONS.cible), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = contenu })
+		B.energie = bouton(contenu, "ÉNERGIE", "danger", UDim2.new())
+		B.redemarrer = bouton(contenu, "REDÉMARRER À DISTANCE", "principal", UDim2.new())
+		B.purger = bouton(contenu, "PURGER L'AIR", "secondaire", UDim2.new())
+		B.diagnostic = bouton(contenu, "DIAGNOSTIC", "secondaire", UDim2.new())
+		B.maintenance = bouton(contenu, "MAINTENANCE", "secondaire", UDim2.new())
 		for i, cle in { "energie", "redemarrer", "purger", "diagnostic", "maintenance" } do B[cle].LayoutOrder = i B[cle].TextSize = 11 end
 		-- Maintenance (V6.9.4) : immobilise le TARDIS posé (raison : la première de Config.Maintenance.Raisons) ; un second appui la lève
 		B.maintenance.Activated:Connect(function()
@@ -339,32 +328,29 @@ return function(contexte)
 		B.diagnostic.Activated:Connect(function() envoyer("Diagnostic") end)
 	end
 	do
-		local _, contenu = panneau(726, 442, 286, 74, "OUTILS", "◆", C.vert)
+		local _, contenu = panneau(726, 446, 286, 88, "OUTILS", "◆", C.vert)
 		UI.pile(5, true).Parent = contenu
 		for i, info in { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Molette" }, { "Extincteur", "Extinct." },
 			{ "Retirer", "Ranger" } } do
-			local b = bouton(contenu, info[2], info[1] == "Retirer" and C.fond or C.panneauClair, UDim2.new(1 / 5, -5, 1, 0))
+			local b = bouton(contenu, info[2], "secondaire", UDim2.new(1 / 5, -4, 1, 0))
 			b.LayoutOrder = i
-			b.TextSize = 11
+			b.TextSize = 10
 			b.Activated:Connect(function() remote:FireServer("Outil", { outil = info[1] }) end)
 		end
 	end
 	local journal
 	do
-		local _, contenu = panneau(726, 528, 286, 96, "JOURNAL TECHNIQUE", "■", C.texte2)
+		local _, contenu = panneau(726, 546, 286, 78, "JOURNAL TECHNIQUE", "■", C.texte2)
 		journal = creer("ScrollingFrame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
-			ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = contenu }, { UI.pile(2) })
+			ScrollBarImageColor3 = C.cyan, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = contenu }, { UI.pile(2) })
 	end
 
-	-- Matière de l'écran et notification
+	-- Matière de l'écran (lignes de balayage ; vignette des anciens thèmes) et notification de la charte
 	UI.lignesEcran(ecran, 40, 0.94).ZIndex = 30
-	UI.vignette(ecran, 0.35).ZIndex = 31
-	local notification = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -80), Size = UDim2.fromOffset(440, 0),
-		AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.panneauClair, Visible = false, ZIndex = 40, Parent = ecran }, { UI.coin(12), UI.marges(12) })
-	local contourNotif = UI.contour(C.vert, 1.5, 0)
-	contourNotif.Parent = notification
-	local texteNotif = texte({ Text = "", TextSize = 13, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, TextXAlignment = Enum.TextXAlignment.Center,
-		Size = UDim2.new(1, 0, 0, 0), ZIndex = 41, Parent = notification })
+	UI.decor(UI.vignette(ecran, 0.35), "horsConfinement").ZIndex = 31
+	local notif = UI.notification({ Name = "Notification", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -80), Size = UDim2.fromOffset(460, 0),
+		ZIndex = 40, Parent = ecran }, { tailleTexte = 13 })
+	local notification = notif.cadre
 
 	--------------------------------------------------------------------
 	-- Journal technique
@@ -523,56 +509,113 @@ return function(contexte)
 	end
 
 	--------------------------------------------------------------------
-	-- Cartes d'intervention (reconstruites seulement quand la liste change)
+	-- Tableau des pannes et intervention guidée (V6.9.10.6, charte) : le tableau n'est reconstruit que quand la liste
+	-- change ; la panne choisie (ligne jaune, la première par défaut) détaille ses étapes dans l'encadré dessous.
+	-- Une panne réglée reste une minute dans le tableau, en vert : RÉPARÉ.
 	--------------------------------------------------------------------
-	local cartes, signatureListe = {}, nil
 	local OUTILS_NOMS = { Visseuse = "Visseuse", Extincteur = "Extincteur", CleMolette = "Clé à molette", Chiffon = "Chiffon" }
-	local function construireCartes(liste)
-		for _, carte in cartes do carte.cadre:Destroy() end
-		table.clear(cartes)
-		if #liste == 0 then
-			local carte = UI.carte(listeInterventions, 1, 6, nil, C.vert)
-			texte({ Text = "●  TOUS LES SYSTÈMES SONT NOMINAUX", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.vert, LayoutOrder = 1, Parent = carte })
-			texte({ Text = "Aucune intervention en cours. Surveille l'air et la tension, et lance un diagnostic en cas de doute.", TextSize = 11, TextColor3 = C.texte2,
-				TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 2, Parent = carte })
-			table.insert(cartes, { cadre = carte, lignes = {} })
+	local COURTS = { avarie = { "Avarie", "Rotor" }, redemarrage = { "Redémarrage", "Alimentation" }, vapeur = { "Fuite de vapeur", "Grille" },
+		incendie = { "Incendie", "Console" }, tension = { "Hors tension", "Alimentation" }, air = { "Air vicié", "Grilles" }, surtension = { "Surtension", "Régulation" },
+		soustension = { "Sous-tension", "Régulation" }, integrite = { "Structure", "Rotor" }, salete = { "Cabine sale", "Cabine" } }
+	local REPARE_DUREE = 60
+	local signatureListe, panneChoisie = nil, nil
+	local reparees = {} -- { cle, court, zone, fin }
+	local lignesPannes = {} -- [cle] = ligne du tableau
+	local precedentes = {} -- [cle] = { court, zone } (pannes de la mise à jour précédente)
+	local function courtDe(panne)
+		local info = COURTS[panne.cle] or { panne.titre, "—" }
+		local zone = panne.nomCible and string.gsub(string.lower(panne.nomCible), "^%l", string.upper) or info[2]
+		return info[1], zone
+	end
+	-- État dans le tableau : la panne choisie est celle qu'on traite (EN COURS), les autres attendent (À RÉPARER)
+	local function etatPanne(panne)
+		if panne.cle == panneChoisie then return "EN COURS", C.ambre end
+		return "À RÉPARER", C.rouge
+	end
+	local GARDER = { UIListLayout = true, UIPadding = true, UICorner = true, UIStroke = true }
+	local function construireGuide(liste)
+		for _, e in guide:GetChildren() do
+			if not GARDER[e.ClassName] then e:Destroy() end
+		end
+		local panne = nil
+		for _, p in liste do if p.cle == panneChoisie then panne = p end end
+		if not panne then
+			UI.etiquette(guide, "Intervention guidée", { LayoutOrder = 1 })
+			texte({ Name = "Nominal", Text = "●  TOUS LES SYSTÈMES SONT NOMINAUX", Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.vert, LayoutOrder = 2, Parent = guide })
+			texte({ Text = "Aucune intervention en cours. Surveille l'air et la tension, et lance un diagnostic en cas de doute.", TextSize = 12, TextColor3 = C.texte2,
+				TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 3, Parent = guide })
 			return
 		end
-		for i, panne in liste do
-			local carte = UI.carte(listeInterventions, i, 5, nil, panne.couleur)
-			texte({ Text = "▲  " .. panne.titre, Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = panne.couleur, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y,
-				Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 1, Parent = carte })
-			local lignesEtapes = {}
-			for k in panne.etapes do
-				lignesEtapes[k] = texte({ Text = "", TextSize = 11, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0),
-					LayoutOrder = 1 + k, Parent = carte })
+		local court = courtDe(panne)
+		UI.etiquette(guide, "Intervention guidée  ·  " .. court, { Name = "TitreGuide", LayoutOrder = 1 })
+		texte({ Name = "Titre", Text = "▲  " .. panne.titre, Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = panne.couleur, TextWrapped = true,
+			AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 2, Parent = guide })
+		for k in panne.etapes do
+			texte({ Name = "Etape" .. k, Text = "", TextSize = 12, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0),
+				LayoutOrder = 2 + k, Parent = guide })
+		end
+		if panne.outil or panne.cible then
+			local rangee = creer("Frame", { Size = UDim2.new(1, 0, 0, UI.JETONS.cible), BackgroundTransparency = 1, LayoutOrder = 99, Parent = guide }, { UI.pile(6, true) })
+			if panne.outil then
+				local b = bouton(rangee, "Prendre : " .. (OUTILS_NOMS[panne.outil] or panne.outil), "principal", UDim2.new(0.5, -3, 1, 0))
+				b.Name = "Prendre"
+				b.LayoutOrder = 1
+				b.TextSize = 11
+				b.Activated:Connect(function() remote:FireServer("Outil", { outil = panne.outil }) end)
 			end
-			if panne.outil or panne.cible then
-				local rangee = creer("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, LayoutOrder = 99, Parent = carte }, { UI.pile(6, true) })
-				if panne.outil then
-					local b = bouton(rangee, "Prendre : " .. (OUTILS_NOMS[panne.outil] or panne.outil), C.panneauClair, UDim2.new(0.5, -3, 1, 0))
-					b.LayoutOrder = 1
-					b.TextSize = 11
-					b.Activated:Connect(function() remote:FireServer("Outil", { outil = panne.outil }) end)
-				end
-				if panne.cible then
-					local b = bouton(rangee, "Localiser : " .. panne.nomCible, C.fond, UDim2.new(0.5, -3, 1, 0))
-					b.LayoutOrder = 2
-					b.TextSize = 11
-					local cible, nom = panne.cible, panne.nomCible
-					b.Activated:Connect(function() localiser(cible, nom) end)
-				end
+			if panne.cible then
+				local b = bouton(rangee, "Localiser : " .. panne.nomCible, "secondaire", UDim2.new(0.5, -3, 1, 0))
+				b.Name = "Localiser"
+				b.LayoutOrder = 2
+				b.TextSize = 11
+				local cible, nom = panne.cible, panne.nomCible
+				b.Activated:Connect(function() localiser(cible, nom) end)
 			end
-			table.insert(cartes, { cadre = carte, lignes = lignesEtapes })
 		end
 	end
 	local function majCartes(liste)
-		local signature = {}
+		local maintenant = os.clock()
+		-- Pannes réglées depuis la dernière mise à jour : RÉPARÉ pendant une minute
+		local actuelles = {}
+		for _, panne in liste do actuelles[panne.cle] = true end
+		for cle, info in precedentes do
+			if not actuelles[cle] then table.insert(reparees, { cle = cle, court = info[1], zone = info[2], fin = maintenant + REPARE_DUREE }) end
+		end
+		table.clear(precedentes)
+		for _, panne in liste do
+			local court, zone = courtDe(panne)
+			precedentes[panne.cle] = { court, zone }
+		end
+		for i = #reparees, 1, -1 do
+			if reparees[i].fin < maintenant or actuelles[reparees[i].cle] then table.remove(reparees, i) end
+		end
+		local trouvee = false
+		for _, panne in liste do if panne.cle == panneChoisie then trouvee = true end end
+		if not trouvee then panneChoisie = liste[1] and liste[1].cle or nil end
+
+		local signature = { tostring(panneChoisie) }
 		for _, panne in liste do table.insert(signature, panne.cle .. ":" .. tostring(panne.outil) .. ":" .. tostring(panne.cible)) end
+		for _, r in reparees do table.insert(signature, "ok:" .. r.cle) end
 		signature = table.concat(signature, "|")
 		if signature ~= signatureListe then
 			signatureListe = signature
-			construireCartes(liste)
+			tableauPannes.vider()
+			table.clear(lignesPannes)
+			for i, panne in liste do
+				local court, zone = courtDe(panne)
+				local cle = panne.cle
+				lignesPannes[cle] = tableauPannes.ajouter({ panne = court, zone = zone, etat = "À RÉPARER" }, { ordre = i, nom = "Panne_" .. cle,
+					action = function()
+						panneChoisie = cle
+						signatureListe = nil
+						majCartes(lirePannes())
+					end })
+			end
+			for i, r in reparees do
+				tableauPannes.ajouter({ panne = r.court, zone = r.zone, etat = "RÉPARÉ" }, { ordre = 100 + i, nom = "Repare_" .. r.cle, discret = true,
+					couleurs = { etat = C.vert } })
+			end
+			construireGuide(liste)
 			-- La cible localisée a disparu (panne réglée) : on retire le marqueur
 			if marqueur then
 				local encore = false
@@ -580,19 +623,24 @@ return function(contexte)
 				if not encore then retirerMarqueur() end
 			end
 		end
-		-- Étapes : texte et coche mis à jour à chaque fois (progression, compte à rebours)
-		for i, panne in liste do
-			local carte = cartes[i]
-			if carte then
+		-- État de chaque panne et étapes de la panne choisie, mis à jour à chaque fois (progression, compte à rebours)
+		for _, panne in liste do
+			local ligne = lignesPannes[panne.cle]
+			if ligne then
+				local etat, couleur = etatPanne(panne)
+				ligne.regler("etat", etat, couleur)
+				ligne.choisir(panne.cle == panneChoisie)
+			end
+			if panne.cle == panneChoisie then
 				local premiereAFaire = true
 				for k, etape in panne.etapes do
-					local l = carte.lignes[k]
+					local l = guide:FindFirstChild("Etape" .. k)
 					if l then
 						local fait = etape[2]
 						local courante = not fait and premiereAFaire
 						if courante then premiereAFaire = false end
-						l.Text = (fait and "✓  " or (courante and "►  " or "○  ")) .. etape[1]
-						l.TextColor3 = fait and C.vert or (courante and C.texte or C.texte2)
+						l.Text = (fait and "✓  " or (courante and "▸  " or "·  ")) .. etape[1]
+						l.TextColor3 = fait and C.vert or (courante and C.ambre or C.texte2)
 					end
 				end
 			end
@@ -610,11 +658,9 @@ return function(contexte)
 		if v <= haut then return C.ambre end
 		return C.vert
 	end
+	-- Jauge à segments : p de 0 à 1 (un segment par tranche de 10 %), la valeur exacte écrite à côté
 	local function majJauge(cle, p, texteValeur, couleur)
-		J[cle].barre.Size = UDim2.fromScale(math.clamp(p, 0, 1), 1)
-		J[cle].barre.BackgroundColor3 = couleur
-		J[cle].valeur.Text = texteValeur
-		J[cle].valeur.TextColor3 = couleur
+		J[cle].regler(math.clamp(p, 0, 1) * 100, couleur, texteValeur)
 	end
 	local function majTout()
 		local pv = exterieur:GetAttribute("PointsDeVie") or 100
@@ -666,17 +712,25 @@ return function(contexte)
 		-- Curseurs
 		for systeme, c in curseurs do c.regler(exterieur:GetAttribute("Regul" .. systeme) or 50) end
 
-		-- Commandes
+		-- Commandes (boutons à variante : couper l'énergie = danger, la rétablir = principal ; maintenance en cours = danger)
 		if not B.energie:GetAttribute("EnAttenteConfirmation") then
 			B.energie.Text = alimente and "COUPER L'ÉNERGIE" or "RÉTABLIR L'ÉNERGIE"
 		end
-		UI.colorer(B.energie, alimente and Color3.fromRGB(110, 40, 50) or Color3.fromRGB(30, 100, 60))
+		local varianteEnergie = alimente and "danger" or "principal"
+		if B.energie:GetAttribute("Variante") ~= varianteEnergie then
+			B.energie:SetAttribute("Variante", varianteEnergie)
+			UI.peindreBouton(B.energie)
+		end
 		local finRedemarrage = exterieur:GetAttribute("TechRedemarrageFin")
 		local requis = exterieur:GetAttribute("RedemarrageRequis") == true
 		if not B.maintenance:GetAttribute("EnAttenteConfirmation") then
 			local enMaintenance = exterieur:GetAttribute("Maintenance") ~= nil
 			B.maintenance.Text = enMaintenance and "LEVER LA MAINTENANCE" or "MAINTENANCE"
-			UI.colorer(B.maintenance, enMaintenance and Color3.fromRGB(120, 70, 20) or C.panneauClair)
+			local varianteMaintenance = enMaintenance and "danger" or "secondaire"
+			if B.maintenance:GetAttribute("Variante") ~= varianteMaintenance then
+				B.maintenance:SetAttribute("Variante", varianteMaintenance)
+				UI.peindreBouton(B.maintenance)
+			end
 		end
 		B.redemarrer.Text = finRedemarrage and string.format("REDÉMARRAGE… %d s", math.max(0, math.ceil(finRedemarrage - workspace:GetServerTimeNow())))
 			or "REDÉMARRER À DISTANCE"
@@ -693,6 +747,8 @@ return function(contexte)
 		textePastille.Text = nombre == 0 and "Systèmes nominaux" or (nombre .. (nombre > 1 and " interventions" or " intervention"))
 		pointPastille.BackgroundColor3 = couleur
 		contourPastille.Color = couleur
+		-- Plaque : « OBJ. TARDIS-01 · 2 PANNES »
+		plaque.majSousLigne(UI.codeObjet(def) .. "  ·  " .. (nombre == 0 and "SYSTÈMES NOMINAUX" or (nombre .. (nombre > 1 and " PANNES" or " PANNE"))))
 	end
 
 	--------------------------------------------------------------------
@@ -715,9 +771,9 @@ return function(contexte)
 		local base = echelle.Scale
 		echelle.Scale = base * 0.88
 		tablette.Position = UDim2.fromScale(0.5, 0.56)
-		tablette.Rotation = -1.5
+		-- (V6.9.10.6 : sans inclinaison : un cadre tourné ne coupe plus ce qui dépasse, la bande de danger déborderait)
 		animer(echelle, 0.5, { Scale = base }, Enum.EasingStyle.Back)
-		animer(tablette, 0.5, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, Enum.EasingStyle.Back)
+		animer(tablette, 0.5, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
 		for i, cadre in panneaux do
 			local e = cadre:FindFirstChildOfClass("UIScale")
 			e.Scale = 0.92
@@ -752,11 +808,12 @@ return function(contexte)
 	if Config.BoutonsTactiles ~= false and UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
 		local guiTactile = creer("ScreenGui", { Name = "TardisBoutonTechnicien_" .. def.Nom, ResetOnSpawn = false, Enabled = false,
 			Parent = joueur:WaitForChild("PlayerGui") })
-		local b = creer("TextButton", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.38, 0), Size = UDim2.fromOffset(52, 52),
-			BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Text = "", Parent = guiTactile }, { UI.coin(99), UI.contour(C.ambre, 1.5, 0.2) })
-		texte({ Text = "Y", Font = UI.POLICE_TITRE, TextSize = 18, TextColor3 = C.ambre, TextXAlignment = Enum.TextXAlignment.Center,
+		local b = creer("TextButton", { Name = "BoutonTactile", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.38, 0), Size = UDim2.fromOffset(52, 52),
+			BackgroundColor3 = C.fond, BackgroundTransparency = 0.15, Text = "", Parent = guiTactile }, { UI.coin(99), UI.contour(C.cyan, 1.5, 0.3) })
+		UI.decouper(b, 10, { contour = C.cyan })
+		texte({ Text = "Y", Font = UI.POLICE_TITRE, TextSize = 18, TextColor3 = C.cyan, TextXAlignment = Enum.TextXAlignment.Center,
 			Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 22), Parent = b })
-		texte({ Text = "ingénierie", TextSize = 9, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
+		texte({ Text = "ingénierie", Font = UI.POLICE_CODE, TextSize = 9, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center,
 			Position = UDim2.fromOffset(0, 31), Size = UDim2.new(1, 0, 0, 12), Parent = b })
 		b:SetAttribute("CouleurBase", C.fond)
 		UI.rendreVivant(b)
@@ -781,10 +838,8 @@ return function(contexte)
 		if not ouvert or typeof(message) ~= "string" or string.sub(message, 1, 2) == "__" then return end
 		jeton += 1
 		local moi = jeton
-		local couleur = reussi and C.vert or C.rouge
-		contourNotif.Color = couleur
-		texteNotif.TextColor3 = UI.eclaircir(couleur, 0.4)
-		texteNotif.Text = (reussi and "●  " or "×  ") .. message
+		-- Charte : badge TARDIS, REFUSÉ (échec) ou ALERTE (message d'alerte, bande rouge)
+		notif.regler(message, (not reussi and "refus") or (string.find(string.lower(message), "alerte", 1, true) and "alerte") or "info")
 		notification.Visible = true
 		notification.Position = UDim2.new(0.5, 0, 0, -80)
 		animer(notification, 0.35, { Position = UDim2.new(0.5, 0, 0, 62) }, Enum.EasingStyle.Back)
@@ -795,13 +850,11 @@ return function(contexte)
 		end)
 	end)
 
-	-- Animations et mises à jour
+	-- Mises à jour (V6.9.10.6 : plus de roue ni de dégradé qui tournent : le décor de la charte est posé une fois)
 	local prochaine = 0
-	RunService.RenderStepped:Connect(function(dt)
+	RunService.RenderStepped:Connect(function()
 		if not ouvert then return end
 		local t = os.clock()
-		roue.Rotation = (roue.Rotation + dt * 25) % 360
-		degrade.Rotation = (t * 8) % 360
 		horloge.Text = os.date("%H:%M:%S")
 		if t >= prochaine then
 			prochaine = t + 0.25
