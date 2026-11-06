@@ -166,9 +166,10 @@ verifier("4. Écran ingénieur fait en script, sans erreur", gi is not None and 
 verifier("4. Plaque inclinée (pièce) : face Top choisie seule (la face Front n'est qu'une tranche de 0,2 stud)", face_de(gi) == "Top", face_de(gi))
 verifier("4. Allumé, sans voile (ni HORS TENSION, ni DÉTRUIT)", gi.props.get("Enabled") is True and champ(gi, "Veille").props["Visible"] is False and champ(gi, "Detruit").props["Visible"] is False)
 val = lambda g_, cle: texte_de(champ(g_, "Valeur_" + cle))
+# (V6.9.10.7 : « BOUCLIERS » et « INACTIFS », comme la maquette de l'écran ingénieur et la tablette)
 verifier("4. Contenu présent : intégrité (PV), énergie, air, vapeur, bouclier", (val(gi, "integrite"), val(gi, "energie"), val(gi, "air"), val(gi, "vapeur"), val(gi, "bouclier"))
-         == ("80 %  ·  8000 PV", "80 %", "100 %", "50 %", "INACTIF  ·  100 %"), [val(gi, c) for c in ("integrite", "energie", "air", "vapeur", "bouclier")])
-verifier("4. Noms des lignes et titre affichés", [texte_de(champ(gi, "Nom_" + c)) for c in ("integrite", "energie", "air", "vapeur", "bouclier")] == ["INTÉGRITÉ", "ÉNERGIE", "AIR", "VAPEUR", "BOUCLIER"]
+         == ("80 %  ·  8000 PV", "80 %", "100 %", "50 %", "INACTIFS  ·  100 %"), [val(gi, c) for c in ("integrite", "energie", "air", "vapeur", "bouclier")])
+verifier("4. Noms des lignes et titre affichés", [texte_de(champ(gi, "Nom_" + c)) for c in ("integrite", "energie", "air", "vapeur", "bouclier")] == ["INTÉGRITÉ", "ÉNERGIE", "AIR", "VAPEUR", "BOUCLIERS"]
          and "INGÉNIERIE" in texte_de(champ(gi, "Titre")))
 ti = toile(gi, S["ing"])
 verifier("4. Écran ingénieur net : 683 × 1024 pixels (face Top de 3 × 2 studs : l'image a 2 studs de large le long de Z et 3 de haut le long de X)",
@@ -217,7 +218,7 @@ verifier("4. Model : affichage sur la Vitre (pièce nommée comme un écran), pa
 gi = gui_de(S["vitre"], "TardisEcranIngenieur")
 verifier("4. Model : face automatique Top sur la vitre inclinée", face_de(gi) == "Top", face_de(gi))
 verifier("4. Model : clic sur tout le Model (ClickDetector du Model), invite sur la vitre", len(enfant_classe(S["modele"], "ClickDetector")) == 1 and len(enfant_classe(S["vitre"], "ProximityPrompt")) == 1)
-verifier("4. Model : contenu présent", val(gi, "energie") == "80 %" and val(gi, "bouclier") == "INACTIF  ·  100 %")
+verifier("4. Model : contenu présent", val(gi, "energie") == "80 %" and val(gi, "bouclier") == "INACTIFS  ·  100 %")
 verifier("4. Model : ecranIngenieur() rend la vitre (distance du menu de l'énergie)", premier(appeler(S["module"].get("ecranIngenieur"), [])) is S["vitre"])
 S["modele"].m_SetAttribute("FaceEcran", "Bottom")
 verifier("4. FaceEcran explicite sur le Model (Bottom) respecté", face_de(gi) == "Bottom", face_de(gi))

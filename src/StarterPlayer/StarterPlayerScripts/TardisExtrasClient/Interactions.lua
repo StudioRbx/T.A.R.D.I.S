@@ -10,28 +10,26 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- 14) Invitation : un pilote t'invite, tu acceptes ou tu refuses
 	--------------------------------------------------------------------
+	-- (V6.9.10.7) Notification de la charte (badge INVITATION) avec ACCEPTER (principal) et REFUSER (danger)
 	local function afficherInvitation(pilote)
 		local gui = creer("ScreenGui", { Name = "TardisInvitation", ResetOnSpawn = false, Parent = joueur:WaitForChild("PlayerGui") })
-		local carte = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -140), Size = UDim2.fromOffset(380, 0),
-			AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.05, Parent = gui },
-		{ UI.coin(14), UI.contour(C.cyan, 2, 0.2), UI.marges(14), UI.pile(8) })
-		texte({ Text = "◆  INVITATION", Font = UI.POLICE_GRAS, TextSize = 15, TextColor3 = C.cyan, LayoutOrder = 1, Parent = carte })
-		texte({ Text = tostring(pilote) .. " t'invite à bord du TARDIS. Tu y seras téléporté.", TextSize = 12, TextColor3 = C.texte, TextWrapped = true,
-			AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = carte })
-		local rangee = creer("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = 3, Parent = carte },
+		local notif = UI.notification({ Name = "Invitation", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -140), Size = UDim2.fromOffset(420, 0),
+			Parent = gui }, { retrait = 104, tailleTexte = 13 })
+		notif.regler(tostring(pilote) .. " t'invite à bord du TARDIS. Tu y seras téléporté.", "info", "INVITATION")
+		local carte = notif.cadre
+		carte.Visible = true
+		creer("UIScale", { Scale = UI.tailleInterface(), Parent = carte })
+		local rangee = creer("Frame", { Name = "Boutons", Size = UDim2.new(1, 0, 0, UI.JETONS.cible), BackgroundTransparency = 1, LayoutOrder = 10, Parent = notif.contenu },
 		{ creer("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
-		local function bouton(txt, couleur, ordre, accepter)
-			local b = creer("TextButton", { Size = UDim2.new(0.5, -4, 1, 0), BackgroundColor3 = couleur, Text = txt, Font = UI.POLICE_GRAS, TextSize = 13,
-				TextColor3 = C.texte, LayoutOrder = ordre, Parent = rangee }, { UI.coin(8) })
-			b:SetAttribute("CouleurBase", couleur)
-			UI.rendreVivant(b)
+		local function bouton(txt, variante, ordre, accepter)
+			local b = UI.boutonCoupe(rangee, txt, variante, { Name = accepter and "Accepter" or "Refuser", Size = UDim2.new(0.5, -4, 1, 0), LayoutOrder = ordre })
 			b.Activated:Connect(function()
 				remote:FireServer("InvitationReponse", { accepter = accepter })
 				gui:Destroy()
 			end)
 		end
-		bouton("Accepter", Color3.fromRGB(30, 110, 70), 1, true)
-		bouton("Refuser", Color3.fromRGB(110, 40, 50), 2, false)
+		bouton("Accepter", "principal", 1, true)
+		bouton("Refuser", "danger", 2, false)
 		UI.son("Notification")
 		animer(carte, 0.5, { Position = UDim2.new(0.5, 0, 0, 100) }, Enum.EasingStyle.Back)
 		task.delay(60, function() if gui.Parent then gui:Destroy() end end)
@@ -44,6 +42,9 @@ return function(contexte)
 	-- (V6.9.10.5) Model : clic sur tout le Model, invite au-dessus du casier. Caméra : jamais dans un mur (placeCamera),
 	-- rendue exactement à la fermeture (Échap, bouton, distance, mort, réapparition). Aperçu : les vraies images des
 	-- vêtements, données par le serveur (TardisTenues) ; la tenue gardée est mise par le serveur.
+	-- (V6.9.10.7) Charte « Hologramme de confinement » (maquette CASIER) : panneau à coins coupés à droite de l'écran (le
+	-- joueur reste visible face à la caméra), plaque « CASIER » (badge : l'équipe du joueur), « CHOISIR UNE TENUE »,
+	-- grille de tuiles (la tenue essayée en jaune, ○ / ● favori), boutons ENFILER (principal, garde la tenue) et FERMER.
 	--------------------------------------------------------------------
 	do
 		local REGLAGES_CASIER = Config.Casiers or {}
@@ -56,13 +57,25 @@ return function(contexte)
 				if part and part ~= partConsole then table.insert(casiers, part) end
 			end
 		end
-		local gui = creer("ScreenGui", { Name = "TardisCasier", ResetOnSpawn = false, Enabled = false, Parent = joueur:WaitForChild("PlayerGui") })
-		local panneau = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -20, 0.5, 0), Size = UDim2.new(0, 320, 0.8, 0),
-			BackgroundColor3 = C.fond, BackgroundTransparency = 0.08, Parent = gui }, { UI.coin(16), UI.contour(C.ambre, 1.5, 0.3), UI.marges(14) })
-		texte({ Text = "◆  CASIER  ·  TENUES", Font = UI.POLICE_GRAS, TextSize = 15, TextColor3 = C.ambre, Size = UDim2.new(1, 0, 0, 20), Parent = panneau })
+		local gui = creer("ScreenGui", { Name = "TardisCasier", ResetOnSpawn = false, Enabled = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			Parent = joueur:WaitForChild("PlayerGui") })
+		local LARGEUR_CASIER, HAUTEUR_CASIER = 360, 600
+		local panneauCasier, panneau = UI.panneauCoupe({ Name = "Casier", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -20, 0.5, 0),
+			Size = UDim2.fromOffset(LARGEUR_CASIER, HAUTEUR_CASIER), BackgroundColor3 = C.fond, BackgroundTransparency = 0.06, Parent = gui }, { coupe = 16, rayon = 16, marges = 18 })
+		local echelleCasier = creer("UIScale", { Scale = UI.tailleInterface(), Parent = panneauCasier })
+		local plaqueCasier = UI.plaque(panneau, "Casier", "", "Choisir une tenue", { largeurBande = LARGEUR_CASIER })
 		local TEXTE_AIDE = "Clique pour essayer. ○ = mettre en favori (gardé pour toujours)."
-		local aide = texte({ Text = TEXTE_AIDE, TextSize = 11, TextColor3 = C.texte2, TextWrapped = true,
-			Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 28), Parent = panneau })
+		local aide = UI.ligneAide(panneau, TEXTE_AIDE, { Name = "Aide", AutomaticSize = Enum.AutomaticSize.None, Position = UDim2.fromOffset(0, 68),
+			Size = UDim2.new(1, 0, 0, 28) })
+		-- Échelle : suit l'écran (le panneau garde au plus 42 % de la largeur) et la taille de l'interface des réglages
+		local function majEchelleCasier()
+			local ok, taille = pcall(function() return camera.ViewportSize end)
+			local base = 1
+			if ok and typeof(taille) == "Vector2" and taille.X > 0 and taille.Y > 0 then
+				base = math.clamp(math.min(taille.X * 0.42 / LARGEUR_CASIER, taille.Y * 0.88 / HAUTEUR_CASIER), 0.5, 1.15)
+			end
+			echelleCasier.Scale = base * UI.tailleInterface()
+		end
 		-- (V6.9.10.5) Un message court à la place de l'aide, 3 s (aperçu indisponible…)
 		local jetonAide = 0
 		local function signaler(message)
@@ -73,18 +86,14 @@ return function(contexte)
 				if moi == jetonAide then aide.Text = TEXTE_AIDE end
 			end)
 		end
-		local liste = creer("ScrollingFrame", { Position = UDim2.fromOffset(0, 58), Size = UDim2.new(1, 0, 1, -140), BackgroundTransparency = 1, BorderSizePixel = 0,
-			ScrollBarThickness = 4, ScrollBarImageColor3 = C.ambre, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = panneau },
-		{ UI.pile(6) })
-		local function boutonBas(txt, couleur, y)
-			local b = creer("TextButton", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, y), Size = UDim2.new(1, 0, 0, 34), BackgroundColor3 = couleur,
-				Text = txt, Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.texte, Parent = panneau }, { UI.coin(8) })
-			b:SetAttribute("CouleurBase", couleur)
-			UI.rendreVivant(b)
-			return b
-		end
-		local garder = boutonBas("Garder cette tenue", Color3.fromRGB(30, 110, 70), -40)
-		local fermer = boutonBas("Fermer", C.panneauClair, 0)
+		-- Grille des tenues (deux colonnes de tuiles de 80 px)
+		local liste = creer("ScrollingFrame", { Name = "Tenues", Position = UDim2.fromOffset(0, 104), Size = UDim2.new(1, 0, 1, -164), BackgroundTransparency = 1,
+			BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = C.cyan, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = panneau },
+		{ creer("UIGridLayout", { CellSize = UDim2.new(0.5, -6, 0, 80), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+		local rangeeBas = creer("Frame", { Name = "Boutons", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 46),
+			BackgroundTransparency = 1, Parent = panneau }, { UI.pile(8, true) })
+		local garder = UI.boutonCoupe(rangeeBas, "Enfiler", "principal", { Name = "Enfiler", Size = UDim2.new(0.5, -4, 1, 0), LayoutOrder = 1 })
+		local fermer = UI.boutonCoupe(rangeeBas, "Fermer", "secondaire", { Name = "Fermer", Size = UDim2.new(0.5, -4, 1, 0), LayoutOrder = 2 })
 
 		local actif = false
 		local apercu = nil -- index de la tenue essayée
@@ -178,7 +187,7 @@ return function(contexte)
 		local construire
 		construire = function()
 			for _, e in liste:GetChildren() do
-				if not e:IsA("UIListLayout") then e:Destroy() end
+				if not e:IsA("UIGridLayout") then e:Destroy() end
 			end
 			local favoris = type(UI.prefs.tenuesFavorites) == "table" and UI.prefs.tenuesFavorites or {}
 			local ordre = {}
@@ -188,16 +197,28 @@ return function(contexte)
 				if fa ~= fb then return fa end
 				return a < b
 			end)
+			-- (V6.9.10.7) La tenue portée (gardée au casier, attribut du personnage posé par le serveur) est signalée
+			local personnageActuel = joueur.Character
+			local tenueActuelle = personnageActuel and personnageActuel:GetAttribute("TardisTenue")
 			for rang, i in ordre do
 				local tenue = Config.Tenues[i]
 				local favori = favoris[tostring(i)] == true
-				local b = creer("TextButton", { Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = apercu == i and C.bleu or C.panneau, Text = "", LayoutOrder = rang,
-					Parent = liste }, { UI.coin(8) })
-				texte({ Text = tenue.nom, Font = UI.POLICE_GRAS, TextSize = 13, Position = UDim2.fromOffset(12, 5), Size = UDim2.new(1, -60, 0, 18), Parent = b })
-				texte({ Text = tenue.description .. "  ·  " .. tenue.categorie, TextSize = 10, TextColor3 = C.texte2, Position = UDim2.fromOffset(12, 24),
-					Size = UDim2.new(1, -60, 0, 14), TextTruncate = Enum.TextTruncate.AtEnd, Parent = b })
-				local etoile = creer("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(30, 30),
-					BackgroundTransparency = 1, Text = favori and "●" or "○", Font = UI.POLICE_GRAS, TextSize = 18, TextColor3 = favori and C.ambre or C.texte2, Parent = b })
+				-- Tuile (maquette) : fond très légèrement éclairci, la tenue essayée en jaune (texte sombre), coins coupés
+				local choisie = apercu == i
+				local b = creer("TextButton", { Name = "Tenue", BackgroundColor3 = choisie and C.ambre or C.texte, BackgroundTransparency = choisie and 0 or 0.94, Text = "",
+					AutoButtonColor = false, LayoutOrder = rang, Parent = liste }, { UI.coin(8) })
+				b:SetAttribute("Choisie", choisie)
+				UI.decouper(b, UI.JETONS.coupeBouton, { contour = choisie and C.ambre or C.ligne, transparenceContour = 0.2 })
+				texte({ Name = "Nom", Text = UI.majuscules(tenue.nom), Font = UI.POLICE_GRAS, TextSize = 14, TextColor3 = choisie and C.sombre or C.texte,
+					TextTruncate = Enum.TextTruncate.AtEnd, Position = UDim2.fromOffset(12, 10), Size = UDim2.new(1, -52, 0, 18), Parent = b })
+				texte({ Name = "Detail", Text = tostring(tenue.description or ""), Font = UI.POLICE_CODE, TextSize = 10, TextColor3 = choisie and C.sombre or C.texte2,
+					TextTruncate = Enum.TextTruncate.AtEnd, Position = UDim2.fromOffset(12, 33), Size = UDim2.new(1, -20, 0, 14), Parent = b })
+				texte({ Name = "Categorie", Text = tenueActuelle == i and "●  TENUE ACTUELLE" or UI.majuscules(tostring(tenue.categorie or "")), Font = UI.POLICE_CODE,
+					TextSize = 10, TextColor3 = choisie and C.sombre or (tenueActuelle == i and C.vert or C.texte2), TextTruncate = Enum.TextTruncate.AtEnd,
+					Position = UDim2.fromOffset(12, 52), Size = UDim2.new(1, -20, 0, 14), Parent = b })
+				local etoile = creer("TextButton", { Name = "Favori", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(44, 44),
+					BackgroundTransparency = 1, Text = favori and "●" or "○", Font = UI.POLICE_GRAS, TextSize = 18, ZIndex = 3,
+					TextColor3 = choisie and C.sombre or (favori and C.ambre or C.texte2), Parent = b })
 				etoile.Activated:Connect(function()
 					UI.prefs.tenuesFavorites = type(UI.prefs.tenuesFavorites) == "table" and UI.prefs.tenuesFavorites or {}
 					UI.prefs.tenuesFavorites[tostring(i)] = not favori or nil
@@ -260,6 +281,9 @@ return function(contexte)
 					if not r or (r.Position - point).Magnitude > (REGLAGES_CASIER.DistanceFermeture or 12) then quitter(false) end
 				end
 			end)
+			-- (V6.9.10.7) Plaque : le badge dit l'équipe du joueur ; l'échelle suit l'écran
+			plaqueCasier.majBadge(joueur.Team and UI.majuscules(joueur.Team.Name) or "", C.cyan)
+			majEchelleCasier()
 			construire()
 			gui.Enabled = true
 		end

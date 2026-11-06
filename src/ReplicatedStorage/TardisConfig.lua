@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.6"
+Config.Version = "6.9.10.7"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1321,5 +1321,7 @@ Config.Interface = { -- (V6.9.10.6)
 	-- Badge à droite du titre de chaque menu (texte libre) (V6.9.10.6)
 	Badges = { Menu = "ACCÈS NIV. 3", Tablette = "PILOTE", Technicien = "TECHNICIEN", Energie = "C.T.A.T." }, -- (V6.9.10.6)
 }
+Config.Interface.Badges.Jukebox = "PILOTE"     -- (V6.9.10.7) badge du panneau du jukebox de la console (Console › JukeBox)
+Config.Interface.Badges.Copilote = "COPILOTE"  -- (V6.9.10.7) badge du poste du copilote (le casier, lui, montre l'équipe du joueur)
 
 return Config

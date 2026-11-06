@@ -7,36 +7,44 @@
 --   • Pendant le vol libre du pilote : ATTERRIR À DESTINATION, dès que le pilote est passé dans le vortex.
 --   • Camouflage, et une note rapide au carnet de bord.
 -- Le serveur revérifie tout (TardisServeur : ACTIONS_COPILOTE ; TardisExtras : carnet).
+-- (V6.9.10.7) Charte « Hologramme de confinement » : panneau à coins coupés, plaque « POSTE DU COPILOTE » (badge COPILOTE,
+-- bande de danger rouge pendant l'alerte), messages en notification de la charte (TARDIS, REFUSÉ, PARADOXE en alerte),
+-- destinations en tableau, boutons à coins coupés de 44 px.
 
 return function(contexte)
 	local C, Config, E, Players, UI = contexte.C, contexte.Config, contexte.E, contexte.Players, contexte.UI
-	local creer, texte, animer, def = contexte.creer, contexte.texte, contexte.animer, contexte.def
+	local creer, texte, def = contexte.creer, contexte.texte, contexte.def
 	local exterieur, joueur, remote = contexte.exterieur, contexte.joueur, contexte.remote
 	local ATTRIBUT = "TardisCopilote_" .. def.Nom
 
 	--------------------------------------------------------------------
 	-- Le panneau
 	--------------------------------------------------------------------
-	local LARGEUR, HAUTEUR = 360, 650
+	local LARGEUR, HAUTEUR = 360, 760
 	local gui = creer("ScreenGui", { Name = "TardisCopilote_" .. def.Nom, ResetOnSpawn = false, Enabled = false, DisplayOrder = 19,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = joueur:WaitForChild("PlayerGui") })
-	local panneau = creer("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(LARGEUR, HAUTEUR),
-		BackgroundColor3 = C.fond, Parent = gui }, { UI.coin(18), UI.contour(C.cyan, 1.5, 0.35) })
+	local panneau, contenu = UI.panneauCoupe({ Name = "PosteCopilote", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0),
+		Size = UDim2.fromOffset(LARGEUR, HAUTEUR), BackgroundColor3 = C.fond, Parent = gui }, { coupe = 16, rayon = 18, balayage = false })
 	local echelle = creer("UIScale", { Parent = panneau })
 	UI.lignesEcran(panneau, 40, 0.97)
-	local corps = creer("Frame", { Position = UDim2.fromOffset(14, 12), Size = UDim2.new(1, -28, 1, -24), BackgroundTransparency = 1, Parent = panneau }, { UI.pile(8) })
+	local corps = creer("Frame", { Name = "Corps", Position = UDim2.fromOffset(14, 12), Size = UDim2.new(1, -28, 1, -24), BackgroundTransparency = 1, Parent = contenu },
+	{ UI.pile(8) })
 
-	-- En-tête : titre, TARDIS, bouton pour réduire
-	local entete = creer("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, LayoutOrder = 1, Parent = corps })
-	texte({ Text = "POSTE DU COPILOTE", Font = UI.POLICE_TITRE, TextSize = 16, TextColor3 = C.cyan, Size = UDim2.new(1, -40, 0, 20), Parent = entete })
-	local sousTitre = texte({ Text = def.Nom, TextSize = 11, TextColor3 = C.texte2, Position = UDim2.fromOffset(0, 21), Size = UDim2.new(1, -40, 0, 16), Parent = entete })
-	local reduire = creer("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 2), Size = UDim2.fromOffset(32, 32),
-		BackgroundColor3 = C.panneau, Text = "–", Font = UI.POLICE_GRAS, TextSize = 18, TextColor3 = C.texte, Parent = entete }, { UI.coin(8) })
+	-- En-tête : la plaque (titre, badge, OBJ. TARDIS-01 · TARDIS_1 · lieu, bande de danger) et le bouton pour réduire
+	local plaque = UI.plaque(corps, "Poste du copilote", UI.texteBadge("Copilote", "COPILOTE"), UI.codeObjet(def) .. "  ·  " .. def.Nom,
+		{ ordre = 1, droite = 50, largeurBande = LARGEUR, exterieur = exterieur })
+	local reduire = UI.boutonCoupe(plaque.cadre, "–", "secondaire", { Name = "Reduire", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, -6),
+		Size = UDim2.fromOffset(UI.JETONS.cible, UI.JETONS.cible), Font = UI.POLICE_GRAS, TextSize = 20, ZIndex = 3 })
 
 	-- État du TARDIS et du vol libre
 	local etat = texte({ Text = "", Font = UI.POLICE_GRAS, TextSize = 13, LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 18), Parent = corps })
-	local message = texte({ Text = "Le pilote t'a confié la navigation.", TextSize = 11, TextColor3 = C.texte2, TextWrapped = true,
-		AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = corps })
+	-- Messages (réponses du serveur, paradoxe) : une notification de la charte, toujours affichée dans le panneau
+	local notif = UI.notification({ Name = "Message", Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 3, Parent = corps }, { tailleTexte = 12, retrait = 96 })
+	notif.cadre.Visible = true
+	local function afficherMessage(texteMessage, genre, badge)
+		notif.regler(texteMessage, genre, badge)
+	end
+	afficherMessage("Le pilote t'a confié la navigation.", "info")
 
 	-- Protocole
 	UI.titreSection(corps, "PROTOCOLE", 4, C.cyan)
@@ -47,7 +55,7 @@ return function(contexte)
 		{ cle = "Express", nom = "Rapide", couleur = UI.couleurMode("Express") },
 		{ cle = "Sauvetage", nom = "Sauvetage", couleur = UI.couleurMode("Sauvetage") },
 		{ cle = "Silencieux", nom = "Silence", couleur = UI.couleurMode("Silencieux") },
-	}, 5, UDim2.new(1, 0, 0, 34))
+	}, 5, UDim2.new(1, 0, 0, UI.JETONS.cible))
 	local function reglerMode(nouveau)
 		mode = nouveau
 		for cle, segment in segments do segment.regler(cle == mode) end
@@ -62,11 +70,11 @@ return function(contexte)
 	local choix = nil -- { type = "lieu" | "precedent" | "joueur", nom, id }
 	local choixTexte = texte({ Text = "Aucune destination choisie", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.ambre, LayoutOrder = 7,
 		TextTruncate = Enum.TextTruncate.AtEnd, Parent = corps })
-	local liste = creer("ScrollingFrame", { Size = UDim2.new(1, 0, 0, 160), BackgroundColor3 = C.ecran, BorderSizePixel = 0, ScrollBarThickness = 4,
-		ScrollBarImageColor3 = C.cyan, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, LayoutOrder = 8, Parent = corps },
-	{ UI.coin(10), UI.contour(C.bleu, 1, 0.5) })
-	local contenuListe = creer("Frame", { Position = UDim2.fromOffset(6, 6), Size = UDim2.new(1, -16, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 1, Parent = liste }, { UI.pile(4) })
+	-- (V6.9.10.7) Tableau DESTINATION | TYPE de la charte (lignes de 44 px, la destination choisie en jaune)
+	local tableauDestinations = UI.tableau(corps, {
+		{ cle = "nom", titre = "Destination", largeur = UDim.new(1, -92) },
+		{ cle = "genre", titre = "Type", largeur = UDim.new(0, 92), droite = true, donnees = true },
+	}, { nom = "Destinations", taille = UDim2.new(1, 0, 0, 20 + UI.JETONS.cible * 3.5), ordre = 8 })
 
 	local function donnees()
 		if not choix then return nil end
@@ -80,22 +88,15 @@ return function(contexte)
 	local remplirListe
 	local function ligneDestination(nom, sous, ordre, valeur)
 		local actif = choix ~= nil and choix.type == valeur.type and choix.nom == valeur.nom and choix.id == valeur.id
-		local b = creer("TextButton", { Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = actif and C.bleu or C.panneau, Text = "", LayoutOrder = ordre,
-			Parent = contenuListe }, { UI.coin(6) })
-		texte({ Text = nom, Font = UI.POLICE_GRAS, TextSize = 12, Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -90, 1, 0),
-			TextTruncate = Enum.TextTruncate.AtEnd, Parent = b })
-		texte({ Text = sous, TextSize = 10, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -8, 0, 0), Size = UDim2.new(0, 80, 1, 0), Parent = b })
-		b.Activated:Connect(function()
+		local ligne = tableauDestinations.ajouter({ nom = nom, genre = sous }, { nom = "Destination", ordre = ordre, couleurs = { genre = C.texte2 }, action = function()
 			choix = valeur
 			choixTexte.Text = "→ " .. nom
 			remplirListe()
-		end)
+		end })
+		if actif then ligne.choisir(true) end
 	end
 	remplirListe = function()
-		for _, enfant in contenuListe:GetChildren() do
-			if enfant:IsA("GuiObject") then enfant:Destroy() end
-		end
+		tableauDestinations.vider()
 		local ordre = 0
 		local precedent = exterieur:GetAttribute("PrecedentNom")
 		if precedent then
@@ -123,18 +124,16 @@ return function(contexte)
 
 	-- Note rapide au carnet de bord (sur le lieu actuel)
 	UI.titreSection(corps, "CARNET DE BORD", 12, C.ambre)
-	local note = creer("TextBox", { Size = UDim2.new(1, -78, 0, 32), BackgroundColor3 = C.panneau, Text = "", PlaceholderText = "Note sur ce lieu…",
-		Font = UI.POLICE, TextSize = 12, TextColor3 = C.texte, PlaceholderColor3 = C.texte2, ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd,
-		LayoutOrder = 1, Parent = nil }, { UI.coin(8), UI.marges(6) })
-	local rangeeNote = creer("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = 13, Parent = corps }, { UI.pile(6, true) })
-	note.Parent = rangeeNote
-	local ecrire = creer("TextButton", { Size = UDim2.fromOffset(72, 32), BackgroundColor3 = C.bleu, Text = "Écrire", Font = UI.POLICE_GRAS, TextSize = 12,
-		TextColor3 = C.texte, LayoutOrder = 2, Parent = rangeeNote }, { UI.coin(8) })
+	local rangeeNote = creer("Frame", { Size = UDim2.new(1, 0, 0, UI.JETONS.cible), BackgroundTransparency = 1, LayoutOrder = 13, Parent = corps }, { UI.pile(8, true) })
+	local note = creer("TextBox", { Name = "Note", Size = UDim2.new(1, -92, 1, 0), BackgroundColor3 = C.panneau, Text = "", PlaceholderText = "Note sur ce lieu…",
+		Font = UI.POLICE, TextSize = 13, TextColor3 = C.texte, PlaceholderColor3 = C.texte2, ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 1, Parent = rangeeNote }, { UI.coin(8), UI.contour(C.ligne, 1, 0.3), UI.marges(8) })
+	local ecrire = UI.boutonCoupe(rangeeNote, "Écrire", "principal", { Name = "Ecrire", Size = UDim2.new(0, 84, 1, 0), LayoutOrder = 2 })
 
-	-- Onglet affiché quand le panneau est réduit
-	local onglet = creer("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(150, 40),
-		BackgroundColor3 = C.fond, Text = "◆  COPILOTE", Font = UI.POLICE_GRAS, TextSize = 13, TextColor3 = C.cyan, Visible = false, Parent = gui },
-	{ UI.coin(12), UI.contour(C.cyan, 1.5, 0.35) })
+	-- Onglet affiché quand le panneau est réduit (bouton à coins coupés de la charte)
+	local onglet = UI.boutonCoupe(gui, "◆  Copilote", "principal", { Name = "OngletCopilote", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0),
+		Size = UDim2.fromOffset(170, 46) })
+	onglet.Visible = false
 	reduire.Activated:Connect(function() panneau.Visible = false onglet.Visible = true end)
 	onglet.Activated:Connect(function() panneau.Visible = true onglet.Visible = false end)
 
@@ -164,7 +163,7 @@ return function(contexte)
 			etat.Text = libelle[1]
 			etat.TextColor3 = libelle[2]
 		end
-		sousTitre.Text = def.Nom .. "  ·  " .. tostring(exterieur:GetAttribute("Position") or "?")
+		plaque.majSousLigne(UI.codeObjet(def) .. "  ·  " .. def.Nom .. "  ·  " .. tostring(exterieur:GetAttribute("Position") or "?"))
 		local alimente = exterieur:GetAttribute("Alimentation") ~= false
 		disponible(boutonDemat, alimente and not volLibre and e == E.Pose)
 		local arme = paradoxeJusqua ~= nil and os.clock() < paradoxeJusqua
@@ -223,13 +222,12 @@ return function(contexte)
 		if texteRecu == "__paradoxe" then
 			paradoxeJusqua = os.clock() + 15
 			UI.son("Alerte")
-			message.Text = "Paradoxe : la destination est dans le TARDIS. Clique encore sur REMAT pour forcer l'atterrissage."
-			message.TextColor3 = C.rouge
+			afficherMessage("Paradoxe : la destination est dans le TARDIS. Clique encore sur REMAT pour forcer l'atterrissage.", "alerte", "PARADOXE")
 			return
 		end
 		if string.sub(texteRecu, 1, 2) == "__" then return end -- (V6.9.10.1, relecture) messages techniques (« __console »…)
-		message.Text = texteRecu
-		message.TextColor3 = ok and C.vert or (ok == false and C.rouge or C.texte2)
+		-- (V6.9.10.7) refusé : badge REFUSÉ (jaune) ; sinon badge TARDIS (cyan)
+		afficherMessage(texteRecu, ok == false and "refus" or "info")
 	end)
 
 	-- Ouverture : le poste n'existe que pour le copilote
@@ -239,7 +237,7 @@ return function(contexte)
 			table.clear(etatsBoutons)
 			paradoxeJusqua = nil
 			panneau.Visible, onglet.Visible = true, false
-			message.Text, message.TextColor3 = "Le pilote t'a confié la navigation.", C.texte2
+			afficherMessage("Le pilote t'a confié la navigation.", "info")
 			choix = nil
 			choixTexte.Text = "Aucune destination choisie"
 			reglerMode("Normal")

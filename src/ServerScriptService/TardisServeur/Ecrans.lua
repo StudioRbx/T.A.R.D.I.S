@@ -21,13 +21,18 @@
 -- Hors tension : écrans noirs, « HORS TENSION » en petit. TARDIS détruit : affichage d'alerte.
 -- Aucune boucle : chaque écran est redessiné quand un attribut qu'il affiche change (l'écran ingénieur au plus
 -- 10 fois par seconde, Config.Ecrans.Rafraichissement).
+-- Charte « Hologramme de confinement » (V6.9.10.7, maquettes ÉCRAN DE DESTINATION et ÉCRAN INGÉNIEUR) : fond bleu nuit,
+-- filet cyan et coins coupés, « ◢ TARDIS · NAVIGATION » en cyan (Michroma), la destination en très grand et en jaune,
+-- l'état (à sa couleur) et le mode sur une ligne, les statuts, la bande vivante du bas ; écran ingénieur en lignes à
+-- jauges de 10 segments (intégrité verte, énergie cyan, air jaune, vapeur, boucliers) et « CLIC : GESTION DE
+-- L'ÉNERGIE » en jaune. Le serveur n'applique aucun thème : les couleurs sont les jetons fixes UI.JETONS.
 -- Reçoit ce qu'il utilise, renvoie majEcran (même rôle qu'avant : majEcran(message) affiche un message court).
 
 return function(contexte)
 	local Config, E, def, exterieur, interieur = contexte.Config, contexte.E, contexte.def, contexte.exterieur, contexte.interieur
 	local Players, remote, destinationChoisie, etatActuel = contexte.Players, contexte.remote, contexte.destinationChoisie, contexte.etatActuel
-	local UI = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI")) -- palette et polices du TARDIS
-	local C = UI.C
+	local UI = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI")) -- jetons de la charte et polices du TARDIS
+	local J = UI.JETONS -- (V6.9.10.7) couleurs fixes de la charte (avant : UI.C, la palette de départ)
 	local REGLAGES = Config.Ecrans or {}
 	local ATTRIBUT_FACE = REGLAGES.AttributFace or "FaceEcran"
 	local ATTRIBUT_ROTATION = REGLAGES.AttributRotation or "RotationEcran" -- (V6.9.10.4)
@@ -36,6 +41,14 @@ return function(contexte)
 	local FINESSE_MIN = REGLAGES.PixelsParStud or 20      -- finesse minimale (pixels par stud) d'un grand écran
 	local TECH = Config.Technicien or {}
 	local NOIR = Color3.fromRGB(0, 0, 0)
+	-- (V6.9.10.7) Teintes des voiles et du message, et couleurs des modes (la charte n'en donne pas : proches des jetons)
+	local GRIS_VEILLE = Color3.fromRGB(58, 72, 86)     -- « HORS TENSION », discret sur le noir
+	local ROUGE_SOMBRE = Color3.fromRGB(30, 5, 12)     -- fond du voile « TARDIS DÉTRUIT » et du message court
+	local ROSE = Color3.fromRGB(255, 170, 185)          -- sous-titre du voile « TARDIS DÉTRUIT »
+	local ROSE_CLAIR = Color3.fromRGB(255, 225, 231)    -- texte du message court
+	local COULEURS_ETAT = { [E.Pose] = J.vert, [E.Demat] = J.jaune, [E.Vol] = J.cyan, [E.Remat] = J.jaune }
+	local COULEURS_MODE = { Urgence = Color3.fromRGB(255, 150, 70), Express = J.vert, Sauvetage = J.cyan, Catastrophe = J.rouge,
+		Silencieux = Color3.fromRGB(170, 140, 240) }
 
 	--------------------------------------------------------------------
 	-- Face de l'affichage
@@ -178,30 +191,62 @@ return function(contexte)
 		local f = Instance.new("Frame")
 		f.Name = nom
 		f.Position, f.Size = position, taille
-		f.BackgroundColor3 = couleur or C.ecran
+		f.BackgroundColor3 = couleur or J.ecran
 		f.BackgroundTransparency = transparence or 0
 		f.BorderSizePixel = 0
 		f.Parent = parent
 		return f
 	end
+	-- police (V6.9.10.7) : "titre" (Michroma), "gras" (Titillium Web en gras), "corps" (Titillium Web), "donnees" (Roboto Mono)
 	local function etiquette(parent, nom, position, taille, couleur, police, alignement)
 		local t = Instance.new("TextLabel")
 		t.Name = nom
 		t.Position, t.Size = position, taille
 		t.BackgroundTransparency = 1
 		t.Text = ""
-		t.TextColor3 = couleur or C.texte
-		t.Font = police or UI.POLICE_GRAS
+		t.TextColor3 = couleur or J.texte
+		t.Font = (police == "titre" and UI.POLICE_TITRE) or (police == "donnees" and UI.POLICE_CODE) or UI.POLICE
+		if police == "gras" and UI.FACE_GRAS then pcall(function() t.FontFace = UI.FACE_GRAS end) end
 		t.TextScaled = true
 		t.TextWrapped = true
 		t.TextXAlignment = alignement or Enum.TextXAlignment.Left
 		t.Parent = parent
 		return t
 	end
-	local function coin(parent, rayon)
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(rayon or 0.04, 0)
-		c.Parent = parent
+	-- Coins coupés (V6.9.10.7) : un trait en biais dans les coins haut droit et bas gauche, comme les menus sans image
+	-- (tailles en pixels de la toile : le grand côté fait Config.Ecrans.Resolution pixels)
+	local function chanfreins(parent, couleur)
+		for _, position in { UDim2.new(1, -14, 0, 14), UDim2.new(0, 14, 1, -14) } do
+			local trait = cadre(parent, "Chanfrein", position, UDim2.fromOffset(40, 4), couleur, 0.35)
+			trait.AnchorPoint = Vector2.new(0.5, 0.5)
+			trait.Rotation = 45
+			trait.ZIndex = 2
+		end
+	end
+	-- Jauge à 10 segments (V6.9.10.7, comme UI.jaugeSegments des menus) : en proportions, puisque la toile suit la taille
+	-- de la pièce. Segment éteint : le texte très transparent (maquette : rgba(221, 246, 255, 0,12)).
+	local SEGMENTS, ECART_SEGMENTS = 10, 0.015
+	local function jaugeSegments(parent, nom, position, taille)
+		local f = cadre(parent, nom, position, taille, J.ecran, 1)
+		local largeur = (1 - ECART_SEGMENTS * (SEGMENTS - 1)) / SEGMENTS
+		local segments = {}
+		for i = 1, SEGMENTS do
+			segments[i] = cadre(f, "Segment", UDim2.fromScale((i - 1) * (largeur + ECART_SEGMENTS), 0), UDim2.fromScale(largeur, 1), J.texte, 0.88)
+		end
+		f:SetAttribute("Allumes", 0)
+		return { cadre = f, segments = segments }
+	end
+	-- Allume les segments (p de 0 à 1, de 10 % en 10 %, au moins un dès que p dépasse 0)
+	local function reglerSegments(jauge, p, couleur)
+		p = math.clamp(tonumber(p) or 0, 0, 1)
+		local allumes = math.floor(p * SEGMENTS + 0.5)
+		if p > 0 and allumes == 0 then allumes = 1 end
+		for i, segment in jauge.segments do
+			local allume = i <= allumes
+			segment.BackgroundColor3 = allume and couleur or J.texte
+			segment.BackgroundTransparency = allume and 0 or 0.88
+		end
+		jauge.cadre:SetAttribute("Allumes", allumes)
 	end
 
 	-- Une ligne de texte sur une seule ligne : elle rétrécit pour tenir, mais jamais sous une taille minimale
@@ -248,8 +293,9 @@ return function(contexte)
 		end
 	end
 
-	-- Une surface : le SurfaceGui, son fond, son cadre lumineux, et les deux voiles (hors tension, détruit)
-	local function creerSurface(part, modele, nom, faceParDefaut, centre, accent, titre)
+	-- Une surface : le SurfaceGui, son fond, son filet lumineux, et les deux voiles (hors tension, détruit)
+	-- (V6.9.10.7 : fond bleu nuit uni, filet cyan et coins coupés, titre en cyan ; voiles noir et rouge sombre, en Michroma)
+	local function creerSurface(part, modele, nom, faceParDefaut, centre, titre)
 		local gui = Instance.new("SurfaceGui")
 		gui.Name = nom
 		gui.Face = Enum.NormalId.Front
@@ -261,35 +307,37 @@ return function(contexte)
 		gui.Parent = part
 		local ecran = { part = part, modele = modele, gui = gui, faceParDefaut = faceParDefaut, centre = centre, contraintes = {},
 			rotationParDefaut = nom == "TardisEcranIngenieur" and (REGLAGES.RotationIngenieur or "Auto") or (REGLAGES.RotationDestination or 0) }
-		local fond = cadre(gui, "Fond", UDim2.new(), UDim2.fromScale(1, 1), C.ecran)
+		local fond = cadre(gui, "Fond", UDim2.new(), UDim2.fromScale(1, 1), J.ecran)
 		ecran.fond = fond
-		local degrade = Instance.new("UIGradient")
-		degrade.Rotation = 90
-		degrade.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(150, 165, 200))
-		degrade.Parent = fond
 		local bord = Instance.new("UIStroke")
-		bord.Color, bord.Thickness, bord.Transparency = accent, 6, 0.35
+		bord.Name = "Contour"
+		bord.Color, bord.Thickness, bord.Transparency = J.cyan, 4, 0.55
 		bord.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		bord.Parent = fond
-		local enTete = etiquette(fond, "Titre", UDim2.fromScale(0.05, 0.03), UDim2.fromScale(0.9, 0.11), accent, UI.POLICE_GRAS)
+		chanfreins(fond, J.cyan)
+		local enTete = etiquette(fond, "Titre", UDim2.fromScale(0.05, 0.04), UDim2.fromScale(0.9, 0.09), J.cyan, "titre")
 		enTete.Text = titre
 		uneLigne(ecran, enTete, 0.06)
-		cadre(fond, "Filet", UDim2.fromScale(0.05, 0.15), UDim2.fromScale(0.9, 0.006), accent, 0.55)
-		-- Hors tension : noir, un petit texte discret
+		cadre(fond, "Filet", UDim2.fromScale(0.05, 0.145), UDim2.fromScale(0.9, 0.004), J.ligne, 0.2)
+		-- Hors tension : noir, « HORS TENSION » en petit, discret
 		local veille = cadre(gui, "Veille", UDim2.new(), UDim2.fromScale(1, 1), NOIR)
 		veille.Visible = false
 		veille.ZIndex = 5
-		local horsTension = etiquette(veille, "Texte", UDim2.fromScale(0.2, 0.44), UDim2.fromScale(0.6, 0.12), Color3.fromRGB(70, 70, 80), UI.POLICE, Enum.TextXAlignment.Center)
+		local horsTension = etiquette(veille, "Texte", UDim2.fromScale(0.2, 0.45), UDim2.fromScale(0.6, 0.1), GRIS_VEILLE, "titre", Enum.TextXAlignment.Center)
 		horsTension.Text = "HORS TENSION"
 		horsTension.ZIndex = 6
-		-- Détruit : affichage d'alerte
-		local detruit = cadre(gui, "Detruit", UDim2.new(), UDim2.fromScale(1, 1), Color3.fromRGB(40, 4, 8))
+		-- Détruit : rouge sombre, bandes rouges en haut et en bas, le titre en rouge de la charte
+		local detruit = cadre(gui, "Detruit", UDim2.new(), UDim2.fromScale(1, 1), ROUGE_SOMBRE)
 		detruit.Visible = false
 		detruit.ZIndex = 7
-		local alarme = etiquette(detruit, "Titre", UDim2.fromScale(0.05, 0.3), UDim2.fromScale(0.9, 0.2), C.rouge, UI.POLICE_GRAS, Enum.TextXAlignment.Center)
-		alarme.Text = "!! TARDIS DÉTRUIT !!"
+		for _, y in { 0.06, 0.9 } do
+			local bande = cadre(detruit, "Bande", UDim2.fromScale(0, y), UDim2.fromScale(1, 0.04), J.rouge, 0.15)
+			bande.ZIndex = 8
+		end
+		local alarme = etiquette(detruit, "Titre", UDim2.fromScale(0.05, 0.32), UDim2.fromScale(0.9, 0.18), J.rouge, "titre", Enum.TextXAlignment.Center)
+		alarme.Text = "TARDIS DÉTRUIT"
 		alarme.ZIndex = 8
-		local sous = etiquette(detruit, "SousTitre", UDim2.fromScale(0.1, 0.55), UDim2.fromScale(0.8, 0.12), Color3.fromRGB(255, 160, 160), UI.POLICE, Enum.TextXAlignment.Center)
+		local sous = etiquette(detruit, "SousTitre", UDim2.fromScale(0.1, 0.56), UDim2.fromScale(0.8, 0.1), ROSE, "donnees", Enum.TextXAlignment.Center)
 		sous.Text = "RECONSTITUTION EN COURS"
 		sous.ZIndex = 8
 		return ecran
@@ -374,28 +422,29 @@ return function(contexte)
 		if voiles(ecran.gui) then return end
 		local t = ecran.textes
 		local dest = destinationChoisie()
-		t.Destination.Text = dest and string.upper(dest.Name) or "AUCUNE"
-		t.Destination.TextColor3 = dest and C.ambre or C.texte2
-		-- État et mode du voyage
+		t.Destination.Text = dest and UI.majuscules(dest.Name) or "AUCUNE" -- (V6.9.10.7 : accents en majuscules aussi)
+		t.Destination.TextColor3 = dest and J.jaune or J.discret
+		-- État (à sa couleur) et mode du voyage, sur une ligne
 		local etat = etatActuel()
-		local libelle = UI.LIBELLES[etat] or { tostring(etat), C.texte }
+		local libelle = UI.LIBELLES[etat] or { tostring(etat) }
 		local volLibre = exterieur:GetAttribute("VolLibre") ~= nil
 		if volLibre then
 			t.Etat.Text = "●  VOL LIBRE" .. (exterieur:GetAttribute("VolPhase") == "Invisible" and "  ·  VORTEX" or "")
-			t.Etat.TextColor3 = C.cyan
+			t.Etat.TextColor3 = J.cyan
 			t.Mode.Text = "MODE : VOL LIBRE" .. (exterieur:GetAttribute("VolUrgence") and "  ·  URGENCE" or "")
-			t.Mode.TextColor3 = exterieur:GetAttribute("VolUrgence") and C.orange or C.texte2
+			t.Mode.TextColor3 = exterieur:GetAttribute("VolUrgence") and COULEURS_MODE.Urgence or J.texte
 		else
 			t.Etat.Text = "●  " .. libelle[1]
-			t.Etat.TextColor3 = libelle[2]
+			t.Etat.TextColor3 = COULEURS_ETAT[etat] or J.texte
 			local mode = Config.modeDe(exterieur)
 			t.Mode.Text = "MODE : " .. Config.libelleMode(mode, true)
-			t.Mode.TextColor3 = mode == "Normal" and C.texte2 or UI.couleurMode(mode)
+			t.Mode.TextColor3 = COULEURS_MODE[mode] or J.texte
 		end
+		-- Statuts : discrets quand tout va bien (maquette), jaunes s'il y en a, rouges pendant l'alerte
 		local statuts = lignesStatut()
 		t.Statuts.Text = #statuts > 0 and table.concat(statuts, "  ·  ") or "SYSTÈMES NOMINAUX"
-		t.Statuts.TextColor3 = (exterieur:GetAttribute("Alerte") or exterieur:GetAttribute("AutoDestructionDebut")) and C.rouge
-			or (#statuts > 0 and C.ambre) or C.vert
+		t.Statuts.TextColor3 = (exterieur:GetAttribute("Alerte") or exterieur:GetAttribute("AutoDestructionDebut")) and J.rouge
+			or (#statuts > 0 and J.jaune) or J.discret
 		-- Message court de la console (« PAS POSÉ », « ALERTE GÉNÉRALE »…)
 		t.Bandeau.Visible = messageActuel ~= nil
 		t.Message.Text = messageActuel or ""
@@ -422,6 +471,8 @@ return function(contexte)
 
 	-- Disposition (V6.9.10.3) : cinq lignes, chacune d'au moins 8 % de la hauteur de l'écran (avant : 6,5 à 8 %) ;
 	-- l'état et le mode partagent une ligne. Proportions : de la hauteur de l'écran.
+	-- (V6.9.10.7) Maquette de la charte : titre cyan, « DESTINATION » discret (Roboto Mono), le lieu en Michroma jaune,
+	-- état · mode (Titillium Web gras), statuts, bande du bas sur un fond cyan très léger.
 	local function ajouterDestination(part, modele)
 		if destinations[part] or not part:IsA("BasePart") then return end
 		if nomIngenieur then -- une pièce « Ecran » rangée dans l'écran ingénieur n'est pas un écran de destination
@@ -431,22 +482,29 @@ return function(contexte)
 				p = p.Parent
 			end
 		end
-		local ecran = creerSurface(part, modele, "TardisEcranDestination", REGLAGES.FaceDestination or "Front", centreConsole, C.cyan, "◆  TARDIS  ·  NAVIGATION")
+		local ecran = creerSurface(part, modele, "TardisEcranDestination", REGLAGES.FaceDestination or "Front", centreConsole, "◢  TARDIS  ·  NAVIGATION")
 		local fond = ecran.fond
 		local textes = {}
-		textes.Etiquette = etiquette(fond, "EtiquetteDestination", UDim2.fromScale(0.05, 0.175), UDim2.fromScale(0.9, 0.08), C.texte2, UI.POLICE_GRAS)
+		textes.Etiquette = etiquette(fond, "EtiquetteDestination", UDim2.fromScale(0.05, 0.17), UDim2.fromScale(0.9, 0.08), J.discret, "donnees")
 		textes.Etiquette.Text = "DESTINATION"
-		textes.Destination = etiquette(fond, "Destination", UDim2.fromScale(0.05, 0.26), UDim2.fromScale(0.9, 0.22), C.ambre, UI.POLICE_TITRE)
-		textes.Etat = uneLigne(ecran, etiquette(fond, "Etat", UDim2.fromScale(0.05, 0.51), UDim2.fromScale(0.5, 0.12), C.vert), 0.06)
-		textes.Mode = uneLigne(ecran, etiquette(fond, "Mode", UDim2.fromScale(0.57, 0.51), UDim2.fromScale(0.38, 0.12), C.texte2, UI.POLICE_GRAS, Enum.TextXAlignment.Right), 0.05)
-		textes.Statuts = uneLigne(ecran, etiquette(fond, "Statuts", UDim2.fromScale(0.05, 0.655), UDim2.fromScale(0.9, 0.1), C.vert), 0.05)
-		-- Bande du bas : la ligne vivante (coordonnées, horloge, scan d'identité) écrite par chaque joueur (Ambiance)
-		cadre(fond, "LigneVivante", UDim2.fromScale(0.05, 0.8), UDim2.fromScale(0.9, 0.13), C.ecran, 1)
-		local bandeau = cadre(fond, "Bandeau", UDim2.fromScale(0, 0.36), UDim2.fromScale(1, 0.26), Color3.fromRGB(120, 18, 24), 0.08)
+		textes.Destination = etiquette(fond, "Destination", UDim2.fromScale(0.05, 0.26), UDim2.fromScale(0.9, 0.22), J.jaune, "titre")
+		textes.Etat = uneLigne(ecran, etiquette(fond, "Etat", UDim2.fromScale(0.05, 0.51), UDim2.fromScale(0.5, 0.11), J.vert, "gras"), 0.06)
+		textes.Mode = uneLigne(ecran, etiquette(fond, "Mode", UDim2.fromScale(0.57, 0.51), UDim2.fromScale(0.38, 0.11), J.texte, "gras", Enum.TextXAlignment.Right), 0.05)
+		textes.Statuts = uneLigne(ecran, etiquette(fond, "Statuts", UDim2.fromScale(0.05, 0.645), UDim2.fromScale(0.9, 0.09), J.discret, "gras"), 0.05)
+		-- Bande du bas : un fond cyan très léger (« BandeVivante »), et dessus la ligne vivante (coordonnées, horloge, scan
+		-- d'identité) écrite par chaque joueur (Ambiance) dans « LigneVivante », transparente (nom et place gardés)
+		cadre(fond, "BandeVivante", UDim2.fromScale(0.05, 0.79), UDim2.fromScale(0.9, 0.15), J.cyan, 0.9)
+		cadre(fond, "LigneVivante", UDim2.fromScale(0.07, 0.8), UDim2.fromScale(0.86, 0.13), J.ecran, 1)
+		-- Message court de la console : un bandeau rouge sombre, filets rouges, texte en Michroma
+		local bandeau = cadre(fond, "Bandeau", UDim2.fromScale(0, 0.36), UDim2.fromScale(1, 0.26), ROUGE_SOMBRE, 0.04)
 		bandeau.Visible = false
 		bandeau.ZIndex = 3
+		for _, y in { 0, 0.94 } do
+			local filet = cadre(bandeau, "Bande", UDim2.fromScale(0, y), UDim2.fromScale(1, 0.06), J.rouge, 0)
+			filet.ZIndex = 4
+		end
 		textes.Bandeau = bandeau
-		textes.Message = etiquette(bandeau, "Message", UDim2.fromScale(0.05, 0.12), UDim2.fromScale(0.9, 0.76), Color3.fromRGB(255, 225, 225), UI.POLICE_GRAS, Enum.TextXAlignment.Center)
+		textes.Message = etiquette(bandeau, "Message", UDim2.fromScale(0.05, 0.14), UDim2.fromScale(0.9, 0.72), ROSE_CLAIR, "titre", Enum.TextXAlignment.Center)
 		textes.Message.ZIndex = 4
 		ecran.textes = textes
 		ajuster(ecran)
@@ -488,18 +546,18 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- Écran ingénieur
 	--------------------------------------------------------------------
-	local ingenieur = nil -- écran { part, gui, lignes = { [cle] = { valeur, barre } }, face… }
+	local ingenieur = nil -- écran { part, gui, lignes = { [cle] = { valeur, jauge } }, face… }
 	local function couleurNiveau(v, bas, haut)
-		if v <= bas then return C.rouge end
-		if v <= haut then return C.ambre end
-		return C.vert
+		if v <= bas then return J.rouge end
+		if v <= haut then return J.jaune end
+		return J.vert
 	end
+	-- (V6.9.10.7) La valeur à sa couleur et la jauge à 10 segments (avant : une barre)
 	local function majLigne(cle, p, texteValeur, couleur)
 		local ligne = ingenieur.lignes[cle]
 		ligne.valeur.Text = texteValeur
 		ligne.valeur.TextColor3 = couleur
-		ligne.barre.Size = UDim2.fromScale(math.clamp(p, 0, 1), 1)
-		ligne.barre.BackgroundColor3 = couleur
+		reglerSegments(ligne.jauge, p, couleur)
 	end
 	local function typeBouclier()
 		if exterieur:GetAttribute("BouclierComplet") == true then return "COMPLET" end
@@ -514,28 +572,29 @@ return function(contexte)
 		local pv = tonumber(exterieur:GetAttribute("PointsDeVie")) or 100
 		local avarie = exterieur:GetAttribute("Avarie") == true
 		majLigne("integrite", pv / 100, avarie and "AVARIE  ·  0 %" or string.format("%d %%  ·  %s PV", pv, tostring(exterieur:GetAttribute("PV") or "?")),
-			avarie and C.rouge or couleurNiveau(pv, 20, 50))
-		-- Énergie (tension réglée par la régulation)
+			avarie and J.rouge or couleurNiveau(pv, 20, 50))
+		-- Énergie (tension réglée par la régulation) : cyan, rouge hors des bornes
 		local energie = tonumber(exterieur:GetAttribute("RegulEnergie")) or 80
 		local horsBornes = energie < (TECH.SousTension or 20) or energie > (TECH.SurtensionAuDessus or 90)
 		majLigne("energie", energie / 100, string.format("%d %%%s", energie,
 			energie > (TECH.SurtensionAuDessus or 90) and "  ·  SURTENSION" or (energie < (TECH.SousTension or 20) and "  ·  SOUS-TENSION" or "")),
-			horsBornes and C.rouge or C.vert)
-		-- Air et vapeur
+			horsBornes and J.rouge or J.cyan)
+		-- Air (jaune, rouge quand il est vicié) et vapeur (couleur du texte, rouge en fuite ou presque vide)
 		local air = tonumber(exterieur:GetAttribute("RegulAir")) or 100
-		majLigne("air", air / 100, string.format("%d %%%s", air, air < (TECH.SeuilAirVicie or 25) and "  ·  VICIÉ" or ""), couleurNiveau(air, TECH.SeuilAirVicie or 25, 50))
+		local vicie = air < (TECH.SeuilAirVicie or 25)
+		majLigne("air", air / 100, string.format("%d %%%s", air, vicie and "  ·  VICIÉ" or ""), vicie and J.rouge or J.jaune)
 		local vapeur = tonumber(exterieur:GetAttribute("RegulVapeur")) or 50
 		local fuite = exterieur:GetAttribute("VapeurSurcharge") ~= nil
-		majLigne("vapeur", fuite and 1 or vapeur / 100, fuite and "FUITE" or string.format("%d %%", vapeur), fuite and C.rouge or (vapeur <= 10 and C.rouge or C.cyan))
+		majLigne("vapeur", fuite and 1 or vapeur / 100, fuite and "FUITE" or string.format("%d %%", vapeur), (fuite or vapeur <= 10) and J.rouge or J.texte)
 		-- Boucliers
 		local actif = typeBouclier()
 		local energieBouclier = math.floor((tonumber(exterieur:GetAttribute("BouclierEnergie")) or 100) + 0.5)
 		if actif then
 			majLigne("bouclier", energieBouclier / 100, string.format("%s  ·  %d %%", actif, energieBouclier), couleurNiveau(energieBouclier, 15, 40))
 		elseif energieBouclier <= 0 then
-			majLigne("bouclier", 0, "TOMBÉ  ·  0 %", C.rouge)
+			majLigne("bouclier", 0, "TOMBÉS  ·  0 %", J.rouge)
 		else
-			majLigne("bouclier", energieBouclier / 100, string.format("INACTIF  ·  %d %%", energieBouclier), C.texte2)
+			majLigne("bouclier", energieBouclier / 100, string.format("INACTIFS  ·  %d %%", energieBouclier), J.discret)
 		end
 	end
 	local planifierIngenieur = planificateur(dessinerIngenieur, REGLAGES.Rafraichissement or 0.1)
@@ -592,6 +651,7 @@ return function(contexte)
 	end
 
 	-- Disposition (V6.9.10.3) : cinq lignes « NOM ……… VALEUR » d'au moins 8,5 % de la hauteur, chacune avec sa barre
+	-- (V6.9.10.7 : sa jauge à 10 segments ; titre cyan, bande du bas « CLIC : GESTION DE L'ÉNERGIE » en jaune)
 	local function creerIngenieur(objet)
 		local part = pieceAffichage(objet)
 		if not part then
@@ -601,22 +661,21 @@ return function(contexte)
 		local modele = objet ~= part and objet or nil
 		local dossierConsole = objet.Parent
 		local ecran = creerSurface(part, modele, "TardisEcranIngenieur", REGLAGES.FaceIngenieur or "Auto", centreDe(dossierConsole) or centreConsole,
-			C.ambre, "◆  INGÉNIERIE  ·  " .. def.Nom)
+			"◢  INGÉNIERIE  ·  " .. def.Nom)
 		local fond = ecran.fond
 		local lignes = {}
-		local NOMS = { { "integrite", "INTÉGRITÉ" }, { "energie", "ÉNERGIE" }, { "air", "AIR" }, { "vapeur", "VAPEUR" }, { "bouclier", "BOUCLIER" } }
+		local NOMS = { { "integrite", "INTÉGRITÉ" }, { "energie", "ÉNERGIE" }, { "air", "AIR" }, { "vapeur", "VAPEUR" }, { "bouclier", "BOUCLIERS" } }
 		for i, info in NOMS do
-			local y = 0.18 + (i - 1) * 0.137
-			local nom = uneLigne(ecran, etiquette(fond, "Nom_" .. info[1], UDim2.fromScale(0.05, y), UDim2.fromScale(0.36, 0.088), C.texte2, UI.POLICE_GRAS), 0.05)
+			local y = 0.16 + (i - 1) * 0.134
+			local nom = uneLigne(ecran, etiquette(fond, "Nom_" .. info[1], UDim2.fromScale(0.05, y), UDim2.fromScale(0.4, 0.085), J.texte, "gras"), 0.05)
 			nom.Text = info[2]
-			local valeur = uneLigne(ecran, etiquette(fond, "Valeur_" .. info[1], UDim2.fromScale(0.41, y), UDim2.fromScale(0.54, 0.088), C.vert, UI.POLICE_CODE, Enum.TextXAlignment.Right), 0.05)
-			local rail = cadre(fond, "Rail_" .. info[1], UDim2.fromScale(0.05, y + 0.093), UDim2.fromScale(0.9, 0.03), C.gris)
-			coin(rail, 1)
-			local barre = cadre(rail, "Barre", UDim2.new(), UDim2.fromScale(1, 1), C.vert)
-			coin(barre, 1)
-			lignes[info[1]] = { valeur = valeur, barre = barre }
+			local valeur = uneLigne(ecran, etiquette(fond, "Valeur_" .. info[1], UDim2.fromScale(0.45, y), UDim2.fromScale(0.5, 0.085), J.vert, "donnees", Enum.TextXAlignment.Right), 0.05)
+			local jauge = jaugeSegments(fond, "Jauge_" .. info[1], UDim2.fromScale(0.05, y + 0.09), UDim2.fromScale(0.9, 0.03))
+			lignes[info[1]] = { valeur = valeur, jauge = jauge }
 		end
-		local aide = uneLigne(ecran, etiquette(fond, "Aide", UDim2.fromScale(0.05, 0.885), UDim2.fromScale(0.9, 0.08), C.texte2, UI.POLICE, Enum.TextXAlignment.Center), 0.045)
+		-- Bande du bas (maquette) : un fond cyan très léger, « CLIC : GESTION DE L'ÉNERGIE » en jaune
+		cadre(fond, "BandeAide", UDim2.fromScale(0.05, 0.845), UDim2.fromScale(0.9, 0.11), J.cyan, 0.9)
+		local aide = uneLigne(ecran, etiquette(fond, "Aide", UDim2.fromScale(0.08, 0.86), UDim2.fromScale(0.84, 0.08), J.jaune, "donnees"), 0.045)
 		aide.Text = "CLIC : GESTION DE L'ÉNERGIE"
 		ecran.lignes = lignes
 		ajuster(ecran)

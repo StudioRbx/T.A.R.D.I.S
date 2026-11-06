@@ -86,7 +86,8 @@ verifier("Touche L toujours liée au verrouillage", "TOUCHE_CIBLE = Enum.KeyCode
 serveur = lire("ServerScriptService/TardisServeur/init.server.lua")
 # (V6.9.10.1 : l'écran est fait par le module TardisServeur › Ecrans, sur un ou plusieurs écrans : voir sim_v69101)
 ecrans = lire("ServerScriptService/TardisServeur/Ecrans.lua")
-verifier("Écran de la console : « DESTINATION » puis le lieu", 'textes.Etiquette.Text = "DESTINATION"' in ecrans and "t.Destination.Text = dest and string.upper(dest.Name)" in ecrans)
+# (V6.9.10.7 : le lieu passe par UI.majuscules, pour les accents : « BÂTIMENT » et plus « BâTIMENT »)
+verifier("Écran de la console : « DESTINATION » puis le lieu", 'textes.Etiquette.Text = "DESTINATION"' in ecrans and "t.Destination.Text = dest and UI.majuscules(dest.Name)" in ecrans)
 menu = lire("StarterPlayer/StarterPlayerScripts/TardisMenu.client.lua")
 # (V6.9.10.6 : le champ vient de UI.champRecherche, « Rechercher une destination » comme sur la charte)
 verifier("Menu rapide : champ de recherche relié à la liste",

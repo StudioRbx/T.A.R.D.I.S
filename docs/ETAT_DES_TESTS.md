@@ -7,10 +7,22 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 157 tests** — ⬜ 139 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 164 tests** — ⬜ 146 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.10.7 — Menus « Hologramme de confinement », second passage
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Cliquer sur l'écran ingénieur | le menu de l'énergie, plus grand, au nouveau style ; − / + changent la régulation | ⬜ |  |
+| Lever l'alerte, menu ouvert | sa bande de danger passe au rouge | ⬜ |  |
+| Jukebox : choisir une ligne, puis JOUER, puis ARRÊTER | la ligne passe en jaune, la musique joue puis s'arrête | ⬜ |  |
+| Casier : essayer une tenue, puis ENFILER | panneau à droite, tuile à l'essai en jaune, la tenue reste sur le personnage | ⬜ |  |
+| Regarder les écrans de la console | nouveau style ; le titre de l'écran ingénieur n'est pas coupé (police large) | ⬜ |  |
+| Activer la maintenance depuis la tablette | bandeau MAINTENANCE au nouveau style | ⬜ |  |
+| Copilote : ouvrir son poste | panneau au nouveau style, tableau des destinations | ⬜ |  |
 
 ## V6.9.10.6 — Menus « Hologramme de confinement », premier passage
 

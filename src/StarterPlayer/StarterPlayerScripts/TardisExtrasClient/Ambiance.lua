@@ -141,8 +141,9 @@ return function(contexte)
 				local fond = objet:WaitForChild("Fond", 10)
 				local zone = fond and fond:WaitForChild("LigneVivante", 10)
 				if not zone or zone:FindFirstChild("TardisVivant") then return end
-				local vivant = texte({ Name = "TardisVivant", Text = "", Font = UI.POLICE_CODE, TextScaled = true, TextColor3 = Color3.fromRGB(120, 230, 255),
-					TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd, Size = UDim2.fromScale(1, 1), Parent = zone })
+				-- (V6.9.10.7) Maquette de l'écran de destination : Roboto Mono, couleur du texte de la charte, à gauche
+				local vivant = texte({ Name = "TardisVivant", Text = "", Font = UI.POLICE_CODE, TextScaled = true, TextColor3 = UI.JETONS.texte,
+					TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Size = UDim2.fromScale(1, 1), Parent = zone })
 				vivants[vivant] = true
 			end)
 		end
@@ -168,10 +169,10 @@ return function(contexte)
 					if entree ~= dernierTexteScan then dernierTexteScan, dernierScan, age = entree, os.clock(), 0 end
 					local ligne, couleur
 					if entree and age < 12 then
-						ligne, couleur = "ENTRÉE : " .. entree, Color3.fromRGB(255, 200, 120) -- scan d'identité
+						ligne, couleur = "ENTRÉE : " .. entree, UI.JETONS.jaune -- scan d'identité
 					else
 						ligne = string.format("X %d · Y %d · Z %d · %02d:%02d", p.X, p.Y, p.Z, math.floor(heure), math.floor((heure % 1) * 60))
-						couleur = Color3.fromRGB(120, 230, 255)
+						couleur = UI.JETONS.texte
 					end
 					local visible = exterieur:GetAttribute("Alimentation") ~= false
 					for vivant in vivants do

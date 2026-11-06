@@ -13,7 +13,8 @@ local E = Config.Etats
 
 local UI = {}
 
--- Palette de départ (avant tout thème). Le serveur la garde telle quelle (écrans de la console, jusqu'à la phase 2).
+-- Palette de départ (avant tout thème). Le serveur la garde telle quelle (V6.9.10.7 : les écrans de la console prennent
+-- les jetons fixes UI.JETONS, voir plus bas).
 UI.C = {
 	fond = Color3.fromRGB(5, 12, 28),
 	ecran = Color3.fromRGB(7, 16, 36),
@@ -39,7 +40,7 @@ UI.BASE = {}
 for role, couleur in C do UI.BASE[role] = couleur end
 
 -- Jetons de la charte « Hologramme de confinement » (V6.9.10.6) : fixes, quel que soit le thème choisi.
--- Pour la phase 2 (écrans de la console faits par le serveur, qui n'applique pas de thème) : UI.JETONS.cyan, etc.
+-- Pour les écrans de la console faits par le serveur, qui n'applique pas de thème (V6.9.10.7) : UI.JETONS.cyan, etc.
 UI.JETONS = {
 	panneau = Color3.fromRGB(10, 22, 38),  -- #0A1626 : fond de tous les menus (transparence 0,1)
 	ligne = Color3.fromRGB(31, 110, 140),  -- #1F6E8C : bords, séparateurs, boutons secondaires
@@ -51,6 +52,7 @@ UI.JETONS = {
 	vert = Color3.fromRGB(124, 255, 178),  -- #7CFFB2 : accordé, posé, réparé
 	sombre = Color3.fromRGB(11, 11, 11),   -- #0B0B0B : texte sur cyan ou jaune
 	scene = Color3.fromRGB(4, 7, 12),      -- #04070C : bandes sombres de la bande de danger
+	ecran = Color3.fromRGB(5, 11, 20),     -- #050B14 : fond des écrans de la console (V6.9.10.7, maquettes des écrans)
 	transparencePanneau = 0.1,
 	coupe = 16, coupeBouton = 10, coupePuce = 8, -- coins coupés (px)
 	bande = 8,                                    -- hauteur de la bande de danger (px)
@@ -71,6 +73,7 @@ UI.POLICE_CORPS = UI.POLICE        -- (V6.9.10.6) noms de la charte : texte…
 UI.POLICE_DONNEES = UI.POLICE_CODE -- … et données
 local FACE_GRAS = nil
 pcall(function() FACE_GRAS = Font.new("rbxasset://fonts/families/TitilliumWeb.json", Enum.FontWeight.Bold) end)
+UI.FACE_GRAS = FACE_GRAS -- (V6.9.10.7) Titillium Web en gras, pour les écrans de la console faits par le serveur (nil : indisponible)
 
 -- Libellés des états : { texte long, couleur, texte court } (couleurs remises à jour à chaque thème)
 UI.LIBELLES = {

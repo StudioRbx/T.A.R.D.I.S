@@ -267,12 +267,13 @@ champs = lambda nom: [champ(g, nom) for g in (g1, g2)]
 verifier("2. Destination, état et mode affichés sur les deux écrans", all(texte_de(d) == "SITE-19" for d in champs("Destination"))
          and all(texte_de(e) == "●  POSÉ" for e in champs("Etat")) and all(texte_de(m) == "MODE : CLASSIQUE" for m in champs("Mode")),
          [texte_de(d) for d in champs("Destination") + champs("Etat") + champs("Mode")])
-verifier("2. Couleurs TARDIS (TardisUI) : destination ambre, fond d'écran sombre", champ(g1, "Destination").props["TextColor3"].rgb255() == (242, 179, 61) and champ(g1, "Fond").props["BackgroundColor3"].rgb255() == (7, 16, 36))
+# (V6.9.10.7 : jetons fixes de la charte, UI.JETONS : destination jaune #F2C230, fond des écrans #050B14)
+verifier("2. Couleurs de la charte (UI.JETONS) : destination jaune, fond d'écran bleu nuit", champ(g1, "Destination").props["TextColor3"].rgb255() == (242, 194, 48) and champ(g1, "Fond").props["BackgroundColor3"].rgb255() == (5, 11, 20))
 verifier("2. Statuts : « SYSTÈMES NOMINAUX »", texte_de(champ(g1, "Statuts")) == "SYSTÈMES NOMINAUX")
 DEST["nom"] = "Zone-Tsade"; tache(lambda: appeler(Ec.get("majEcran"), []))
 verifier("2. Changement de destination (majEcran) : les deux écrans suivent", all(texte_de(d) == "ZONE-TSADE" for d in champs("Destination")))
 xs.m_SetAttribute("Alerte", True); H.avancer(0.01)
-verifier("2. Alerte : mise à jour tout de suite (sans boucle), statut rouge « ALERTE »", all("ALERTE" in texte_de(s) and s.props["TextColor3"].rgb255() == (240, 82, 82) for s in champs("Statuts")), [texte_de(s) for s in champs("Statuts")])
+verifier("2. Alerte : mise à jour tout de suite (sans boucle), statut rouge « ALERTE »", all("ALERTE" in texte_de(s) and s.props["TextColor3"].rgb255() == (255, 77, 106) for s in champs("Statuts")), [texte_de(s) for s in champs("Statuts")])
 for a in ("DemarrageBloque", "Camouflage", "Retreci"): xs.m_SetAttribute(a, True)
 H.avancer(0.01)
 st = texte_de(champ(g2, "Statuts"))
@@ -317,10 +318,11 @@ verifier("6. Écran ingénieur fait en script sur Console › Ecran-Ingenieure",
 gi = gi[0]
 val = lambda cle: texte_de(champ(gi, "Valeur_" + cle))
 coul = lambda cle: champ(gi, "Valeur_" + cle).props["TextColor3"].rgb255()
-larg = lambda cle: champ(champ(gi, "Rail_" + cle), "Barre").props["Size"].args[0]
-ROUGE, VERT, AMBRE = (240, 82, 82), (74, 222, 128), (242, 179, 61)
-verifier("6. PV, énergie, air, vapeur, bouclier affichés (barres et pourcentages)", val("integrite") == "80 %  ·  8000 PV" and val("energie") == "80 %" and val("air") == "100 %"
-         and val("vapeur") == "50 %" and val("bouclier") == "INACTIF  ·  100 %" and abs(larg("integrite") - 0.8) < 1e-9, [val(c) for c in ("integrite", "energie", "air", "vapeur", "bouclier")])
+# (V6.9.10.7 : jauges à 10 segments au lieu des barres ; couleurs de la charte, UI.JETONS)
+allumes = lambda cle: champ(gi, "Jauge_" + cle).attrs.get("Allumes")
+ROUGE, VERT, AMBRE, CYAN = (255, 77, 106), (124, 255, 178), (242, 194, 48), (91, 224, 255)
+verifier("6. PV, énergie, air, vapeur, bouclier affichés (jauges à segments et pourcentages)", val("integrite") == "80 %  ·  8000 PV" and val("energie") == "80 %" and val("air") == "100 %"
+         and val("vapeur") == "50 %" and val("bouclier") == "INACTIFS  ·  100 %" and allumes("integrite") == 8, [val(c) for c in ("integrite", "energie", "air", "vapeur", "bouclier")])
 H.avancer(0.3)  # rien en attente
 xs.m_SetAttribute("PointsDeVie", 15); xs.m_SetAttribute("PV", 1500); H.avancer(0.05)
 verifier("6. Mises à jour regroupées (au plus 10 par seconde) : pas encore redessiné après 0,05 s", val("integrite") == "80 %  ·  8000 PV")
@@ -329,12 +331,13 @@ verifier("6. PV bas : rouge, mis à jour en direct", val("integrite") == "15 %  
 xs.m_SetAttribute("RegulEnergie", 95); xs.m_SetAttribute("RegulAir", 20); xs.m_SetAttribute("VapeurSurcharge", 2); H.avancer(0.2)
 verifier("6. Régulation : surtension rouge, air vicié rouge, fuite de vapeur", "SURTENSION" in val("energie") and coul("energie") == ROUGE and "VICIÉ" in val("air") and coul("air") == ROUGE and val("vapeur") == "FUITE")
 xs.m_SetAttribute("BouclierBalles", True); xs.m_SetAttribute("BouclierEnergie", 30); H.avancer(0.2)
-verifier("6. Bouclier anti-balles à 30 % (ambre)", val("bouclier") == "ANTI-BALLES  ·  30 %" and coul("bouclier") == AMBRE, (val("bouclier"), coul("bouclier")))
+verifier("6. Bouclier anti-balles à 30 % (jaune)", val("bouclier") == "ANTI-BALLES  ·  30 %" and coul("bouclier") == AMBRE, (val("bouclier"), coul("bouclier")))
 xs.m_SetAttribute("BouclierBalles", False); xs.m_SetAttribute("BouclierEnergie", 0); H.avancer(0.2)
-verifier("6. Bouclier tombé : « TOMBÉ », rouge", val("bouclier") == "TOMBÉ  ·  0 %" and coul("bouclier") == ROUGE)
+verifier("6. Boucliers tombés : « TOMBÉS », rouge", val("bouclier") == "TOMBÉS  ·  0 %" and coul("bouclier") == ROUGE)
 xs.m_SetAttribute("BouclierComplet", True); xs.m_SetAttribute("BouclierEnergie", 90); xs.m_SetAttribute("PointsDeVie", 100); xs.m_SetAttribute("PV", 10000)
 xs.m_SetAttribute("RegulEnergie", 60); xs.m_SetAttribute("RegulAir", 70); xs.m_SetAttribute("VapeurSurcharge", None); H.avancer(0.2)
-verifier("6. Tout redevient vert", coul("integrite") == VERT and coul("energie") == VERT and coul("air") == VERT and val("bouclier") == "COMPLET  ·  90 %")
+# (V6.9.10.7 : chaque système à sa couleur de la charte : intégrité verte, énergie cyan, air jaune)
+verifier("6. Tout redevient normal (intégrité verte, énergie cyan, air jaune)", coul("integrite") == VERT and coul("energie") == CYAN and coul("air") == AMBRE and val("bouclier") == "COMPLET  ·  90 %")
 xs.m_SetAttribute("Alimentation", False); H.avancer(0.2)
 verifier("6. Hors tension : l'écran ingénieur s'éteint aussi", champ(gi, "Veille").props["Visible"] is True)
 xs.m_SetAttribute("Alimentation", True); H.avancer(0.2)
@@ -676,7 +679,9 @@ verifier("6. Menus fermés au départ", menu.props.get("Enabled") is False and j
 recevoir("__energie", PC["ingenieur"])
 verifier("6. « __energie » : le menu de gestion de l'énergie s'ouvre", menu.props.get("Enabled") is True)
 jv = lambda cle: texte_de(trouve(trouve(menu, "Jauge_" + cle), "Valeur"))
-verifier("6. Menu : PV, alimentation et boucliers", jv("integrite") == "64 %  (6400 PV)" and jv("alimentation") == "NOMINALE" and jv("bouclier") == "ANTI-JOUEURS  ·  72 %", (jv("integrite"), jv("alimentation"), jv("bouclier")))
+jd = lambda cle: texte_de(trouve(trouve(menu, "Jauge_" + cle), "Detail"))  # (V6.9.10.7 : la valeur et son détail, comme la maquette)
+verifier("6. Menu : PV, alimentation et boucliers", jv("integrite") == "64 %" and jd("integrite") == "6400 PV" and jv("alimentation") == "NOMINALE" and jv("bouclier") == "72 %"
+         and jd("bouclier") == "ANTI-JOUEURS", (jv("integrite"), jd("integrite"), jv("alimentation"), jv("bouclier"), jd("bouclier")))
 rv_ = lambda s_: texte_de(trouve(trouve(menu, "Regul_" + s_), "Valeur"))
 verifier("6. Menu : les trois réglages de la régulation (énergie, air, vapeur)", (rv_("Energie"), rv_("Air"), rv_("Vapeur")) == ("80 %", "100 %", "50 %"))
 plusE = trouve(trouve(menu, "Regul_Energie"), "Plus"); moinsV = trouve(trouve(menu, "Regul_Vapeur"), "Moins"); plusA = trouve(trouve(menu, "Regul_Air"), "Plus")
@@ -728,10 +733,11 @@ racineMoi.props["Position"] = Vec3(0, 0, 30); H.avancer(0.6)
 verifier("Relecture 6. Sans la pièce : il se ferme quand même en s'éloignant", menu.props.get("Enabled") is False)
 racineMoi.props["Position"] = Vec3(0, 0, 5); PC["ingenieur"].set_parent(PC["console"])
 recevoir("__console", "Réservé aux pilotes et aux ingénieurs.", False)
+# (V6.9.10.7 : le message est une notification de la charte, cadre « MessageConsole »)
 verifier("6. « __console » : le message s'affiche (« Réservé aux pilotes et aux ingénieurs »)", trouve(msg, "Texte") and "Réservé aux pilotes et aux ingénieurs." in texte_de(trouve(msg, "Texte"))
-         and trouve(msg, "Texte").parent.props.get("Visible") is True and menu.props.get("Enabled") is False)
+         and trouve(msg, "MessageConsole").props.get("Visible") is True and menu.props.get("Enabled") is False)
 H.avancer(3.1)
-verifier("6. Le message disparaît après 3 s", trouve(msg, "Texte").parent.props.get("Visible") is False)
+verifier("6. Le message disparaît après 3 s", trouve(msg, "MessageConsole").props.get("Visible") is False)
 # Jukebox
 recevoir("__jukebox", PC["jukebox"])
 liste = trouve(juke, "Liste")
@@ -739,16 +745,20 @@ verifier("8. « __jukebox » : panneau ouvert ; Config.Jukebox vide → le panne
 appuyer(trouve(juke, "Fermer"))
 Cc.set("Jukebox", Table({1: Table({"nom": "Thème", "id": 111, "categorie": "Action"}), 2: Table({"nom": "Vortex", "id": 222, "categorie": "Action"}), 3: Table({"nom": "Calme", "id": 333})}))
 recevoir("__jukebox", PC["jukebox"])
-pl = [e for e in liste.enfants if e.Name == "Playlist"]; pi = [e for e in liste.enfants if e.Name == "Piste"]
-verifier("8. Pistes et playlists de Config.Jukebox (mêmes données que la tablette)", len(pl) == 1 and len(pi) == 3 and "Playlist Action  (2, aléatoire)" in texte_de(pl[0]) and texte_de(pi[2]) == "Calme",
-         [texte_de(e) for e in pl + pi])
+# (V6.9.10.7 : tableau N° | PISTE | DURÉE de la charte ; une ligne se choisit, JOUER la lance)
+cel = lambda l, k: texte_de(trouve(l, "Cellule_" + k))
+lignesJ = lambda nom: [e for e in trouve(juke, "Liste").enfants if e.Name == nom]
+pl, pi = lignesJ("Playlist"), lignesJ("Piste")
+verifier("8. Pistes et playlists de Config.Jukebox (mêmes données que la tablette), en tableau", len(pl) == 1 and len(pi) == 3 and cel(pl[0], "piste") == "PLAYLIST ACTION"
+         and cel(pl[0], "detail") == "2 PISTES" and cel(pi[2], "piste") == "CALME", [(cel(e, "numero"), cel(e, "piste"), cel(e, "detail")) for e in pl + pi])
 n = len(remoteC.extra.get("envois", []))
-appuyer(pi[1]); appuyer(pl[0]); appuyer(trouve(juke, "Arreter"))
+appuyer(pi[1]); appuyer(trouve(juke, "Jouer")); appuyer(lignesJ("Playlist")[0]); appuyer(trouve(juke, "Jouer")); appuyer(trouve(juke, "Arreter"))
 j_ = [(e[0], dict(e[1].h)) for e in remoteC.extra["envois"][n:]]
 verifier("8. Piste, playlist, arrêt : l'action EXISTANTE Jukebox ({index}, {liste}, {})", j_ == [("Jukebox", {"index": 2}), ("Jukebox", {"liste": "Action"}), ("Jukebox", {})], j_)
 xc.m_SetAttribute("Jukebox", 2); H.avancer(0.01)
-pi = [e for e in trouve(juke, "Liste").enfants if e.Name == "Piste"]
-verifier("8. La piste qui joue est mise en évidence", pi[1].props["BackgroundColor3"] == UIc.get("C").get("bleu"))
+pi = lignesJ("Piste")
+verifier("8. La piste qui joue est mise en évidence (ligne jaune de la charte)", pi[1].props["BackgroundTransparency"] == 0
+         and pi[1].props["BackgroundColor3"].rgb255() == (242, 194, 48) and pi[1].attrs.get("Choisi") is True)
 racineMoi.props["Position"] = Vec3(4, 0, 40); H.avancer(0.6)
 verifier("8. En s'éloignant du jukebox : fermé", juke.props.get("Enabled") is False)
 racineMoi.props["Position"] = Vec3(0, 0, 5)
@@ -761,7 +771,7 @@ verifier("Client (Console) : aucune erreur", not roblox.ERREURS, roblox.ERREURS[
 copi = lire("StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Copilote.lua")
 h_ = copi[copi.index("remote.OnClientEvent:Connect(function(texteRecu, ok)"):]
 verifier("Relecture 3. Poste du copilote : les messages techniques « __… » (__console…) ne s'affichent plus, après le cas __paradoxe",
-         'if string.sub(texteRecu, 1, 2) == "__" then return end' in h_ and h_.index('"__paradoxe"') < h_.index('string.sub(texteRecu, 1, 2) == "__"') < h_.index("message.Text = texteRecu"))
+         'if string.sub(texteRecu, 1, 2) == "__" then return end' in h_ and h_.index('"__paradoxe"') < h_.index('string.sub(texteRecu, 1, 2) == "__"') < h_.index("afficherMessage(texteRecu"))  # (V6.9.10.7 : notification de la charte)
 
 
 # ================================================================== 10. Client, module Interactions : casier de la console

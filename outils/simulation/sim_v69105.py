@@ -546,7 +546,7 @@ ouvrir()
 verifier("4. Tout est bouché : la caméra ne bouge pas (ni type ni position), le menu s'ouvre quand même",
          camera.props["CFrame"] is CAM0 and cam_type() == "Enum.CameraType.Custom" and casierGui.props.get("Enabled") is True, (camera.props["CFrame"].p, cam_type()))
 appuyer = lambda b: (b.extra.setdefault("Activated", Signal("Activated")).declencher(), H.avancer(0.01))
-bfermer = [e for e in descendants(casierGui) if e.ClassName == "TextButton" and texte_de(e) == "Fermer"][0]
+bfermer = [e for e in descendants(casierGui) if e.ClassName == "TextButton" and texte_de(e) == "FERMER"][0]  # (V6.9.10.7 : bouton de la charte, en majuscules)
 appuyer(bfermer)
 verifier("4. … « Fermer » : rien à rendre, caméra intacte", camera.props["CFrame"] is CAM0 and casierGui.props.get("Enabled") is False)
 # C. Pièce invisible (portail), pièce sans requête, objet du personnage juste devant : ignorés ; place devant à 7 studs
@@ -577,8 +577,9 @@ verifier("4. Réapparition : menu fermé, caméra rendue (type, position), sujet
 perso, hum = perso2, hum2; racine_ = perso.m_FindFirstChild("HumanoidRootPart"); camera.props["CameraSubject"] = hum
 # 6. Aperçu chez le joueur
 def bouton_tenue(nom):
+    # (V6.9.10.7 : tuiles de la charte, le nom en majuscules)
     for b in descendants(casierGui):
-        if b.ClassName == "TextButton" and any(e.ClassName == "TextLabel" and texte_de(e) == nom for e in b.enfants): return b
+        if b.ClassName == "TextButton" and any(e.ClassName == "TextLabel" and texte_de(e) == nom.upper() for e in b.enfants): return b
 aide_ = lambda: [e for e in descendants(casierGui) if e.ClassName == "TextLabel" and ("Clique pour essayer" in texte_de(e) or "Aperçu" in texte_de(e) or "chargement" in texte_de(e))][0]
 habits = lambda: (perso.m_FindFirstChildOfClass("Shirt").props["ShirtTemplate"], perso.m_FindFirstChildOfClass("Pants").props["PantsTemplate"])
 ouvrir()
@@ -594,11 +595,11 @@ verifier("6. Images pas encore prêtes : vêtements gardés, « en cours de char
 H.avancer(3.1)
 verifier("6. Le message laisse ensuite la place à l'aide", "Clique pour essayer" in texte_de(aide_()))
 appuyer(bouton_tenue(TENUES[1][0]))
-bgarder = [e for e in descendants(casierGui) if e.ClassName == "TextButton" and texte_de(e) == "Garder cette tenue"][0]
+bgarder = [e for e in descendants(casierGui) if e.ClassName == "TextButton" and texte_de(e) == "ENFILER"][0]  # (V6.9.10.7 : « Garder cette tenue » devient ENFILER)
 n = len(remoteC.extra.get("envois", []))
 appuyer(bgarder)
 env_ = remoteC.extra.get("envois", [])[n:]
-verifier("6. « Garder cette tenue » : demandée au serveur (action Tenue), le serveur décide", [(e[0], dict(e[1].h)) for e in env_] == [("Tenue", {"index": 2})] and habits()[0] == IMAGE[TENUES[1][1]][1], env_)
+verifier("6. « Enfiler » (avant : « Garder cette tenue ») : demandée au serveur (action Tenue), le serveur décide", [(e[0], dict(e[1].h)) for e in env_] == [("Tenue", {"index": 2})] and habits()[0] == IMAGE[TENUES[1][1]][1], env_)
 remoteC.__lua_index__("OnClientEvent").declencher("__tenue", False, 2); H.avancer(0.01)
 verifier("6. Le serveur refuse (« __tenue » faux) : l'aperçu est retiré, vêtements d'avant", habits() == ("rbxassetid://1111", "rbxassetid://2222"), habits())
 ouvrir(); appuyer(bouton_tenue(TENUES[2][0])); appuyer(bgarder)
@@ -664,11 +665,14 @@ jukeGui = pg.m_FindFirstChild("TardisJukeboxConsole")
 remoteC.__lua_index__("OnClientEvent").declencher("__jukebox", jbp); H.avancer(0.01)
 listeJ = trouve(jukeGui, "Liste")
 pl = [texte_de(e) for e in listeJ.enfants if e.Name == "Playlist"]; pi_ = [e for e in listeJ.enfants if e.Name == "Piste"]
-noms_client = [texte_de(e).split("  ·  ")[0] for e in pi_]
-verifier("8. Panneau de la console : les pistes du dossier et de Config.Jukebox, dans le MÊME ordre que sur le serveur", noms_client == [a for a, _ in ATTENDU], noms_client)
-verifier("8. … une playlist par catégorie, dans l'ordre des catégories", [p.split("Playlist ")[1].split("  (")[0] for p in pl] == ["Thèmes", "Ambiance de bord", "Vortex", "Action"], pl)
+# (V6.9.10.7 : tableau N° | PISTE | DURÉE de la charte, noms en majuscules ; une ligne se choisit, JOUER la lance)
+cellule = lambda l, k: texte_de(trouve(l, "Cellule_" + k))
+pl = [cellule(e, "piste") for e in listeJ.enfants if e.Name == "Playlist"]
+noms_client = [cellule(e, "piste") for e in pi_]
+verifier("8. Panneau de la console : les pistes du dossier et de Config.Jukebox, dans le MÊME ordre que sur le serveur", noms_client == [a.upper() for a, _ in ATTENDU], noms_client)
+verifier("8. … une playlist par catégorie, dans l'ordre des catégories", [p.split("PLAYLIST ")[1] for p in pl] == ["THÈMES", "AMBIANCE DE BORD", "VORTEX", "ACTION"], pl)
 n = len(remoteC.extra.get("envois", []))
-appuyer(pi_[noms_client.index("Chase")])
+appuyer(pi_[noms_client.index("CHASE")]); appuyer(trouve(jukeGui, "Jouer"))
 e_ = remoteC.extra["envois"][n:]
 verifier("8. Clic sur « Chase » : le numéro envoyé est celui du serveur pour la même musique", [(x[0], dict(x[1].h)) for x in e_] == [("Jukebox", {"index": i_chase})], e_)
 verifier("8. Config.Jukebox du joueur = la liste triée (la tablette affiche la même chose)", [Cc.get("Jukebox").get(i).get("nom") for i in range(1, 8)] == [a for a, _ in ATTENDU])
