@@ -93,6 +93,8 @@ function Commandes.donnees(choix, options)
 	local donnees = { invisible = protocoles.invisible, mode = protocoles.mode }
 	if choix.type == "precedent" then
 		donnees.precedent = true
+	elseif choix.type == "base" then
+		donnees.base = true -- (V6.9.11) point de base : le serveur sait où il est
 	elseif choix.type == "lieu" then
 		donnees.destination = choix.nom
 	elseif choix.type == "joueur" then

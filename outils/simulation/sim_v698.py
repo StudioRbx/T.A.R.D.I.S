@@ -121,10 +121,11 @@ etat_tests.PAGE = Path(page)
 txt = open(page, encoding="utf-8").read()
 cible = "| Son de démat à 50, 150 et 300 studs | fort, faible, plus rien | ⬜ |  |"
 verifier("Page d'état : le test du son de la V6.9.7 est listé", cible in txt)
+dejaFaits = txt.count("| ✅ |")  # tests déjà notés réussis dans la vraie page
 open(page, "w", encoding="utf-8").write(txt.replace(cible, cible.replace("| ⬜ |  |", "| ✅ | essai simulé |")))
 total, compte = etat_tests.generer()
 apres = open(page, encoding="utf-8").read()
-verifier("Régénération de la page : le ✅ noté est gardé", "| ✅ | essai simulé |" in apres and compte["✅"] == 1, compte)
+verifier("Régénération de la page : le ✅ noté est gardé", "| ✅ | essai simulé |" in apres and compte["✅"] == dejaFaits + 1, (compte, dejaFaits))
 verifier("Régénération : les ➖ (fonctions retirées) sont gardés", compte["➖"] == 18, compte)
 avecTests = [v for v in suivi_versions.lire_versions() if "–" not in v["version"] and suivi_versions.tableaux_a_tester(v["lignes"])]
 verifier("Chaque version avec un tableau « À tester » a sa section", apres.count("\n## V") == len(avecTests) >= 13

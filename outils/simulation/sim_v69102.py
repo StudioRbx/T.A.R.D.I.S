@@ -57,7 +57,7 @@ def place(nouveau_format=True, spawns=True):
 # ================================================================== 1. Config.modeles
 I, G, game, joueur, ws, t1, ext, dossierInt, salle, rotor, portail = place()
 Config = R["Config"]
-verifier("Version 6.9.10.2 ou plus récente (6.9.10.x)", str(Config.get("Version")).startswith("6.9.10.") and Config.get("Version") not in ("6.9.10", "6.9.10.1"), Config.get("Version"))
+verifier("Version 6.9.10.2 ou plus récente", tuple(int(p) for p in str(Config.get("Version")).split(".") if p.isdigit()) >= (6, 9, 10, 2), Config.get("Version"))
 def_1 = Config.get("Tardis").get(1)
 tache(lambda: R.update(m=appeler(Config.get("modeles"), [def_1])))
 verifier("1. Nouveau format : l'extérieur est le Model de EXTERIEURE", R["m"][0] is ext)

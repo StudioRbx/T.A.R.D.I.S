@@ -1127,7 +1127,8 @@ function UI.texteBadge(cle, defaut)
 end
 
 -- Statut d'une destination (colonne STATUT) : "REFUSE" (dans le sous-dossier REFUSE ou dans une de ses zones : seule
--- l'urgence y atterrit), "SANS_EXPRESS" (le Rapide y devient Classique), sinon "ACCORDE". Renvoie code, libellé, couleur ;
+-- l'urgence y atterrit), "VITESSE_REDUITE" (V6.9.11 : Classique ou Silencieux seulement), "SANS_EXPRESS" (le Rapide y
+-- devient Classique), sinon "ACCORDE". Renvoie code, libellé, couleur ;
 -- nil, "—" si la pièce n'est pas visible (Streaming). Mêmes zones que le serveur (marge de 6 studs).
 function UI.statutDestination(nom)
 	local dossier = Config.dossierDestinations(false)
@@ -1148,6 +1149,8 @@ function UI.statutDestination(nom)
 		return false
 	end
 	if dans(Config.ZoneRestreinte or "REFUSE") then return "REFUSE", "REFUSÉ", C.rouge end
+	-- (V6.9.11) Zone à vitesse réduite : seuls le Classique et le Silencieux (avant SANS_EXPRESS : elle interdit plus)
+	if dans(Config.ZoneVitesseReduite or "VITESSE_REDUITE") then return "VITESSE_REDUITE", "VITESSE RÉDUITE", C.ambre end
 	if dans(Config.ZoneSansExpress or "SANS_EXPRESS") then return "SANS_EXPRESS", "SANS RAPIDE", C.ambre end
 	return "ACCORDE", "ACCORDÉ", C.vert
 end

@@ -7,10 +7,21 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 170 tests** — ⬜ 146 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 176 tests** — ⬜ 152 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.11 — Navigation et fiches de lieux
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Tablette, ligne Base, TARDIS posé : « ■ DÉFINIR LA BASE ICI », puis voyager ailleurs et choisir « Base : X » | le TARDIS revient à la base ; « Base : X » est aussi dans le menu T et chez le copilote | ⬜ |  |
+| Copilote : épingler deux lieux (menu T), puis ouvrir le poste du copilote | les deux favoris sont en tête, marqués « ● » | ⬜ |  |
+| Créer `TARDIS_DESTINATIONS › VITESSE_REDUITE` avec une Part, puis y atterrir en Rapide | voyage classique, message « ZONE À VITESSE RÉDUITE », statut « VITESSE RÉDUITE » dans les menus | ⬜ |  |
+| Même zone, alerte générale active | l'atterrissage reste en urgence | ⬜ |  |
+| Ajouter `Description`, `Dangers` et `NiveauDanger = 2` à une destination, puis y atterrir à bord | carte orange de 7 s sous « POSÉ » avec la description et les dangers | ⬜ |  |
+| Même arrivée vue de dehors | pas de carte | ⬜ |  |
 
 ## V6.9.10.9 — Le leurre disparaît à chaque départ
 

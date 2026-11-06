@@ -647,6 +647,12 @@ return function(contexte)
 		{ UI.coin(6), UI.contour(C.ligne, 1, 0.4) })
 		W.boutonCategorie:SetAttribute("CouleurBase", C.fond)
 		UI.rendreVivant(W.boutonCategorie)
+		-- (V6.9.11) Point de base (lieux et entrée Base) : sous les informations, là où se trouve le choix d'un joueur
+		W.boutonBase = creer("TextButton", { Name = "Base", Position = UDim2.fromOffset(14, 92), Size = UDim2.fromOffset(220, 28),
+			BackgroundColor3 = C.fond, Text = "■  DÉFINIR COMME BASE", Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.cyan, Visible = false, Parent = fiche },
+		{ UI.coin(6), UI.contour(C.ligne, 1, 0.4) })
+		W.boutonBase:SetAttribute("CouleurBase", C.fond)
+		UI.rendreVivant(W.boutonBase)
 		-- Joueur : dernière position ou sur lui (figé)
 		W.modeJoueur = creer("Frame", { Name = "ModeJoueur", Position = UDim2.fromOffset(14, 86), Size = UDim2.new(1, -28, 0, 40),
 			BackgroundTransparency = 1, Visible = false, Parent = fiche }, { UI.pile(6, true) })

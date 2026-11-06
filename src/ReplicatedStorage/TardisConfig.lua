@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.9"
+Config.Version = "6.9.11"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -16,6 +16,7 @@ Config.NomDestinations = "TARDIS_DESTINATIONS" -- dossier commun aux trois TARDI
 Config.ZoneAccessible = "ACCORDE"   -- sous-dossier : atterrissage normal
 Config.ZoneRestreinte = "REFUSE"    -- sous-dossier : seule une matérialisation d'URGENCE y est possible     -- Folder contenant les Parts de destination
 Config.ZoneSansExpress = "SANS_EXPRESS" -- sous-dossier (V6.6.4) : un voyage Express y devient un voyage normal
+Config.ZoneVitesseReduite = "VITESSE_REDUITE" -- sous-dossier (V6.9.11) : seuls le Classique et le Silencieux y sont permis
 
 -- Noms des pièces
 Config.NomPortailExt = "Portail"     -- Part invisible dans l'encadrement de la porte extérieure
@@ -365,6 +366,19 @@ Config.FicheAnomalie = {
 		.. "Capable de se dématérialiser et de réapparaître en tout point de l'espace. "
 		.. "Réagit aux commandes de pilotes autorisés uniquement.",
 	Confinement = "Doit rester sous le contrôle du personnel autorisé. Toute tentative d'entrée non autorisée doit être signalée.",
+}
+
+-- Fiches de lieux (V6.9.11) : à l'atterrissage sur une destination, les joueurs à bord voient une fiche sous « POSÉ »
+-- (description, dangers, niveau de danger de 0 à 3). Le texte vient des attributs de la Part de destination
+-- (Description, Dangers, NiveauDanger) ou, à défaut, de Config.FichesLieux (clé : nom de la Part). Les attributs passent
+-- d'abord. Rien de rempli : pas de fiche.
+Config.FicheLieu = {
+	Duree = 7,          -- secondes d'affichage de la fiche
+	LongueurMax = 300,  -- caractères gardés par texte (description, dangers)
+	Niveaux = { [0] = "SANS DANGER", [1] = "PRUDENCE", [2] = "DANGEREUX", [3] = "DANGER EXTRÊME" },
+}
+Config.FichesLieux = {
+	-- ["Hangar"] = { Description = "Ancien hangar de maintenance.", Dangers = "Sol glissant.", NiveauDanger = 1 },
 }
 
 -- Rayon tracteur (vol libre) : portée et force
@@ -1074,6 +1088,32 @@ end
 -- Un mode « saccadé » (urgence ou catastrophe) : animation contrariée, sons d'urgence
 function Config.modeSaccade(mode)
 	return (Config.Modes[Config.normaliserMode(mode)].Saccades or 0) > 0
+end
+
+-- (V6.9.11) Fiche d'un lieu : { nom, description, dangers, niveau } pour une Part de destination, ou nil s'il n'y a
+-- rien à montrer. Les attributs de la Part (Description, Dangers, NiveauDanger) passent avant Config.FichesLieux.
+function Config.ficheLieu(part)
+	if typeof(part) ~= "Instance" then return nil end
+	local modele = (Config.FichesLieux or {})[part.Name]
+	if type(modele) ~= "table" then modele = {} end
+	local longueurMax = (Config.FicheLieu or {}).LongueurMax or 300
+	local function lire(cle)
+		local valeur = part:GetAttribute(cle)
+		if valeur == nil then valeur = modele[cle] end
+		return valeur
+	end
+	local function texteDe(cle)
+		local valeur = lire(cle)
+		if type(valeur) ~= "string" or valeur == "" then return nil end
+		local n = utf8.len(valeur)
+		if n and n > longueurMax then valeur = string.sub(valeur, 1, utf8.offset(valeur, longueurMax + 1) - 1) .. "…" end
+		return valeur
+	end
+	local description, dangers = texteDe("Description"), texteDe("Dangers")
+	local niveau = tonumber(lire("NiveauDanger"))
+	if niveau then niveau = math.clamp(math.floor(niveau + 0.5), 0, 3) end
+	if not description and not dangers and not niveau then return nil end
+	return { nom = part.Name, description = description, dangers = dangers, niveau = niveau or 0 }
 end
 
 -- Couleur d'un mode pour les effets extérieurs : celle du mode, sauf si elle est réservée à l'intérieur

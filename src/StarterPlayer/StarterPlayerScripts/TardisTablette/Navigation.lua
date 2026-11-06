@@ -21,6 +21,8 @@ return function(contexte)
 			statut, couleurStatut, discret = libelle, couleur, code == "REFUSE"
 		elseif c.type == "precedent" then
 			statut, couleurStatut = "RETOUR", C.cyan
+		elseif c.type == "base" then
+			statut, couleurStatut = c.nom and "BASE" or "À DÉFINIR", c.nom and C.cyan or C.texte2 -- (V6.9.11)
 		elseif c.type == "historique" then
 			statut, couleurStatut = string.format("VOYAGE %d", c.index or 0), C.texte2
 		elseif c.type == "joueur" then
@@ -37,7 +39,7 @@ return function(contexte)
 		bouton:SetAttribute("Statut", statut)
 		-- Repère à gauche : le type de destination (pour un lieu, c'est l'étoile des favoris)
 		if c.type ~= "lieu" then
-			texte({ Name = "Type", Text = (c.type == "precedent" and "◄") or (c.type == "historique" and "►") or "●", TextSize = 12,
+			texte({ Name = "Type", Text = (c.type == "precedent" and "◄") or (c.type == "historique" and "►") or (c.type == "base" and "■") or "●", TextSize = 12,
 				TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.fromOffset(6, 0), Size = UDim2.new(0, 20, 1, 0), Parent = bouton })
 		end
 		if c.type == "lieu" then
@@ -92,6 +94,14 @@ return function(contexte)
 			if parDistance and distances[a] ~= distances[b] then return distances[a] < distances[b] end
 			return ordreOrigine[a] < ordreOrigine[b]
 		end)
+		-- (V6.9.11) En tête des lieux : le point de base (non défini : la fiche permet de le définir ici, TARDIS posé)
+		local baseNom = exterieur:GetAttribute("BaseNom")
+		local ligneBase = 0
+		if S.mode == "lieux" and garde("Base " .. (baseNom or "")) then
+			ordre += 1
+			ligneBase = 1
+			ajouterElement(baseNom and ("Base : " .. baseNom) or "Base : non définie", { type = "base", nom = baseNom }, ordre)
+		end
 		for _, nom in lieux do
 			if S.mode == "lieux" and garde(nom) then
 				ordre += 1
@@ -130,7 +140,7 @@ return function(contexte)
 		end
 		W.listeVide.Text = (S.mode == "lieux" and (filtre == "" and "Aucun lieu.\nAjoute des Parts dans TARDIS_Destinations."
 			or "Aucun lieu ne correspond.")) or (S.mode == "histo" and "Aucun voyage pour l'instant.") or "Aucun joueur ne correspond."
-		W.listeVide.Visible = ordre == 0 and S.mode ~= "coord"
+		W.listeVide.Visible = ordre - ligneBase == 0 and S.mode ~= "coord"
 
 		if S.choix then
 			local existe = (S.choix.type == "lieu" and noms[S.choix.nom])
@@ -138,6 +148,11 @@ return function(contexte)
 				or (S.choix.type == "position" and S.positionPerso)
 				or (S.choix.type == "precedent" and precedentNom)
 				or (S.choix.type == "historique")
+			-- (V6.9.11) l'entrée Base suit le nom publié (définie, retirée ou changée)
+			if S.choix and S.choix.type == "base" then
+				if S.mode == "lieux" then S.choix = { type = "base", nom = baseNom } else S.choix = nil end
+				existe = S.choix
+			end
 			if not existe then S.choix = nil end
 		end
 		majInterface()
@@ -167,6 +182,18 @@ return function(contexte)
 		local index = (S.categories[S.choix.nom] or 0) + 1
 		if index > #(Config.Categories or {}) then index = 0 end
 		remote:FireServer("Categorie", { destination = S.choix.nom, index = index })
+	end)
+	-- (V6.9.11) Point de base : sur un lieu, « Définir comme base » (ou la retirer si c'est déjà elle) ; sur l'entrée
+	-- Base, la retirer, ou la définir ici quand elle n'existe pas. Le serveur vérifie (pilotes seulement, TARDIS posé).
+	W.boutonBase.Activated:Connect(function()
+		local c = S.choix
+		if not c then return end
+		local baseNom = exterieur:GetAttribute("BaseNom")
+		if c.type == "lieu" then
+			remote:FireServer("DefinirBase", baseNom == c.nom and { retirer = true } or { destination = c.nom })
+		elseif c.type == "base" then
+			remote:FireServer("DefinirBase", baseNom and { retirer = true } or { ici = true })
+		end
 	end)
 
 	local function choisirFiger(valeur)

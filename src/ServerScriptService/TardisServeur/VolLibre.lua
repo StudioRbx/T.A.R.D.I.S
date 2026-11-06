@@ -113,6 +113,7 @@ return function(contexte)
 		exterieur:SetAttribute("VolLibreCF", volLibre.dernierCF)
 		exterieur:SetAttribute("VolLibre", pilote.UserId)
 		exterieur:SetAttribute("Position", "Vol libre")
+		exterieur:SetAttribute("FicheLieu", nil) -- (V6.9.11) plus sur un lieu de destination : pas de fiche de lieu
 		partage.positionActuelle = nil
 		majEcran()
 		-- V6.9.7 : si le pilote n'envoie plus rien (figé, connexion perdue, client modifié), le TARDIS se pose seul
@@ -216,6 +217,7 @@ return function(contexte)
 		exterieur:SetAttribute("Verrouille", tropPetitPourLesPortes())
 		local p = arrivee.Position
 		exterieur:SetAttribute("Position", string.format("Vol libre (%d, %d, %d)", p.X, p.Y, p.Z))
+		exterieur:SetAttribute("FicheLieu", nil) -- (V6.9.11)
 		verifierEau()
 		partage.sauvegardeModifiee = true
 		volLibre.enDescente = false

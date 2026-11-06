@@ -459,7 +459,9 @@ tabD = trouve(nav, "Destinations")
 lignesT = {texte_de(trouve(l, "Cellule_nom")): l for l in tous(tabD, "Destination")}
 st = lambda n: texte_de(trouve(lignesT[n], "Cellule_statut")) if n in lignesT else None
 verifier("5. Navigation : tableau des destinations avec statut (ACCORDÉ, REFUSÉ, SANS RAPIDE) et distance",
-         {n: st(n) for n in lignesT} == {"HALL": "ACCORDÉ", "LABORATOIRE": "REFUSÉ", "PARKING": "SANS RAPIDE", "TOIT": "REFUSÉ"}
+         # (V6.9.11) la ligne « Base » est toujours en tête des lieux (« À DÉFINIR » tant qu'aucune base n'est choisie)
+         {n: st(n) for n in lignesT if not n.startswith("BASE")} == {"HALL": "ACCORDÉ", "LABORATOIRE": "REFUSÉ", "PARKING": "SANS RAPIDE", "TOIT": "REFUSÉ"}
+         and st("BASE : NON DÉFINIE") == "À DÉFINIR"
          and texte_de(trouve(lignesT["HALL"], "Cellule_dist")) == "140", {n: st(n) for n in lignesT})
 appuyer(lignesT["HALL"])
 fiche = trouve(nav, "Fiche")

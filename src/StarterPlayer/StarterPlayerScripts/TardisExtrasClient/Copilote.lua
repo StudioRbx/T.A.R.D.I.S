@@ -2,7 +2,8 @@
 -- Poste du copilote : un panneau compact, sur le côté droit de l'écran, pour le joueur qu'un pilote a nommé copilote
 -- (attribut du joueur TardisCopilote_<nom>, posé par le serveur). Il n'a pas la tablette des pilotes : ce poste lui
 -- donne seulement la navigation.
---   • Protocole (Classique, Urgence, Rapide, Sauvetage, Silencieux) et destination (lieu, retour, joueur).
+--   • Protocole (Classique, Urgence, Rapide, Sauvetage, Silencieux) et destination (lieu, retour, base, joueur).
+--     (V6.9.11) Ses lieux favoris (les siens, comme dans le menu T) en tête de liste, marqués « ● » ; la base des pilotes.
 --   • DÉMAT et REMAT (avec la confirmation d'un paradoxe, comme le menu des pilotes).
 --   • Pendant le vol libre du pilote : ATTERRIR À DESTINATION, dès que le pilote est passé dans le vortex.
 --   • Camouflage, et une note rapide au carnet de bord.
@@ -67,7 +68,7 @@ return function(contexte)
 
 	-- Destination
 	UI.titreSection(corps, "DESTINATION", 6, C.cyan)
-	local choix = nil -- { type = "lieu" | "precedent" | "joueur", nom, id }
+	local choix = nil -- { type = "lieu" | "precedent" | "base" | "joueur", nom, id }
 	local choixTexte = texte({ Text = "Aucune destination choisie", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.ambre, LayoutOrder = 7,
 		TextTruncate = Enum.TextTruncate.AtEnd, Parent = corps })
 	-- (V6.9.10.7) Tableau DESTINATION | TYPE de la charte (lignes de 44 px, la destination choisie en jaune)
@@ -81,6 +82,7 @@ return function(contexte)
 		local d = { mode = mode, invisible = false }
 		if choix.type == "lieu" then d.destination = choix.nom
 		elseif choix.type == "precedent" then d.precedent = true
+		elseif choix.type == "base" then d.base = true -- (V6.9.11)
 		elseif choix.type == "joueur" then d.joueur = choix.id end
 		return d
 	end
@@ -103,9 +105,33 @@ return function(contexte)
 			ordre += 1
 			ligneDestination("Retour : " .. precedent, "précédent", ordre, { type = "precedent", nom = precedent })
 		end
-		for nom in string.gmatch(exterieur:GetAttribute("ListeDestinations") or "", "[^\n]+") do
+		-- (V6.9.11) Le point de base défini par les pilotes
+		local baseNom = exterieur:GetAttribute("BaseNom")
+		if choix and choix.type == "base" and choix.nom ~= baseNom then
+			-- base retirée ou déplacée par un pilote : le choix suit
+			choix = baseNom and { type = "base", nom = baseNom } or nil
+			choixTexte.Text = baseNom and ("→ Base : " .. baseNom) or "Aucune destination choisie"
+		end
+		if baseNom then
 			ordre += 1
-			ligneDestination(nom, "lieu", ordre, { type = "lieu", nom = nom })
+			ligneDestination("Base : " .. baseNom, "base", ordre, { type = "base", nom = baseNom })
+		end
+		-- (V6.9.11) Les favoris du copilote d'abord (marqués « ● », type « favori »), puis les autres dans l'ordre d'origine
+		local lieux = {}
+		for nom in string.gmatch(exterieur:GetAttribute("ListeDestinations") or "", "[^\n]+") do
+			table.insert(lieux, nom)
+		end
+		local ordreOrigine = {}
+		for i, nom in lieux do ordreOrigine[nom] = i end
+		table.sort(lieux, function(a, b)
+			local fa, fb = UI.estFavori(a), UI.estFavori(b)
+			if fa ~= fb then return fa end
+			return ordreOrigine[a] < ordreOrigine[b]
+		end)
+		for _, nom in lieux do
+			ordre += 1
+			local favori = UI.estFavori(nom)
+			ligneDestination((favori and "● " or "") .. nom, favori and "favori" or "lieu", ordre, { type = "lieu", nom = nom })
 		end
 		for _, autre in Players:GetPlayers() do
 			if autre ~= joueur then
@@ -248,9 +274,11 @@ return function(contexte)
 	end
 	joueur:GetAttributeChangedSignal(ATTRIBUT):Connect(majAcces)
 	majAcces()
-	for _, attribut in { "ListeDestinations", "PrecedentNom" } do
+	for _, attribut in { "ListeDestinations", "PrecedentNom", "BaseNom" } do -- (V6.9.11) BaseNom
 		exterieur:GetAttributeChangedSignal(attribut):Connect(function() if gui.Enabled then remplirListe() end end)
 	end
+	-- (V6.9.11) Un favori ajouté ou retiré (menu T, tablette) : la liste se remet dans l'ordre
+	UI.prefsChangees.Event:Connect(function(cle) if cle == "favoris" and gui.Enabled then remplirListe() end end)
 	Players.PlayerAdded:Connect(function() if gui.Enabled then remplirListe() end end)
 	Players.PlayerRemoving:Connect(function(autre)
 		if choix and choix.type == "joueur" and choix.id == autre.UserId then choix = nil choixTexte.Text = "Aucune destination choisie" end

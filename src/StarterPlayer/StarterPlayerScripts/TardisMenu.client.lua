@@ -160,7 +160,7 @@ local interrupteurInvisible = UI.interrupteur(protocoles, "Atterrissage invisibl
 -- État partagé avec la tablette (Classique, Urgence, Rapide, Sauvetage et Silencieux s'excluent)
 Commandes.lierInterrupteurs({ classique = modes.classique, urgence = modes.urgence, express = modes.express, sauvetage = modes.sauvetage,
 	silencieux = modes.silencieux, invisible = interrupteurInvisible })
-UI.ligneAide(protocoles, "Zone REFUSE au départ ou à l'arrivée : urgence imposée. Destination choisie avant DÉMAT : " .. tostring(Config.DureeVortexAuto or 10)
+UI.ligneAide(protocoles, "Zone REFUSE au départ ou à l'arrivée : urgence imposée ; zone VITESSE RÉDUITE : Classique ou Silencieux. Destination choisie avant DÉMAT : " .. tostring(Config.DureeVortexAuto or 10)
 	.. " s de vortex puis REMAT automatique ; sinon, choisis dans le vortex et clique REMAT.", { LayoutOrder = 3 })
 
 -- 4) Actions
@@ -263,12 +263,13 @@ end
 --------------------------------------------------------------------
 local ouvert = false
 local mode = "lieux"
-local choix = nil -- { type = "lieu", nom } ou { type = "joueur", id, nom } ou { type = "precedent", nom }
+local choix = nil -- { type = "lieu", nom } ou { type = "joueur", id, nom } ou { type = "precedent", nom } ou { type = "base", nom } (V6.9.11)
 local lignesChoix, ordreLignes = {}, {} -- [clé] = ligne du tableau (avec .choix) ; liste dans l'ordre affiché
 
 local function cleDe(c)
 	if not c then return nil end
 	if c.type == "precedent" then return "precedent" end
+	if c.type == "base" then return "base" end -- (V6.9.11)
 	return c.type == "lieu" and ("lieu:" .. c.nom) or ("joueur:" .. c.id)
 end
 
@@ -284,6 +285,10 @@ local function distanceDe(c)
 		local autre = Players:GetPlayerByUserId(c.id)
 		local racine = autre and autre.Character and autre.Character:FindFirstChild("HumanoidRootPart")
 		return racine and (racine.Position - origine).Magnitude or nil
+	elseif c.type == "base" then
+		-- (V6.9.11) position publiée par le serveur
+		local cf = exterieur:GetAttribute("BaseCF")
+		return typeof(cf) == "CFrame" and (cf.Position - origine).Magnitude or nil
 	end
 	return nil
 end
@@ -315,6 +320,11 @@ local function majFiche()
 		ficheIcone.Text = "◄"
 		ficheNom.Text = UI.majuscules("Retour : " .. c.nom)
 		ficheInfo.Text = "DERNIÈRE DESTINATION  ·  " .. trajet
+	elseif c.type == "base" then
+		-- (V6.9.11) point de base défini par les pilotes (tablette)
+		ficheIcone.Text = "■"
+		ficheNom.Text = UI.majuscules("Base : " .. c.nom)
+		ficheInfo.Text = "POINT DE BASE  ·  " .. texteDist .. "  ·  " .. trajet
 	else
 		ficheIcone.Text = "●"
 		ficheNom.Text = UI.majuscules(c.nom)
@@ -441,6 +451,8 @@ local function ajouterElement(texteEl, c, ordre)
 		statut, couleurStatut, discret = libelle, couleur, code == "REFUSE"
 	elseif c.type == "precedent" then
 		statut, couleurStatut = "RETOUR", C.cyan
+	elseif c.type == "base" then
+		statut, couleurStatut = "BASE", C.cyan -- (V6.9.11)
 	else
 		statut, couleurStatut = "JOUEUR", C.texte2
 	end
@@ -472,6 +484,12 @@ local function construireListe()
 	if mode == "lieux" and precedentNom and garde("Retour " .. precedentNom) then
 		ordre += 1
 		ajouterElement("Retour : " .. precedentNom, { type = "precedent", nom = precedentNom }, ordre)
+	end
+	-- (V6.9.11) Puis le point de base, s'il est défini (raccourci : le serveur sait où il est)
+	local baseNom = exterieur:GetAttribute("BaseNom")
+	if mode == "lieux" and baseNom and garde("Base " .. baseNom) then
+		ordre += 1
+		ajouterElement("Base : " .. baseNom, { type = "base", nom = baseNom }, ordre)
 	end
 	-- Les favoris (étoilés dans la tablette) d'abord, marqués d'un point
 	local lieux = {}
@@ -508,7 +526,7 @@ local function construireListe()
 
 	if choix then
 		local existe = (choix.type == "lieu" and noms[choix.nom]) or (choix.type == "joueur" and Players:GetPlayerByUserId(choix.id))
-			or (choix.type == "precedent" and precedentNom)
+			or (choix.type == "precedent" and precedentNom) or (choix.type == "base" and baseNom)
 		if not existe then choix = nil end
 	end
 	majInterface()
@@ -816,6 +834,7 @@ for _, attribut in { "Siege", "Etat", "Camouflage", "Position", "PortesVerrouill
 end
 exterieur:GetAttributeChangedSignal("ListeDestinations"):Connect(construireListe)
 exterieur:GetAttributeChangedSignal("PrecedentNom"):Connect(construireListe)
+exterieur:GetAttributeChangedSignal("BaseNom"):Connect(construireListe) -- (V6.9.11) point de base
 Players.PlayerAdded:Connect(construireListe)
 Players.PlayerRemoving:Connect(function() task.defer(construireListe) end)
 -- Les protocoles changent (ici ou dans la tablette) : le mode affiché et le temps de trajet suivent

@@ -95,7 +95,7 @@ lignes_v = [l for l in cfgsrc.splitlines() if "(V6.9.10.5)" in l and re.match(r"
 noms_v = sorted(re.match(r"\s*(\w+) = ", l).group(1) for l in lignes_v)
 verifier("1. Chaque nouveau réglage est marqué « (V6.9.10.5) » (8 lignes ; V6.9.10.8 : InvitesConsole.HauteurInvite remarqué)", noms_v == sorted(["HauteurInvite", "DistanceCamera", "DistanceMinimale", "Marge",
          "DistanceFermeture", "Nom", "AttributCategorie", "Categories"]), noms_v)
-verifier("1. Version 6.9.10.5 ou plus récente", str(Config.get("Version")).startswith("6.9.10.") and Config.get("Version") not in ("6.9.10", "6.9.10.1", "6.9.10.2", "6.9.10.3", "6.9.10.4"), Config.get("Version"))
+verifier("1. Version 6.9.10.5 ou plus récente", tuple(int(p) for p in str(Config.get("Version")).split(".") if p.isdigit()) >= (6, 9, 10, 5), Config.get("Version"))
 bloc_j = cfgsrc[cfgsrc.index("Config.Jukebox = {"):cfgsrc.index("\n}", cfgsrc.index("Config.Jukebox = {"))]
 verifier("1. Aucun identifiant de musique inventé : Config.Jukebox ne contient que l'exemple en commentaire",
          [l.strip() for l in bloc_j.splitlines()[1:] if l.strip()] == ['-- { nom = "Nom de la musique", id = 1234567890, categorie = "Action" },'], bloc_j)

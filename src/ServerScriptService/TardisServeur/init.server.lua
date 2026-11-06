@@ -164,6 +164,13 @@ local partage = {
 	expressPret = 0,          -- os.clock() à partir duquel un nouvel Express est possible (recharge, V6.6.4)
 }
 local precedent = nil        -- { cf, nom } : là d'où le TARDIS est parti (bouton "Dernière destination")
+-- Point de base (V6.9.11) : { cf, nom }, le lieu « Base » choisi par les pilotes (raccourci des menus), sauvegardé.
+-- Publié pour les menus : BaseNom (le nom) et BaseCF (la position, pour la distance affichée).
+local base = nil
+local function publierBase()
+	exterieur:SetAttribute("BaseNom", base and base.nom or nil)
+	exterieur:SetAttribute("BaseCF", base and base.cf or nil)
+end
 
 local historique = {} -- { { nom, x, y, z }, ... } : les 10 derniers atterrissages
 local function publierHistorique()
@@ -218,6 +225,18 @@ local function publierDestinations()
 		table.insert(carte, string.format("%s\t%.1f\t%.1f", part.Name, part.Position.X, part.Position.Z))
 	end
 	exterieur:SetAttribute("CarteDestinations", table.concat(carte, "\n"))
+end
+
+-- Fiche du lieu (V6.9.11) : à l'atterrissage sur une Part de destination, le serveur publie sa fiche (Config.ficheLieu :
+-- attributs Description, Dangers, NiveauDanger de la Part, ou Config.FichesLieux) dans l'attribut FicheLieu (JSON).
+-- Sans Part (coordonnées, joueur, vol libre, porté, posé à la main) ou sans texte : attribut retiré. Le client ne
+-- choisit jamais le texte : il ne fait que l'afficher.
+local HttpService = game:GetService("HttpService")
+local function publierFicheLieu(part)
+	local fiche = part and Config.ficheLieu(part)
+	local ok, json = false, nil
+	if fiche then ok, json = pcall(function() return HttpService:JSONEncode(fiche) end) end
+	exterieur:SetAttribute("FicheLieu", (ok and json) or nil)
 end
 
 -- Écrans de la console (V6.9.10.1) : faits en script par le module Ecrans, sur chaque pièce « Ecran » de la Console
@@ -388,6 +407,7 @@ end
 local dansInterieur -- définie plus bas (section des joueurs)
 local dansZoneRefusee -- définie plus bas (atterrissage)
 local dansZoneSansExpress -- définie plus bas (atterrissage)
+local dansZoneVitesseReduite -- définie plus bas (atterrissage, V6.9.11)
 local ouvrirPortesSimple -- définie plus bas (portes) ; utilisée par l'atterrissage de sauvetage
 local clandestins = {} -- [joueur] = décalage par rapport au TARDIS
 local rotationCiel = nil
@@ -447,21 +467,31 @@ Players.PlayerRemoving:Connect(function(joueur) clandestins[joueur] = nil end)
 
 -- Express (V6.6.4) : recharge entre deux voyages express, et zones où il est interdit (sous-dossier SANS_EXPRESS).
 -- Renvoie le mode à utiliser : un Express impossible devient un voyage normal, avec un message sur l'écran.
-local function modeAutorise(mode, position)
-	if mode ~= "Express" then return mode end
-	local reste = partage.expressPret - os.clock()
-	if reste > 0 then
-		alerter(string.format("EXPRESS EN RECHARGE (%d s) : VOYAGE NORMAL", math.ceil(reste)))
-		return "Normal"
+-- (V6.9.11) Zone à vitesse réduite (sous-dossier VITESSE_REDUITE) : seuls le Classique et le Silencieux y sont permis ;
+-- Urgence, Rapide et Sauvetage deviennent un voyage classique. urgenceImposee : l'urgence est obligatoire (alerte,
+-- collision, zone REFUSE, urgence d'un autre script) et n'est jamais désarmée par la zone. La Catastrophe (paradoxe) non plus.
+local function modeAutorise(mode, position, urgenceImposee)
+	if mode == "Express" then
+		local reste = partage.expressPret - os.clock()
+		if reste > 0 then
+			alerter(string.format("EXPRESS EN RECHARGE (%d s) : VOYAGE NORMAL", math.ceil(reste)))
+			return "Normal"
+		end
+		if dansZoneSansExpress and dansZoneSansExpress(position) then
+			alerter("ZONE SANS EXPRESS : VOYAGE NORMAL")
+			return "Normal"
+		end
 	end
-	if dansZoneSansExpress and dansZoneSansExpress(position) then
-		alerter("ZONE SANS EXPRESS : VOYAGE NORMAL")
+	if mode ~= "Normal" and mode ~= "Silencieux" and mode ~= "Catastrophe" and not urgenceImposee
+		and dansZoneVitesseReduite and dansZoneVitesseReduite(position) then
+		alerter("ZONE À VITESSE RÉDUITE : VOYAGE CLASSIQUE")
 		return "Normal"
 	end
 	return mode
 end
 
 local function decoller(mode)
+	local urgenceImposee = mode == true -- (V6.9.11) « true » : urgence demandée par un autre script (saisie, panne…)
 	mode = Config.normaliserMode(mode)
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "DÉJÀ EN VOL" end
@@ -469,13 +499,16 @@ local function decoller(mode)
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
 	-- Alerte générale : toujours en urgence
-	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
+	if exterieur:GetAttribute("Alerte") then mode, urgenceImposee = "Urgence", true end
 	-- Zone refusée au départ (V6.7.1) : le décollage se fait en urgence
-	if not Config.modeSaccade(mode) and dansZoneRefusee and dansZoneRefusee(exterieur:GetPivot().Position) then
-		alerter("ZONE REFUSÉE : DÉCOLLAGE D'URGENCE")
-		mode = "Urgence"
+	if dansZoneRefusee and dansZoneRefusee(exterieur:GetPivot().Position) then
+		urgenceImposee = true -- (V6.9.11) même déjà en urgence : la zone à vitesse réduite ne la désarme pas
+		if not Config.modeSaccade(mode) then
+			alerter("ZONE REFUSÉE : DÉCOLLAGE D'URGENCE")
+			mode = "Urgence"
+		end
 	end
-	mode = modeAutorise(mode, exterieur:GetPivot().Position)
+	mode = modeAutorise(mode, exterieur:GetPivot().Position, urgenceImposee)
 	if mode == "Catastrophe" then mode = "Urgence" end -- la catastrophe n'existe qu'à l'atterrissage
 
 	partage.occupe = true
@@ -638,28 +671,33 @@ end
 
 -- En vol -> Posé (visible ou invisible)
 -- cible : CFrame où poser la Racine · nom : affiché dans le menu · partDestination : la Part si c'est une destination
--- Retourne ok, erreur, urgenceForcee (vrai si une collision a imposé l'urgence)
+-- Retourne ok, erreur, urgenceForcee (vrai si une collision a imposé l'urgence), mode (V6.9.11 : le mode vraiment joué)
 local function atterrir(cible, nom, invisible, partDestination, mode)
+	local urgenceImposee = mode == true -- (V6.9.11) « true » : urgence demandée par un autre script (saisie, tempête…)
 	mode = Config.normaliserMode(mode)
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Vol then return false, "PAS EN VOL" end
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 	-- Alerte générale : toujours en urgence
-	if exterieur:GetAttribute("Alerte") then mode = "Urgence" end
+	if exterieur:GetAttribute("Alerte") then mode, urgenceImposee = "Urgence", true end
 
 	-- Une partie du TARDIS dans un mur : atterrissage d'urgence obligatoire (même en rapide)
 	local urgenceForcee = false
 	local okCollision, collision = pcall(enCollision, cible)
-	if okCollision and collision and not Config.modeSaccade(mode) then
-		mode, urgenceForcee = "Urgence", true
+	if okCollision and collision then
+		urgenceImposee = true -- (V6.9.11) même déjà en urgence : la zone à vitesse réduite ne la désarme pas
+		if not Config.modeSaccade(mode) then mode, urgenceForcee = "Urgence", true end
 	end
 	-- Zone refusée (sous-dossier REFUSE des destinations) : atterrissage d'urgence, directement (V6.7.1 ; avant,
 	-- la première tentative était repoussée dans le vortex)
-	if not Config.modeSaccade(mode) and dansZoneRefusee(cible.Position) then
-		alerter("ZONE REFUSÉE : ATTERRISSAGE D'URGENCE")
-		mode, urgenceForcee = "Urgence", true
+	if dansZoneRefusee(cible.Position) then
+		urgenceImposee = true
+		if not Config.modeSaccade(mode) then
+			alerter("ZONE REFUSÉE : ATTERRISSAGE D'URGENCE")
+			mode, urgenceForcee = "Urgence", true
+		end
 	end
-	mode = modeAutorise(mode, cible.Position)
+	mode = modeAutorise(mode, cible.Position, urgenceImposee)
 	local reglages = Config.Modes[mode]
 
 	partage.occupe = true
@@ -670,6 +708,7 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	exterieur:PivotTo(hauteurSauvetage > 0 and (cible + Vector3.new(0, hauteurSauvetage, 0)) or cible)
 	partage.positionActuelle = partDestination
 	exterieur:SetAttribute("Position", nom)
+	publierFicheLieu(partDestination) -- (V6.9.11) fiche du lieu pour les joueurs à bord (rien sans Part de destination)
 	deposer_clandestins()
 
 	-- Le camouflage est posé AVANT l'état, pour qu'aucune image ne montre le TARDIS
@@ -718,7 +757,7 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 			ouvrirPortesSimple()
 		end)
 	end
-	return true, nil, urgenceForcee
+	return true, nil, urgenceForcee, mode
 end
 
 -- Atterrissage avorté (V6.7.1) : la destination est dans le TARDIS lui-même. La matérialisation commence en mode
@@ -770,6 +809,8 @@ end
 dansZoneRefusee = function(position) return dansZone(position, Config.ZoneRestreinte or "REFUSE") end
 -- Zone sans express (V6.6.4) : un voyage Express qui part de là ou y arrive devient un voyage normal
 dansZoneSansExpress = function(position) return dansZone(position, Config.ZoneSansExpress or "SANS_EXPRESS") end
+-- Zone à vitesse réduite (V6.9.11) : un voyage qui part de là ou y arrive se fait en Classique (ou en Silencieux)
+dansZoneVitesseReduite = function(position) return dansZone(position, Config.ZoneVitesseReduite or "VITESSE_REDUITE") end
 
 -- Rétréci : il ne peut atterrir que là où il a décollé
 local function cibleSurPlace()
@@ -1346,6 +1387,7 @@ local function ramasser(joueur)
 	exterieur:SetAttribute("ModePort", "Main")
 	exterieur:SetAttribute("Porteur", joueur.UserId)
 	exterieur:SetAttribute("Position", "Porté par " .. joueur.DisplayName)
+	publierFicheLieu(nil) -- (V6.9.11) plus sur un lieu de destination
 	partage.positionActuelle = nil
 	majRamassage()
 end
@@ -1373,6 +1415,7 @@ local function poserTardis(joueur, personnage)
 	exterieur:SetAttribute("Porteur", nil)
 	setCollisionsExterieur(true)
 	exterieur:SetAttribute("Position", "Posé par " .. joueur.DisplayName)
+	publierFicheLieu(nil) -- (V6.9.11)
 	majRamassage()
 	verifierEau()
 	partage.sauvegardeModifiee = true
@@ -1579,6 +1622,37 @@ local dernierOrdre = {}
 local nomsPartis = {}
 Players.PlayerRemoving:Connect(function(joueur) nomsPartis[joueur.UserId] = joueur.DisplayName end)
 
+-- Point de base (V6.9.11) : les pilotes le définissent (action DefinirBase) sur une destination ({ destination = nom }),
+-- sur la position actuelle du TARDIS posé ({ ici = true }) ou le retirent ({ retirer = true }).
+-- Renvoie ok, erreur, message.
+local function definirBase(donnees)
+	if typeof(donnees) ~= "table" then return false, "demande invalide" end
+	if donnees.retirer == true then
+		if not base then return false, "aucune base définie" end
+		base = nil
+		publierBase()
+		partage.sauvegardeModifiee = true
+		return true, nil, "Base retirée."
+	end
+	if typeof(donnees.destination) == "string" and #donnees.destination <= 100 then
+		local dest = dossierDestinations:FindFirstChild(donnees.destination, true)
+		if not (dest and dest:IsA("BasePart")) then return false, "destination introuvable" end
+		if dansInterieur(dest.Position) then return false, "destination dans le TARDIS" end
+		base = { cf = dest.CFrame, nom = dest.Name }
+	elseif donnees.ici == true then
+		if etatActuel() ~= E.Pose or partage.occupe or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then
+			return false, "le TARDIS doit être posé"
+		end
+		if dansInterieur(exterieur:GetPivot().Position) then return false, "TARDIS dans lui-même" end
+		base = { cf = exterieur:GetPivot(), nom = tostring(exterieur:GetAttribute("Position") or "Base") }
+	else
+		return false, "aucune destination choisie"
+	end
+	publierBase()
+	partage.sauvegardeModifiee = true
+	return true, nil, "Base définie : " .. base.nom .. "."
+end
+
 -- repliSiParti (V6.9.7) : si le joueur visé a quitté le jeu ou n'a plus de personnage, retour au lieu de départ
 -- (6e valeur renvoyée : le message à afficher) au lieu de laisser le TARDIS dans le vortex
 local function resoudreDestination(donnees, autoriserInterieur, repliSiParti)
@@ -1618,6 +1692,18 @@ local function resoudreDestination(donnees, autoriserInterieur, repliSiParti)
 			nom = "Sur " .. joueurCible.DisplayName
 		else
 			nom = "Dernière position de " .. joueurCible.DisplayName
+		end
+
+	elseif donnees.base == true then
+		-- (V6.9.11) Retour à la base : sa Part de destination si elle existe encore (elle a pu bouger), sinon sa position
+		if not base then
+			return nil, nil, nil, nil, "aucune base définie"
+		end
+		local dest = dossierDestinations:FindFirstChild(base.nom, true)
+		if dest and dest:IsA("BasePart") and not dansInterieur(dest.Position) then
+			cible, nom, partDestination = dest.CFrame, dest.Name, dest
+		else
+			cible, nom = base.cf, base.nom
 		end
 
 	elseif donnees.precedent == true then
@@ -1668,7 +1754,7 @@ local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFi
 	-- Mode : celui des protocoles (Urgence ou Express, V6.6.4), ou l'urgence imposée par l'alerte
 	local mode = Config.normaliserMode(modeDemande)
 	if exterieur:GetAttribute("Alerte") == true then mode = "Urgence" end
-	mode = modeAutorise(mode, exterieur:GetPivot().Position)
+	mode = modeAutorise(mode, exterieur:GetPivot().Position, exterieur:GetAttribute("Alerte") == true)
 
 	partage.occupe = true
 	majRamassage()
@@ -1946,7 +2032,7 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 
 		task.spawn(function()
 			if joueurAFiger then figerJoueur(joueurAFiger, true) end
-			local ok, erreur, urgenceForcee = atterrir(cible, nom, invisible, partDestination, mode)
+			local ok, erreur, urgenceForcee, modeJoue = atterrir(cible, nom, invisible, partDestination, mode)
 			if ok then journal("Voyage", string.format("%s : atterrissage à %s demandé par %s%s.", def.Nom, nom, joueur.Name, invisible and " (invisible)" or "")) end
 			if joueurAFiger then figerJoueur(joueurAFiger, false) end
 
@@ -1955,6 +2041,9 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 				texte = "PARADOXE : le TARDIS s'est matérialisé dans lui-même. Intégrité abîmée, alerte générale. " .. texte
 			elseif urgenceForcee then
 				texte = "Atterrissage d'urgence imposé (collision ou zone refusée). " .. texte
+			elseif ok and modeJoue == "Normal" and mode ~= "Normal" then
+				-- (V6.9.11) mode changé par le serveur (zone à vitesse réduite, zone sans express, recharge du Rapide)
+				texte = "Voyage classique imposé (zone ou recharge). " .. texte
 			elseif mode == "Urgence" then
 				texte = "Atterrissage d'urgence réussi. " .. texte
 			elseif mode == "Express" then
@@ -1965,6 +2054,12 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 			if avisRepli then texte = avisRepli .. " " .. texte end
 			repondre(ok, erreur, texte)
 		end)
+
+	elseif action == "DefinirBase" then
+		-- (V6.9.11) Point de base : réservé aux pilotes (le copilote peut seulement y voyager)
+		local ok, erreur, message = definirBase(donnees)
+		if ok then journal("Voyage", string.format("%s : %s (%s)", def.Nom, message, joueur.Name)) end
+		repondre(ok, erreur, message)
 
 	elseif action == "Taille" then
 		local facteur = typeof(donnees) == "table" and donnees.facteur
@@ -2219,6 +2314,7 @@ do
 			alimentation = exterieur:GetAttribute("Alimentation") ~= false,
 			demarrageBloque = exterieur:GetAttribute("DemarrageBloque") == true,
 			precedent = precedent and { cf = versTable(precedent.cf), nom = precedent.nom } or nil,
+			base = base and { cf = versTable(base.cf), nom = base.nom } or nil, -- (V6.9.11)
 			historique = historique,
 		}
 		if store:ecrire(CLE, donnees) then partage.sauvegardeModifiee = false end
@@ -2245,6 +2341,11 @@ do
 		end
 		if precedent then
 			exterieur:SetAttribute("PrecedentNom", precedent.nom)
+		end
+		-- (V6.9.11) Point de base
+		if type(donnees.base) == "table" and type(donnees.base.cf) == "table" and #donnees.base.cf == 12 then
+			base = { cf = versCFrame(donnees.base.cf), nom = tostring(donnees.base.nom or "Base") }
+			publierBase()
 		end
 		if type(donnees.historique) == "table" then
 			historique = {}

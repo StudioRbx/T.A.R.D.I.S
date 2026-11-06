@@ -95,7 +95,7 @@ cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 bloc = cfgsrc[cfgsrc.index("Config.Ecrans = {"):cfgsrc.index("\n}", cfgsrc.index("Config.Ecrans = {"))]
 nouv = [l for l in bloc.splitlines() if any(l.strip().startswith(n + " =") for n in ("AttributRotation", "RotationDestination", "RotationIngenieur"))]
 verifier("1. Chaque nouveau réglage est marqué « (V6.9.10.4) »", len(nouv) == 3 and all("(V6.9.10.4)" in l for l in nouv), nouv)
-verifier("1. Version 6.9.10.4 ou plus récente", str(Config.get("Version")).startswith("6.9.10.") and Config.get("Version") not in ("6.9.10", "6.9.10.1", "6.9.10.2", "6.9.10.3"), Config.get("Version"))
+verifier("1. Version 6.9.10.4 ou plus récente", tuple(int(p) for p in str(Config.get("Version")).split(".") if p.isdigit()) >= (6, 9, 10, 4), Config.get("Version"))
 
 def mat_mul(a, b): return tuple(tuple(sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)) for i in range(3))
 def col(R, j): return Vec3(R[0][j], R[1][j], R[2][j])

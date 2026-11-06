@@ -162,7 +162,8 @@ return function(contexte)
 				UI.debutant() and C.bleu or nil, function() UI.setPref("debutant", not UI.debutant()) afficherReglages() end)
 			ordre += 1
 			ligne("Méthode de voyage : destination choisie avant DÉMAT → " .. tostring(Config.DureeVortexAuto or 10) .. " s de vortex puis REMAT automatique ; "
-				.. "sans destination → choisis-la dans le vortex et clique REMAT. Zone REFUSE au départ ou à l'arrivée : urgence imposée.", ordre, C.texte2, 11)
+				.. "sans destination → choisis-la dans le vortex et clique REMAT. Zone REFUSE au départ ou à l'arrivée : urgence imposée ; "
+				.. "zone VITESSE RÉDUITE : Classique ou Silencieux seulement.", ordre, C.texte2, 11) -- (V6.9.11)
 			ordre += 1
 			boutonLigne(UI.pref("tri", "nom") == "distance" and "Tri des lieux : par distance" or "Tri des lieux : par nom", ordre, nil,
 				function() UI.setPref("tri", UI.pref("tri", "nom") == "distance" and "nom" or "distance") afficherReglages() end)

@@ -13,7 +13,7 @@
 | V6.9.8 | Vérification et outils de suivi | ✅ faite (03/11) |
 | V6.9.9 | Effets visuels du voyage | ✅ faite (05/11) |
 | V6.9.10 | Vol libre et vortex | ✅ faite (05/11) |
-| V6.9.11 | Navigation et fiches de lieux | 🔜 prévue |
+| V6.9.11 | Navigation et fiches de lieux | ✅ faite (06/11) |
 | V6.9.12 | Pannes : le socle commun | 🔜 prévue |
 | V6.9.13 | Nouvelles pannes et outils du technicien | 🔜 prévue |
 | V6.9.14 | Équipage et garde-robe | 🔜 prévue |
@@ -53,7 +53,7 @@ Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant 
 | ✅ V6.9.8 — Vérification et outils de suivi | [#91](https://github.com/StudioRbx/T.A.R.D.I.S/issues/91) | 🔧 Tâche | faite | moyen | 03/11 → 03/11 |
 | V6.9.9 — Effets visuels du voyage | [#92](https://github.com/StudioRbx/T.A.R.D.I.S/issues/92) | ✨ Fonctionnalité | 🟠 Haute | moyen | 04/11 → 05/11 |
 | V6.9.10 — Vol libre et vortex | [#93](https://github.com/StudioRbx/T.A.R.D.I.S/issues/93) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 06/11 → 07/11 |
-| V6.9.11 — Navigation et fiches de lieux | [#94](https://github.com/StudioRbx/T.A.R.D.I.S/issues/94) | ✨ Fonctionnalité | 🟡 Moyenne | petit | 08/11 → 09/11 |
+| ✅ V6.9.11 — Navigation et fiches de lieux | [#94](https://github.com/StudioRbx/T.A.R.D.I.S/issues/94) | ✨ Fonctionnalité | faite | petit | 06/11 → 06/11 |
 | V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | 🟠 Haute | moyen | 10/11 → 11/11 |
 | V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 12/11 → 13/11 |
 | V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 14/11 → 15/11 |
@@ -342,7 +342,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* Ce code vit dans l'interface de vol libre, dans TardisCamera et dans Ambiance, pas dans le menu T ni dans la tablette Y. 23 passe avant 26, parce que l'orbite n'est permise qu'en croisière. L'orbite se branche sur la boucle de rendu qui existe déjà dans TardisCamera, sans boucle en plus, en prévision de la 177. La nouvelle action VolLibreFrein (30) sera recensée par le garde-barrière de la V8. Son « un frein par seconde au plus » est un temps de recharge propre à cette action, comme Config.Cooldown : ce n'est pas la limite générale de la 158, et il ne passe pas par le garde. Le son Vortex (136) est déclaré avec Id 0 dans Config.Sons et dans la liste du diagnostic ; la V9.1 le fusionnera dans la liste unique.
 
-### V6.9.11 — Navigation et fiches de lieux
+### V6.9.11 — Navigation et fiches de lieux ✅ faite (06/11)
 
 **Objectif :** Améliorer le choix des destinations (favoris du copilote, point de base, zones à vitesse réduite) et donner à chaque lieu une fiche affichée à l'arrivée.
 

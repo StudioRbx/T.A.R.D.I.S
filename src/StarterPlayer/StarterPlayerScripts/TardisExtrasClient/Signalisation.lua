@@ -11,6 +11,9 @@
 --      bourdonnement du moteur et peut jouer sa propre boucle d'ambiance (Config.AmbianceThemes), à bord seulement.
 --   (V6.9.9) Marque au sol après chaque atterrissage, dans tous les modes sauf Silencieux : une trace carrée sombre
 --      reste Config.Effets.DureeMarques secondes là où la cabine s'est posée. Avec « aucun flash », l'enseigne reste fixe.
+--   (V6.9.11) Fiche du lieu : à l'arrivée sur un lieu qui a une description, des dangers ou un niveau de danger, une
+--      carte s'affiche quelques secondes sous « POSÉ », pour les joueurs à bord, à la couleur du niveau. Le texte vient
+--      du serveur (attribut FicheLieu, en JSON) : le client ne fait que l'afficher.
 -- Tout est local (chaque client calcule à partir des attributs Etat, DebutEtat, Mode, Theme).
 
 return function(contexte)
@@ -80,6 +83,62 @@ return function(contexte)
 		end
 		chiffre.TextSize = 56
 		cacher()
+	end)
+
+	--------------------------------------------------------------------
+	-- 1 bis. Fiche du lieu (V6.9.11) : carte de la charte sous « POSÉ », Config.FicheLieu.Duree secondes, à bord seulement.
+	-- Le serveur publie FicheLieu (JSON { nom, description, dangers, niveau }) en atterrissant sur un lieu qui en a une.
+	--------------------------------------------------------------------
+	local FICHE = Config.FicheLieu or {}
+	local NIVEAUX = FICHE.Niveaux or { [0] = "SANS DANGER", [1] = "PRUDENCE", [2] = "DANGEREUX", [3] = "DANGER EXTRÊME" }
+	local COULEURS_NIVEAU = { [0] = C.vert, [1] = C.ambre, [2] = C.orange or C.ambre, [3] = C.rouge }
+	local carteFiche, contenuFiche = UI.panneauCoupe({ Name = "FicheLieu", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.16, 100),
+		Size = UDim2.fromOffset(420, 132), Visible = false, Parent = gui }, { coupe = 12, marges = 12, pile = 4, balayage = false })
+	local titreFiche = texte({ Name = "Nom", Text = "", Font = UI.POLICE_GRAS, TextSize = 15, TextColor3 = C.texte, LayoutOrder = 1,
+		Size = UDim2.new(1, 0, 0, 18), TextTruncate = Enum.TextTruncate.AtEnd, Parent = contenuFiche })
+	local niveauFiche = texte({ Name = "Niveau", Text = "", Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.vert, LayoutOrder = 2,
+		Size = UDim2.new(1, 0, 0, 14), Parent = contenuFiche })
+	local descriptionFiche = texte({ Name = "Description", Text = "", TextSize = 12, TextColor3 = C.texte2, TextWrapped = true, LayoutOrder = 3,
+		TextYAlignment = Enum.TextYAlignment.Top, Size = UDim2.new(1, 0, 0, 44), TextTruncate = Enum.TextTruncate.AtEnd, Parent = contenuFiche })
+	local dangersFiche = texte({ Name = "Dangers", Text = "", TextSize = 12, TextColor3 = C.ambre, TextWrapped = true, LayoutOrder = 4,
+		TextYAlignment = Enum.TextYAlignment.Top, Size = UDim2.new(1, 0, 0, 30), TextTruncate = Enum.TextTruncate.AtEnd, Parent = contenuFiche })
+	local finFiche = 0
+
+	local function lireFiche()
+		local brut = exterieur:GetAttribute("FicheLieu")
+		if type(brut) ~= "string" or brut == "" then return nil end
+		local ok, fiche = pcall(function() return game:GetService("HttpService"):JSONDecode(brut) end)
+		if not ok or type(fiche) ~= "table" then return nil end
+		return fiche
+	end
+	local function cacherFiche()
+		if carteFiche.Visible then carteFiche.Visible = false end
+		finFiche = 0
+	end
+	local function afficherFiche()
+		local fiche = lireFiche()
+		if not fiche or not jeSuisDedans() then cacherFiche() return end
+		local niveau = math.clamp(math.floor((tonumber(fiche.niveau) or 0) + 0.5), 0, 3)
+		local couleur = COULEURS_NIVEAU[niveau] or C.vert
+		titreFiche.Text = "◆  " .. string.upper(tostring(fiche.nom or exterieur:GetAttribute("Position") or "LIEU"))
+		niveauFiche.Text = "NIVEAU " .. niveau .. " · " .. tostring(NIVEAUX[niveau] or "")
+		niveauFiche.TextColor3 = couleur
+		local description = type(fiche.description) == "string" and fiche.description or nil
+		local dangers = type(fiche.dangers) == "string" and fiche.dangers or nil
+		descriptionFiche.Text = description or ""
+		descriptionFiche.Visible = description ~= nil
+		dangersFiche.Text = dangers and ("⚠ " .. dangers) or ""
+		dangersFiche.TextColor3 = couleur
+		dangersFiche.Visible = dangers ~= nil
+		local contour = carteFiche:FindFirstChild("Contour")
+		if contour and contour:IsA("UIStroke") then contour.Color = couleur end
+		carteFiche.Visible = true
+		finFiche = os.clock() + (tonumber(FICHE.Duree) or 7)
+	end
+	RunService.Heartbeat:Connect(function()
+		if not carteFiche.Visible then return end
+		-- Elle disparaît au bout de sa durée, si le joueur descend, ou si le TARDIS repart
+		if os.clock() >= finFiche or not jeSuisDedans() or etat() ~= E.Pose then cacherFiche() end
 	end)
 
 	--------------------------------------------------------------------
@@ -177,6 +236,12 @@ return function(contexte)
 		if e == E.Remat then modeArrivee = mode end
 		if e == E.Pose and etatAvant == E.Remat and not (Config.Modes[modeArrivee] or {}).Discret then
 			task.defer(marqueAtterrissage) -- SurEau est posé par le serveur juste après l'état
+		end
+		-- (V6.9.11) Fiche du lieu à l'arrivée (même en Silencieux : elle est à bord, pas dehors)
+		if e == E.Pose and etatAvant == E.Remat then
+			task.defer(afficherFiche)
+		elseif e ~= E.Pose then
+			cacherFiche()
 		end
 		if mode == "Express" then
 			if e == E.Demat then

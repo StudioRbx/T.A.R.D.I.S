@@ -25,7 +25,7 @@ I, G, game, pilote = monde(serveur=True)
 rs = game.m_FindFirstChild("ReplicatedStorage")
 tache(lambda: R.update(Config=premier(appeler(G["require"], [rs.m_FindFirstChild("TardisConfig")]))))
 Config = R["Config"]
-verifier("1. Vrai TardisConfig chargé, version 6.9.10.9", Config.get("Version") == "6.9.10.9" and not roblox.ERREURS, (Config.get("Version"), roblox.ERREURS[:3]))
+verifier("1. Vrai TardisConfig chargé, version 6.9.10.9 ou plus récente", tuple(int(p) for p in str(Config.get("Version")).split(".") if p.isdigit()) >= (6, 9, 10, 9) and not roblox.ERREURS, (Config.get("Version"), roblox.ERREURS[:3]))
 
 debut = extras.index("local leurre = nil")
 fin = extras.index("-- Personnalisation : couleur de la cabine")

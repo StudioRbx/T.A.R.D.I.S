@@ -109,6 +109,7 @@ return function(contexte)
 		if c.type == "lieu" then return "lieu:" .. c.nom end
 		if c.type == "joueur" then return "joueur:" .. c.id end
 		if c.type == "precedent" then return "precedent" end
+		if c.type == "base" then return "base" end -- (V6.9.11)
 		if c.type == "historique" then return "histo:" .. tostring(c.index) end
 		return "position"
 	end
@@ -125,6 +126,10 @@ return function(contexte)
 			local autre = Players:GetPlayerByUserId(c.id)
 			local racine = autre and autre.Character and autre.Character:FindFirstChild("HumanoidRootPart")
 			return racine and racine.Position or nil
+		elseif c.type == "base" then
+			-- (V6.9.11) position publiée par le serveur
+			local cf = exterieur:GetAttribute("BaseCF")
+			return c.nom and typeof(cf) == "CFrame" and cf.Position or nil
 		elseif c.type == "historique" and c.cframe then
 			return c.cframe.Position
 		elseif c.type == "position" and S.positionPerso then
@@ -155,6 +160,16 @@ return function(contexte)
 		local c = S.choix
 		W.modeJoueur.Visible = c ~= nil and c.type == "joueur"
 		W.boutonCategorie.Visible = c ~= nil and c.type == "lieu"
+		-- (V6.9.11) Bouton du point de base (lieu : définir / retirer ; entrée Base : retirer / définir ici)
+		local baseNom = exterieur:GetAttribute("BaseNom")
+		local texteBase = nil
+		if c and c.type == "lieu" then
+			texteBase = baseNom == c.nom and "■  BASE ACTUELLE · RETIRER" or "■  DÉFINIR COMME BASE"
+		elseif c and c.type == "base" then
+			texteBase = baseNom and "■  RETIRER LA BASE" or "■  DÉFINIR LA BASE ICI"
+		end
+		W.boutonBase.Visible = texteBase ~= nil
+		if texteBase then W.boutonBase.Text = texteBase end
 		if c and c.type == "lieu" then
 			local categorie = S.categories[c.nom] and (Config.Categories or {})[S.categories[c.nom]]
 			W.boutonCategorie.Text = categorie and ("● " .. categorie.nom) or "Catégorie : aucune"
@@ -185,6 +200,15 @@ return function(contexte)
 			W.ficheIcone.Text = "◄"
 			W.ficheNom.Text = UI.majuscules("Retour : " .. c.nom)
 			W.ficheInfo.Text = "DERNIÈRE DESTINATION  ·  là d'où le TARDIS est parti  ·  " .. trajet
+		elseif c.type == "base" then
+			W.ficheIcone.Text = "■"
+			if c.nom then
+				W.ficheNom.Text = UI.majuscules("Base : " .. c.nom)
+				W.ficheInfo.Text = "POINT DE BASE  ·  " .. texteDistance
+			else
+				W.ficheNom.Text = "BASE NON DÉFINIE"
+				W.ficheInfo.Text = "Définis-la sur un lieu de la liste, ou ici quand le TARDIS est posé."
+			end
 		elseif c.type == "historique" then
 			W.ficheIcone.Text = "►"
 			W.ficheNom.Text = UI.majuscules(c.nom)

@@ -17,6 +17,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **`SiegeEquipage`** : sièges de l'équipage ;
 - **`Grille`** (ou un dossier `Grilles`) : vapeur et purge ;
 - sous-dossiers de destinations **`REFUSE`** et **`SANS_EXPRESS`** si tu veux des zones interdites ;
+- **V6.9.11** : sous-dossier **`VITESSE_REDUITE`** dans `TARDIS_DESTINATIONS` (Parts qui couvrent les zones : Classique ou Silencieux seulement), facultatif ; fiches de lieux en option : attributs **`Description`**, **`Dangers`** (texte) et **`NiveauDanger`** (0 à 3) sur les Parts de destination, ou `Config.FichesLieux` ; rien à construire pour le point de base (bouton de la tablette) ;
 - **V6.9.9** : ranger les vitres de la cabine dans un dossier **`Fenetres`** de l'extérieur, ou les nommer **`Vitre`** (vitres qui s'éteignent en dernier) ; vérifier que la salle contient des **PointLight** ou **SpotLight** (lumières selon l'état) ;
 - **V6.9.10.1, la console** (rien d'autre à construire : les affichages et les boutons sont faits par les scripts) :
   - **néons** : les pièces en matériau **Neon** de l'intérieur prennent les couleurs de l'état (sauf rotor, `LedsAlerte`, écrans) ; une pièce qui ne doit jamais changer : la ranger dans `LedsAlerte`, ou ajouter son nom à `Config.NeonsSalle.Exclure` ;
@@ -44,9 +45,9 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V6.9.10.9)
-- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (170 tests de la V6.7 à la V6.9.10.9, dont 18 sans objet ; 152 encore à faire).
-- **Releases GitHub à jour** : les 34 versions de la V6.5 à la V6.9.10.9 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+## 6. Tests en jeu et releases (V6.9.11)
+- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (176 tests de la V6.7 à la V6.9.11, dont 6 réussis et 18 sans objet ; 152 encore à faire).
+- **Releases GitHub à jour** : les 34 versions de la V6.5 à la V6.9.10.9 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release (V6.9.11 : texte prêt dans `docs/releases/V6.9.11.md`, à publier avec le tag `v6.9.11`) ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.

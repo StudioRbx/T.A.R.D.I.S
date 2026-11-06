@@ -85,6 +85,7 @@ return function(contexte)
 		end)
 	end
 	exterieur:GetAttributeChangedSignal("PrecedentNom"):Connect(construireListe)
+	exterieur:GetAttributeChangedSignal("BaseNom"):Connect(construireListe) -- (V6.9.11) point de base
 	exterieur:GetAttributeChangedSignal("Historique"):Connect(function() if S.mode == "histo" then construireListe() end end)
 	local function lireCategories()
 		table.clear(S.categories)
