@@ -1,5 +1,5 @@
 {
- "version": "6.9.10.7",
+ "version": "6.9.10.8",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 80132,
-   "empreinte": 231355102
+   "taille": 81113,
+   "empreinte": 20961221
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -43,8 +43,8 @@
    "nom": "TardisExtras",
    "classe": "Script",
    "parTardis": false,
-   "taille": 72355,
-   "empreinte": 1154289394
+   "taille": 72381,
+   "empreinte": 259555783
   },
   {
    "fichier": "src/ServerScriptService/TardisLiaisonPortes.server.lua",
@@ -79,8 +79,8 @@
    "nom": "TardisServeur",
    "classe": "Script",
    "parTardis": false,
-   "taille": 106373,
-   "empreinte": 30328661
+   "taille": 106552,
+   "empreinte": 891819902
   },
   {
    "fichier": "src/ServerScriptService/TardisSupervision.server.lua",
@@ -277,8 +277,8 @@
    "nom": "Interactions",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 20556,
-   "empreinte": 1015967302
+   "taille": 20582,
+   "empreinte": 1225555823
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Intercom.lua",

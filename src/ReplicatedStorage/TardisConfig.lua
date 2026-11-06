@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.10.7"
+Config.Version = "6.9.10.8"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -91,7 +91,8 @@ Config.JukeboxConsole = {
 Config.InvitesConsole = {
 	Touche = "Z",            -- (V6.9.10.1) clavier
 	Manette = "DPadRight",   -- (V6.9.10.1) manette
-	HauteurInvite = 1.5,     -- (V6.9.10.5) studs au-dessus du haut de la commande (Selecteur, levier, casier, jukebox…)
+	HauteurInvite = false,   -- (V6.9.10.8) false : invites à leur place d'origine, sur la commande ; un nombre : tant de studs au-dessus
+	                         -- du haut de la commande (Selecteur, levier, casier, jukebox…). Le Vol libre a son propre réglage.
 }
 Config.BoutonVolLibre = {
 	Touche = "F",            -- (V6.9.10.1) touche de l'invite (manette : Y)
@@ -881,14 +882,27 @@ end
 function Config.trouverCommande(racine, cle, attente)
 	local chemin = Config.Chemins and Config.Chemins[cle]
 	if not chemin or not racine then return nil end
-	local objet = racine
-	for _, nom in chemin do
-		local suivant = objet:FindFirstChild(nom)
-		if not suivant and attente and attente > 0 then suivant = objet:WaitForChild(nom, attente) end
-		objet = suivant
-		if not objet then return nil end
+	-- (V6.9.10.8) Un nom avec des espaces en trop (« Selecteur␣ ») compte aussi ; si deux objets répondent au même nom, on
+	-- garde celui où la suite du chemin existe (Colors dans le Model « Selecteur␣ » et pas dans la pièce « Selecteur »).
+	-- Premier passage sans attendre ; l'attente (WaitForChild sur le nom exact) ne sert qu'au second, comme avant.
+	local function chercher(objet, i, attendre)
+		if i > #chemin then return objet end
+		local nom, candidats = chemin[i], {}
+		for _, enfant in objet:GetChildren() do
+			if enfant.Name == nom then table.insert(candidats, 1, enfant)
+			elseif string.match(enfant.Name, "^%s*(.-)%s*$") == nom then table.insert(candidats, enfant) end
+		end
+		if #candidats == 0 and attendre then
+			local attendu = objet:WaitForChild(nom, attente)
+			if attendu then candidats = { attendu } end
+		end
+		for _, candidat in candidats do
+			local trouve = chercher(candidat, i + 1, attendre)
+			if trouve then return trouve end
+		end
+		return nil
 	end
-	return objet
+	return chercher(racine, 1, false) or (attente and attente > 0 and chercher(racine, 1, true)) or nil
 end
 -- (V6.9.10.1) La pièce d'une commande : elle-même, ou le PrimaryPart (sinon la première pièce) de son Model
 function Config.partDe(objet)

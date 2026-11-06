@@ -64,6 +64,7 @@ def boite_monde(parts):
             mn[i], mx[i] = min(mn[i], cf.p[i] - e), max(mx[i], cf.p[i] + e)
     return mn, mx
 def monde_attache(att):
+    if att.ClassName != "Attachment": return Vec3(*att.props["CFrame"].p)  # (V6.9.10.8) invite posée sur la pièce
     return att.parent.props["CFrame"].point(att.props["Position"])
 def proche(a, b, tol=1e-6): return all(abs(x - y) <= tol for x, y in zip(a, b))
 def dist(a, b): return math.sqrt(sum((x - y) ** 2 for x, y in zip(a.t(), b.t())))
@@ -84,7 +85,7 @@ Config = R["Config"]; E = Config.get("Etats")
 BV, IC, CA, JD = Config.get("BoutonVolLibre"), Config.get("InvitesConsole"), Config.get("Casiers"), Config.get("JukeboxDossier")
 verifier("1. Config.BoutonVolLibre.HauteurInvite = 1,5 ; Distance au moins 10 ; touche F", BV.get("HauteurInvite") == 1.5 and BV.get("Distance") >= 10 and BV.get("Touche") == "F",
          (BV.get("HauteurInvite"), BV.get("Distance")))
-verifier("1. Config.InvitesConsole.HauteurInvite = 1,5 (Selecteur, levier, casier, jukebox…)", IC.get("HauteurInvite") == 1.5)
+verifier("1. Config.InvitesConsole.HauteurInvite = false (V6.9.10.8 : invites de la console revenues sur leur commande)", IC.get("HauteurInvite") is False)
 verifier("1. Config.Casiers : caméra à 7 studs, dégagement minimal, marge, fermeture à 12 studs",
          (CA.get("DistanceCamera"), CA.get("DistanceMinimale"), CA.get("Marge"), CA.get("DistanceFermeture")) == (7, 2.5, 0.5, 12))
 verifier("1. Config.JukeboxDossier : dossier « Jukebox », attribut « Categorie », catégories Doctor Who",
@@ -92,7 +93,7 @@ verifier("1. Config.JukeboxDossier : dossier « Jukebox », attribut « Categori
          and [JD.get("Categories").get(i) for i in range(1, 6)] == ["Thèmes", "Ambiance de bord", "Vortex", "Action", "Émotion"])
 lignes_v = [l for l in cfgsrc.splitlines() if "(V6.9.10.5)" in l and re.match(r"\s*\w+ = ", l)]
 noms_v = sorted(re.match(r"\s*(\w+) = ", l).group(1) for l in lignes_v)
-verifier("1. Chaque nouveau réglage est marqué « (V6.9.10.5) » (9 lignes)", noms_v == sorted(["HauteurInvite", "HauteurInvite", "DistanceCamera", "DistanceMinimale", "Marge",
+verifier("1. Chaque nouveau réglage est marqué « (V6.9.10.5) » (8 lignes ; V6.9.10.8 : InvitesConsole.HauteurInvite remarqué)", noms_v == sorted(["HauteurInvite", "DistanceCamera", "DistanceMinimale", "Marge",
          "DistanceFermeture", "Nom", "AttributCategorie", "Categories"]), noms_v)
 verifier("1. Version 6.9.10.5 ou plus récente", str(Config.get("Version")).startswith("6.9.10.") and Config.get("Version") not in ("6.9.10", "6.9.10.1", "6.9.10.2", "6.9.10.3", "6.9.10.4"), Config.get("Version"))
 bloc_j = cfgsrc[cfgsrc.index("Config.Jukebox = {"):cfgsrc.index("\n}", cfgsrc.index("Config.Jukebox = {"))]
@@ -187,17 +188,16 @@ verifier("2. Invite : touche F (manette Y), sans ligne de vue, 10 studs au moins
          and iv.props["MaxActivationDistance"] >= 10 and iv.props.get("Enabled") is True, {k: iv.props.get(k) for k in ("MaxActivationDistance", "RequiresLineOfSight", "Enabled")})
 verifier("2. Clic aussi à 10 studs au moins", clics[0].props["MaxActivationDistance"] >= 10)
 invS = [e for e in de_classe(P["selecteur"], "ProximityPrompt") if e.props.get("ActionText") == "Changer de destination"]
-verifier("2. L'invite du Selecteur (touche E par défaut) reste sur une AUTRE pièce que Colors (le Socle), au-dessus du Selecteur",
-         len(invS) == 1 and invS[0].parent.ClassName == "Attachment" and invS[0].parent.parent is P["socle"] and "KeyboardKeyCode" not in invS[0].props
-         and not invS[0].parent.m_IsDescendantOf(P["colors"]), [(e.parent.parent.Name) for e in invS])
-ps = monde_attache(invS[0].parent)
-mn2, mx2 = boite_monde([P["socle"], P["molette"]])
-verifier("2. Point du Selecteur : au-dessus de ses pièces SANS Colors (+1,5 stud)", proche(ps.t(), ((mn2[0] + mx2[0]) / 2, mx2[1] + 1.5, (mn2[2] + mx2[2]) / 2)), ps.t())
+verifier("2. L'invite du Selecteur (touche E par défaut) reste sur une AUTRE pièce que Colors : directement sur le Socle (V6.9.10.8 : à sa place d'origine)",
+         len(invS) == 1 and invS[0].parent is P["socle"] and "KeyboardKeyCode" not in invS[0].props
+         and not invS[0].parent.m_IsDescendantOf(P["colors"]), [(e.parent.Name) for e in invS])
+ps = Vec3(*P["socle"].props["CFrame"].p)
+verifier("2. Pas de point d'attache « TardisInvite » ajouté au Selecteur (V6.9.10.8)", not [e for e in de_classe(P["socle"], "Attachment") if e.Name == "TardisInvite"])
 verifier("2. Deux invites, deux touches (E et F), à deux endroits : toutes deux visibles (Roblox n'en montre qu'une par touche)",
          dist(ps, pv) >= 2 and invS[0].props.get("UIOffset") is None and iv.props.get("UIOffset") is None, (dist(ps, pv), invS[0].props.get("UIOffset")))
 invL = [e for e in de_classe(P["levier"], "ProximityPrompt")]
-verifier("2. Le levier aussi : invite « Décoller » sur un point d'attache au-dessus de lui", len(invL) == 1 and invL[0].props["ActionText"] == "Décoller"
-         and abs(monde_attache(invL[0].parent).y - (3 + 0.75 + 1.5)) < 1e-9, [monde_attache(e.parent).t() for e in invL])
+verifier("2. Le levier aussi : invite « Décoller » directement sur lui (V6.9.10.8)", len(invL) == 1 and invL[0].props["ActionText"] == "Décoller"
+         and invL[0].parent is P["levier"], [e.parent.ClassName for e in invL])
 xv, canal, alertes = B["xv"], B["canal"], B["alertes"]
 declencher(clics[0], "MouseClick", visiteur); H.avancer(0.2)
 verifier("2. Clic d'un non-pilote sur le bouton : rien (pas de vol libre, pas de message)", xv.attrs.get("VolLibre") is None and not alertes and not canal.extra.get("envoisClient"))
@@ -219,8 +219,11 @@ B2 = charger_bouton(0.2)
 iv2 = [e for e in de_classe(B2["P"]["colors"], "ProximityPrompt")][0]
 is2 = [e for e in de_classe(B2["P"]["selecteur"], "ProximityPrompt") if e.props.get("ActionText") == "Changer de destination"][0]
 d2 = dist(monde_attache(iv2.parent), monde_attache(is2.parent))
-verifier("2. Bouton collé au centre du Selecteur (points à moins de 2 studs) : les deux invites écartées à l'écran (UIOffset ±40)",
-         d2 < 2 and iv2.props.get("UIOffset") is not None and is2.props.get("UIOffset") is not None and iv2.props["UIOffset"].args != is2.props["UIOffset"].args,
+# (V6.9.10.8 : l'invite du Selecteur est revenue au centre de sa pièce, le Vol libre reste 1,5 stud au-dessus de son bouton ;
+# les deux points sont donc rarement à moins de 2 studs : on vérifie la règle dans les deux sens)
+ecartees = iv2.props.get("UIOffset") is not None and is2.props.get("UIOffset") is not None and iv2.props["UIOffset"].args != is2.props["UIOffset"].args
+verifier("2. Bouton collé au Selecteur : invites écartées à l'écran (UIOffset ±40) si leurs points sont à moins de 2 studs, sinon laissées telles quelles",
+         ecartees if d2 < 2 else (iv2.props.get("UIOffset") is None and is2.props.get("UIOffset") is None),
          (d2, iv2.props.get("UIOffset"), is2.props.get("UIOffset")))
 
 
@@ -249,10 +252,10 @@ tache(lambda: I.executer(prelude_x + extras[jb:fjb] + extras[dx:fx], "extras-ser
 H.avancer(0.2)
 verifier("3. Vrai bloc du jukebox et vrai gestionnaire de TardisExtras chargés", not roblox.ERREURS, roblox.ERREURS[:3])
 cj = enfant_classe(juke, "ClickDetector"); pj = de_classe(juke, "ProximityPrompt")
-verifier("3. Jukebox en Model : clic sur tout le Model, invite « Musique » (Z) sur un point d'attache", len(cj) == 1 and len(pj) == 1 and pj[0].parent.ClassName == "Attachment"
+verifier("3. Jukebox en Model : clic sur tout le Model, invite « Musique » (Z) sur une de ses pièces (V6.9.10.8)", len(cj) == 1 and len(pj) == 1 and pj[0].parent in (caisse, disque)
          and pj[0].props["ActionText"] == "Musique" and pj[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z", ([e.ClassName for e in juke.enfants], len(pj)))
 mnj, mxj = boite_monde([caisse, disque])
-verifier("3. … 1,5 stud au-dessus du jukebox", proche(monde_attache(pj[0].parent).t(), ((mnj[0] + mxj[0]) / 2, mxj[1] + 1.5, (mnj[2] + mxj[2]) / 2)), monde_attache(pj[0].parent).t())
+verifier("3. … sans point d'attache au-dessus (V6.9.10.8)", not [e for e in de_classe(juke, "Attachment") if e.Name == "TardisJukebox"])
 n = len(canalX.extra.get("envoisClient", [])); declencher(cj[0], "MouseClick", pilote); H.avancer(0.6); declencher(pj[0], "Triggered", visiteur); H.avancer(0.6)
 verifier("3. Clic d'un pilote sur le jukebox : le panneau s'ouvre ; non-pilote : « Réservé aux pilotes. »",
          canalX.extra.get("envoisClient", [])[n:] == [[pilote, "__jukebox", caisse], [visiteur, "__console", "Réservé aux pilotes.", False]], canalX.extra.get("envoisClient", [])[n:])
@@ -269,9 +272,8 @@ ALX = []
 tache(lambda: I.executer(code_bc, "brancher-serveur", (Config, salleX, xa, PIL, Fonction("alerter", py=lambda m: ALX.append(m) or []))))
 H.avancer(0.2)
 pa = de_classe(bouton_alerte, "ProximityPrompt")
-verifier("3. Alerte (vrai brancherCommande) : invite sur un point d'attache 1,5 stud au-dessus du bouton, dans le bouton lui-même",
-         len(pa) == 1 and pa[0].parent.ClassName == "Attachment" and pa[0].parent.parent is bouton_alerte and abs(monde_attache(pa[0].parent).y - (3.2 + 0.15 + 1.5)) < 1e-9,
-         [(e.parent.ClassName, monde_attache(e.parent).t()) for e in pa])
+verifier("3. Alerte (vrai brancherCommande) : invite directement dans le bouton (V6.9.10.8)",
+         len(pa) == 1 and pa[0].parent is bouton_alerte, [e.parent.ClassName for e in pa])
 declencher(pa[0], "Triggered", pilote); H.avancer(0.2)
 verifier("3. … et elle marche toujours (alerte déclenchée par un pilote)", xa.attrs.get("Alerte") is True and ALX == ["ALERTE GÉNÉRALE"], (xa.attrs.get("Alerte"), ALX))
 sys_src_redem = systemes[systemes.index('prompt.Name = "TardisRedemarrage"'):systemes.index("exterieur:GetAttributeChangedSignal(\"RedemarrageRequis\"):Connect(majInvites)")]
@@ -500,9 +502,9 @@ tache(lambda: res.update(m=premier(appeler(premier(Ic.executer(interactions_src,
 H.avancer(0.1)
 verifier("4. Vrai module Interactions chargé (client, maths réelles, rayons)", res.get("m") is not None and not roblox.ERREURS, roblox.ERREURS[:3])
 pcas = de_classe(casierM, "ProximityPrompt"); ccas = enfant_classe(casierM, "ClickDetector")
-verifier("4. Casier en Model : clic sur tout le Model, invite « Choisir une tenue » (Z) sur un point d'attache 1,5 stud au-dessus",
-         len(ccas) == 1 and len(pcas) == 1 and pcas[0].parent.ClassName == "Attachment" and pcas[0].props["ActionText"] == "Choisir une tenue"
-         and abs(monde_attache(pcas[0].parent).y - (4.5 + 1.5)) < 1e-9, ([e.ClassName for e in casierM.enfants], pcas and monde_attache(pcas[0].parent).t()))
+verifier("4. Casier en Model : clic sur tout le Model, invite « Choisir une tenue » (Z) sur une de ses pièces (V6.9.10.8)",
+         len(ccas) == 1 and len(pcas) == 1 and pcas[0].parent.ClassName != "Attachment" and pcas[0].parent.m_IsDescendantOf(casierM) and pcas[0].props["ActionText"] == "Choisir une tenue",
+         ([e.ClassName for e in casierM.enfants], pcas and pcas[0].parent.ClassName))
 casierGui = pg.m_FindFirstChild("TardisCasier")
 # Les murs (la console et le casier sont devant le joueur, qui regarde vers −Z)
 murs = []

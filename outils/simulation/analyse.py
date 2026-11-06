@@ -156,7 +156,9 @@ def fichiers(racine):
             if f.endswith(".lua"): yield os.path.join(d, f)
 
 def main(racine):
-    textes = {p: open(p, encoding="utf-8").read() for p in sorted(fichiers(racine))}
+    class Chemins(dict):  # (V6.9.10.8) mêmes clés sous Windows (\) et Linux (/)
+        def __getitem__(s, k): return dict.__getitem__(s, os.path.normpath(k))
+    textes = Chemins((os.path.normpath(p), open(p, encoding="utf-8").read()) for p in sorted(fichiers(racine)))
     toks = {p: lexer(t) + [("fin", "", 0)] * 4 for p, t in textes.items()}
     rel = lambda p: os.path.relpath(p, racine)
     rapport = collections.OrderedDict()

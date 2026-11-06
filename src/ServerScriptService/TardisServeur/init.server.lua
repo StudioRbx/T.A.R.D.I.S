@@ -1028,9 +1028,12 @@ local function creerPrompt(part, action, objet, exclu, hauteur)
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 8
 	prompt.RequiresLineOfSight = false
-	local attache, point = Config.pointInvite(objet or part, hauteur or (Config.InvitesConsole or {}).HauteurInvite, exclu, part)
+	-- (V6.9.10.8) Config.InvitesConsole.HauteurInvite = false : l'invite reste sur la commande, comme avant la V6.9.10.5
+	local h = hauteur or (Config.InvitesConsole or {}).HauteurInvite
+	local attache, point
+	if h then attache, point = Config.pointInvite(objet or part, h, exclu, part) end
 	prompt.Parent = attache or part
-	return prompt, point
+	return prompt, point or part.Position
 end
 
 local dernierUsage = 0

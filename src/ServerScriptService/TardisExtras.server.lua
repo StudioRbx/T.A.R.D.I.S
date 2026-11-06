@@ -1160,7 +1160,7 @@ do
 			local okManette, manette = pcall(function() return Enum.KeyCode[invites.Manette or "DPadRight"] end)
 			prompt.KeyboardKeyCode = okTouche and touche or Enum.KeyCode.Z
 			prompt.GamepadKeyCode = okManette and manette or Enum.KeyCode.DPadRight
-			prompt.Parent = Config.pointInvite(objet, invites.HauteurInvite, nil, part, "TardisJukebox") or part
+			prompt.Parent = invites.HauteurInvite and Config.pointInvite(objet, invites.HauteurInvite, nil, part, "TardisJukebox") or part
 			prompt.Triggered:Connect(function(joueur) ouvrirJukebox(joueur, part) end)
 			local clic = Instance.new("ClickDetector")
 			clic.Name = "TardisJukebox"

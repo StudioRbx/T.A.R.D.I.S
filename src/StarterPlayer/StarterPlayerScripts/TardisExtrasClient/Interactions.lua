@@ -312,7 +312,7 @@ return function(contexte)
 			local prompt = creer("ProximityPrompt", { Name = "TardisCasierConsole", ActionText = "Choisir une tenue", ObjectText = "Casier", HoldDuration = 0,
 				MaxActivationDistance = 8, RequiresLineOfSight = false, KeyboardKeyCode = okTouche and touche or Enum.KeyCode.Z,
 				GamepadKeyCode = okManette and manette or Enum.KeyCode.DPadRight,
-				Parent = Config.pointInvite(objet, invites.HauteurInvite, nil, part, "TardisCasierConsole") or part })
+				Parent = invites.HauteurInvite and Config.pointInvite(objet, invites.HauteurInvite, nil, part, "TardisCasierConsole") or part })
 			prompt.Triggered:Connect(ouvrir)
 			local clic = creer("ClickDetector", { Name = "TardisCasierConsole", MaxActivationDistance = 12, Parent = Config.cibleClic(objet) or part })
 			clic.MouseClick:Connect(function(qui) if qui == joueur then ouvrir() end end)

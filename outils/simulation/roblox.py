@@ -164,7 +164,10 @@ H = Horloge()
 
 import threading, sys, traceback
 sys.setrecursionlimit(20000)
-threading.stack_size(256 * 1024 * 1024)
+try:
+    threading.stack_size(256 * 1024 * 1024)
+except ValueError:  # Windows refuse 256 Mo tout rond (V6.9.10.8)
+    threading.stack_size(255 * 1024 * 1024)
 ERREURS = []   # erreurs levées dans les tâches (comme la sortie rouge de Roblox)
 class Tache:
     courante = threading.local()
