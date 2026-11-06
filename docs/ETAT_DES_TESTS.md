@@ -7,7 +7,7 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 170 tests** — ⬜ 152 · ✅ 0 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 170 tests** — ⬜ 146 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
@@ -16,17 +16,17 @@ confirment l'affichage, les sons et les sensations.
 
 | Test | Attendu | Résultat | Remarque |
 |---|---|---|---|
-| Déployer un leurre (tablette), puis lancer un voyage | le leurre s'efface en fondu dès la dématérialisation | ⬜ |  |
-| Déployer un leurre, puis lancer le vol libre | le leurre s'efface au départ du vol libre | ⬜ |  |
-| Regarder la tuile « Leurre » de la tablette, leurre déployé | elle affiche « ACTIF · retirer » ; un clic retire le leurre | ⬜ |  |
+| Déployer un leurre (tablette), puis lancer un voyage | le leurre s'efface en fondu dès la dématérialisation | ✅ | vérifié dans DEVMAP le 06/11 |
+| Déployer un leurre, puis lancer le vol libre | le leurre s'efface au départ du vol libre | ✅ | vérifié dans DEVMAP le 06/11 |
+| Regarder la tuile « Leurre » de la tablette, leurre déployé | elle affiche « ACTIF · retirer » ; un clic retire le leurre | ✅ | vérifié dans DEVMAP le 06/11 |
 
 ## V6.9.10.8 — Invites de la console remises à leur place, bouton Vol libre retrouvé
 
 | Test | Attendu | Résultat | Remarque |
 |---|---|---|---|
-| S'approcher de la console | les invites sont sur leur commande (Selecteur, levier, alerte, jukebox, écran ingénieur, casier), pas au-dessus | ⬜ |  |
-| S'approcher du bouton Vol libre (`Colors`) en pilote | l'invite « Vol libre » (F) flotte au-dessus du bouton ; F ou un clic lance le vol libre | ⬜ |  |
-| Lire l'Output au démarrage | plus de ligne « Bouton Vol libre … introuvable » | ⬜ |  |
+| S'approcher de la console | les invites sont sur leur commande (Selecteur, levier, alerte, jukebox, écran ingénieur, casier), pas au-dessus | ✅ | vérifié dans DEVMAP le 06/11 |
+| S'approcher du bouton Vol libre (`Colors`) en pilote | l'invite « Vol libre » (F) flotte au-dessus du bouton ; F ou un clic lance le vol libre | ✅ | vérifié dans DEVMAP le 06/11 |
+| Lire l'Output au démarrage | plus de ligne « Bouton Vol libre … introuvable » | ✅ | vérifié dans DEVMAP le 06/11 |
 
 ## V6.9.10.7 — Menus « Hologramme de confinement », second passage
 
