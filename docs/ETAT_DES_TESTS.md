@@ -7,10 +7,24 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 183 tests** — ⬜ 159 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 192 tests** — ⬜ 168 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.13 — Nouvelles pannes et outils du technicien
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Provoquer une fuite d'air (ou attendre, `FrequencePannes = "Frequente"`) | « PANNE : Fuite d'air (zone …) », jet d'air sur une grille, l'air baisse de 2 % toutes les 5 s | ⬜ |  |
+| Pendant la fuite, tablette technicien › Purger | « Impossible : colmatez d'abord la fuite d'air. » | ⬜ |  |
+| Maintenir E sur la fuite sans outil, puis visseuse en main | d'abord « Il faut la visseuse ou la clé à molette en main. », puis « Fuite d'air colmatée par » ton nom | ⬜ |  |
+| Rotor bloqué, posé : tenter voyage, vol libre et téléportation de poche | « ROTOR BLOQUÉ » à chaque fois, le rotor rougeoie ; hors tension : toujours « HORS TENSION » | ⬜ |  |
+| Maintenir E 6 s sur le rotor bloqué (pilote ou technicien) | « Rotor débloqué par … : le TARDIS peut repartir. », le décollage refonctionne | ⬜ |  |
+| Tablette technicien › « SCAN. », viser le rotor, une grille, la console, la cabine | bulle « ◆ … » avec l'état de la pièce, rouge si anomalie, cadre autour de la pièce | ⬜ |  |
+| Faire passer l'intégrité sous 60 % (ou une explosion) | « PANNE : Brèche dans la structure », fumée et étincelles sur la console (ou une pièce du dossier `Structure`) | ⬜ |  |
+| « SOUD. », cliquer loin puis près de la brèche, 4 fois | « Approche-toi de la brèche. », puis « Soudure 1/4… » → « Brèche refermée par » ton nom, intégrité +500 | ⬜ |  |
+| Poser un Tool `Soudeur` avec `Handle` dans `TardisAssets › Outils`, puis « SOUD. » | le modèle en main au lieu du bloc de couleur | ⬜ |  |
 
 ## V6.9.12 — Pannes : le socle commun
 

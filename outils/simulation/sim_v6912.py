@@ -487,7 +487,7 @@ verifier("7. Le client ne fait qu'écouter (aucun envoi au serveur)", "FireServe
 for chemin, src in (("TardisConfig", config_src), ("TardisSystemes", systemes), ("TardisExtras", extras), ("TabletteTechnicien", tablette),
                     ("Ambiance", ambiance), ("TardisDiagnostic", diagnostic)):
     verifier(f"8. {chemin} : ajouts marqués « (V6.9.12) »", "(V6.9.12)" in src)
-verifier("8. Version 6.9.12 dans TardisConfig", 'Config.Version = "6.9.12"' in config_src)
+verifier("8. Version 6.9.12 ou plus récente dans TardisConfig", version(Config.get("Version")) >= (6, 9, 12) and 'Config.Version = "' in config_src, Config.get("Version"))
 verifier("8. Aucun compteur de réparations par technicien (« réparé par » = une mention)",
          not re.search(r"(reparations|compteur\w*|nbReparations|totalReparations)\s*\[", systemes) and "par = nom" in systemes)
 verifier("8. Diagnostic : les 4 sons Panne_* dans les sons facultatifs, le dossier Zones dans les pièces facultatives",

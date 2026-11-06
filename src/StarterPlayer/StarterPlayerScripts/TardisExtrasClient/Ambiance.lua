@@ -415,6 +415,9 @@ return function(contexte)
 		--   Panne_Vapeur : sifflement en boucle sur la grille en surcharge ; Panne_Feu : crépitement en boucle sur la
 		--   console en feu ; Panne_Grincement : grincement au hasard (8 à 15 s) pendant une avarie ou une coupure ;
 		--   Panne_Etincelles : une fois, quand on clique sur le rotor en panne (attribut PanneEtincelles du serveur).
+		-- (V6.9.13) Panne_FuiteAir : sifflement en boucle sur la fuite d'air ; RotorBloque : raclement, une fois, à chaque
+		--   tentative de départ rotor bloqué (attribut RotorTentative) ; Soudure : grésillement à chaque passage du soudeur
+		--   (attribut SoudureTemps), sur la brèche.
 		do
 			local partConsole = Config.partDe(interieur:FindFirstChild("Console")) or support
 			local enBoucle = {} -- [nom] = { son, part }
@@ -468,6 +471,7 @@ return function(contexte)
 					boucle("Panne_Vapeur", grille)
 					local feu = not detruit and exterieur:GetAttribute("Incendie") == true and not exterieur:GetAttribute("IncendieEteint") -- IncendieEteint = heure de l'extincteur
 					boucle("Panne_Feu", feu and partConsole or nil)
+					boucle("Panne_FuiteAir", (not detruit) and Config.pieceEnPanne(exterieur, interieur, "FuiteAir") or nil) -- (V6.9.13)
 					local grince = not detruit and (exterieur:GetAttribute("Avarie") == true or exterieur:GetAttribute("RedemarrageRequis") == true)
 					if grince and os.clock() >= prochainGrincement then
 						if prochainGrincement > 0 then unCoup("Panne_Grincement", support) end
@@ -479,6 +483,13 @@ return function(contexte)
 			end)
 			exterieur:GetAttributeChangedSignal("PanneEtincelles"):Connect(function()
 				unCoup("Panne_Etincelles", support)
+			end)
+			-- (V6.9.13) rotor bloqué et soudeur
+			exterieur:GetAttributeChangedSignal("RotorTentative"):Connect(function()
+				if exterieur:GetAttribute("RotorTentative") then unCoup("RotorBloque", support) end
+			end)
+			exterieur:GetAttributeChangedSignal("SoudureTemps"):Connect(function()
+				unCoup("Soudure", Config.pieceEnPanne(exterieur, interieur, "Breche") or support)
 			end)
 		end
 	end

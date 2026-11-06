@@ -15,7 +15,7 @@
 | V6.9.10 | Vol libre et vortex | ✅ faite (05/11) |
 | V6.9.11 | Navigation et fiches de lieux | ✅ faite (06/11) |
 | V6.9.12 | Pannes : le socle commun | ✅ faite (06/11) |
-| V6.9.13 | Nouvelles pannes et outils du technicien | 🔜 prévue |
+| V6.9.13 | Nouvelles pannes et outils du technicien | ✅ faite (06/11) |
 | V6.9.14 | Équipage et garde-robe | 🔜 prévue |
 | V6.9.15 | Confort de l'interface et accessibilité | 🔜 prévue |
 | **V7** | Modifications : 357 propositions du second tri | 🔜 prévue |
@@ -55,7 +55,7 @@ Dates **indicatives** (réglées le 03/11/2026) : environ 2 jours par lot avant 
 | V6.9.10 — Vol libre et vortex | [#93](https://github.com/StudioRbx/T.A.R.D.I.S/issues/93) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 06/11 → 07/11 |
 | ✅ V6.9.11 — Navigation et fiches de lieux | [#94](https://github.com/StudioRbx/T.A.R.D.I.S/issues/94) | ✨ Fonctionnalité | faite | petit | 06/11 → 06/11 |
 | ✅ V6.9.12 — Pannes : le socle commun | [#95](https://github.com/StudioRbx/T.A.R.D.I.S/issues/95) | ✨ Fonctionnalité | faite | moyen | 06/11 → 06/11 |
-| V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | 🟡 Moyenne | gros | 12/11 → 13/11 |
+| ✅ V6.9.13 — Nouvelles pannes et outils du technicien | [#96](https://github.com/StudioRbx/T.A.R.D.I.S/issues/96) | ✨ Fonctionnalité | faite | gros | 06/11 → 06/11 |
 | V6.9.14 — Équipage et garde-robe | [#97](https://github.com/StudioRbx/T.A.R.D.I.S/issues/97) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 14/11 → 15/11 |
 | V6.9.15 — Confort de l'interface et accessibilité | [#98](https://github.com/StudioRbx/T.A.R.D.I.S/issues/98) | ✨ Fonctionnalité | 🟡 Moyenne | moyen | 16/11 → 17/11 |
 | **V8 · Sécurisation des scripts** | [#99](https://github.com/StudioRbx/T.A.R.D.I.S/issues/99) | 🔧 Tâche | 🟠 Haute | gros | 18/11 → 28/11 |
@@ -369,7 +369,7 @@ Restent-ils des interfaces à l'écran, ou passent-ils aussi par la console ?
 
 *Pourquoi ici :* Le lot des pannes est coupé en deux sessions, avec une seule construction Studio chacune. Ce socle est à faible risque et sert à tout le reste. 117 crée la liste pondérée où se branchent 118, 119 et 120. 125 crée FICHES_PANNES et signalerPanne, réutilisés par 129 et 86. 129 tient un historique côté serveur. 122 publie le nom de la grille au lieu d'un numéro qui dépend de l'ordre de GetDescendants, ce qui corrige un défaut. Garde-fou : dans l'historique de la 129, « réparé par » reste une simple mention, jamais un compteur par technicien (la 98 a été refusée).
 
-### V6.9.13 — Nouvelles pannes et outils du technicien
+### V6.9.13 — Nouvelles pannes et outils du technicien ✅ faite (06/11)
 
 **Objectif :** Donner du travail concret à la C.T.A.T. : fuite d'air, rotor bloqué, scanner qui lit l'état des pièces, soudeur pour refermer les brèches.
 

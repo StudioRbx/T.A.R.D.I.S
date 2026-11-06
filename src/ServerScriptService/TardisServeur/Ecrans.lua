@@ -412,6 +412,7 @@ return function(contexte)
 		if exterieur:GetAttribute("AutoDestructionDebut") then table.insert(statuts, "AUTO-DESTRUCTION") end
 		if exterieur:GetAttribute("Alerte") then table.insert(statuts, "ALERTE") end
 		if exterieur:GetAttribute("DemarrageBloque") then table.insert(statuts, "DÉMARRAGE BLOQUÉ") end
+		if exterieur:GetAttribute("RotorBloque") then table.insert(statuts, "ROTOR BLOQUÉ") end -- (V6.9.13)
 		if exterieur:GetAttribute("Maintenance") then table.insert(statuts, "MAINTENANCE") end
 		if exterieur:GetAttribute("Camouflage") then table.insert(statuts, "CAMOUFLÉ") end
 		if exterieur:GetAttribute("Retreci") then table.insert(statuts, "RÉTRÉCI") end
@@ -571,7 +572,9 @@ return function(contexte)
 		-- Intégrité de la structure
 		local pv = tonumber(exterieur:GetAttribute("PointsDeVie")) or 100
 		local avarie = exterieur:GetAttribute("Avarie") == true
-		majLigne("integrite", pv / 100, avarie and "AVARIE  ·  0 %" or string.format("%d %%  ·  %s PV", pv, tostring(exterieur:GetAttribute("PV") or "?")),
+		-- (V6.9.13) une brèche dans la structure est signalée à côté de l'intégrité
+		local breche = exterieur:GetAttribute("Breche") ~= nil and "  ·  BRÈCHE" or ""
+		majLigne("integrite", pv / 100, avarie and "AVARIE  ·  0 %" or (string.format("%d %%  ·  %s PV", pv, tostring(exterieur:GetAttribute("PV") or "?")) .. breche),
 			avarie and J.rouge or couleurNiveau(pv, 20, 50))
 		-- Énergie (tension réglée par la régulation) : cyan, rouge hors des bornes
 		local energie = tonumber(exterieur:GetAttribute("RegulEnergie")) or 80
@@ -582,7 +585,8 @@ return function(contexte)
 		-- Air (jaune, rouge quand il est vicié) et vapeur (couleur du texte, rouge en fuite ou presque vide)
 		local air = tonumber(exterieur:GetAttribute("RegulAir")) or 100
 		local vicie = air < (TECH.SeuilAirVicie or 25)
-		majLigne("air", air / 100, string.format("%d %%%s", air, vicie and "  ·  VICIÉ" or ""), vicie and J.rouge or J.jaune)
+		local fuiteAir = exterieur:GetAttribute("FuiteAir") ~= nil -- (V6.9.13)
+		majLigne("air", air / 100, string.format("%d %%%s%s", air, vicie and "  ·  VICIÉ" or "", fuiteAir and "  ·  FUITE" or ""), (vicie or fuiteAir) and J.rouge or J.jaune)
 		local vapeur = tonumber(exterieur:GetAttribute("RegulVapeur")) or 50
 		local fuite = exterieur:GetAttribute("VapeurSurcharge") ~= nil
 		majLigne("vapeur", fuite and 1 or vapeur / 100, fuite and "FUITE" or string.format("%d %%", vapeur), (fuite or vapeur <= 10) and J.rouge or J.texte)
@@ -732,11 +736,11 @@ return function(contexte)
 	-- Mises à jour : à chaque changement d'un attribut affiché (aucune boucle)
 	--------------------------------------------------------------------
 	for _, nom in { "Etat", "Mode", "VolLibre", "VolPhase", "VolUrgence", "Alerte", "DemarrageBloque", "Camouflage", "Retreci", "Maintenance",
-		"AutoDestructionDebut", "Alimentation", "Detruit" } do
+		"AutoDestructionDebut", "Alimentation", "Detruit", "RotorBloque" } do -- (V6.9.13) RotorBloque
 		exterieur:GetAttributeChangedSignal(nom):Connect(planifierDestinations)
 	end
 	for _, nom in { "PointsDeVie", "PV", "Avarie", "RegulEnergie", "RegulAir", "RegulVapeur", "VapeurSurcharge", "BouclierEnergie", "BouclierJoueurs",
-		"BouclierBalles", "BouclierComplet", "Alimentation", "Detruit" } do
+		"BouclierBalles", "BouclierComplet", "Alimentation", "Detruit", "FuiteAir", "Breche" } do -- (V6.9.13) FuiteAir, Breche
 		exterieur:GetAttributeChangedSignal(nom):Connect(planifierIngenieur)
 	end
 

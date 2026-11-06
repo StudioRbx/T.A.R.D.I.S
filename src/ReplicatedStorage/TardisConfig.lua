@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.12"
+Config.Version = "6.9.13"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -680,6 +680,9 @@ Config.Sons = {
 	-- en surcharge, crépitement en boucle sur la console en feu, grincement au hasard pendant une avarie ou une coupure,
 	-- étincelles brèves quand on clique sur le rotor en panne
 	Panne_Vapeur = 0, Panne_Feu = 0, Panne_Grincement = 0, Panne_Etincelles = 0,
+	-- (V6.9.13) Nouvelles pannes : sifflement en boucle à l'endroit de la fuite d'air, raclement bref du rotor bloqué
+	-- quand quelqu'un essaie de décoller, grésillement bref du soudeur à chaque passage sur une brèche
+	Panne_FuiteAir = 0, RotorBloque = 0, Soudure = 0,
 	-- Replis intégrés à Roblox (toujours disponibles) : à remplacer par de vrais sons de TARDIS si tu en as
 	Chute = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.9 },
 	Impact = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 1, Vitesse = 0.55 },
@@ -808,6 +811,12 @@ Config.Technicien = {
 	SurtensionAuDessus = 90, -- au-dessus : une chance sur quatre, toutes les 30 s, qu'une grille de vapeur lâche
 	SousTension = 20,        -- en dessous : les lumières de la salle baissent
 	DureePurge = 6,          -- secondes d'une purge de l'air
+	-- (V6.9.13) Fuite d'air (panne aléatoire) : l'air baisse vite tant qu'elle n'est pas colmatée
+	FuiteAirPerte = 2,       -- points d'air perdus à chaque intervalle pendant une fuite
+	FuiteAirIntervalle = 5,  -- secondes entre deux pertes
+	ColmatageDuree = 4,      -- secondes de maintien de E (visseuse ou clé à molette en main) pour colmater
+	-- (V6.9.13) Scanner : distance à laquelle il lit l'état d'une pièce (côté joueur, lecture seule)
+	ScannerPortee = 30,
 }
 
 -- Bourdonnement du moteur : Sound "Moteur_Pose", "Moteur_Vol", "Moteur_Urgence" dans TardisAssets > Sons (optionnels)
@@ -845,6 +854,18 @@ Config.Systemes = {
 	RedemarrageDuree = 10,
 	SaleteParVoyage = 8,            -- % de saleté gagné à chaque atterrissage (le chiffon en enlève 15)
 	DegatsStatique = 0.5,           -- dégâts d'un arc statique (toucher la cabine pendant une démat)
+	-- (V6.9.13) Nouvelles pannes aléatoires (même tirage que la vapeur et l'incendie) : poids dans le tirage (0 = jamais)
+	PoidsFuiteAir = 1,
+	PoidsRotorBloque = 1,
+	DeblocageRotorDuree = 6,        -- (V6.9.13) secondes de maintien de E sur le rotor pour le débloquer (pilote ou technicien)
+	-- (V6.9.13) Brèche dans la structure : ouverte par une explosion, ou quand l'intégrité passe sous BrecheSousPV %
+	BrecheSousPV = 60,
+	BrecheExplosion = true,         -- (V6.9.13) une explosion proche ouvre une brèche
+	BrecheReparationRotor = 0.5,    -- (V6.9.13) la réparation au rotor rend moitié moins pendant une brèche
+	SoudureEtapes = 4,              -- (V6.9.13) passages du soudeur pour refermer une brèche
+	SoudurePause = 1,               -- (V6.9.13) secondes minimum entre deux passages
+	SoudureDistance = 8,            -- (V6.9.13) distance maximale (studs) entre le joueur et la brèche
+	SoudurePV = 500,                -- (V6.9.13) PV rendus quand la brèche est refermée
 }
 
 -- (V6.9.12) Préréglages de la fréquence des pannes aléatoires (Config.Systemes.FrequencePannes) : délai entre deux
@@ -1033,6 +1054,76 @@ function Config.zoneDe(interieur, objet)
 		return relatif.X < 0 and "Gauche" or "Droite"
 	end)
 	if ok and type(zone) == "string" then return zone end
+	return nil
+end
+-- (V6.9.13) Pièces facultatives des pannes situées : la fuite d'air sur des Parts « FuiteAir » (ou un dossier « Conduits »),
+-- la brèche sur les Parts d'un dossier « Structure » (ou « Breches »), enfant direct de l'intérieur. Sans elles, chaque
+-- panne a son repli (grilles ou rotor pour la fuite, console ou rotor pour la brèche).
+Config.PannesSituees = {
+	FuiteAir = { Noms = { "FuiteAir" }, Dossiers = { "Conduits" } },
+	Breche = { Noms = { "Breche" }, Dossiers = { "Structure", "Breches" } },
+}
+-- (V6.9.13) Les pièces d'une panne située (cle = "FuiteAir" ou "Breche") : les Parts rangées dans un des dossiers, puis
+-- celles qui portent un des noms. Toujours dans le même ordre (celui de GetDescendants), chez le serveur et chez le client.
+function Config.piecesDePanne(interieur, cle)
+	local pieces = {}
+	local reglage = Config.PannesSituees and Config.PannesSituees[cle]
+	if not (interieur and reglage) then return pieces end
+	local vues = {}
+	local function ajouter(part)
+		if part:IsA("BasePart") and not vues[part] then
+			vues[part] = true
+			table.insert(pieces, part)
+		end
+	end
+	for _, nom in reglage.Dossiers or {} do
+		local dossier = interieur:FindFirstChild(nom)
+		if dossier then
+			for _, objet in dossier:GetDescendants() do ajouter(objet) end
+		end
+	end
+	local noms = {}
+	for _, nom in reglage.Noms or {} do noms[nom] = true end
+	for _, objet in interieur:GetDescendants() do
+		if noms[objet.Name] then ajouter(objet) end
+	end
+	return pieces
+end
+-- (V6.9.13) La pièce où se trouve une panne située : le serveur publie son numéro (attribut <cle>, ex. FuiteAir = 2) et
+-- son chemin depuis l'intérieur (<cle>Chemin, ex. « Conduits/Tuyau »). Numéro 1 ou plus : la n-ième pièce de
+-- Config.piecesDePanne (sûr même si deux pièces portent le même nom) ; numéro 0 (le repli) : la pièce du chemin.
+-- Renvoie la pièce et son numéro, ou nil.
+function Config.pieceEnPanne(exterieur, interieur, cle, pieces)
+	local index = exterieur and exterieur:GetAttribute(cle)
+	if index == nil or index == false or not interieur then return nil end
+	if type(index) == "number" and index >= 1 then
+		pieces = pieces or Config.piecesDePanne(interieur, cle)
+		if pieces[index] then return pieces[index], index end
+	end
+	local objet = Config.pieceDuChemin(interieur, exterieur:GetAttribute(cle .. "Chemin"))
+	if objet then return objet, index end
+	return nil
+end
+-- (V6.9.13) La pièce au bout d'un chemin « Dossier/Pièce » depuis l'intérieur (noms en double : la première), ou nil
+function Config.pieceDuChemin(interieur, chemin)
+	if not interieur or type(chemin) ~= "string" or chemin == "" then return nil end
+	local objet = interieur
+	for nom in string.gmatch(chemin, "[^/]+") do objet = objet and objet:FindFirstChild(nom) end
+	if objet and objet ~= interieur and objet:IsA("BasePart") then return objet end
+	return nil
+end
+-- (V6.9.13) Pourquoi ce TARDIS ne peut pas partir (voyage, vol libre, téléportation de poche) : un message, ou nil.
+-- Une seule fonction pour les trois départs ; les messages existants restent identiques. Quand le rotor est bloqué,
+-- le serveur note la tentative (attribut RotorTentative) : le rotor tremble et racle chez les joueurs à bord.
+function Config.raisonBlocageDepart(exterieur)
+	if not exterieur then return nil end
+	if exterieur:GetAttribute("Alimentation") == false then return "HORS TENSION" end
+	if exterieur:GetAttribute("DemarrageBloque") then return "DÉMARRAGE BLOQUÉ" end
+	if exterieur:GetAttribute("RotorBloque") then
+		local ok, serveur = pcall(function() return game:GetService("RunService"):IsServer() end)
+		if ok and serveur then exterieur:SetAttribute("RotorTentative", workspace:GetServerTimeNow()) end
+		return "ROTOR BLOQUÉ"
+	end
 	return nil
 end
 -- (V6.9.10.5) Toutes les pièces d'une commande (elle-même si c'est une pièce, et celles qu'elle contient), sauf celles

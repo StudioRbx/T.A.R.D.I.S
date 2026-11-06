@@ -8,6 +8,7 @@
 -- Toutes les commandes sont revérifiées par le serveur (TardisSystemes, action "Tech").
 -- (V6.9.12) Zone de chaque panne dans son titre (dossier Zones facultatif), bouton HISTORIQUE (20 dernières pannes :
 -- début, fin, « réparé par », publiées par le serveur dans l'attribut HistoriquePannes).
+-- (V6.9.13) Interventions guidées des nouvelles pannes (fuite d'air, rotor bloqué, brèche) et outils Scanner et Soudeur.
 
 return function(contexte)
 	local C, Config, E, Lighting, Players, RunService = contexte.C, contexte.Config, contexte.E, contexte.Lighting, contexte.Players, contexte.RunService
@@ -338,12 +339,14 @@ return function(contexte)
 	end
 	do
 		local _, contenu = panneau(726, 446, 286, 88, "OUTILS", "◆", C.vert)
-		UI.pile(5, true).Parent = contenu
-		for i, info in { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Molette" }, { "Extincteur", "Extinct." },
-			{ "Retirer", "Ranger" } } do
-			local b = bouton(contenu, info[2], "secondaire", UDim2.new(1 / 5, -4, 1, 0))
+		UI.pile(4, true).Parent = contenu
+		-- (V6.9.13) sept boutons : + Scanner et Soudeur
+		local liste = { { "Chiffon", "Chiffon" }, { "Visseuse", "Visseuse" }, { "CleMolette", "Molette" }, { "Extincteur", "Extinct." },
+			{ "Scanner", "Scan." }, { "Soudeur", "Soud." }, { "Retirer", "Ranger" } }
+		for i, info in liste do
+			local b = bouton(contenu, info[2], "secondaire", UDim2.new(1 / #liste, -4, 1, 0))
 			b.LayoutOrder = i
-			b.TextSize = 10
+			b.TextSize = 9
 			b.Activated:Connect(function() remote:FireServer("Outil", { outil = info[1] }) end)
 		end
 	end
@@ -388,6 +391,10 @@ return function(contexte)
 	suivre("VapeurSurcharge", function(v) journaliser(v and string.format("Fuite de vapeur : grille n°%d.", v) or "Fuite de vapeur réglée.", v and C.orange or C.vert) end)
 	suivre("Incendie", function(v) journaliser(v and "Incendie de console." or "Incendie terminé.", v and C.rouge or C.vert) end)
 	suivre("Avarie", function(v) journaliser(v and "AVARIE : intégrité à 0 %." or "Fin de l'avarie.", v and C.rouge or C.vert) end)
+	-- (V6.9.13) nouvelles pannes
+	suivre("FuiteAir", function(v) journaliser(v ~= nil and "Fuite d'air." or "Fuite d'air colmatée.", v ~= nil and C.orange or C.vert) end)
+	suivre("RotorBloque", function(v) journaliser(v and "Rotor bloqué : décollage impossible." or "Rotor débloqué.", v and C.rouge or C.vert) end)
+	suivre("Breche", function(v) journaliser(v ~= nil and "Brèche dans la structure." or "Brèche refermée.", v ~= nil and C.rouge or C.vert) end)
 	suivre("Catastrophe", function(v) if v then journaliser("Paradoxe : le TARDIS s'est matérialisé dans lui-même.", C.rouge) end end)
 	suivre("DernierDegat", function(v)
 		local raison, montant = string.match(v or "", "^(.-)\t(%d+)")
@@ -483,6 +490,36 @@ return function(contexte)
 				{ reste and string.format("Ferme la vanne (maintiens E 4 s) avant que les flammes repartent : %d s.", reste) or "Ferme la vanne (maintiens E 4 s).", false },
 			} })
 		end
+		-- (V6.9.13) Nouvelles pannes : la pièce désignée par le serveur (Config.pieceEnPanne), sinon le repli
+		if exterieur:GetAttribute("FuiteAir") ~= nil then
+			local fuite = Config.pieceEnPanne(exterieur, interieur, "FuiteAir") or rotorPart
+			local nomFuite = (fuite == rotorPart and "ROTOR") or (table.find(grilles, fuite) and "GRILLE") or "CONDUIT"
+			table.insert(liste, { cle = "fuiteair", titre = "FUITE D'AIR", couleur = C.orange, outil = "Visseuse", cible = fuite, nomCible = nomFuite, etapes = {
+				{ string.format("L'air baisse de %s %% toutes les %s s tant que la fuite reste ouverte.", tostring(TECH.FuiteAirPerte or 2), tostring(TECH.FuiteAirIntervalle or 5)), true },
+				{ "Prends la visseuse ou la clé à molette.", aLOutil("Visseuse") or aLOutil("CleMolette") },
+				{ "Approche-toi de la fuite (moins de 8 studs).", (distanceA(fuite) or 99) < 8 },
+				{ string.format("Maintiens E %s s sur la fuite, l'outil en main.", tostring(TECH.ColmatageDuree or 4)), false },
+			} })
+		end
+		if exterieur:GetAttribute("RotorBloque") then
+			table.insert(liste, { cle = "rotor", titre = "ROTOR BLOQUÉ : DÉCOLLAGE IMPOSSIBLE", couleur = C.rouge, cible = rotorPart, nomCible = "ROTOR", etapes = {
+				{ "Le rotor est grippé : ni voyage, ni vol libre, ni saut de poche.", true },
+				{ "Va au rotor de la console.", (distanceA(rotorPart) or 99) < 9 },
+				{ string.format("Maintiens E %s s sur le rotor pour le débloquer.", tostring(S.DeblocageRotorDuree or 6)), false },
+			} })
+		end
+		if exterieur:GetAttribute("Breche") ~= nil then
+			local breche = Config.pieceEnPanne(exterieur, interieur, "Breche") or consolePart or rotorPart
+			local total = math.max(math.floor(tonumber(S.SoudureEtapes) or 4), 1)
+			local avancement = tonumber(exterieur:GetAttribute("BrecheAvancement")) or 0
+			local portee = tonumber(S.SoudureDistance) or 8
+			table.insert(liste, { cle = "breche", titre = "BRÈCHE DANS LA STRUCTURE", couleur = C.rouge, outil = "Soudeur", cible = breche, nomCible = "STRUCTURE", etapes = {
+				{ "Tant que la brèche est ouverte, la réparation au rotor rend moitié moins.", true },
+				{ "Prends le soudeur.", aLOutil("Soudeur") },
+				{ string.format("Approche-toi de la brèche (moins de %s studs).", tostring(portee)), (distanceA(breche) or 99) < portee },
+				{ string.format("Clique avec le soudeur en main : soudure %d / %d.", math.floor(avancement), total), avancement >= total },
+			} })
+		end
 		if exterieur:GetAttribute("Alimentation") == false and not exterieur:GetAttribute("RedemarrageRequis") and not exterieur:GetAttribute("Avarie") then
 			table.insert(liste, { cle = "tension", titre = "HORS TENSION", couleur = C.texte2, cible = levierPart, nomCible = "ALIMENTATION", etapes = {
 				{ "Le courant est coupé : lumières de secours, aucun voyage possible.", true },
@@ -534,10 +571,12 @@ return function(contexte)
 	-- change ; la panne choisie (ligne jaune, la première par défaut) détaille ses étapes dans l'encadré dessous.
 	-- Une panne réglée reste une minute dans le tableau, en vert : RÉPARÉ.
 	--------------------------------------------------------------------
-	local OUTILS_NOMS = { Visseuse = "Visseuse", Extincteur = "Extincteur", CleMolette = "Clé à molette", Chiffon = "Chiffon" }
+	local OUTILS_NOMS = { Visseuse = "Visseuse", Extincteur = "Extincteur", CleMolette = "Clé à molette", Chiffon = "Chiffon",
+		Scanner = "Scanner", Soudeur = "Soudeur" } -- (V6.9.13) Scanner, Soudeur
 	local COURTS = { avarie = { "Avarie", "Rotor" }, redemarrage = { "Redémarrage", "Alimentation" }, vapeur = { "Fuite de vapeur", "Grille" },
 		incendie = { "Incendie", "Console" }, tension = { "Hors tension", "Alimentation" }, air = { "Air vicié", "Grilles" }, surtension = { "Surtension", "Régulation" },
-		soustension = { "Sous-tension", "Régulation" }, integrite = { "Structure", "Rotor" }, salete = { "Cabine sale", "Cabine" } }
+		soustension = { "Sous-tension", "Régulation" }, integrite = { "Structure", "Rotor" }, salete = { "Cabine sale", "Cabine" },
+		fuiteair = { "Fuite d'air", "Conduit" }, rotor = { "Rotor bloqué", "Rotor" }, breche = { "Brèche", "Structure" } } -- (V6.9.13)
 	local REPARE_DUREE = 60
 	local signatureListe, panneChoisie = nil, nil
 	local reparees = {} -- { cle, court, zone, fin }
@@ -819,6 +858,7 @@ return function(contexte)
 		local liste = lirePannes()
 		local nombre = majCartes(liste)
 		local critique = exterieur:GetAttribute("Avarie") or exterieur:GetAttribute("Incendie") or requis
+			or exterieur:GetAttribute("RotorBloque") or exterieur:GetAttribute("Breche") ~= nil -- (V6.9.13)
 		local couleur = (nombre == 0 and C.vert) or (critique and C.rouge) or C.orange
 		textePastille.Text = nombre == 0 and "Systèmes nominaux" or (nombre .. (nombre > 1 and " interventions" or " intervention"))
 		pointPastille.BackgroundColor3 = couleur

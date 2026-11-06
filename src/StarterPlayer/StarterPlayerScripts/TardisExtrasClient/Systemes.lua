@@ -103,7 +103,7 @@ return function(contexte)
 				base = nil
 			end
 		end)
-		-- Menu des techniciens : quatre outils (affiché dès que le rôle est connu)
+		-- Menu des techniciens : les outils (affiché dès que le rôle est connu) ; (V6.9.13) + scanner et soudeur
 		local guiTechnicien = nil
 		local function majTechnicien()
 			local technicien = joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true
@@ -117,7 +117,8 @@ return function(contexte)
 			texte({ Text = "◆  TECHNICIEN", Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.ambre, LayoutOrder = 1, Parent = panneau })
 			local ordre = 1
 			for _, info in { { "Chiffon", "Chiffon (nettoyer la cabine)" }, { "Visseuse", "Visseuse (surcharge de vapeur)" }, { "CleMolette", "Clé à molette (vanne)" },
-				{ "Extincteur", "Extincteur" }, { "Retirer", "Ranger les outils" } } do
+				{ "Extincteur", "Extincteur" }, { "Scanner", "Scanner (état d'une pièce)" }, { "Soudeur", "Soudeur (brèches)" }, -- (V6.9.13)
+				{ "Retirer", "Ranger les outils" } } do
 				ordre += 1
 				local b = creer("TextButton", { Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = info[1] == "Retirer" and C.fond or C.panneauClair, Text = info[2],
 					Font = UI.POLICE_GRAS, TextSize = 11, TextColor3 = C.texte, LayoutOrder = ordre, Parent = panneau }, { UI.coin(7) })

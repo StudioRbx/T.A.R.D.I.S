@@ -116,7 +116,7 @@ return function(contexte)
 		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
 		-- Ingénierie : nombre de pannes en cours (mêmes critères que la tablette technicien)
 		local pannes = 0
-		for _, attribut in { "Avarie", "RedemarrageRequis", "VapeurSurcharge", "Incendie" } do
+		for _, attribut in { "Avarie", "RedemarrageRequis", "VapeurSurcharge", "Incendie", "FuiteAir", "RotorBloque", "Breche" } do -- (V6.9.13) + 3 pannes
 			if exterieur:GetAttribute(attribut) then pannes += 1 end
 		end
 		if (exterieur:GetAttribute("RegulAir") or 100) < ((Config.Technicien or {}).SeuilAirVicie or 25) then pannes += 1 end

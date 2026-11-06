@@ -19,13 +19,16 @@ local OPTIONNELLES = {
 	{ "SiegeEquipage", "sièges d'équipage" },
 	{ "Grille", "vapeur des grilles" },
 	{ "Zones", "zones des pannes" }, -- (V6.9.12) dossier facultatif : situe les pannes (diagnostic, tablette technicien)
+	{ "Structure", "brèches de la structure", "Breches" }, -- (V6.9.13) dossier « Structure » (ou « Breches ») : où s'ouvrent les brèches
+	{ "FuiteAir", "fuites d'air", "Conduits" },           -- (V6.9.13) Parts « FuiteAir » (ou dossier « Conduits ») : où fuit l'air
 }
 
 -- Sons optionnels (ceux des voyages viennent de Config.Modes)
 local SONS_OPTIONNELS = { "Camouflage", "Decamouflage", "Alarme", "Cloitre", "Reparation", "Chute", "Impact",
 	"Moteur_Pose", "Moteur_Vol", "Moteur_Urgence", "Regeneration", "Intercom",
 	"Vortex", "Frein", -- V6.9.10 : vent du vortex à bord, crissement du frein d'urgence (facultatif)
-	"Panne_Vapeur", "Panne_Feu", "Panne_Grincement", "Panne_Etincelles" } -- (V6.9.12) sons des pannes (facultatifs)
+	"Panne_Vapeur", "Panne_Feu", "Panne_Grincement", "Panne_Etincelles", -- (V6.9.12) sons des pannes (facultatifs)
+	"Panne_FuiteAir", "RotorBloque", "Soudure" } -- (V6.9.13) fuite d'air, rotor bloqué, soudeur (facultatifs)
 
 local function chercherDans(racine, nom)
 	return racine:FindFirstChild(nom, true) ~= nil
@@ -72,7 +75,8 @@ return function(def, exterieur, interieur)
 
 	-- Optionnelles
 	for _, info in OPTIONNELLES do
-		if not chercherDans(interieur, info[1]) then table.insert(optionnellesAbsentes, info[1]) end
+		-- (V6.9.13) info[3] : autre nom accepté (Breches pour Structure, Conduits pour FuiteAir)
+		if not chercherDans(interieur, info[1]) and not (info[3] and chercherDans(interieur, info[3])) then table.insert(optionnellesAbsentes, info[1]) end
 	end
 
 	-- Sons

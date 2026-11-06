@@ -4,6 +4,8 @@
 -- clé à molette, extincteur), saleté de la cabine, électricité statique, stabilisateur.
 -- (V6.9.12) Socle commun des pannes : annonce unique (effet sur le vol, qui répare), historique des 20 dernières pannes
 -- (attribut HistoriquePannes), zone de la panne (dossier Zones facultatif), fréquence réglable (FrequencePannes).
+-- (V6.9.13) Nouvelles pannes : fuite d'air (colmatage), rotor bloqué (décollage impossible), brèche dans la structure
+-- (soudeur) ; nouveaux outils des techniciens : scanner (lecture seule, côté joueur) et soudeur.
 -- S'appuie sur TardisServeur à travers le pont "TardisInterne" (ServerStorage).
 
 local Players = game:GetService("Players")
@@ -63,6 +65,14 @@ local FICHES_PANNES = {
 		effet = "bouclier coupé, la cabine prend les tirs", repare = "pilote : relancer le bouclier depuis le menu" },
 	AirVicie = { titre = "Air vicié", court = "AIR VICIÉ",
 		effet = "aucun effet sur le vol", repare = "technicien : purge ou régulation de l'air (tablette technicien)" },
+	-- (V6.9.13) Nouvelles pannes
+	FuiteAir = { titre = "Fuite d'air", court = "FUITE D'AIR",
+		effet = "aucun effet sur le vol, l'air baisse vite et la purge est impossible",
+		repare = "technicien : colmater la fuite, visseuse ou clé à molette en main (maintenir E)" },
+	RotorBloque = { titre = "Rotor bloqué", court = "ROTOR BLOQUÉ",
+		effet = "décollage impossible (voyage, vol libre, téléportation de poche)", repare = "pilote ou technicien : maintenir E sur le rotor" },
+	Breche = { titre = "Brèche dans la structure", court = "BRÈCHE DANS LA STRUCTURE",
+		effet = "aucun effet sur le vol, la réparation au rotor rend moins", repare = "technicien : soudeur sur la brèche (plusieurs passages)" },
 }
 -- (V6.9.12) Historique des pannes de ce TARDIS : 20 au plus, la plus récente d'abord, publié en JSON dans l'attribut
 -- HistoriquePannes (lu par la tablette technicien). « Réparé par » reste une simple mention : aucun compteur par joueur.
@@ -223,7 +233,9 @@ if rotorPart then
 		if not (estPilote(joueur) or estTechnicien(joueur)) then return end
 		if pv >= pvMax then dire(joueur, "Le TARDIS est déjà intact.", true) return end
 		dernierReparateurRotor = joueur -- (V6.9.12)
-		reparer(S.ReparationParMaintien or 1500)
+		-- (V6.9.13) pendant une brèche dans la structure, la réparation au rotor rend moins (il faut souder la brèche)
+		local facteur = exterieur:GetAttribute("Breche") ~= nil and (S.BrecheReparationRotor or 0.5) or 1
+		reparer((S.ReparationParMaintien or 1500) * facteur)
 		exterieur:SetAttribute("ReparationTemps", workspace:GetServerTimeNow())
 		interne("jouer", "Reparation", false)
 		dire(joueur, string.format("Réparation : %d %% d'intégrité.", exterieur:GetAttribute("PointsDeVie") or 0), true)
@@ -1053,31 +1065,240 @@ for _, joueur in Players:GetPlayers() do suivreJoueur(joueur) end
 Players.PlayerRemoving:Connect(function(joueur) tenuesCompte[joueur.UserId] = nil derniereTenue[joueur.UserId] = nil enAttente[joueur.UserId] = nil positionsSures[joueur.UserId] = nil derniersRattrapages[joueur.UserId] = nil end)
 
 --------------------------------------------------------------------
+-- (V6.9.13) Nouvelles pannes : fuite d'air et rotor bloqué (tirage des pannes aléatoires), brèche dans la structure
+-- (explosion proche, ou intégrité qui passe sous Config.Systemes.BrecheSousPV %). Les pièces facultatives viennent de
+-- Config.piecesDePanne (Parts « FuiteAir » ou dossier « Conduits » ; dossier « Structure » ou « Breches ») ; sans elles,
+-- la fuite se place sur une grille (sinon le rotor) et la brèche sur la console (sinon le rotor).
+--------------------------------------------------------------------
+local REGLAGES_TECH = Config.Technicien or {}
+-- (V6.9.13) Le client retrouve le repli par son chemin : avec deux pièces du même nom, c'est la première qu'il trouve
+local function retrouvable(part)
+	return part ~= nil and Config.pieceDuChemin(interieur, cheminDepuisInterieur(part)) == part
+end
+-- (V6.9.13) Une pièce facultative au hasard (son numéro), sinon le repli (numéro 0), ramené à la pièce que le client
+-- retrouvera par son chemin. Le chemin est publié à part.
+local function choisirPoint(cle, repli)
+	local pieces = Config.piecesDePanne(interieur, cle)
+	if #pieces > 0 then
+		local numero = math.random(#pieces)
+		return pieces[numero], numero
+	end
+	if repli and not retrouvable(repli) then repli = Config.pieceDuChemin(interieur, cheminDepuisInterieur(repli)) or repli end
+	if repli then return repli, 0 end
+	return nil, nil
+end
+local function zoneEnTexte(objet)
+	local zone = objet and Config.zoneDe(interieur, objet)
+	return zone and ("zone " .. zone) or nil
+end
+
+-- Fuite d'air : l'air baisse vite ; on la colmate en maintenant E sur la fuite, visseuse ou clé à molette en main
+local promptColmatage = nil
+local function colmaterFuiteAir(joueur)
+	if exterieur:GetAttribute("FuiteAir") == nil then return end
+	exterieur:SetAttribute("FuiteAir", nil)
+	exterieur:SetAttribute("FuiteAirChemin", nil)
+	if promptColmatage then promptColmatage:Destroy() promptColmatage = nil end
+	interne("jouer", "Reparation", false)
+	direAuxPilotes("Fuite d'air colmatée par " .. joueur.DisplayName .. ".", true)
+	fermerPanne("FuiteAir", joueur)
+end
+local function panneFuiteAir()
+	if exterieur:GetAttribute("FuiteAir") ~= nil then return false end
+	local candidates = {}
+	for _, grille in grilles do
+		if retrouvable(grille) then table.insert(candidates, grille) end
+	end
+	local repli = (#candidates > 0 and candidates[math.random(#candidates)]) or grilles[1] or rotorPart
+	local point, numero = choisirPoint("FuiteAir", repli)
+	if not point then return false end
+	exterieur:SetAttribute("FuiteAirChemin", cheminDepuisInterieur(point)) -- le client retrouve la même pièce
+	exterieur:SetAttribute("FuiteAir", numero)
+	if promptColmatage then promptColmatage:Destroy() end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TardisColmatage"
+	prompt.ActionText = "Colmater la fuite (visseuse ou clé à molette)"
+	prompt.ObjectText = "Fuite d'air"
+	prompt.HoldDuration = REGLAGES_TECH.ColmatageDuree or 4
+	prompt.MaxActivationDistance = 8
+	prompt.RequiresLineOfSight = false
+	prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+	prompt.UIOffset = Vector2.new(0, -50)
+	prompt.Parent = point
+	promptColmatage = prompt
+	prompt.Triggered:Connect(function(joueur)
+		if not (estTechnicien(joueur) or estPilote(joueur)) then return end
+		local personnage = joueur.Character
+		if not (personnage and (personnage:FindFirstChild("Visseuse") or personnage:FindFirstChild("CleMolette"))) then
+			dire(joueur, "Il faut la visseuse ou la clé à molette en main.", false)
+			return
+		end
+		colmaterFuiteAir(joueur)
+	end)
+	signalerPanne("FuiteAir", zoneEnTexte(point))
+	return true
+end
+-- Pendant la fuite, l'air baisse toutes les FuiteAirIntervalle s (pas pendant une purge déjà lancée)
+task.spawn(function()
+	while true do
+		task.wait(math.max(tonumber(REGLAGES_TECH.FuiteAirIntervalle) or 5, 1))
+		if exterieur:GetAttribute("FuiteAir") ~= nil and not exterieur:GetAttribute("TechPurgeFin") then
+			local avant = tonumber(exterieur:GetAttribute("RegulAir")) or 100
+			local air = math.max(avant - (tonumber(REGLAGES_TECH.FuiteAirPerte) or 2), 0)
+			if air ~= avant then
+				exterieur:SetAttribute("RegulAir", air)
+				local seuil = REGLAGES_TECH.SeuilAirVicie or 25
+				if avant >= seuil and air < seuil then signalerPanne("AirVicie", string.format("air à %d %%, fuite d'air", math.floor(air))) end
+			end
+		end
+	end
+end)
+
+-- Rotor bloqué : décollage impossible (Config.raisonBlocageDepart) ; un pilote ou un technicien le débloque à la main
+local function panneRotorBloque()
+	if not rotorPart or exterieur:GetAttribute("RotorBloque") then return false end
+	if interne("etat") ~= E.Pose then return false end
+	exterieur:SetAttribute("RotorBloque", true)
+	signalerPanne("RotorBloque", zoneEnTexte(rotorPart))
+	return true
+end
+if rotorPart then
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TardisDeblocageRotor"
+	prompt.ActionText = "Débloquer le rotor"
+	prompt.ObjectText = "Rotor bloqué"
+	prompt.HoldDuration = S.DeblocageRotorDuree or 6
+	prompt.MaxActivationDistance = 9
+	prompt.RequiresLineOfSight = false
+	prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+	prompt.UIOffset = Vector2.new(0, 100)
+	prompt.Enabled = exterieur:GetAttribute("RotorBloque") == true
+	prompt.Parent = rotorPart
+	exterieur:GetAttributeChangedSignal("RotorBloque"):Connect(function() prompt.Enabled = exterieur:GetAttribute("RotorBloque") == true end)
+	prompt.Triggered:Connect(function(joueur)
+		if not (estPilote(joueur) or estTechnicien(joueur)) then return end
+		if not exterieur:GetAttribute("RotorBloque") then return end
+		exterieur:SetAttribute("RotorBloque", nil)
+		exterieur:SetAttribute("RotorTentative", nil)
+		interne("jouer", "Reparation", false)
+		direAuxPilotes("Rotor débloqué par " .. joueur.DisplayName .. " : le TARDIS peut repartir.", true)
+		fermerPanne("RotorBloque", joueur)
+	end)
+end
+
+-- Les deux nouvelles pannes rejoignent le tirage des pannes aléatoires (même fréquence, poids réglables)
+table.insert(PANNES_ALEATOIRES, { nom = "FuiteAir", declencher = panneFuiteAir, poids = S.PoidsFuiteAir or 1 })
+table.insert(PANNES_ALEATOIRES, { nom = "RotorBloque", declencher = panneRotorBloque, poids = S.PoidsRotorBloque or 1 })
+
+-- Brèche dans la structure : ouverte par les dégâts (attribut DernierDegat posé par degats), refermée au soudeur
+local function ouvrirBreche(cause)
+	if exterieur:GetAttribute("Breche") ~= nil or exterieur:GetAttribute("Detruit") then return false end
+	local point, numero = choisirPoint("Breche", partDe(interieur:FindFirstChild("Console")) or rotorPart)
+	if not point then return false end
+	exterieur:SetAttribute("BrecheChemin", cheminDepuisInterieur(point))
+	exterieur:SetAttribute("BrecheAvancement", 0)
+	exterieur:SetAttribute("Breche", numero)
+	local zone = zoneEnTexte(point)
+	signalerPanne("Breche", cause .. (zone and (", " .. zone) or ""))
+	return true
+end
+exterieur:GetAttributeChangedSignal("DernierDegat"):Connect(function()
+	local texte = exterieur:GetAttribute("DernierDegat")
+	if type(texte) ~= "string" then return end
+	local raison, montant = string.match(texte, "^(.-)\t(%-?[%d%.]+)\t")
+	montant = tonumber(montant)
+	if not (raison and montant) then return end
+	if raison == "Explosion" and S.BrecheExplosion ~= false then ouvrirBreche("après une explosion") return end
+	local pourcent = tonumber(S.BrecheSousPV) or 0
+	if pourcent <= 0 then return end
+	local seuil = pourcent / 100 * pvMax
+	if math.min(pv + montant, pvMax) >= seuil and pv < seuil then ouvrirBreche(string.format("intégrité sous %d %%", math.floor(pourcent))) end
+end)
+local derniereSoudure = {}
+Players.PlayerRemoving:Connect(function(joueur) derniereSoudure[joueur] = nil end)
+-- Un passage du soudeur (le joueur est déjà vérifié : brèche ouverte, assez près, pause respectée)
+local function souderBreche(joueur)
+	local etapes = math.max(math.floor(tonumber(S.SoudureEtapes) or 4), 1)
+	local avancement = (tonumber(exterieur:GetAttribute("BrecheAvancement")) or 0) + 1
+	exterieur:SetAttribute("SoudureTemps", workspace:GetServerTimeNow()) -- étincelles et grésillement chez les joueurs
+	if avancement >= etapes then
+		exterieur:SetAttribute("Breche", nil)
+		exterieur:SetAttribute("BrecheChemin", nil)
+		exterieur:SetAttribute("BrecheAvancement", nil)
+		reparer(S.SoudurePV or 500)
+		interne("jouer", "Reparation", false)
+		direAuxPilotes("Brèche refermée par " .. joueur.DisplayName .. ".", true)
+		fermerPanne("Breche", joueur)
+	else
+		exterieur:SetAttribute("BrecheAvancement", avancement)
+		dire(joueur, string.format("Soudure %d/%d…", avancement, etapes), true)
+	end
+end
+-- (V6.9.13) Lignes du diagnostic de la tablette pour les nouvelles pannes, chacune située dans sa zone
+local function defautsNouvellesPannes()
+	local lignes = {}
+	local function ajouter(texte, objet)
+		local zone = objet and Config.zoneDe(interieur, objet)
+		table.insert(lignes, zone and (texte .. " (zone " .. zone .. ")") or texte)
+	end
+	if exterieur:GetAttribute("FuiteAir") ~= nil then ajouter("fuite d'air", (Config.pieceEnPanne(exterieur, interieur, "FuiteAir"))) end
+	if exterieur:GetAttribute("RotorBloque") then ajouter("rotor bloqué", rotorPart) end
+	if exterieur:GetAttribute("Breche") ~= nil then
+		ajouter(string.format("brèche dans la structure (soudure %d/%d)", tonumber(exterieur:GetAttribute("BrecheAvancement")) or 0,
+			math.max(math.floor(tonumber(S.SoudureEtapes) or 4), 1)), (Config.pieceEnPanne(exterieur, interieur, "Breche")))
+	end
+	return lignes
+end
+
+--------------------------------------------------------------------
 -- Outils des techniciens : chiffon (saleté), visseuse (surcharge de vapeur), clé à molette (vanne), extincteur
+-- (V6.9.13) scanner (lit l'état d'une pièce, côté joueur) et soudeur (brèches)
 --------------------------------------------------------------------
 local OUTILS = {
 	Chiffon = { nom = "Chiffon", couleur = Color3.fromRGB(230, 225, 210), taille = Vector3.new(1, 0.3, 1) },
 	Visseuse = { nom = "Visseuse / Dévisseuse", couleur = Color3.fromRGB(240, 170, 40), taille = Vector3.new(0.5, 0.5, 1.6) },
 	CleMolette = { nom = "Clé à molette", couleur = Color3.fromRGB(160, 165, 175), taille = Vector3.new(0.4, 1.8, 0.3) },
 	Extincteur = { nom = "Extincteur", couleur = Color3.fromRGB(200, 30, 30), taille = Vector3.new(0.7, 1.6, 0.7) },
+	Scanner = { nom = "Scanner", couleur = Color3.fromRGB(60, 200, 230), taille = Vector3.new(0.4, 1.2, 0.8) }, -- (V6.9.13)
+	Soudeur = { nom = "Soudeur", couleur = Color3.fromRGB(70, 75, 85), taille = Vector3.new(0.5, 0.6, 1.8) },   -- (V6.9.13)
 }
+-- (V6.9.13) Modèle facultatif d'un outil : un Tool nommé comme la clé (Scanner, Soudeur…) avec un Handle, rangé dans
+-- ReplicatedStorage › TardisAssets › Outils. Sans modèle, l'outil reste un simple bloc de couleur (comme avant).
+local function modeleOutil(cle)
+	local assets = ReplicatedStorage:FindFirstChild("TardisAssets")
+	local dossier = assets and assets:FindFirstChild("Outils")
+	local modele = dossier and dossier:FindFirstChild(cle)
+	if modele and modele:IsA("Tool") then
+		local manche = modele:FindFirstChild("Handle")
+		if manche and manche:IsA("BasePart") then return modele end
+	end
+	return nil
+end
 local function donnerOutil(joueur, cle)
 	local infos = OUTILS[cle]
 	local sac = joueur:FindFirstChildOfClass("Backpack")
 	if not infos or not sac then return end
 	if sac:FindFirstChild(cle) or (joueur.Character and joueur.Character:FindFirstChild(cle)) then return end
-	local outil = Instance.new("Tool")
-	outil.Name = cle
-	outil.ToolTip = infos.nom
+	local modele = modeleOutil(cle)
+	local outil
+	if modele then
+		outil = modele:Clone() -- (V6.9.13) modèle de TardisAssets › Outils
+		outil.Name = cle
+		if outil.ToolTip == "" then outil.ToolTip = infos.nom end
+	else
+		outil = Instance.new("Tool")
+		outil.Name = cle
+		outil.ToolTip = infos.nom
+		local manche = Instance.new("Part")
+		manche.Name = "Handle"
+		manche.Size = infos.taille
+		manche.Color = infos.couleur
+		manche.Material = cle == "Chiffon" and Enum.Material.Fabric or Enum.Material.Metal
+		manche.CanCollide = false
+		manche.Parent = outil
+	end
 	outil.RequiresHandle = true
 	outil.CanBeDropped = false
-	local manche = Instance.new("Part")
-	manche.Name = "Handle"
-	manche.Size = infos.taille
-	manche.Color = infos.couleur
-	manche.Material = cle == "Chiffon" and Enum.Material.Fabric or Enum.Material.Metal
-	manche.CanCollide = false
-	manche.Parent = outil
 	outil.Parent = sac
 	outil.Activated:Connect(function()
 		local racine = racineDe(joueur)
@@ -1113,6 +1334,16 @@ local function donnerOutil(joueur, cle)
 			end
 		elseif cle == "CleMolette" then
 			dire(joueur, "Maintiens E sur la vanne avec la clé en main pour la fermer.", true)
+		elseif cle == "Soudeur" then
+			-- (V6.9.13) le serveur vérifie tout : brèche ouverte, distance à la brèche, pause entre deux passages
+			if exterieur:GetAttribute("Breche") == nil then dire(joueur, "Aucune brèche à souder.", false) return end
+			local breche = Config.pieceEnPanne(exterieur, interieur, "Breche")
+			if not breche then return end
+			if (racine.Position - breche.Position).Magnitude > (S.SoudureDistance or 8) then dire(joueur, "Approche-toi de la brèche.", false) return end
+			local maintenant = os.clock()
+			if derniereSoudure[joueur] and maintenant - derniereSoudure[joueur] < (S.SoudurePause or 1) then return end
+			derniereSoudure[joueur] = maintenant
+			souderBreche(joueur)
 		end
 	end)
 end
@@ -1366,6 +1597,7 @@ local function commandeTechnique(joueur, donnees)
 	elseif commande == "Purger" then
 		if exterieur:GetAttribute("TechPurgeFin") then return end
 		if exterieur:GetAttribute("Alimentation") == false then dire(joueur, "Impossible : hors tension.", false) return end
+		if exterieur:GetAttribute("FuiteAir") ~= nil then dire(joueur, "Impossible : colmatez d'abord la fuite d'air.", false) return end -- (V6.9.13)
 		local duree = TECH.DureePurge or 6
 		exterieur:SetAttribute("TechPurgeFin", workspace:GetServerTimeNow() + duree)
 		interne("alerter", "PURGE DE L'AIR")
@@ -1397,6 +1629,7 @@ local function commandeTechnique(joueur, donnees)
 		if (exterieur:GetAttribute("RegulAir") or 100) < (TECH.SeuilAirVicie or 25) then table.insert(defauts, "air vicié") end
 		if (exterieur:GetAttribute("RegulEnergie") or 0) > (TECH.SurtensionAuDessus or 90) then table.insert(defauts, "surtension") end
 		if (exterieur:GetAttribute("PointsDeVie") or 100) < 60 then table.insert(defauts, string.format("intégrité %d %%", exterieur:GetAttribute("PointsDeVie") or 0)) end
+		for _, ligne in defautsNouvellesPannes() do table.insert(defauts, ligne) end -- (V6.9.13) fuite d'air, rotor bloqué, brèche
 		task.delay(2.5, function()
 			dire(joueur, #defauts == 0 and "Diagnostic : tous les systèmes sont nominaux." or ("Diagnostic : " .. table.concat(defauts, ", ") .. "."), #defauts == 0)
 		end)

@@ -496,8 +496,9 @@ local function decoller(mode)
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
 	if etatActuel() ~= E.Pose then return false, "DÉJÀ EN VOL" end
 	if exterieur:GetAttribute("Porteur") then return false, "TARDIS PORTÉ" end
-	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
-	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
+	-- (V6.9.13) Hors tension, démarrage bloqué, rotor bloqué : la même vérification pour les trois départs (TardisConfig)
+	local blocage = Config.raisonBlocageDepart(exterieur)
+	if blocage then return false, blocage end
 	-- Alerte générale : toujours en urgence
 	if exterieur:GetAttribute("Alerte") then mode, urgenceImposee = "Urgence", true end
 	-- Zone refusée au départ (V6.7.1) : le décollage se fait en urgence
@@ -1749,8 +1750,8 @@ end
 local function teleporterEnPoche(porteur, cible, nom, partDestination, joueurAFiger, modeDemande)
 	if exterieur:GetAttribute("Porteur") ~= porteur.UserId then return false, "TARDIS PAS PORTÉ" end
 	if partage.occupe then return false, "TARDIS OCCUPÉ" end
-	if not estAlimente() then return false, "HORS TENSION" end
-	if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
+	local blocage = Config.raisonBlocageDepart(exterieur) -- (V6.9.13) hors tension, démarrage ou rotor bloqué
+	if blocage then return false, blocage end
 	-- Mode : celui des protocoles (Urgence ou Express, V6.6.4), ou l'urgence imposée par l'alerte
 	local mode = Config.normaliserMode(modeDemande)
 	if exterieur:GetAttribute("Alerte") == true then mode = "Urgence" end

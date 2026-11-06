@@ -172,6 +172,10 @@ for _, def in Config.Tardis do
 			Incendie = function(v) return v and "Panne", v and (nom .. " : incendie de console.") end,
 			VapeurSurcharge = function(v) return v and "Panne", v and (nom .. " : fuite de vapeur.") end,
 			RedemarrageRequis = function(v) return v and "Panne", v and (nom .. " : coupure de sécurité, redémarrage requis.") end,
+			-- (V6.9.13) nouvelles pannes
+			FuiteAir = function(v) return v ~= nil and "Panne", v ~= nil and (nom .. " : fuite d'air.") end,
+			RotorBloque = function(v) return v and "Panne", v and (nom .. " : rotor bloqué, décollage impossible.") end,
+			Breche = function(v) return v ~= nil and "Panne", v ~= nil and (nom .. " : brèche dans la structure.") end,
 			Alerte = function(v) return "Sécurité", nom .. (v and " : alerte générale." or " : fin de l'alerte.") end,
 		}
 		for attribut, decrire in suivis do

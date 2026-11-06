@@ -87,8 +87,8 @@ return function(contexte)
 		if partage.occupe then return false, "TARDIS OCCUPÉ" end
 		if etatActuel() ~= E.Pose then return false, "PAS POSÉ" end
 		if exterieur:GetAttribute("Porteur") then return false, "TARDIS PORTÉ" end
-		if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
-		if exterieur:GetAttribute("DemarrageBloque") then return false, "DÉMARRAGE BLOQUÉ" end
+		local blocage = Config.raisonBlocageDepart(exterieur) -- (V6.9.13) hors tension, démarrage ou rotor bloqué
+		if blocage then return false, blocage end
 
 		partage.occupe = true -- rien d'autre ne peut être fait pendant le vol libre
 		majRamassage()
