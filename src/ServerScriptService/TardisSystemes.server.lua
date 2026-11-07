@@ -329,12 +329,25 @@ task.spawn(function()
 		local salete = exterieur:GetAttribute("Salete") or 0
 		local surEau = exterieur:GetAttribute("SurEau") == true
 		local pluie = workspace:GetAttribute(S.AttributPluie or "Pluie") == true
+			or workspace:GetAttribute((Config.Saisons or {}).AttributOrage or "Orage") == true -- (V7.2.4) l'orage compte comme pluie
 		if salete > 0 and (surEau or pluie) and exterieur:GetAttribute("Etat") == E.Pose then
 			local nouvelle
 			nouvelle, reste = Config.nettoyageSalete(salete, surEau, pluie, 10, reste)
 			if nouvelle ~= salete then exterieur:SetAttribute("Salete", nouvelle) end
 		else
 			reste = 0
+		end
+	end
+end)
+-- (V7.2.4, G-31) Pendant un orage (attribut Saisons.AttributOrage de workspace), un éclair frappe parfois la lampe d'un TARDIS
+-- posé : l'attribut Eclair reçoit l'heure serveur, chaque joueur dessine l'éclair. Aucun dégât, c'est de l'ambiance.
+task.spawn(function()
+	while true do
+		task.wait(10)
+		local orage = workspace:GetAttribute((Config.Saisons or {}).AttributOrage or "Orage") == true
+		local posee = exterieur:GetAttribute("Etat") == E.Pose and exterieur:GetAttribute("VolLibre") == nil and exterieur:GetAttribute("Porteur") == nil
+		if Config.eclairPossible(orage, posee, exterieur:GetAttribute("Camouflage") == true, math.random()) then
+			exterieur:SetAttribute("Eclair", workspace:GetServerTimeNow())
 		end
 	end
 end)

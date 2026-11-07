@@ -24,10 +24,11 @@
 | V7.1 | Corrections et banc d'essai (2 lots) | ✅ faite (07/11) |
 | V7.1.1 | Corrections et oublis du code actuel | ✅ faite (07/11) |
 | V7.1.2 | Banc d'essai des simulations | ✅ faite (07/11) |
-| V7.2 | Cabine et monde extérieur (4 lots) | 🚧 en cours |
+| V7.2 | Cabine et monde extérieur (4 lots) | ✅ faite (07/11) |
 | V7.2.1 | Cabine : lampe et vitres vivantes | ✅ faite (07/11) |
 | V7.2.2 | Traces au sol à l'arrivée | ✅ faite (07/11) |
 | V7.2.3 | Sur l'eau et au ras de l'eau | ✅ faite (07/11) |
+| V7.2.4 | Saisons et météo | ✅ faite (07/11) |
 | V7.3 | Salle de contrôle et console (5 lots) | 🔜 prévue |
 | V7.4 | Caméras et confort de l'écran (2 lots) | 🔜 prévue |
 | V7.5 | Régénération de la C.A.T. (6 lots) | 🔜 prévue |

@@ -1434,10 +1434,11 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 
 	elseif action == "Decoration" then
 		local nom = typeof(donnees) == "table" and donnees.nom
-		if nom == "Aucune" or nom == "Noel" or nom == "Halloween" then
-			exterieur:SetAttribute("Decoration", nom ~= "Aucune" and nom or nil)
+		-- (V7.2.4) "Auto" (pas d'attribut : la date choisit) ou une décoration connue ("Aucune" est gardée telle quelle)
+		if nom == "Auto" or (type(nom) == "string" and table.find(Config.Decorations or {}, nom)) then
+			exterieur:SetAttribute("Decoration", nom ~= "Auto" and nom or nil)
 			sauverReglages()
-			dire(joueur, "Décoration : " .. nom .. ".", true)
+			dire(joueur, "Décoration : " .. ((Config.NomsDecorations or {})[nom] or nom) .. ".", true)
 		end
 
 	elseif action == "Reflets" then
@@ -1592,7 +1593,7 @@ if type(reglages.styleConsole) == "number" and (Config.StylesConsole or {})[regl
 	appliquerStyleConsole(Config.StylesConsole[reglages.styleConsole])
 	exterieur:SetAttribute("StyleConsole", reglages.styleConsole)
 end
-if type(reglages.decoration) == "string" then exterieur:SetAttribute("Decoration", reglages.decoration) end
+if type(reglages.decoration) == "string" and table.find(Config.Decorations or {}, reglages.decoration) then exterieur:SetAttribute("Decoration", reglages.decoration) end
 if reglages.reflets == true then exterieur:SetAttribute("Reflets", true) end
 if type(reglages.categories) == "table" then
 	for nom, index in reglages.categories do

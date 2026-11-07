@@ -121,7 +121,7 @@ require(script:WaitForChild("Systemes"))({ C = C, E = E, Players = Players, RunS
 --------------------------------------------------------------------
 -- Terrain réactif, décorations et reflets des vitres : module Decor
 --------------------------------------------------------------------
-require(script:WaitForChild("Decor"))({ Config = Config, RunService = RunService, creer = creer, exterieur = exterieur, lampe = lampe, partTemporaire = partTemporaire, secouer = secouer })
+require(script:WaitForChild("Decor"))({ Config = Config, ReplicatedStorage = ReplicatedStorage, RunService = RunService, UI = UI, boiteInt = boiteInt, creer = creer, exterieur = exterieur, interieur = interieur, lampe = lampe, partTemporaire = partTemporaire, secouer = secouer })
 
 --------------------------------------------------------------------
 -- Tablette en lecture seule (visiteurs et techniciens) : module TabletteLecture

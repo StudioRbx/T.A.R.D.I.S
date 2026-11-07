@@ -460,11 +460,13 @@ return function(contexte)
 			end)
 		end
 		ligneTexte(c, "EXTÉRIEUR  ·  décorations et reflets", ordre + 1, C.texte2, 11)
-		local rangeeDeco = creer("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = ordre + 2, ZIndex = 22, Parent = c },
-		{ creer("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }) })
-		for i, info in { { "Aucune", "Sans décoration" }, { "Noel", "Noël : guirlandes et neige" }, { "Halloween", "Halloween : citrouille" } } do
-			local actif = (exterieur:GetAttribute("Decoration") or "Aucune") == info[1]
-			local b = creer("TextButton", { Size = UDim2.new(1 / 3, -4, 1, 0), BackgroundColor3 = actif and C.bleu or C.panneauClair, Text = info[2], Font = UI.POLICE_GRAS,
+		-- (V7.2.4) Auto (la date choisit) et les six décorations, sur deux rangées
+		local rangeeDeco = creer("Frame", { Size = UDim2.new(1, 0, 0, 64), BackgroundTransparency = 1, LayoutOrder = ordre + 2, ZIndex = 22, Parent = c },
+		{ creer("UIGridLayout", { CellSize = UDim2.new(0.25, -4, 0, 30), CellPadding = UDim2.new(0, 4, 0, 4), SortOrder = Enum.SortOrder.LayoutOrder }) })
+		for i, info in { { "Auto", "Auto : selon la date" }, { "Aucune", "Sans décoration" }, { "Noel", "Noël" }, { "Halloween", "Halloween" },
+			{ "Paques", "Pâques" }, { "NouvelAn", "Nouvel An" }, { "Anniversaire", "Anniversaire" } } do
+			local actif = (exterieur:GetAttribute("Decoration") or "Auto") == info[1]
+			local b = creer("TextButton", { BackgroundColor3 = actif and C.bleu or C.panneauClair, Text = info[2], Font = UI.POLICE_GRAS,
 				TextSize = 10, TextColor3 = C.texte, LayoutOrder = i, ZIndex = 22, Parent = rangeeDeco }, { UI.coin(6) })
 			b.Activated:Connect(function() remote:FireServer("Decoration", { nom = info[1] }) end)
 		end

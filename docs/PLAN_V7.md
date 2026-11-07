@@ -98,11 +98,11 @@ Faire vivre la cabine et ce qui l'entoure : lampe et vitres, traces au sol, eau,
 
 **Objectif :** Ajouter des décorations de saison automatiques, dehors et dans la salle, et faire réagir la cabine au temps : éclair attiré pendant l'orage, neige ou feuilles qui glissent du toit au départ.
 
-- **C-186. Décorations saisonnières automatiques selon la date** *(petit)* : Noël en décembre, Halloween en octobre, sans que les pilotes y pensent (option).
-- **G-100. Nouvelles décorations saisonnières de la cabine** *(moyen)* : Le module Decor ne connaît que Noël et Halloween. On peut ajouter Pâques (oeufs au toit), le Nouvel An (petites fusées locales au toit) et l'anniversaire du serveur (guirlande), avec le même attribut Decoration.
-- **G-190. Décorations de saison dans la salle** *(moyen)* : Noël et Halloween (module Decor, aujourd'hui seulement sur la cabine) décorent aussi la salle : guirlandes autour de la console, citrouilles et lueur orange.
-- **G-32. Neige ou feuilles qui glissent du toit au départ** *(moyen)* : Posé longtemps en zone de neige (matériau Snow) ou sous les arbres, une fine couche blanche ou quelques feuilles se forment sur le toit. Au début de la démat, elles glissent et tombent.
-- **G-31. Éclair attiré par la cabine pendant l'orage** *(moyen)* : Pendant un orage signalé par le jeu, un éclair frappe parfois la lampe d'un TARDIS posé, avec étincelles et lampe qui grésille. Aucun dégât, c'est de l'ambiance. Coupé en « aucun flash ».
+- ✅ **C-186. Décorations saisonnières automatiques selon la date** *(petit)* : Noël en décembre, Halloween en octobre, sans que les pilotes y pensent (option).
+- ✅ **G-100. Nouvelles décorations saisonnières de la cabine** *(moyen)* : Le module Decor ne connaît que Noël et Halloween. On peut ajouter Pâques (oeufs au toit), le Nouvel An (petites fusées locales au toit) et l'anniversaire du serveur (guirlande), avec le même attribut Decoration.
+- ✅ **G-190. Décorations de saison dans la salle** *(moyen)* : Noël et Halloween (module Decor, aujourd'hui seulement sur la cabine) décorent aussi la salle : guirlandes autour de la console, citrouilles et lueur orange.
+- ✅ **G-32. Neige ou feuilles qui glissent du toit au départ** *(moyen)* : Posé longtemps en zone de neige (matériau Snow) ou sous les arbres, une fine couche blanche ou quelques feuilles se forment sur le toit. Au début de la démat, elles glissent et tombent.
+- ✅ **G-31. Éclair attiré par la cabine pendant l'orage** *(moyen)* : Pendant un orage signalé par le jeu, un éclair frappe parfois la lampe d'un TARDIS posé, avec étincelles et lampe qui grésille. Aucun dégât, c'est de l'ambiance. Coupé en « aucun flash ».
 
 **Dans Studio :** Décider comment le jeu ZONE-TSADE signale un orage (un attribut sur Lighting ou ReplicatedStorage), sinon G-31 reste inactif. Facultatif : modèles de décorations (oeufs, guirlandes, citrouilles) dans TardisAssets.
 

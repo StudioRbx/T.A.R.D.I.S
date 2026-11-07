@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.2.3"
+Config.Version = "7.2.4"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1889,5 +1889,115 @@ Config.Interface = { -- (V6.9.10.6)
 }
 Config.Interface.Badges.Jukebox = "PILOTE"     -- (V6.9.10.7) badge du panneau du jukebox de la console (Console › JukeBox)
 Config.Interface.Badges.Copilote = "COPILOTE"  -- (V6.9.10.7) badge du poste du copilote (le casier, lui, montre l'équipe du joueur)
+
+--------------------------------------------------------------------
+-- (V7.2.4) Saisons et météo : décoration selon la date, salle décorée, couche sur le toit, éclair pendant l'orage
+--------------------------------------------------------------------
+-- Décorations connues (attribut Decoration de la cabine ; sans attribut = « Auto » : la date choisit)
+Config.Decorations = { "Aucune", "Noel", "Halloween", "Paques", "NouvelAn", "Anniversaire" }
+Config.NomsDecorations = { Auto = "automatique (selon la date)", Aucune = "aucune", Noel = "Noël", Halloween = "Halloween",
+	Paques = "Pâques", NouvelAn = "Nouvel An", Anniversaire = "anniversaire du serveur" }
+Config.Saisons = {
+	Automatique = true,      -- (V7.2.4, C-186) en « Auto », la date choisit la décoration (false = rien en Auto)
+	Anniversaire = "",       -- (V7.2.4, G-100) anniversaire du serveur, "MM-JJ" (ex. "06-21" ; vide = jamais en Auto)
+	Salle = true,            -- (V7.2.4, G-190) Noël et Halloween décorent aussi la salle, autour de la console
+	ToitNeige = 60,          -- (V7.2.4, G-32) secondes posée pour une couche pleine de neige ou de feuilles (0 = jamais)
+	AttributOrage = "Orage", -- (V7.2.4, G-31) attribut de workspace qui dit qu'il y a un orage (compte aussi comme pluie)
+	ChanceEclair = 0.15,     -- (V7.2.4, G-31) chance d'un éclair sur un TARDIS posé, toutes les 10 s d'orage (0 = jamais)
+}
+
+-- Nombre de jours depuis le 1er janvier 1970 d'une date civile (calcul pur, sans os.date)
+function Config.joursDe(annee, mois, jour)
+	local a = mois <= 2 and annee - 1 or annee
+	local ere = math.floor(a / 400)
+	local yoe = a - ere * 400
+	local mp = (mois + 9) % 12
+	local doy = math.floor((153 * mp + 2) / 5) + jour - 1
+	local doe = yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy
+	return ere * 146097 + doe - 719468
+end
+
+-- Date civile (UTC) d'un nombre de secondes depuis 1970 : annee, mois, jour
+function Config.dateDe(secondes)
+	local z = math.floor((tonumber(secondes) or 0) / 86400) + 719468
+	local ere = math.floor(z / 146097)
+	local doe = z - ere * 146097
+	local yoe = math.floor((doe - math.floor(doe / 1460) + math.floor(doe / 36524) - math.floor(doe / 146096)) / 365)
+	local doy = doe - (365 * yoe + math.floor(yoe / 4) - math.floor(yoe / 100))
+	local mp = math.floor((5 * doy + 2) / 153)
+	local jour = doy - math.floor((153 * mp + 2) / 5) + 1
+	local mois = mp < 10 and mp + 3 or mp - 9
+	return yoe + ere * 400 + (mois <= 2 and 1 or 0), mois, jour
+end
+
+-- Date de Pâques (calendrier grégorien) : mois, jour
+function Config.paques(annee)
+	local a, b, c = annee % 19, math.floor(annee / 100), annee % 100
+	local d, e = math.floor(b / 4), b % 4
+	local f = math.floor((b + 8) / 25)
+	local g = math.floor((b - f + 1) / 3)
+	local h = (19 * a + b - d - g + 15) % 30
+	local i, k = math.floor(c / 4), c % 4
+	local l = (32 + 2 * e + 2 * i - h - k) % 7
+	local m = math.floor((a + 11 * h + 22 * l) / 451)
+	local n = h + l - 7 * m + 114
+	return math.floor(n / 31), n % 31 + 1
+end
+
+-- (C-186, G-100) Décoration de la saison d'une date (secondes UTC), nil hors saison. Par ordre :
+-- anniversaire du serveur (Saisons.Anniversaire), Nouvel An (31/12 au 2/01), Noël (décembre), Halloween (octobre),
+-- Pâques (de la semaine avant au lundi de Pâques)
+function Config.saisonDe(secondes)
+	local annee, mois, jour = Config.dateDe(secondes)
+	local am, aj = string.match(tostring((Config.Saisons or {}).Anniversaire or ""), "^(%d+)%-(%d+)$")
+	if am and tonumber(am) == mois and tonumber(aj) == jour then return "Anniversaire" end
+	if (mois == 12 and jour == 31) or (mois == 1 and jour <= 2) then return "NouvelAn" end
+	if mois == 12 then return "Noel" end
+	if mois == 10 then return "Halloween" end
+	local pm, pj = Config.paques(annee)
+	local ecart = Config.joursDe(annee, mois, jour) - Config.joursDe(annee, pm, pj)
+	if ecart >= -7 and ecart <= 1 then return "Paques" end
+	return nil
+end
+
+-- (C-186) Décoration à montrer : "Aucune" → rien ; un nom connu → ce nom ; sans attribut (ou "Auto") → la saison du jour.
+-- Une heure serveur pas encore connue (avant l'an 2000) ne décore rien.
+function Config.decorationEffective(attribut, secondes)
+	if attribut == "Aucune" then return nil end
+	if attribut ~= nil and attribut ~= "Auto" then
+		return table.find(Config.Decorations, attribut) and attribut or nil
+	end
+	if (Config.Saisons or {}).Automatique == false or (tonumber(secondes) or 0) < 946684800 then return nil end
+	return Config.saisonDe(secondes)
+end
+
+-- (G-32) Couche qui se forme sur le toit d'une cabine posée : "Neige" sur la neige ou la glace, "Feuilles" sous un arbre, sinon nil
+function Config.coucheToit(materiau, sousArbre)
+	if (tonumber((Config.Saisons or {}).ToitNeige) or 0) <= 0 then return nil end
+	if materiau == "Snow" or materiau == "Glacier" or materiau == "Ice" then return "Neige" end
+	if sousArbre then return "Feuilles" end
+	return nil
+end
+
+-- (G-32) Épaisseur de la couche (0 à 1) après « ecoule » secondes posée
+function Config.epaisseurToit(ecoule)
+	local duree = tonumber((Config.Saisons or {}).ToitNeige) or 0
+	if duree <= 0 then return 0 end
+	return math.clamp((tonumber(ecoule) or 0) / duree, 0, 1)
+end
+
+-- (G-32) La pièce au-dessus de la cabine est-elle un arbre ? (herbe ou feuillage, ou un nom d'arbre)
+function Config.estArbre(nom, materiau)
+	if materiau == "Grass" or materiau == "LeafyGrass" then return true end
+	local n = string.lower(tostring(nom or ""))
+	return string.find(n, "leaf", 1, true) ~= nil or string.find(n, "leaves", 1, true) ~= nil or string.find(n, "feuill", 1, true) ~= nil or string.find(n, "arbre", 1, true) ~= nil
+		or string.find(n, "tree", 1, true) ~= nil
+end
+
+-- (G-31) Un éclair frappe-t-il ce TARDIS ? Orage, cabine posée (ni portée, ni en vol libre), visible, et tirage (0 à 1) sous la chance
+function Config.eclairPossible(orage, posee, camouflee, tirage)
+	local chance = tonumber((Config.Saisons or {}).ChanceEclair) or 0
+	return orage == true and posee == true and camouflee ~= true and chance > 0 and (tonumber(tirage) or 1) < chance
+end
 
 return Config
