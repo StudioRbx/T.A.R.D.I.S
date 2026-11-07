@@ -57,8 +57,9 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V7.3.1)
+## 6. Tests en jeu et releases (V7.3.2)
 - Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (248 tests de la V6.7 à la V7.2.1, dont 6 réussis et 18 sans objet ; 224 encore à faire).
+- **V7.3.2** : copilote ou technicien à bord, règle le jukebox ; regarde les LEDs battre avec la musique, les câbles du plafond en voyage (stabilisateur, urgence) et change de style pour voir la vague.
 - **V7.3.1** : enchaîne 3 voyages (avertissement de surchauffe, le toit fume), reste posé 2 min (ça refroidit) ; clique 8 fois vite sur le rotor ; regarde les grilles à l'atterrissage et au départ, et les couleurs des écrans Diagnostic.
 - **V7.2.4** : à la tablette, essaie chaque décoration (Noël décore aussi la salle) ; atterris sur la neige, attends 1 min et repars (la neige glisse) ; avec `workspace:SetAttribute("Orage", true)`, un éclair frappe parfois la lampe.
 - **V7.2.3** : pose la cabine sur l'eau (rides, gerbe, vapeur), vise une destination sous l'eau (elle remonte), plonge en vol libre (gerbe, vitesse réduite) et vole au ras de l'eau (sillage) ; avec `workspace:SetAttribute("Pluie", true)`, la saleté baisse.
@@ -69,7 +70,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **V6.9.17** : dans Zone obstruée (map en Streaming), appuie sur T puis sur Y en pilote : le menu et la tablette doivent s'ouvrir ; le diagnostic de l'Output doit finir par « streaming : ok ».
 - **V6.9.16** : regarde l'écran ingénieur (texte à l'endroit, un clic ouvre le menu de l'énergie), le menu de l'énergie élargi, et actionne les leviers et l'alerte : le kit doit s'animer.
 - **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
-- **Releases GitHub à jour** : les 48 versions de la V6.5 à la V7.3.1 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+- **Releases GitHub à jour** : les 49 versions de la V6.5 à la V7.3.2 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.

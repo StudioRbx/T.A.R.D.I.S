@@ -530,6 +530,7 @@ class Instance:
         if k == "ClassName": return s.ClassName
         if k == "Archivable": return True  # V7.1.2 : toutes les instances
         if k == "IsPlaying" and s.ClassName == "Sound": return bool(s.props.get("Playing", False))  # V7.1.2
+        if k == "PlaybackLoudness" and s.ClassName == "Sound": return 0  # V7.3.2
         if k == "Source" and s.ClassName in ("Script", "LocalScript", "ModuleScript"): return ""
         m = getattr(s, "m_" + k, None)
         if m: return Fonction(k, py=lambda _s, *a: m(*a))

@@ -936,6 +936,8 @@ RunService.RenderStepped:Connect(function(dt)
 			interieur.DescendantAdded:Connect(function(objet) if objet:IsA("Light") then table.insert(listeLumieres, objet) end end)
 		end
 		local dossierLeds = interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte")
+		-- (V7.3.2, G-140) Musique du jukebox (attribut local posé par Ambiance) : les LEDs battent avec le volume, hors alerte
+		local musique = exterieur:GetAttribute("Alerte") ~= true and Config.lumiereMusique(interieur:GetAttribute("TardisMusique")) or nil
 		for _, objet in listeLumieres do
 			if objet.Parent then
 				local infos = lumieresSalle[objet]
@@ -975,10 +977,12 @@ RunService.RenderStepped:Connect(function(dt)
 					-- Couleur de l'état de la salle (V6.9.9) : pas sur les lumières du rotor (ni sur les LedsAlerte, non recolorées)
 					if couleurEtatSalle and forceEtatSalle > 0.002 and not infos.rotor then couleur = couleur:Lerp(couleurEtatSalle, forceEtatSalle) end
 				end
+				local led = dossierLeds ~= nil and objet:IsDescendantOf(dossierLeds)
+				if musique and led and not horsTension then cible *= musique end
 				-- Les souffles se suivent vite : la lumière les suit de près ; le reste change en douceur
-				infos.facteur += (cible - infos.facteur) * math.min(dt * (enVoyage and 8 or 2), 1)
+				infos.facteur += (cible - infos.facteur) * math.min(dt * ((enVoyage or (musique and led)) and 8 or 2), 1)
 				objet.Brightness = infos.brillance * infos.facteur
-				if not (dossierLeds and objet:IsDescendantOf(dossierLeds)) then
+				if not led then
 					objet.Color = couleur
 				end
 			end

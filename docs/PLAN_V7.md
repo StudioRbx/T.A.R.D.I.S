@@ -135,10 +135,10 @@ Rendre la salle plus vivante et plus lisible : surchauffe et vapeur, ambiance, a
 
 **Objectif :** Rendre la salle plus vivante au quotidien : lumières qui suivent la musique, jukebox ouvert au copilote et aux techniciens, câbles qui se balancent, nouveau style qui se répand en vague.
 
-- **C-189. Jukebox ouvert au copilote et aux techniciens** *(petit)* : Le jukebox est réservé aux pilotes. Le copilote et les techniciens à bord pourraient aussi le régler.
-- **G-140. Lumières qui suivent la musique du jukebox** *(petit)* : À bord et hors alerte, les LedsAlerte suivent doucement le volume de la musique (PlaybackLoudness, calculé chez chaque joueur).
-- **G-163. Câbles du plafond qui se balancent aux secousses** *(moyen)* : Des câbles suspendus au plafond (pièces « Cable » de l'intérieur, ou des cordes locales) oscillent pendant la démat, la remat et les chocs, plus fort en Urgence. Ils restent immobiles avec le stabilisateur, comme les secousses de caméra de TardisEffets.
-- **G-189. Changement de style en vague** *(moyen)* : Un nouveau style d'intérieur ou de console (appliquerPieces, appliquerStyleConsole) se répand depuis la console vers les murs en 2 s, au lieu de changer d'un coup.
+- ✅ **C-189. Jukebox ouvert au copilote et aux techniciens** *(petit)* : Le jukebox est réservé aux pilotes. Le copilote et les techniciens à bord pourraient aussi le régler.
+- ✅ **G-140. Lumières qui suivent la musique du jukebox** *(petit)* : À bord et hors alerte, les LedsAlerte suivent doucement le volume de la musique (PlaybackLoudness, calculé chez chaque joueur).
+- ✅ **G-163. Câbles du plafond qui se balancent aux secousses** *(moyen)* : Des câbles suspendus au plafond (pièces « Cable » de l'intérieur, ou des cordes locales) oscillent pendant la démat, la remat et les chocs, plus fort en Urgence. Ils restent immobiles avec le stabilisateur, comme les secousses de caméra de TardisEffets.
+- ✅ **G-189. Changement de style en vague** *(moyen)* : Un nouveau style d'intérieur ou de console (appliquerPieces, appliquerStyleConsole) se répand depuis la console vers les murs en 2 s, au lieu de changer d'un coup.
 
 **Dans Studio :** Facultatif : des Parts « Cable » suspendues au plafond de l'intérieur de TARDIS_1 (G-163). Sans elles, le code crée des cordes locales. À reproduire sur TARDIS_2 et TARDIS_3 en V11.
 

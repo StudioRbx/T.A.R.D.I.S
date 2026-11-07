@@ -73,7 +73,7 @@ end
 --------------------------------------------------------------------
 -- Hologramme, écrans vivants, gravité folle, moteur et vapeur, écrans de diagnostic : module Ambiance
 --------------------------------------------------------------------
-require(script:WaitForChild("Ambiance"))({ C = C, Config = Config, E = E, Lighting = Lighting, Players = Players, ReplicatedStorage = ReplicatedStorage, RunService = RunService, UI = UI, boiteInt = boiteInt, creer = creer, dansInterieur = dansInterieur, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, maRacine = maRacine, partTemporaire = partTemporaire, texte = texte })
+require(script:WaitForChild("Ambiance"))({ C = C, Config = Config, E = E, Lighting = Lighting, Players = Players, ReplicatedStorage = ReplicatedStorage, RunService = RunService, UI = UI, boiteInt = boiteInt, creer = creer, dansInterieur = dansInterieur, exterieur = exterieur, interieur = interieur, jeSuisDedans = jeSuisDedans, joueur = joueur, maRacine = maRacine, partTemporaire = partTemporaire, tailleInt = tailleInt, texte = texte })
 
 --------------------------------------------------------------------
 -- Halo et projecteur, ombre, air, distorsion, givre, impacts, leurre, rayon tracteur, chocs et secousse : module EffetsExterieurs

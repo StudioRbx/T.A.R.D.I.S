@@ -7,6 +7,7 @@ return function(contexte)
 	local C, Config, E, Lighting, Players, ReplicatedStorage = contexte.C, contexte.Config, contexte.E, contexte.Lighting, contexte.Players, contexte.ReplicatedStorage
 	local RunService, UI, boiteInt, creer, dansInterieur, exterieur = contexte.RunService, contexte.UI, contexte.boiteInt, contexte.creer, contexte.dansInterieur, contexte.exterieur
 	local interieur, jeSuisDedans, joueur, maRacine, partTemporaire, texte = contexte.interieur, contexte.jeSuisDedans, contexte.joueur, contexte.maRacine, contexte.partTemporaire, contexte.texte
+	local tailleInt = contexte.tailleInt -- (V7.3.2) taille de l'intérieur, pour les câbles du plafond
 
 	--------------------------------------------------------------------
 	-- 1) Hologramme de la map au-dessus de la console
@@ -331,6 +332,61 @@ return function(contexte)
 			end
 			return liste
 		end
+		-- (V7.3.2, G-163) Câbles du plafond : les pièces ancrées « Cable » de l'intérieur (pendues par leur haut), sinon
+		-- Config.Salle.CordesLocales câbles créés pour soi en cercle autour du centre. Ils se balancent en voyage (plus en
+		-- urgence, moins stabilisé), sursautent à l'atterrissage et reprennent leur place au repos.
+		local reglagesSalle = Config.Salle or {}
+		local cables = {}
+		if reglagesSalle.Cables ~= false then
+			for _, objet in interieur:GetDescendants() do
+				if objet:IsA("BasePart") and objet.Name == "Cable" and objet.Anchored then
+					table.insert(cables, { part = objet, repos = objet.CFrame, haut = objet.CFrame * CFrame.new(0, objet.Size.Y / 2, 0), longueur = objet.Size.Y })
+				end
+			end
+			if #cables == 0 and (reglagesSalle.CordesLocales or 0) > 0 and boiteInt and tailleInt then
+				local n = math.floor(reglagesSalle.CordesLocales)
+				local longueur = reglagesSalle.LongueurCordes or 4
+				local rayon = math.min(math.min(tailleInt.X, tailleInt.Z) * 0.3, 12)
+				for i = 1, n do
+					local a = (i / n) * math.pi * 2
+					local haut = boiteInt * CFrame.new(math.cos(a) * rayon, tailleInt.Y / 2 - 0.2, math.sin(a) * rayon)
+					local repos = haut * CFrame.new(0, -longueur / 2, 0)
+					local part = partTemporaire({ Name = "TardisCable", Size = Vector3.new(0.15, longueur, 0.15), CFrame = repos,
+						Color = Color3.fromRGB(35, 35, 40), Material = Enum.Material.SmoothPlastic })
+					table.insert(cables, { part = part, repos = repos, haut = haut, longueur = longueur })
+				end
+			end
+			for i, c in cables do c.phase = i * 1.3 end
+		end
+		local forceCables, chocCables, etatCables, auRepos = 0, 0, nil, true
+		local function majCables(dt, etat, urgence)
+			if #cables == 0 then return end
+			if etat ~= etatCables then
+				if etat == E.Pose and etatCables == E.Remat then chocCables = 1 end
+				etatCables = etat
+			end
+			chocCables = math.max(chocCables - dt * 0.5, 0)
+			local cible = Config.forceCables(etat, urgence, exterieur:GetAttribute("Stabilisateur") ~= false, chocCables)
+			if UI.effetsReduits ~= nil and UI.effetsReduits() == true then cible *= 0.3 end
+			forceCables += (cible - forceCables) * math.min(dt * 2, 1)
+			if forceCables < 0.01 and cible == 0 then
+				forceCables = 0
+				if not auRepos then
+					auRepos = true
+					for _, c in cables do if c.part.Parent then c.part.CFrame = c.repos end end
+				end
+				return
+			end
+			auRepos = false
+			local t = os.clock()
+			for _, c in cables do
+				if c.part.Parent then
+					local ax, az = Config.angleCable(t, forceCables, c.phase)
+					c.part.CFrame = c.haut * CFrame.Angles(ax, 0, az) * CFrame.new(0, -c.longueur / 2, 0)
+				end
+			end
+		end
+		local derniereMusique = nil
 		RunService.Heartbeat:Connect(function(dt)
 			local etat = exterieur:GetAttribute("Etat") or E.Pose
 			local urgence = (Config.modeSaccade(Config.modeDe(exterieur)) and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
@@ -365,6 +421,16 @@ return function(contexte)
 			end
 			presence += (((jeSuisDedans() and alimente) and 1 or 0) - presence) * math.min(dt * 1.2, 1)
 			if jukebox then jukebox.Volume = volumeJukebox * UI.volume() * presence end
+			-- (V7.3.2, G-140) Volume de la musique entendue, pour les LEDs de la salle (TardisEffets) : attribut local
+			local musique = nil
+			if jukebox and presence > 0.05 and reglagesSalle.LumieresMusique ~= false then
+				musique = math.floor((tonumber(jukebox.PlaybackLoudness) or 0) * presence)
+			end
+			if musique ~= derniereMusique then
+				derniereMusique = musique
+				interieur:SetAttribute("TardisMusique", musique)
+			end
+			majCables(dt, etat, urgence)
 			-- V6.9.10 : vent du vortex (alimente est déjà faux hors tension, détruit, ou en Silencieux avec SilenceABord)
 			majVortex(dt, etat, alimente)
 		end)

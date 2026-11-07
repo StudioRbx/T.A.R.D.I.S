@@ -554,6 +554,7 @@ xx = Instance("Model", "Cabine"); xx.attrs.update({"Etat": "Pose"})
 DITS = []
 prelude_x = """
 local remote, exterieur, interieur, Config, pilotes, DITS = ...
+local def = { Nom = "TARDIS_1" }
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local E = Config.Etats
@@ -561,8 +562,8 @@ local function estPilote(joueur) return pilotes[joueur] == true end
 local function dire(joueur, message, ok) table.insert(DITS, { joueur, message, ok ~= false }) end
 local dernier, dedans, invitations, dernierCarnet = {}, {}, {}, {}
 """
-jb = extras.index("do\n\tlocal derniersJukebox = {}")
-fjb = extras.index("\nend\n", jb) + 5
+jb = extras.index("local function peutJukebox(joueur)")
+fjb = extras.index("local dernier = {}\n", jb)  # (V7.3.2) avec peutJukebox et reglerJukebox
 salleX = Instance("Model", "Salle"); PX = console_reelle(salleX)
 code_x = prelude_x + extras[jb:fjb] + extras[dx:fx]
 DITS = Table()
@@ -583,7 +584,7 @@ n = len(canalX.extra.get("envoisClient", []))
 declencher(cj[0], "MouseClick", pilote); H.avancer(0.1)
 declencher(pj[0], "Triggered", visiteur); H.avancer(0.6)
 r_ = canalX.extra.get("envoisClient", [])[n:]
-verifier("8. Pilote : le panneau s'ouvre (« __jukebox ») ; non-pilote : « Réservé aux pilotes. »", r_ == [[pilote, "__jukebox", PX["jukebox"]], [visiteur, "__console", "Réservé aux pilotes.", False]], r_)
+verifier("8. Pilote : le panneau s'ouvre (« __jukebox ») ; hors équipage : refus (V7.3.2 : copilote et techniciens à bord aussi)", r_ == [[pilote, "__jukebox", PX["jukebox"]], [visiteur, "__console", "Réservé aux pilotes, au copilote et aux techniciens à bord.", False]], r_)
 Config.set("Jukebox", Table({1: Table({"nom": "Thème", "id": 111, "categorie": "Action"}), 2: Table({"nom": "Vortex", "id": 222, "categorie": "Action"}), 3: Table({"nom": "Calme", "id": 333})}))
 envX(pilote, "Jukebox", Table({"index": 3}))
 verifier("8. Action Jukebox (piste) appliquée pour un pilote", xx.attrs.get("Jukebox") == 3, xx.attrs.get("Jukebox"))

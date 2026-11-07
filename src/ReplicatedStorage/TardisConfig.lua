@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.3.1"
+Config.Version = "7.3.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -2079,6 +2079,55 @@ end
 function Config.voyantDiagnostic(ok, grave)
 	if ok then return "●", "vert" end
 	return "○", grave and "rouge" or "ambre"
+end
+
+-- (V7.3.2) Salle : jukebox de l'équipage, lumières qui suivent la musique, câbles qui se balancent, style en vague
+Config.Salle = {
+	JukeboxEquipage = true, -- (C-189) le copilote et les techniciens à bord peuvent aussi régler le jukebox
+	LumieresMusique = true, -- (G-140) les LedsAlerte suivent le volume de la musique (à bord, hors alerte)
+	ForceMusique = 0.6,     -- (G-140) 0 à 1 : de combien la musique fait varier les LEDs
+	VolumeMusique = 300,    -- (G-140) PlaybackLoudness considéré comme « fort »
+	Cables = true,          -- (G-163) câbles du plafond qui se balancent en vol
+	CordesLocales = 6,      -- (G-163) câbles créés s'il n'y a pas de pièces « Cable » dans l'intérieur (0 = aucun)
+	LongueurCordes = 4,     -- (G-163) studs
+	AngleCables = 8,        -- (G-163) degrés de balancement au plus fort
+	DureeVague = 2,         -- (G-189) secondes pour qu'un nouveau style traverse la salle (0 = d'un coup)
+}
+
+-- (C-189) Qui peut régler le jukebox : les pilotes toujours ; le copilote et les techniciens s'ils sont à bord
+function Config.peutJukebox(role, aBord)
+	if role == "pilote" then return true end
+	if (Config.Salle or {}).JukeboxEquipage == false then return false end
+	return (role == "copilote" or role == "technicien") and aBord == true
+end
+
+-- (G-140) Facteur des LEDs selon le volume de la musique (nil = pas de musique : on ne touche à rien)
+function Config.lumiereMusique(volume)
+	local s = Config.Salle or {}
+	if s.LumieresMusique == false or type(volume) ~= "number" then return nil end
+	local niveau = math.clamp(volume / math.max(s.VolumeMusique or 300, 1), 0, 1)
+	return 1 + math.clamp(s.ForceMusique or 0.6, 0, 1) * (niveau * 2 - 1)
+end
+
+-- (G-163) Force du balancement des câbles (0 au repos, 1 en voyage, 2,5 en urgence, chocs compris ; ×0,3 stabilisé hors urgence)
+function Config.forceCables(etat, urgence, stabilise, choc)
+	local enVoyage = etat == "Demat" or etat == "Remat"
+	local base = enVoyage and (urgence and 2.5 or 1) or 0
+	base = math.max(base, tonumber(choc) or 0)
+	if stabilise and not urgence then base *= 0.3 end
+	return base
+end
+
+-- (G-163) Angles d'un câble (radians, autour de X et de Z) à l'instant t
+function Config.angleCable(t, force, phase)
+	local amp = math.rad((Config.Salle or {}).AngleCables or 8) * (force or 0)
+	return amp * math.sin(t * 2.2 + (phase or 0)), amp * 0.6 * math.cos(t * 1.7 + (phase or 0))
+end
+
+-- (G-189) Délai (au dixième de seconde) d'une pièce à la distance donnée du centre, pour une vague de durée donnée
+function Config.delaiVague(distance, maxi, duree)
+	if not duree or duree <= 0 or not maxi or maxi <= 0 then return 0 end
+	return math.floor(duree * math.clamp((distance or 0) / maxi, 0, 1) * 10 + 0.5) / 10
 end
 
 return Config

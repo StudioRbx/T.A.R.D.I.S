@@ -935,23 +935,64 @@ do
 	end
 end
 
--- Peinture des murs et styles : dossiers "Murs" et "Sol" de l'intérieur ; console : modèle "Console"
-appliquerPieces = function(dossierNom, reglage)
-	local dossier = interieur:FindFirstChild(dossierNom, true)
-	if not dossier or not reglage then return end
-	for _, objet in dossier:GetDescendants() do
-		if objet:IsA("BasePart") then
-			if reglage.couleur then objet.Color = reglage.couleur end
-			if reglage.materiau then objet.Material = reglage.materiau end
+-- (V7.3.2, G-189) Vague : les pièces proches de la console changent d'abord, la salle suit en Config.Salle.DureeVague s.
+-- Une nouvelle vague sur les mêmes pièces termine d'un coup la précédente (pas de mélange de deux styles).
+local vagues = {} -- [cle] = { restes = { [lot] = fonction } }
+local function enVague(cle, parts, appliquer, immediat)
+	local ancienne = vagues[cle]
+	if ancienne then
+		vagues[cle] = nil
+		for _, reste in ancienne.restes do reste() end
+	end
+	local duree = (Config.Salle or {}).DureeVague or 2
+	if immediat or duree <= 0 or #parts == 0 then
+		for _, p in parts do appliquer(p) end
+		return
+	end
+	local console = interieur:FindFirstChild("Console")
+	local centre = (console and console:IsA("Model") and console:GetPivot() or Config.pivot(interieur)).Position
+	local maxi = 0
+	for _, p in parts do maxi = math.max(maxi, (p.Position - centre).Magnitude) end
+	local lots = {}
+	for _, p in parts do
+		local delai = Config.delaiVague((p.Position - centre).Magnitude, maxi, duree)
+		lots[delai] = lots[delai] or {}
+		table.insert(lots[delai], p)
+	end
+	local vague = { restes = {} }
+	vagues[cle] = vague
+	for delai, lot in lots do
+		local function faire()
+			vague.restes[delai] = nil
+			for _, p in lot do appliquer(p) end
+		end
+		if delai <= 0 then
+			for _, p in lot do appliquer(p) end
+		else
+			vague.restes[delai] = faire
+			task.delay(delai, function()
+				if vague.restes[delai] then faire() end
+			end)
 		end
 	end
-	if dossier:IsA("BasePart") then
-		if reglage.couleur then dossier.Color = reglage.couleur end
-		if reglage.materiau then dossier.Material = reglage.materiau end
+end
+
+-- Peinture des murs et styles : dossiers "Murs" et "Sol" de l'intérieur ; console : modèle "Console"
+appliquerPieces = function(dossierNom, reglage, immediat)
+	local dossier = interieur:FindFirstChild(dossierNom, true)
+	if not dossier or not reglage then return end
+	local parts = {}
+	for _, objet in dossier:GetDescendants() do
+		if objet:IsA("BasePart") then table.insert(parts, objet) end
 	end
+	if dossier:IsA("BasePart") then table.insert(parts, dossier) end
+	enVague(dossierNom, parts, function(objet)
+		if reglage.couleur then objet.Color = reglage.couleur end
+		if reglage.materiau then objet.Material = reglage.materiau end
+	end, immediat)
 end
 local consoleOrigine = {} -- [part] = { couleur, materiau }
-appliquerStyleConsole = function(style)
+appliquerStyleConsole = function(style, immediat)
 	local console = interieur:FindFirstChild("Console")
 	if not console or not style then return end
 	-- Couleur dominante de la console : seules les pièces de cette couleur changent (pas les écrans ni les leviers)
@@ -971,9 +1012,11 @@ appliquerStyleConsole = function(style)
 	end
 	for _, objet in meilleur and meilleur.parts or {} do
 		consoleOrigine[objet] = consoleOrigine[objet] or { couleur = objet.Color, materiau = objet.Material }
+	end
+	enVague("Console", meilleur and meilleur.parts or {}, function(objet)
 		objet.Color = style.couleur
 		objet.Material = style.materiau
-	end
+	end, immediat)
 end
 
 -- Tenues (casiers, régénération) : haut et bas appliqués au personnage.
@@ -1193,16 +1236,24 @@ end
 --------------------------------------------------------------------
 -- Jukebox de la console (V6.9.10.1) : Console › JukeBox. Un clic ou l'invite « Musique » ouvre le panneau du jukebox
 -- (module Console des joueurs) ; le panneau envoie l'action « Jukebox » ci-dessous, comme la tablette. Réservé aux
--- pilotes, comme l'action : les autres lisent « Réservé aux pilotes. »
+-- pilotes, comme l'action ; (V7.3.2, C-189) aussi au copilote et aux techniciens à bord (Config.Salle.JukeboxEquipage)
 --------------------------------------------------------------------
+local function peutJukebox(joueur)
+	local role = estPilote(joueur) and "pilote"
+		or (exterieur:GetAttribute("Copilote") == joueur.UserId and "copilote")
+		or (joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true and "technicien")
+		or "visiteur"
+	return Config.peutJukebox(role, dedans[joueur] == true)
+end
 do
 	local derniersJukebox = {}
 	local function ouvrirJukebox(joueur, part)
 		local maintenant = os.clock()
 		if derniersJukebox[joueur] and maintenant - derniersJukebox[joueur] < 0.5 then return end
 		derniersJukebox[joueur] = maintenant
-		if not estPilote(joueur) then
-			remote:FireClient(joueur, "__console", "Réservé aux pilotes.", false)
+		if not peutJukebox(joueur) then
+			remote:FireClient(joueur, "__console", (Config.Salle or {}).JukeboxEquipage == false and "Réservé aux pilotes."
+				or "Réservé aux pilotes, au copilote et aux techniciens à bord.", false)
 			return
 		end
 		remote:FireClient(joueur, "__jukebox", part)
@@ -1245,6 +1296,39 @@ end
 --------------------------------------------------------------------
 -- Commandes (le menu et la tablette envoient le même RemoteEvent que TardisServeur)
 --------------------------------------------------------------------
+-- (V7.3.2) Action « Jukebox » : pistes de Config.Jukebox ET du dossier TardisAssets › Jukebox (V6.9.10.5), numérotées comme
+-- chez les joueurs (Config.pistesJukebox) ; seules une piste ou une playlist connues sont acceptées (sinon la musique continue)
+local function reglerJukebox(joueur, donnees)
+	local pistes = Config.pistesJukebox()
+	local index = typeof(donnees) == "table" and donnees.index or nil
+	local liste = typeof(donnees) == "table" and donnees.liste or nil
+	if liste ~= nil then
+		-- Playlist (V6.7.3) : toutes les pistes d'une catégorie, en ordre aléatoire
+		local nombre = 0
+		if type(liste) == "string" and #liste <= 30 then
+			for _, piste in pistes do if piste.categorie == liste then nombre += 1 end end
+		end
+		if nombre > 0 then
+			exterieur:SetAttribute("Jukebox", liste)
+			exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
+			dire(joueur, string.format("Jukebox : playlist %s (%d piste(s), aléatoire).", liste, nombre), true)
+		else
+			dire(joueur, "Playlist inconnue du jukebox.", false)
+		end
+	elseif index ~= nil then
+		local numero = type(index) == "number" and index or nil
+		if numero and numero >= 1 and numero <= #pistes and numero == math.floor(numero) then -- (ni NaN, ni infini, ni 2,5)
+			exterieur:SetAttribute("Jukebox", numero)
+			exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
+			dire(joueur, "Jukebox : " .. tostring(pistes[numero].nom) .. ".", true)
+		else
+			dire(joueur, "Piste inconnue du jukebox.", false)
+		end
+	else
+		exterieur:SetAttribute("Jukebox", nil)
+		dire(joueur, "Jukebox arrêté.", true)
+	end
+end
 local dernier = {}
 remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	if Config.Debug and action ~= "VolLibre" and action ~= "ProjecteurDir" and action ~= "Prefs" then
@@ -1334,6 +1418,16 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			journal("Carnet", string.format("%s : note de %s sur « %s ».", def.Nom, joueur.Name, lieuFiltre))
 			dire(joueur, "Note ajoutée au carnet de bord : " .. lieuFiltre .. ".", true)
 		end)
+		return
+	end
+	-- (V7.3.2, C-189) Le copilote et les techniciens à bord règlent aussi le jukebox (anti-spam d'une demi-seconde)
+	if action == "Jukebox" and not estPilote(joueur) then
+		if peutJukebox(joueur) then
+			local instant = os.clock()
+			if (dernier[joueur] or 0) > instant - 0.5 then return end
+			dernier[joueur] = instant
+			reglerJukebox(joueur, donnees)
+		end
 		return
 	end
 	if not estPilote(joueur) then
@@ -1451,37 +1545,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		dire(joueur, exterieur:GetAttribute("Reflets") and "Reflets des vitres activés." or "Reflets des vitres désactivés.", true)
 
 	elseif action == "Jukebox" then
-		-- (V6.9.10.5) Les pistes de Config.Jukebox ET du dossier TardisAssets › Jukebox, numérotées comme chez les joueurs
-		-- (Config.pistesJukebox) ; seules une piste ou une playlist connues sont acceptées (sinon la musique continue)
-		local pistes = Config.pistesJukebox()
-		local index = typeof(donnees) == "table" and donnees.index or nil
-		local liste = typeof(donnees) == "table" and donnees.liste or nil
-		if liste ~= nil then
-			-- Playlist (V6.7.3) : toutes les pistes d'une catégorie, en ordre aléatoire
-			local nombre = 0
-			if type(liste) == "string" and #liste <= 30 then
-				for _, piste in pistes do if piste.categorie == liste then nombre += 1 end end
-			end
-			if nombre > 0 then
-				exterieur:SetAttribute("Jukebox", liste)
-				exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
-				dire(joueur, string.format("Jukebox : playlist %s (%d piste(s), aléatoire).", liste, nombre), true)
-			else
-				dire(joueur, "Playlist inconnue du jukebox.", false)
-			end
-		elseif index ~= nil then
-			local numero = type(index) == "number" and index or nil
-			if numero and numero >= 1 and numero <= #pistes and numero == math.floor(numero) then -- (ni NaN, ni infini, ni 2,5)
-				exterieur:SetAttribute("Jukebox", numero)
-				exterieur:SetAttribute("JukeboxDebut", workspace:GetServerTimeNow())
-				dire(joueur, "Jukebox : " .. tostring(pistes[numero].nom) .. ".", true)
-			else
-				dire(joueur, "Piste inconnue du jukebox.", false)
-			end
-		else
-			exterieur:SetAttribute("Jukebox", nil)
-			dire(joueur, "Jukebox arrêté.", true)
-		end
+		reglerJukebox(joueur, donnees)
 
 	elseif action == "Categorie" then
 		local nom = typeof(donnees) == "table" and donnees.destination
@@ -1584,17 +1648,17 @@ if type(reglages.theme) == "string" then exterieur:SetAttribute("Theme", reglage
 if type(reglages.couleur) == "table" and #reglages.couleur == 3 then peindre(Color3.new(reglages.couleur[1], reglages.couleur[2], reglages.couleur[3])) end
 if type(reglages.enseigne) == "string" then enseigne(reglages.enseigne) end
 if type(reglages.murs) == "number" and (Config.Couleurs or {})[reglages.murs] then
-	appliquerPieces("Murs", { couleur = Config.Couleurs[reglages.murs].couleur })
+	appliquerPieces("Murs", { couleur = Config.Couleurs[reglages.murs].couleur }, true)
 	exterieur:SetAttribute("CouleurMurs", reglages.murs)
 end
 if type(reglages.styleInterieur) == "number" and (Config.StylesInterieur or {})[reglages.styleInterieur] then
 	local style = Config.StylesInterieur[reglages.styleInterieur]
-	appliquerPieces("Murs", style.murs)
-	appliquerPieces("Sol", style.sol)
+	appliquerPieces("Murs", style.murs, true)
+	appliquerPieces("Sol", style.sol, true)
 	exterieur:SetAttribute("StyleInterieur", reglages.styleInterieur)
 end
 if type(reglages.styleConsole) == "number" and (Config.StylesConsole or {})[reglages.styleConsole] then
-	appliquerStyleConsole(Config.StylesConsole[reglages.styleConsole])
+	appliquerStyleConsole(Config.StylesConsole[reglages.styleConsole], true)
 	exterieur:SetAttribute("StyleConsole", reglages.styleConsole)
 end
 if type(reglages.decoration) == "string" and table.find(Config.Decorations or {}, reglages.decoration) then exterieur:SetAttribute("Decoration", reglages.decoration) end

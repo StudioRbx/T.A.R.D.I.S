@@ -237,6 +237,7 @@ xx = Instance("Model", "Cabine"); xx.attrs.update({"Etat": "Pose"})
 canalX = Instance("RemoteEvent", "TardisCommande_TARDIS_1", Instance("Folder", "RSExtras"))
 prelude_x = """
 local remote, exterieur, interieur, Config, pilotes, DITS, dedans = ...
+local def = { Nom = "TARDIS_1" }
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local E = Config.Etats
@@ -244,7 +245,7 @@ local function estPilote(joueur) return pilotes[joueur] == true end
 local function dire(joueur, message, ok) table.insert(DITS, { joueur, message, ok ~= false }) end
 local dernier, invitations, dernierCarnet = {}, {}, {}
 """
-jb = extras.index("do\n\tlocal derniersJukebox = {}"); fjb = extras.index("\nend\n", jb) + 5
+jb = extras.index("local function peutJukebox(joueur)"); fjb = extras.index("local dernier = {}\n", jb)  # (V7.3.2) avec peutJukebox et reglerJukebox
 dx = extras.index("remote.OnServerEvent:Connect(function(joueur, action, donnees)"); fx = extras.index("\nend)\n", dx) + 6
 DITS = Table(); DEDANS = Table(); PIL = Table({pilote: True})
 assets_avant = rs.m_FindFirstChild("TardisAssets")
@@ -257,8 +258,8 @@ verifier("3. Jukebox en Model : clic sur tout le Model, invite « Musique » (Z)
 mnj, mxj = boite_monde([caisse, disque])
 verifier("3. … sans point d'attache au-dessus (V6.9.10.8)", not [e for e in de_classe(juke, "Attachment") if e.Name == "TardisJukebox"])
 n = len(canalX.extra.get("envoisClient", [])); declencher(cj[0], "MouseClick", pilote); H.avancer(0.6); declencher(pj[0], "Triggered", visiteur); H.avancer(0.6)
-verifier("3. Clic d'un pilote sur le jukebox : le panneau s'ouvre ; non-pilote : « Réservé aux pilotes. »",
-         canalX.extra.get("envoisClient", [])[n:] == [[pilote, "__jukebox", caisse], [visiteur, "__console", "Réservé aux pilotes.", False]], canalX.extra.get("envoisClient", [])[n:])
+verifier("3. Clic d'un pilote sur le jukebox : le panneau s'ouvre ; hors équipage : refus (V7.3.2 : copilote et techniciens à bord aussi)",
+         canalX.extra.get("envoisClient", [])[n:] == [[pilote, "__jukebox", caisse], [visiteur, "__console", "Réservé aux pilotes, au copilote et aux techniciens à bord.", False]], canalX.extra.get("envoisClient", [])[n:])
 dj = rs.m_FindFirstChild("TardisAssets") and rs.m_FindFirstChild("TardisAssets").m_FindFirstChild("Jukebox")
 verifier("8. Le dossier ReplicatedStorage › TardisAssets › Jukebox est créé au démarrage par le serveur (absent avant)", assets_avant is None and dj is not None and dj.ClassName == "Folder")
 # Alerte : vrai brancherCommande, invite au-dessus du bouton, dans la MÊME pièce qu'avant (TardisSystemes y cherche les invites)
