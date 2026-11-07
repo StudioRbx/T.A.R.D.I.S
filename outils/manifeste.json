@@ -1,5 +1,5 @@
 {
- "version": "7.3.4",
+ "version": "7.3.5",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 136151,
-   "empreinte": 537975236
+   "taille": 138975,
+   "empreinte": 1288167593
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -169,8 +169,8 @@
    "nom": "TardisPortail",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 21098,
-   "empreinte": 1814962055
+   "taille": 29543,
+   "empreinte": 19479651
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisPorter.client.lua",

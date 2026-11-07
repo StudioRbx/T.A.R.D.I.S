@@ -220,7 +220,7 @@ local function creerFenetre(nom, part, face, fond)
 	cam.Parent = vue
 	vue.CurrentCamera = cam
 
-	return { vue = vue, cam = cam }
+	return { vue = vue, cam = cam, cadre = cadre }
 end
 
 -- source : repère de la porte regardée (face avant tournée vers le joueur)
@@ -260,12 +260,14 @@ local fenetreInt = creerFenetre("TardisVueExterieur", portailInt, Enum.NormalId.
 local environs, battantsCopies = nil, {}
 
 local centreVueVol = nil -- d'où a été copiée la vue en vol (on la refait si le TARDIS s'éloigne trop)
+local derniereCopie = os.clock() -- (V7.3.5, G-169) heure de la dernière copie des environs
 local function reconstruireEnvirons(enVol)
 	local ok, nouveau, battants = pcall(clonerEnvirons, enVol == true)
 	if not ok then
 		warn("[TARDIS] Impossible de copier les environs : " .. tostring(nouveau))
 		return
 	end
+	derniereCopie = os.clock()
 	if environs then environs:Destroy() end
 	environs, battantsCopies = nouveau, battants
 	environs.Parent = fenetreInt.vue
@@ -302,12 +304,211 @@ exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 end)
 
 --------------------------------------------------------------------
+-- (V7.3.5) Vue par la porte : voile du bouclier, salle qui suit ses lumières, rue rafraîchie, silhouettes
+--------------------------------------------------------------------
+local VP = Config.VuePorte or {}
+
+-- (G-159) Voile bleuté qui ondule sur la vue de la rue quand un bouclier est levé (la bulle n'est pas copiée dans la vue)
+local voile = Instance.new("Frame")
+voile.Name = "TardisVoileBouclier"
+voile.Size = UDim2.fromScale(1, 1)
+voile.BorderSizePixel = 0
+voile.BackgroundColor3 = VP.CouleurVoile or Color3.fromRGB(110, 180, 255)
+voile.BackgroundTransparency = 1
+voile.ZIndex = 5
+voile.Visible = false
+voile.Parent = fenetreInt.cadre
+local function bouclierLeve()
+	return VP.VoileBouclier ~= false and Config.bouclierLeve(exterieur:GetAttribute("BouclierJoueurs"),
+		exterieur:GetAttribute("BouclierBalles"), exterieur:GetAttribute("BouclierComplet"))
+end
+
+-- (G-166) La salle vue de dehors suit ses lumières : sombre hors tension, rouge en alerte ou pendant l'auto-destruction
+local ambianteNormale = fenetreExt.vue.Ambient
+local function majAmbianceSalle()
+	if VP.SalleSuitLumieres == false then return end
+	local alerte = exterieur:GetAttribute("Alerte") == true or exterieur:GetAttribute("AutoDestructionDebut") ~= nil
+	local ambiante, lumiere = Config.ambianceVueSalle(exterieur:GetAttribute("Alimentation") == false, alerte, ambianteNormale)
+	fenetreExt.vue.Ambient = ambiante
+	fenetreExt.vue.LightColor = lumiere
+end
+for _, nom in { "Alimentation", "Alerte", "AutoDestructionDebut" } do
+	exterieur:GetAttributeChangedSignal(nom):Connect(majAmbianceSalle)
+end
+majAmbianceSalle()
+
+-- (G-166) La copie du rotor prend les couleurs du vrai (couleur du mode, alerte, auto-destruction) : pièces appariées
+-- dans l'ordre (la copie garde l'ordre des pièces), seulement si elles correspondent toutes
+local pairesRotor = {}
+if rotorCopie and VP.SalleSuitLumieres ~= false then
+	local function pieces(racine)
+		local liste = racine:IsA("BasePart") and { racine } or {}
+		for _, objet in racine:GetDescendants() do
+			if objet:IsA("BasePart") then table.insert(liste, objet) end
+		end
+		return liste
+	end
+	local originaux, copies = pieces(rotor), pieces(rotorCopie)
+	if #originaux == #copies then
+		for i, original in originaux do
+			if copies[i].Name == original.Name then pairesRotor[original] = copies[i] end
+		end
+	end
+end
+local function majCouleursRotor()
+	for original, copie in pairesRotor do
+		if copie.Color ~= original.Color then copie.Color = original.Color end
+		if copie.Material ~= original.Material then copie.Material = original.Material end
+	end
+end
+
+-- (G-169) Posé longtemps : la copie des environs est refaite de temps en temps, porte fermée (véhicules et objets qui ont
+-- bougé), pour que l'image ne saute pas sous les yeux
+if VP.RafraichirEnvirons ~= false then
+	task.spawn(function()
+		while true do
+			task.wait(5)
+			if Config.rafraichirEnvirons(derniereCopie, os.clock(), VP.PeriodeRafraichir, exterieur:GetAttribute("PorteOuverte") == true,
+				exterieur:GetAttribute("Etat"), exterieur:GetAttribute("VolLibre") ~= nil) then
+				reconstruireEnvirons()
+			end
+		end
+	end)
+end
+
+-- (G-168) Silhouettes des personnages : joueurs et PNJ sont exclus des copies (ils bougent) ; à la place, de simples
+-- silhouettes sombres, mises à jour 5 fois par seconde porte ouverte : dans la rue (vue de la salle) et à bord (vue de
+-- dehors). Les plus proches de la porte d'abord, 12 au plus ; jamais le joueur lui-même.
+if VP.Silhouettes ~= false then
+	local COULEUR = VP.CouleurSilhouette or Color3.fromRGB(25, 25, 32)
+	local MAX = math.max(tonumber(VP.MaxSilhouettes) or 12, 0)
+	local PERIODE = math.max(tonumber(VP.PeriodeSilhouettes) or 0.2, 0.05)
+	local cfSalle, tailleSalle = Config.boite(interieur)
+	local dossiers = {}
+	local function dossierDe(fenetre)
+		local dossier = dossiers[fenetre]
+		if not dossier or dossier.Parent ~= fenetre.vue then
+			dossier = Instance.new("Model")
+			dossier.Name = "TardisSilhouettes"
+			dossier.Parent = fenetre.vue
+			dossiers[fenetre] = dossier
+		end
+		return dossier
+	end
+	-- PNJ : Models avec un Humanoid au premier ou au deuxième niveau du Workspace, et dans la salle (cherchés toutes les 3 s)
+	local pnj, prochaineRecherche = {}, 0
+	local function chercherPnj()
+		table.clear(pnj)
+		local function regarder(objet)
+			if objet:IsA("Model") and objet:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(objet) then
+				table.insert(pnj, objet)
+			end
+		end
+		for _, objet in workspace:GetChildren() do
+			regarder(objet)
+			if objet:IsA("Folder") then
+				for _, enfant in objet:GetChildren() do regarder(enfant) end
+			end
+		end
+		for _, objet in interieur:GetChildren() do regarder(objet) end
+	end
+	-- Quelle vue montre ce point : la vue de dehors s'il est dans la salle, la vue de la salle s'il est dans la rue devant la porte
+	local function vueDe(position)
+		if cfSalle and tailleSalle then
+			local q = cfSalle:PointToObjectSpace(position)
+			if math.abs(q.X) <= tailleSalle.X / 2 and math.abs(q.Y) <= tailleSalle.Y / 2 and math.abs(q.Z) <= tailleSalle.Z / 2 then
+				return fenetreExt, (position - portailInt.Position).Magnitude
+			end
+		end
+		local distance = (position - portailExt.Position).Magnitude
+		if distance <= RAYON_EXT and portailExt.CFrame:PointToObjectSpace(position).Z < 0 then return fenetreInt, distance end
+		return nil
+	end
+	local actives = {} -- [personnage] = { modele, pieces = { [original] = copie }, fenetre }
+	local function creerSilhouette(perso, fenetre)
+		local modele = Instance.new("Model")
+		modele.Name = "Silhouette"
+		local pieces, nombre = {}, 0
+		for _, objet in perso:GetDescendants() do
+			if nombre >= 24 then break end
+			if objet:IsA("BasePart") and objet.Transparency < 1 and objet.Name ~= "HumanoidRootPart" then
+				local piece = Instance.new("Part")
+				piece.Size = objet.Size
+				piece.CFrame = objet.CFrame
+				piece.Anchored = true
+				piece.CanCollide = false
+				piece.CastShadow = false
+				piece.Material = Enum.Material.SmoothPlastic
+				piece.Color = COULEUR
+				piece.Parent = modele
+				pieces[objet] = piece
+				nombre += 1
+			end
+		end
+		modele.Parent = dossierDe(fenetre)
+		return { modele = modele, pieces = pieces, fenetre = fenetre }
+	end
+	local function retirer(perso)
+		local silhouette = actives[perso]
+		if silhouette then
+			silhouette.modele:Destroy()
+			actives[perso] = nil
+		end
+	end
+	task.spawn(function()
+		while true do
+			task.wait(PERIODE)
+			if not porteOuverte() then
+				for perso in actives do retirer(perso) end
+			else
+				majCouleursRotor()
+				if os.clock() >= prochaineRecherche then
+					prochaineRecherche = os.clock() + 3
+					chercherPnj()
+				end
+				local candidats = {}
+				local function ajouter(perso)
+					if not perso or not perso.Parent or perso == joueur.Character then return end
+					local racine = perso:FindFirstChild("HumanoidRootPart") or perso.PrimaryPart
+					if not (racine and racine:IsA("BasePart")) then return end
+					local fenetre, distance = vueDe(racine.Position)
+					if fenetre then table.insert(candidats, { cle = perso, fenetre = fenetre, distance = distance }) end
+				end
+				for _, autre in Players:GetPlayers() do ajouter(autre.Character) end
+				for _, perso in pnj do ajouter(perso) end
+				local gardes = Config.choisirSilhouettes(candidats, MAX)
+				for perso in actives do
+					if not gardes[perso] then retirer(perso) end
+				end
+				for _, candidat in candidats do
+					if gardes[candidat.cle] then
+						local silhouette = actives[candidat.cle]
+						if silhouette and silhouette.fenetre ~= candidat.fenetre then
+							retirer(candidat.cle) -- passé de l'autre côté de la porte
+							silhouette = nil
+						end
+						if not silhouette then
+							actives[candidat.cle] = creerSilhouette(candidat.cle, candidat.fenetre)
+						else
+							for original, piece in silhouette.pieces do
+								if original.Parent then piece.CFrame = original.CFrame end
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+--------------------------------------------------------------------
 -- Mise à jour des vues (après la caméra du joueur)
 --------------------------------------------------------------------
 RunService:BindToRenderStep("TardisVue_" .. def.Nom, Enum.RenderPriority.Camera.Value + 1, function()
 	if not porteOuverte() then
 		fenetreExt.vue.Visible = false
 		fenetreInt.vue.Visible = false
+		voile.Visible = false
 		return
 	end
 
@@ -318,6 +519,13 @@ RunService:BindToRenderStep("TardisVue_" .. def.Nom, Enum.RenderPriority.Camera.
 		majFenetre(fenetreExt, portailExt.CFrame, centreAligne(portailInt, portailExt), portailExt.Size)
 	end
 	majFenetre(fenetreInt, portailInt.CFrame * DEMI_TOUR, centreAligne(portailExt, portailInt) * DEMI_TOUR, portailInt.Size)
+	-- (V7.3.5, G-159) voile du bouclier sur la vue de la rue
+	if fenetreInt.vue.Visible and bouclierLeve() then
+		voile.Visible = true
+		voile.BackgroundTransparency = Config.transparenceVoile(os.clock(), VP.TransparenceVoile)
+	else
+		voile.Visible = false
+	end
 
 	if rotorCopie then
 		rotorCopie:PivotTo(rotor:GetPivot())

@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.3.4"
+Config.Version = "7.3.5"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -2250,6 +2250,58 @@ end
 -- (G-101, G-105) Bascule d'une pièce autour d'un pivot (CFrame), d'un angle en degrés autour de l'axe X du pivot
 function Config.cframeBascule(cframe, pivot, angle)
 	return pivot * CFrame.Angles(math.rad(angle or 0), 0, 0) * pivot:Inverse() * cframe
+end
+
+
+--------------------------------------------------------------------
+-- (V7.3.5) Vue par la porte
+--------------------------------------------------------------------
+Config.VuePorte = {
+	VoileBouclier = true,        -- (G-159) voile bleuté qui ondule sur la vue de la rue quand un bouclier est levé
+	CouleurVoile = Color3.fromRGB(110, 180, 255),
+	TransparenceVoile = 0.8,     -- transparence moyenne du voile (1 = invisible)
+	SalleSuitLumieres = true,    -- (G-166) la salle vue de dehors : sombre hors tension, rouge en alerte ; rotor copié en couleur
+	RafraichirEnvirons = true,   -- (G-169) copie des environs refaite de temps en temps, porte fermée
+	PeriodeRafraichir = 120,     -- secondes
+	Silhouettes = true,          -- (G-168) silhouettes des joueurs et PNJ dans les deux vues
+	MaxSilhouettes = 12,         -- les plus proches de la porte
+	PeriodeSilhouettes = 0.2,    -- secondes entre deux mises à jour (5 par seconde)
+	CouleurSilhouette = Color3.fromRGB(25, 25, 32),
+}
+
+-- (G-159) Un bouclier est levé (anti-joueurs, anti-balles ou complet)
+function Config.bouclierLeve(joueurs, balles, complet)
+	return joueurs == true or balles == true or complet == true
+end
+
+-- (G-159) Transparence du voile à l'instant t : elle ondule doucement autour de la valeur moyenne
+function Config.transparenceVoile(t, moyenne)
+	moyenne = tonumber(moyenne) or 0.8
+	t = tonumber(t) or 0
+	return math.clamp(moyenne + 0.06 * math.sin(t * 2.2) + 0.03 * math.sin(t * 5.3), 0, 1)
+end
+
+-- (G-166) Lumière de la salle vue de dehors : ambiante et couleur de la lumière du ViewportFrame
+function Config.ambianceVueSalle(horsTension, alerte, ambianteNormale)
+	if alerte then return Color3.fromRGB(110, 25, 25), Color3.fromRGB(255, 70, 60) end
+	if horsTension then return Color3.fromRGB(18, 18, 24), Color3.fromRGB(45, 45, 60) end
+	return ambianteNormale or Config.LumiereAmbiante or Color3.fromRGB(170, 170, 170), Color3.new(1, 1, 1)
+end
+
+-- (G-169) Faut-il refaire la copie des environs ? Posé, porte fermée, pas en vol libre, et assez longtemps après la dernière
+function Config.rafraichirEnvirons(derniere, maintenant, periode, porteOuverte, etat, volLibre)
+	periode = tonumber(periode) or 120
+	if periode <= 0 or porteOuverte or volLibre or etat ~= Config.Etats.Pose then return false end
+	return (tonumber(maintenant) or 0) - (tonumber(derniere) or 0) >= periode
+end
+
+-- (G-168) Silhouettes gardées : les « max » candidats les plus proches de la porte ({ cle, distance }) → [cle] = true
+function Config.choisirSilhouettes(candidats, max)
+	local tries = table.clone(candidats or {})
+	table.sort(tries, function(a, b) return (a.distance or math.huge) < (b.distance or math.huge) end)
+	local gardes = {}
+	for i = 1, math.min(#tries, math.max(tonumber(max) or 12, 0)) do gardes[tries[i].cle] = true end
+	return gardes
 end
 
 return Config

@@ -638,6 +638,10 @@ class Instance:
         return r
     def m_GetServerTimeNow(s): return 1000.0 + H.t
     def m_GetPlayers(s): return Table({i + 1: e for i, e in enumerate([x for x in s.enfants if x.ClassName == "Player"])})
+    def m_GetPlayerFromCharacter(s, perso):
+        for e in s.enfants:
+            if e.ClassName == "Player" and perso is not None and e.props.get("Character") is perso: return e
+        return None
     def m_GetPlayerByUserId(s, uid):
         for e in s.enfants:
             if e.ClassName == "Player" and e.props.get("UserId") == uid: return e

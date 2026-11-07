@@ -179,10 +179,10 @@ Rendre la salle plus vivante et plus lisible : surchauffe et vapeur, ambiance, a
 
 **Objectif :** Rendre la vue par la porte plus fidèle : voile du bouclier, salle qui suit ses lumières, rue rafraîchie de temps en temps, et silhouettes des personnages.
 
-- **G-159. Voile du bouclier dans la vue de la porte** *(petit)* : Quand un bouclier est levé, la vue de la rue depuis la salle (fenetreInt) prend un léger voile bleuté qui ondule, car la bulle n'est pas copiée dans la vue.
-- **G-166. Vue de la salle qui suit ses lumières** *(petit)* : Depuis dehors, la salle vue par la porte (ViewportFrame) suit l'état : sombre hors tension, rouge en alerte, et la copie du rotor prend aussi sa couleur du mode.
-- **G-169. Vue de la rue rafraîchie de temps en temps** *(petit)* : Posé longtemps, la copie des environs est refaite toutes les 2 minutes quand la porte est fermée, pour montrer les véhicules et objets qui ont bougé.
-- **G-168. Silhouettes des personnages à travers la porte** *(gros)* : Aujourd'hui joueurs et PNJ sont exclus des copies (estExclu) : de simples silhouettes, mises à jour plusieurs fois par seconde, montreraient qui est dehors ou à bord.
+- ✅ **G-159. Voile du bouclier dans la vue de la porte** *(petit)* : Quand un bouclier est levé, la vue de la rue depuis la salle (fenetreInt) prend un léger voile bleuté qui ondule, car la bulle n'est pas copiée dans la vue.
+- ✅ **G-166. Vue de la salle qui suit ses lumières** *(petit)* : Depuis dehors, la salle vue par la porte (ViewportFrame) suit l'état : sombre hors tension, rouge en alerte, et la copie du rotor prend aussi sa couleur du mode.
+- ✅ **G-169. Vue de la rue rafraîchie de temps en temps** *(petit)* : Posé longtemps, la copie des environs est refaite toutes les 2 minutes quand la porte est fermée, pour montrer les véhicules et objets qui ont bougé.
+- ✅ **G-168. Silhouettes des personnages à travers la porte** *(gros)* : Aujourd'hui joueurs et PNJ sont exclus des copies (estExclu) : de simples silhouettes, mises à jour plusieurs fois par seconde, montreraient qui est dehors ou à bord.
 
 **Dans Studio :** Rien.
 
