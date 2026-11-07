@@ -1393,6 +1393,23 @@ function UI.sousTitres()
 	return UI.pref("sousTitres", true) ~= false
 end
 
+-- (V7.4.1, G-279) Force des secousses de l'écran, de 0 à 1 (1 par défaut) ; s'ajoute à « réduire les effets »
+function UI.forceSecousses()
+	return math.clamp(tonumber(UI.pref("forceSecousses", 1)) or 1, 0, 1)
+end
+
+-- (V7.4.1, G-280) Champ de vision fixe : ni zoom du vol libre, ni à-coup du saut temporel, ni zoom de la régénération
+function UI.champFixe()
+	return UI.pref("champFixe", false) == true
+end
+
+-- (V7.4.1, C-222) Lien Time Lord choisi par chaque membre ; sans choix, on suit l'attribut du serveur (TardisLienTimeLord)
+function UI.lienTimeLord()
+	local choix = UI.pref("lienTimeLord", nil)
+	if choix ~= nil then return choix == true end
+	return game:GetService("ReplicatedStorage"):GetAttribute("TardisLienTimeLord") == true
+end
+
 -- (V6.9.15, proposition 72) Fait suivre à un élément d'interface la taille choisie dans les réglages : un UIScale (le
 -- sien, ou créé) vaut base × taille ; « base » est un nombre ou une fonction (échelle automatique). Renvoie l'UIScale
 -- et la fonction de mise à jour. Le lien se coupe tout seul quand l'élément est détruit.

@@ -159,6 +159,31 @@ return function(contexte)
 					if actif and not UI.effetsReduits() then UI.setEffetsReduits(true) end -- (V6.9.15) sur cet appareil
 					afficherReglages()
 				end)
+			-- (V7.4.1, G-279) Force des secousses de l'écran
+			ordre += 1
+			ligne("FORCE DES SECOUSSES DE L'ÉCRAN", ordre, C.texte2, 11)
+			ordre += 1
+			local rangeeSecousses = creer("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = ordre, ZIndex = 62, Parent = contenu },
+			{ creer("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
+			for i, niveau in { 0, 0.25, 0.5, 0.75, 1 } do
+				local b = creer("TextButton", { Name = "Secousses" .. math.floor(niveau * 100), Size = UDim2.new(0.2, -5, 1, 0),
+					BackgroundColor3 = math.abs(UI.forceSecousses() - niveau) < 0.01 and C.bleu or C.panneauClair,
+					Text = string.format("%d %%", niveau * 100), Font = UI.POLICE_GRAS, TextSize = 12, TextColor3 = C.texte, LayoutOrder = i, ZIndex = 62,
+					Parent = rangeeSecousses }, { UI.coin(8) })
+				b:SetAttribute("CouleurBase", b.BackgroundColor3)
+				UI.rendreVivant(b)
+				b.Activated:Connect(function() UI.setPref("forceSecousses", niveau) afficherReglages() end)
+			end
+			-- (V7.4.1, G-280) Champ de vision fixe
+			ordre += 1
+			boutonLigne(UI.champFixe() and "Champ de vision fixe : activé (pas de zoom en vol, au saut temporel ni à la régénération)"
+				or "Champ de vision fixe : désactivé", ordre, UI.champFixe() and C.bleu or nil,
+				function() UI.setPref("champFixe", not UI.champFixe()) afficherReglages() end)
+			-- (V7.4.1, C-222) Lien Time Lord : chacun choisit
+			ordre += 1
+			boutonLigne(UI.lienTimeLord() and "Lien Time Lord : activé (tu ressens les régénérations des autres membres)"
+				or "Lien Time Lord : désactivé", ordre, UI.lienTimeLord() and C.bleu or nil,
+				function() UI.setPref("lienTimeLord", not UI.lienTimeLord()) afficherReglages() end)
 			-- Sous-titres des sons importants (V6.9.15, proposition 190)
 			ordre += 1
 			boutonLigne(UI.sousTitres() and "Sous-titres des sons : activés (démat, remat, alarme, explosion, musique…)" or "Sous-titres des sons : désactivés",

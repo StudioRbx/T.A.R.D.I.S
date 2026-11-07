@@ -693,7 +693,7 @@ return function(contexte)
 						if obstacle then decalage = decalage.Unit * math.max((obstacle.Position - cible).Magnitude - 0.6, 1.5) end
 						camera.CFrame = CFrame.lookAt(cible + decalage + respiration, cible)
 						local zoom = math.clamp(1 - math.abs(p - 0.55) / 0.12, 0, 1)
-						camera.FieldOfView = champOrigine - 14 * zoom * zoom
+						if not UI.champFixe() then camera.FieldOfView = champOrigine - 14 * zoom * zoom end -- (V7.4.1, G-280)
 					end
 					-- Au moment du changement : l'éclat pour tout le monde, et la lumière avale l'écran de celui qui se régénère
 					if not eclatFait and p >= 0.52 then
@@ -713,7 +713,7 @@ return function(contexte)
 				end))
 
 				-- Lien Time Lord : les autres membres de la C.A.T. ressentent la régénération, où qu'ils soient
-				if not moi and ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true and joueur.Team
+				if not moi and UI.lienTimeLord() and joueur.Team
 					and joueur.Team.Name == Config.nomEquipe() then
 					local autre = Players:GetPlayerFromCharacter(personnage)
 					local maRacine_ = maRacine()

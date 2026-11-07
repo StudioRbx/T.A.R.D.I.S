@@ -1,12 +1,34 @@
 -- StarterPlayerScripts > TardisExtrasClient > EffetsExterieurs (ModuleScript)
 -- Halo et projecteur, ombre, air, distorsion, givre, impacts, leurre, rayon tracteur, chocs et secousse,
--- freinage d'urgence ressenti à bord (V6.9.10), cercle gallifreyen sous l'ombre de la remat (V7.2.2)
+-- freinage d'urgence ressenti à bord (V6.9.10), cercle gallifreyen sous l'ombre de la remat (V7.2.2),
+-- secousses lissées, vignette des PV bas et éblouissement par le projecteur (V7.4.1)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
 	local C, Config, E, Lighting, RunService, animer = contexte.C, contexte.Config, contexte.E, contexte.Lighting, contexte.RunService, contexte.animer
 	local camera, creer, def, exterieur, interieur, jeSuisDedans = contexte.camera, contexte.creer, contexte.def, contexte.exterieur, contexte.interieur, contexte.jeSuisDedans
 	local joueur, lampe, partTemporaire, progressionAnimation, remote = contexte.joueur, contexte.lampe, contexte.partTemporaire, contexte.progressionAnimation, contexte.remote
+
+	-- (V7.4.1) Écran de confort, créé à la première utilisation : voile blanc de l'éblouissement (G-275) et quatre bords
+	-- rouges dégradés de la vignette des PV bas (G-268)
+	local UIc = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI"))
+	local ecranConfort
+	local function confort()
+		if ecranConfort and ecranConfort.gui.Parent then return ecranConfort end
+		local gui = creer("ScreenGui", { Name = "TardisConfort_" .. def.Nom, ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 5,
+			Parent = joueur:WaitForChild("PlayerGui") })
+		local blanc = creer("Frame", { Name = "Aveuglement", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 1, BorderSizePixel = 0, Parent = gui })
+		local couleur = (Config.ConfortEcran or {}).CouleurVignette or Color3.fromRGB(200, 0, 0)
+		local bords = {}
+		for i, b in { { 0, 0, 1, 0.22, 90 }, { 0, 0.78, 1, 0.22, -90 }, { 0, 0, 0.16, 1, 0 }, { 0.84, 0, 0.16, 1, 180 } } do
+			bords[i] = creer("Frame", { Name = "Vignette" .. i, Position = UDim2.fromScale(b[1], b[2]), Size = UDim2.fromScale(b[3], b[4]),
+				BackgroundColor3 = couleur, BackgroundTransparency = 1, BorderSizePixel = 0, Parent = gui },
+			{ creer("UIGradient", { Rotation = b[5], Transparency = NumberSequence.new(0, 1) }) })
+		end
+		ecranConfort = { gui = gui, blanc = blanc, bords = bords }
+		return ecranConfort
+	end
 
 	--------------------------------------------------------------------
 	-- 4) Halo de la lampe (visible de loin la nuit) et projecteur
@@ -32,6 +54,23 @@ return function(contexte)
 			supportProj.CFrame = CFrame.lookAt(lampe.Position, lampe.Position + direction)
 			spot.Brightness += ((projecteur and 8 or 0) - spot.Brightness) * math.min(dt * 6, 1)
 			cone.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, projecteur and 0.86 or 1), NumberSequenceKeypoint.new(1, 1) })
+			-- (V7.4.1, G-275) Ébloui : dehors, dans le faisceau, en regardant la lampe, l'écran blanchit (pas le pilote)
+			local cfgE = Config.ConfortEcran
+			if cfgE and cfgE.Aveuglement ~= false then
+				local eblouissement = 0
+				local tete = joueur.Character and joueur.Character:FindFirstChild("Head")
+				if projecteur and spot.Brightness > 1 and tete and joueur:GetAttribute("TardisPilote_" .. def.Nom) ~= true and not jeSuisDedans() then
+					local vers = tete.Position - lampe.Position
+					local distance = vers.Magnitude
+					if distance > 0.5 and distance < (cfgE.PorteeAveuglement or 60) then
+						local angle = math.deg(math.acos(math.clamp(direction.Unit:Dot(vers.Unit), -1, 1)))
+						local regard = math.clamp((-camera.CFrame.LookVector:Dot(vers.Unit) - 0.2) / 0.6, 0, 1)
+						eblouissement = Config.aveuglement(distance, angle, cfgE.PorteeAveuglement, cfgE.AngleAveuglement) * regard
+							* (cfgE.ForceAveuglement or 0.35) * ((UIc.effetsReduits() or UIc.sansFlash()) and 0.5 or 1)
+					end
+				end
+				if eblouissement > 0 or ecranConfort then confort().blanc.BackgroundTransparency = 1 - eblouissement end
+			end
 			-- Le pilote vise avec sa caméra
 			if projecteur and joueur:GetAttribute("TardisPilote_" .. def.Nom) == true and os.clock() - dernierEnvoi > 0.12 then
 				dernierEnvoi = os.clock()
@@ -286,7 +325,20 @@ return function(contexte)
 	local secousse = 0
 	-- Les autres effets demandent une secousse par cette fonction (la plus forte demande l'emporte)
 	local UI = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI"))
-	local function secouer(force) secousse = math.max(secousse, force * (UI.effetsReduits() and 0.3 or 1)) end
+	-- (V7.4.1, G-279) × la force choisie dans les réglages (0 à 100 %), en plus de « réduire les effets »
+	local function secouer(force) secousse = math.max(secousse, Config.forceSecousseEffective(force, UI.forceSecousses(), UI.effetsReduits())) end
+	-- (V7.4.1, G-268) Vignette rouge qui bat lentement quand les PV du TARDIS sont bas, pour qui est à bord
+	local function majVignette()
+		local cfgV = Config.ConfortEcran
+		if not cfgV or cfgV.VignettePV == false then return end
+		local pv = tonumber(exterieur:GetAttribute("PointsDeVie"))
+		local intensite = 0
+		if pv and pv < (cfgV.SeuilVignette or 25) and jeSuisDedans() then
+			intensite = Config.intensiteVignette(pv, os.clock(), cfgV.SeuilVignette, UI.sansFlash() and 0 or cfgV.PeriodeVignette)
+		end
+		if intensite <= 0 and not ecranConfort then return end
+		for _, bord in confort().bords do bord.BackgroundTransparency = 1 - 0.75 * intensite end
+	end
 	exterieur:GetAttributeChangedSignal("ChocTemps"):Connect(function()
 		local position = exterieur:GetAttribute("ChocPos")
 		if typeof(position) ~= "Vector3" then return end
@@ -355,10 +407,20 @@ return function(contexte)
 		end
 	end)
 	RunService:BindToRenderStep("TardisExtrasSecousse_" .. def.Nom, Enum.RenderPriority.Camera.Value + 3, function(dt)
+		majVignette()
 		if secousse <= 0 then return end
 		local force = secousse * 0.035
-		camera.CFrame = camera.CFrame * CFrame.Angles((math.random() - 0.5) * force, (math.random() - 0.5) * force, (math.random() - 0.5) * force)
-		secousse = math.max(0, secousse - dt * 1.4)
+		local lissee = Config.ConfortEcran ~= nil and Config.ConfortEcran.SecoussesLissees ~= false
+		local x, y, z
+		if lissee then
+			-- (V7.4.1, G-277) tremblement continu plutôt qu'un tirage au hasard à chaque image
+			x, y, z = Config.decalageSecousse(os.clock(), Config.ConfortEcran.FrequenceSecousse, 1)
+		else
+			x, y, z = math.random() - 0.5, math.random() - 0.5, math.random() - 0.5
+		end
+		camera.CFrame = camera.CFrame * CFrame.Angles(x * force, y * force, z * force)
+		-- (G-277) retombée douce : vite au début, puis en douceur
+		secousse = lissee and math.max(0, secousse * math.exp(-dt * 2.2) - dt * 0.35) or math.max(0, secousse - dt * 1.4)
 	end)
 
 	return { secouer = secouer }

@@ -1039,7 +1039,14 @@ RunService.RenderStepped:Connect(function(dt)
 			if reduit then f *= 0.3 end
 			-- Chaque souffle secoue plus fort que le creux qui le suit
 			f *= 0.4 + 0.6 * souffle
-			offset = Vector3.new((math.random() - 0.5) * f, (math.random() - 0.5) * f, (math.random() - 0.5) * f)
+			local cfgC = Config.ConfortEcran or {}
+			if cfgC.SecoussesLissees ~= false then
+				-- (V7.4.1, G-277) tremblement continu plutôt qu'un tirage au hasard à chaque image
+				local x, y, z = Config.decalageSecousse(os.clock(), (cfgC.FrequenceSecousse or 9) * 1.4, 2)
+				offset = Vector3.new(x * f, y * f, z * f)
+			else
+				offset = Vector3.new((math.random() - 0.5) * f, (math.random() - 0.5) * f, (math.random() - 0.5) * f)
+			end
 		end
 		-- Choc d'atterrissage : un à-coup vers le bas qui s'amortit en une demi-seconde
 		if choc > 0 then
@@ -1048,6 +1055,7 @@ RunService.RenderStepped:Connect(function(dt)
 			end
 			choc = math.max(0, choc - dt * 2.2)
 		end
+		offset *= UI.forceSecousses() -- (V7.4.1, G-279) force choisie dans les réglages
 		if offset ~= Vector3.zero then
 			humanoid.CameraOffset = offset
 			secousseActive = true

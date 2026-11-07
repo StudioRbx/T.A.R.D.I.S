@@ -945,10 +945,25 @@ RunService:BindToRenderStep("TardisImpact", Enum.RenderPriority.Camera.Value + 2
 	end
 	local total = secousse + vibration
 	if total <= 0 then return end
-	local force = total * 0.03 * (UI.effetsReduits() and 0.3 or 1)
-	camera.CFrame = camera.CFrame * CFrame.Angles((math.random() - 0.5) * force, (math.random() - 0.5) * force, (math.random() - 0.5) * force)
+	-- (V7.4.1, G-279) × la force choisie dans les réglages ; (G-277) tremblement continu
+	local force = Config.forceSecousseEffective(total * 0.03, UI.forceSecousses(), UI.effetsReduits())
+	if force > 0 then
+		local cfgC = Config.ConfortEcran or {}
+		local x, y, z
+		if cfgC.SecoussesLissees ~= false then
+			x, y, z = Config.decalageSecousse(os.clock(), cfgC.FrequenceSecousse, 3)
+		else
+			x, y, z = math.random() - 0.5, math.random() - 0.5, math.random() - 0.5
+		end
+		camera.CFrame = camera.CFrame * CFrame.Angles(x * force, y * force, z * force)
+	end
 	secousse = math.max(0, secousse - dt * 1.6)
 end)
+
+-- (V7.4.1, G-280) À-coup du champ de vision, sauf avec « champ de vision fixe »
+local function varierChamp(delta)
+	if not UI.champFixe() then camera.FieldOfView += delta end
+end
 
 --------------------------------------------------------------------
 -- Entrer / sortir du pilotage
@@ -1106,7 +1121,7 @@ local function deplacer(centre, deplacement)
 				vol.vitesse -= normale * contre * 1.6 -- une partie de la vitesse repart dans l'autre sens
 				remote:FireServer("VolLibreChoc", resultat.Position)
 				secousse = math.max(secousse, 0.9)
-				camera.FieldOfView -= 6
+				varierChamp(-6)
 			else
 				vol.vitesse -= normale * contre -- on perd la vitesse qui va dans le mur
 			end
@@ -1129,7 +1144,7 @@ sautTemporel = function()
 	flashTemporel(depart, arrivee - depart)
 	flashTemporel(arrivee)
 	-- Petit choc à l'écran : champ de vision qui s'ouvre d'un coup
-	camera.FieldOfView += 18
+	varierChamp(18)
 	secousse = math.max(secousse, 0.35)
 end
 H.boutonSaut.Activated:Connect(sautTemporel)
@@ -1159,7 +1174,7 @@ freiner = function()
 	arreterCroisiere() -- V6.9.10 : le frein arrête la croisière
 	vol.vitesse = Vector3.zero
 	secousse = math.max(secousse, 0.5) -- × 0,3 avec « réduire les effets » (TardisImpact)
-	camera.FieldOfView -= UI.effetsReduits() and 3 or 8
+	varierChamp(UI.effetsReduits() and -3 or -8)
 	-- V6.9.10 : la fumée et la secousse à bord passent par le serveur (attribut FreinTemps), pour tout le monde ;
 	-- au plus un envoi par seconde (le serveur refuse de toute façon un frein trop rapproché)
 	if os.clock() - vol.dernierFrein >= R.FREIN_RECHARGE then
@@ -1196,7 +1211,7 @@ end
 boost = function()
 	if not vol.pilote or vol.descente or os.clock() - vol.dernierBoost < R.BOOST_RECHARGE then return end
 	vol.dernierBoost = os.clock()
-	camera.FieldOfView += 10
+	varierChamp(10)
 	secousse = math.max(secousse, 0.3)
 end
 atterrirIci = function()
@@ -1552,7 +1567,9 @@ local function piloter(dt, t)
 
 	-- Sensations : champ de vision, lignes de vitesse
 	local bonusVortex = exterieur:GetAttribute("VolVortex") and 8 or 0
-	camera.FieldOfView += (vol.champOrigine + R.CHAMP_VISION * fraction + bonusVortex - camera.FieldOfView) * (1 - math.exp(-3 * dt))
+	-- (V7.4.1, G-280) champ fixe : on revient au champ d'origine au lieu de l'ouvrir avec la vitesse
+	local champVise = UI.champFixe() and vol.champOrigine or (vol.champOrigine + R.CHAMP_VISION * fraction + bonusVortex)
+	camera.FieldOfView += (champVise - camera.FieldOfView) * (1 - math.exp(-3 * dt))
 	for _, ligne in H.lignes do
 		local scintillement = 0.5 + 0.5 * math.sin(t * 13 + ligne.phase)
 		ligne.cadre.BackgroundTransparency = 1 - math.clamp((fraction - 0.25) * 1.1, 0, 0.75) * scintillement
@@ -1676,7 +1693,7 @@ local function animerDescente()
 	majEffetsChute(t)
 	if vol.cibleCamera then vol.cibleCamera.CFrame = CFrame.new(position + Vector3.new(0, vol.taille.Y / 2, 0)) end
 	if vol.pilote then
-		camera.FieldOfView += (vol.champOrigine + (chute and 12 * t or 0) - camera.FieldOfView) * 0.1
+		camera.FieldOfView += (vol.champOrigine + ((chute and not UI.champFixe()) and 12 * t or 0) - camera.FieldOfView) * 0.1 -- (V7.4.1, G-280)
 		for _, ligne in H.lignes do
 			ligne.cadre.BackgroundTransparency = chute and (1 - 0.6 * t) or 1
 		end

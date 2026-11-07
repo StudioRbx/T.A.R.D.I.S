@@ -196,13 +196,13 @@ Donner des réglages contre la fatigue et la nausée, puis faire de la caméra d
 
 **Objectif :** Donner des réglages contre la fatigue des yeux et la nausée, et des signaux d'écran simples pour l'équipage : secousses lissées, force réglable, champ de vision fixe, vignette rouge quand le TARDIS souffre.
 
-- **G-277. Secousses plus naturelles et moins saccadées** *(petit)* : Les secousses changent de direction au hasard à chaque image. Un bruit lissé (math.noise) qui décroît doucement fatiguerait moins les yeux.
-- **G-279. Réglage de la force des secousses** *(petit)* : Un curseur de 0 à 100 %, en plus des « effets réduits », lu par toutes les fonctions secouer.
-- **G-280. Champ de vision fixe contre la nausée** *(petit)* : Une option bloque les changements de champ de vision du vol libre, du saut temporel et de la régénération.
-- **C-222. Lien Time Lord choisi par chaque membre** *(petit)* : Aujourd'hui un seul pilote allume ou éteint le lien pour toute la C.A.T. (attribut TardisLienTimeLord de ReplicatedStorage, action LienTimeLord). Chaque membre choisirait plutôt dans ses préférences s'il veut ressentir les régénérations des autres.
-- **G-262. Salle qui s'agrandit à la première entrée** *(petit)* : Avec le message de Découverte, un travelling compensé (dolly zoom) d'une seconde : la salle semble s'agrandir devant le joueur.
-- **G-268. Vignette rouge quand le TARDIS est très abîmé** *(petit)* : Quand les PV sont bas, les bords de l'écran battent lentement en rouge pour ceux à bord. L'équipage sent le danger sans lire de jauge.
-- **G-275. Aveuglé par le projecteur de la lampe** *(petit)* : Quand le projecteur piloté par la caméra du pilote vise un joueur, son écran blanchit un peu.
+- ✅ **G-277. Secousses plus naturelles et moins saccadées** *(petit)* : Les secousses changent de direction au hasard à chaque image. Un bruit lissé (math.noise) qui décroît doucement fatiguerait moins les yeux.
+- ✅ **G-279. Réglage de la force des secousses** *(petit)* : Un curseur de 0 à 100 %, en plus des « effets réduits », lu par toutes les fonctions secouer.
+- ✅ **G-280. Champ de vision fixe contre la nausée** *(petit)* : Une option bloque les changements de champ de vision du vol libre, du saut temporel et de la régénération.
+- ✅ **C-222. Lien Time Lord choisi par chaque membre** *(petit)* : Aujourd'hui un seul pilote allume ou éteint le lien pour toute la C.A.T. (attribut TardisLienTimeLord de ReplicatedStorage, action LienTimeLord). Chaque membre choisirait plutôt dans ses préférences s'il veut ressentir les régénérations des autres.
+- ✅ **G-262. Salle qui s'agrandit à la première entrée** *(petit)* : Avec le message de Découverte, un travelling compensé (dolly zoom) d'une seconde : la salle semble s'agrandir devant le joueur.
+- ✅ **G-268. Vignette rouge quand le TARDIS est très abîmé** *(petit)* : Quand les PV sont bas, les bords de l'écran battent lentement en rouge pour ceux à bord. L'équipage sent le danger sans lire de jauge.
+- ✅ **G-275. Aveuglé par le projecteur de la lampe** *(petit)* : Quand le projecteur piloté par la caméra du pilote vise un joueur, son écran blanchit un peu.
 
 **Dans Studio :** Rien.
 

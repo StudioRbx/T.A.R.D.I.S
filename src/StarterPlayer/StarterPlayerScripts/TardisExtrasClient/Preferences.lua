@@ -1,5 +1,5 @@
 -- StarterPlayerScripts > TardisExtrasClient > Preferences (ModuleScript)
--- Volume des sons et découverte
+-- Volume des sons et découverte (avec, en V7.4.1, le dolly zoom de la première entrée)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
@@ -36,8 +36,30 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- 12) Découverte : un achievement en haut à droite à la première entrée dans le TARDIS
 	--------------------------------------------------------------------
+	-- (V7.4.1, G-262) Dolly zoom : pendant 1 s le champ s'ouvre pendant que la caméra avance, la salle semble grandir ;
+	-- jamais avec « réduire les effets » ni « champ de vision fixe »
+	local function dollyZoom()
+		local cfg = Config.ConfortEcran or {}
+		local camera = workspace.CurrentCamera
+		if cfg.DollyZoom == false or not camera or UI.effetsReduits() or UI.champFixe() then return end
+		local RunService = game:GetService("RunService")
+		local champ0, debut, duree = camera.FieldOfView, os.clock(), math.max(tonumber(cfg.DureeDollyZoom) or 1, 0.1)
+		RunService:BindToRenderStep("TardisDollyZoom", Enum.RenderPriority.Camera.Value + 4, function()
+			local p = (os.clock() - debut) / duree
+			if p >= 1 then
+				RunService:UnbindFromRenderStep("TardisDollyZoom")
+				camera.FieldOfView = champ0
+				return
+			end
+			local champ, avance = Config.dollyZoom(p, champ0, 10, cfg.AmplitudeDollyZoom)
+			camera.FieldOfView = champ
+			camera.CFrame = camera.CFrame * CFrame.new(0, 0, -avance)
+		end)
+	end
+
 	local function afficherDecouverte()
 		local info = Config.Decouverte or {}
+		dollyZoom()
 		local gui = creer("ScreenGui", { Name = "TardisDecouverte", ResetOnSpawn = false, Parent = joueur:WaitForChild("PlayerGui") })
 		local carte = creer("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 360, 0, 90), Size = UDim2.fromOffset(340, 0),
 			AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.fond, BackgroundTransparency = 0.05, Parent = gui },

@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.3.5"
+Config.Version = "7.4.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -2302,6 +2302,71 @@ function Config.choisirSilhouettes(candidats, max)
 	local gardes = {}
 	for i = 1, math.min(#tries, math.max(tonumber(max) or 12, 0)) do gardes[tries[i].cle] = true end
 	return gardes
+end
+
+--------------------------------------------------------------------
+-- (V7.4.1) Confort de l'écran : secousses et nausée
+--------------------------------------------------------------------
+Config.ConfortEcran = {
+	SecoussesLissees = true,   -- (G-277) tremblement continu au lieu d'un tirage au hasard à chaque image, retombée douce
+	FrequenceSecousse = 9,     -- vitesse du tremblement
+	DollyZoom = true,          -- (G-262) à la première entrée, la salle semble grandir
+	DureeDollyZoom = 1,        -- secondes
+	AmplitudeDollyZoom = 20,   -- degrés de champ de vision en plus au plus fort
+	VignettePV = true,         -- (G-268) vignette rouge qui bat quand les PV sont bas (à bord)
+	SeuilVignette = 25,        -- PV (en %) sous lesquels elle apparaît
+	PeriodeVignette = 1.6,     -- secondes par battement
+	CouleurVignette = Color3.fromRGB(200, 0, 0),
+	Aveuglement = true,        -- (G-275) le projecteur de la lampe éblouit qui il vise
+	PorteeAveuglement = 60,    -- studs
+	AngleAveuglement = 15,     -- degrés autour de l'axe du projecteur
+	ForceAveuglement = 0.35,   -- opacité du voile blanc au plus fort
+}
+
+-- (G-277) Décalage lisse d'une secousse : trois valeurs entre -0,5 et 0,5 qui varient en continu (sommes de sinus)
+function Config.decalageSecousse(t, frequence, graine)
+	local f = tonumber(frequence) or 9
+	local g = tonumber(graine) or 0
+	local function onde(k)
+		local a = (tonumber(t) or 0) * f + g * 7.31 + k * 13.7
+		return (math.sin(a) * 0.6 + math.sin(a * 2.13 + 1.7) * 0.3 + math.sin(a * 3.71 + 4.1) * 0.1) * 0.5
+	end
+	return onde(1), onde(2), onde(3)
+end
+
+-- (G-279) Force d'une secousse : × réglage du joueur (0 à 1) × 0,3 avec « réduire les effets »
+function Config.forceSecousseEffective(force, reglage, reduits)
+	return (tonumber(force) or 0) * math.clamp(tonumber(reglage) or 1, 0, 1) * (reduits and 0.3 or 1)
+end
+
+-- (G-268) Intensité de la vignette (0 à 1) : 0 au-dessus du seuil ; plus forte quand les PV baissent ; elle bat
+-- lentement (période ≤ 0 : pas de battement)
+function Config.intensiteVignette(pv, t, seuil, periode)
+	pv, seuil = tonumber(pv), tonumber(seuil) or 25
+	if not pv or seuil <= 0 or pv >= seuil then return 0 end
+	local gravite = math.clamp((seuil - math.max(pv, 0)) / seuil, 0, 1)
+	local base = 0.35 + 0.65 * gravite
+	periode = tonumber(periode) or 0
+	if periode <= 0 then return base * 0.8 end
+	return base * (0.6 + 0.4 * math.sin(math.pi * (tonumber(t) or 0) / periode) ^ 2)
+end
+
+-- (G-262) Dolly zoom à l'avancement p (0 à 1) : le champ s'ouvre puis revient (sin(πp)), la caméra avance d'autant que
+-- le sujet, à « distance », garde sa taille → la salle semble grandir. Renvoie le champ et l'avance (studs).
+function Config.dollyZoom(p, champ0, distance, amplitude)
+	p, champ0 = tonumber(p) or 0, tonumber(champ0) or 70
+	if p <= 0 or p >= 1 then return champ0, 0 end
+	local champ = math.clamp(champ0 + (tonumber(amplitude) or 20) * math.sin(math.pi * p), 1, 120)
+	local d0 = tonumber(distance) or 10
+	return champ, d0 - d0 * math.tan(math.rad(champ0) / 2) / math.tan(math.rad(champ) / 2)
+end
+
+-- (G-275) Éblouissement (0 à 1) par le projecteur : plus fort près de la lampe et dans l'axe ; 0 hors portée ou hors angle
+function Config.aveuglement(distance, angle, portee, angleMax)
+	distance, angle = tonumber(distance) or math.huge, math.abs(tonumber(angle) or 180)
+	portee, angleMax = tonumber(portee) or 60, tonumber(angleMax) or 15
+	if portee <= 0 or angleMax <= 0 or distance >= portee or angle >= angleMax then return 0 end
+	return (1 - distance / portee) * (1 - angle / angleMax)
 end
 
 return Config

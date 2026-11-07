@@ -114,7 +114,7 @@ return function(contexte)
 		majTuile(O.autodestruction, compteARebours ~= nil, compteARebours and "EN COURS ! · annuler" or "Danger", C.rouge, pose or compteARebours ~= nil)
 		local okJ, journalRegen = pcall(function() return game:GetService("HttpService"):JSONDecode(ReplicatedStorage:GetAttribute("TardisRegenerations") or "[]") end)
 		local nbRegen = okJ and type(journalRegen) == "table" and #journalRegen or 0
-		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
+		local lien = UI.lienTimeLord() -- (V7.4.1, C-222) ton choix
 		-- Ingénierie : nombre de pannes en cours (mêmes critères que la tablette technicien)
 		local pannes = 0
 		for _, attribut in { "Avarie", "RedemarrageRequis", "VapeurSurcharge", "Incendie", "FuiteAir", "RotorBloque", "Breche" } do -- (V6.9.13) + 3 pannes
@@ -558,11 +558,12 @@ return function(contexte)
 	-- Régénérations : journal (qui, quand, où, numéro), et le lien Time Lord
 	local function afficherRegenerations()
 		local c = ouvrirSurcouche("regenerations", "RÉGÉNÉRATIONS")
-		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
-		ligneTexte(c, "LIEN TIME LORD : les membres de la C.A.T. ressentent les régénérations des autres (notification et flash).", 1, C.texte2, 11)
+		local lien = UI.lienTimeLord()
+		-- (V7.4.1, C-222) chacun choisit pour lui (gardé dans ses réglages) ; sans choix, le réglage du serveur s'applique
+		ligneTexte(c, "LIEN TIME LORD (ton choix) : tu ressens les régénérations des autres membres de la C.A.T. (notification et flash).", 1, C.texte2, 11)
 		boutonSurcouche(c, lien and "●  Lien Time Lord : activé (désactiver)" or "○  Lien Time Lord : désactivé (activer)", 2, lien and C.bleu or nil, function()
-			remote:FireServer("LienTimeLord")
-			task.delay(0.4, afficherRegenerations)
+			UI.setPref("lienTimeLord", not UI.lienTimeLord())
+			afficherRegenerations()
 		end)
 		local ok, journal = pcall(function() return game:GetService("HttpService"):JSONDecode(ReplicatedStorage:GetAttribute("TardisRegenerations") or "[]") end)
 		journal = ok and type(journal) == "table" and journal or {}

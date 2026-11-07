@@ -310,8 +310,8 @@ x.m_SetAttribute("VolUrgence", False); image(n=10)
 vl = lire("StarterPlayer/StarterPlayerScripts/TardisVolLibre.client.lua")
 corps = vl[vl.index("freiner = function()"):vl.index("basculerStationnaire = function()")]
 verifier("30. Plus de fumée locale chez le pilote seul (elle passe par le serveur, pour tout le monde)", "Smoke" not in corps)
-verifier("30. Secousse du pilote plus douce avec « réduire les effets »", "camera.FieldOfView -= UI.effetsReduits() and 3 or 8" in corps
-         and "local force = total * 0.03 * (UI.effetsReduits() and 0.3 or 1)" in vl)
+verifier("30. Secousse du pilote plus douce avec « réduire les effets »", "varierChamp(UI.effetsReduits() and -3 or -8)" in corps
+         and "Config.forceSecousseEffective(total * 0.03, UI.forceSecousses(), UI.effetsReduits())" in vl)
 
 
 # ------------------------------------------------------------------ 4. TardisCamera : caméra en orbite (26)
@@ -442,7 +442,9 @@ def secousse_mesuree():
     f_rendu = RunService.extra["rendu"].get("TardisExtrasSecousse_TARDIS_1")
     camera.props["CFrame"] = CF((0, 60, 30))
     ancien = G["math"].h["random"]; G["math"].h["random"] = Fonction("random", py=lambda *a: 1.0)
+    CE = Config.get("ConfortEcran"); CE.set("SecoussesLissees", False)  # (V7.4.1) mesure au tirage, comme avant
     tache(lambda: appeler(f_rendu, [0]))
+    CE.set("SecoussesLissees", True)
     G["math"].h["random"] = ancien
     R_ = camera.props["CFrame"].R
     angle = math.acos(max(-1, min(1, (R_[0][0] + R_[1][1] + R_[2][2] - 1) / 2)))
