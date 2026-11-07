@@ -136,11 +136,11 @@ carte = trouve(menu, "Carte")
 verifier("2. Menu fermé au départ", menu.props.get("Enabled") is False)
 recevoir(W, "__energie", W["ing"])
 verifier("2. « __energie » : le menu s'ouvre", menu.props.get("Enabled") is True)
-verifier("2. Plus grand : 440 × 612 px avant l'échelle (avant : 380 px de large)", taille(carte) == [440, 612] and carte.props["AnchorPoint"].args == [0.5, 0.5], taille(carte))
+verifier("2. Plus grand : 760 × 640 px avant l'échelle (V6.9.16, deux colonnes ; avant : 440 × 612)", taille(carte) == [760, 640] and carte.props["AnchorPoint"].args == [0.5, 0.5], taille(carte))
 ech = enfants(carte, classe="UIScale")[0]
 verifier("2. Échelle qui suit l'écran (1920 × 1080 : 1,15, plafond ; comme la tablette technicien)", abs(ech.props["Scale"] - 1.15) < 1e-9, ech.props["Scale"])
 W["camera"].props["ViewportSize"] = Valeur("Vector2", [1024, 600]); W["camera"].m_GetPropertyChangedSignal("ViewportSize").declencher(); H.avancer(0.01)
-verifier("2. Petite fenêtre (1024 × 600) : le menu rétrécit pour tenir (600 × 0,86 / 612)", abs(ech.props["Scale"] - 600 * 0.86 / 612) < 1e-9, ech.props["Scale"])
+verifier("2. Petite fenêtre (1024 × 600) : le menu rétrécit pour tenir (600 × 0,86 / 640)", abs(ech.props["Scale"] - 600 * 0.86 / 640) < 1e-9, ech.props["Scale"])
 W["camera"].props["ViewportSize"] = Valeur("Vector2", [1920, 1080])
 verifier("2. Panneau de la charte : fond #0A1626, filet cyan (Contour), coins coupés (deux traits en biais), lueur",
          rgb(carte.props["BackgroundColor3"]) == JETONS["panneau"] and rgb(enfants(carte, "Contour")[0].props["Color"]) == JETONS["cyan"]
@@ -156,7 +156,7 @@ verifier("2. Alerte : la bande de la plaque passe au rouge", all(rgb(b.props["Ba
 ext.m_SetAttribute("Alerte", False)
 verifier("2. Fin de l'alerte : cyan", all(rgb(b.props["BackgroundColor3"]) == JETONS["cyan"] for b in bandes))
 etiquettes = [texte_de(e) for e in tous(menu, "Etiquette")]
-verifier("2. Sections « ÉTAT » et « RÉGULATION » (étiquettes en police de données)", etiquettes == ["ÉTAT", "RÉGULATION"]
+verifier("2. Sections « ÉTAT », « PANNES EN COURS » (V6.9.16) et « RÉGULATION » (étiquettes en police de données)", etiquettes == ["ÉTAT", "PANNES EN COURS", "RÉGULATION"]
          and all(police(e) == "RobotoMono" for e in tous(menu, "Etiquette")), etiquettes)
 J_ = lambda cle: trouve(menu, "Jauge_" + cle)
 jv = lambda cle: texte_de(trouve(J_(cle), "Valeur")); jd = lambda cle: texte_de(trouve(J_(cle), "Detail"))
@@ -186,7 +186,7 @@ verifier("2. Boutons − / + à coins coupés de 44 × 44 px (cible tactile), va
 fermer = trouve(menu, "Fermer")
 verifier("2. « FERMER (ÉCHAP) » : bouton secondaire de 46 px", texte_de(fermer) == "FERMER (ÉCHAP)" and fermer.attrs.get("Variante") == "secondaire" and taille(fermer)[3] == 46)
 aide = trouve(menu, "Aide")
-verifier("2. Ligne d'aide de la maquette", aide is not None and texte_de(aide) == "Les réglages passent par la régulation, comme la tablette technicien." and police(aide) == "RobotoMono")
+verifier("2. Ligne d'aide de la maquette (V6.9.16 : complétée)", aide is not None and texte_de(aide).startswith("Les réglages passent par la régulation, comme la tablette technicien.") and police(aide) == "RobotoMono", texte_de(aide) if aide else None)
 n = len(envois(W))
 appuyer(trouve(REG("Energie"), "Plus"))
 verifier("2. « + » sur l'énergie : 85 % affiché tout de suite, 9 segments", rv("Energie") == "85 %" and rs_("Energie")[0] == 9, (rv("Energie"), rs_("Energie")))

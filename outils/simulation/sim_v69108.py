@@ -1,6 +1,6 @@
 """Simulations de la V6.9.10.8 (retour du test dans Studio de la V6.9.10.7) : le vrai code.
   1. TardisConfig : Config.InvitesConsole.HauteurInvite = false (invites de la console revenues sur leur commande),
-     Config.BoutonVolLibre.HauteurInvite toujours à 1,5 (seule l'invite « Vol libre » reste relevée), réglage marqué
+     Config.BoutonVolLibre.HauteurInvite à 0,9 depuis V6.9.16 (seule l'invite « Vol libre » reste relevée), réglage marqué
      « (V6.9.10.8) ».
   2. Config.trouverCommande : un nom avec des espaces en trop compte aussi (« Selecteur␣ », comme dans DEVMAP) ; si
      deux objets répondent au même nom, celui où la suite du chemin existe est gardé (Colors dans le Model
@@ -32,7 +32,7 @@ Config = R["Config"]
 verifier("1. Vrai TardisConfig chargé, version 6.9.10.8 ou suivante", Config is not None and tuple(int(x) for x in str(Config.get("Version")).split(".")) >= (6, 9, 10, 8) and not roblox.ERREURS, (Config and Config.get("Version"), roblox.ERREURS[:3]))
 IC, BV = Config.get("InvitesConsole"), Config.get("BoutonVolLibre")
 verifier("1. Config.InvitesConsole.HauteurInvite = false : invites de la console sur leur commande", IC.get("HauteurInvite") is False, IC.get("HauteurInvite"))
-verifier("1. Config.BoutonVolLibre.HauteurInvite = 1,5 : seule l'invite « Vol libre » reste relevée", BV.get("HauteurInvite") == 1.5, BV.get("HauteurInvite"))
+verifier("1. Config.BoutonVolLibre.HauteurInvite = 0,9 (V6.9.16 : 1,5 avant) : seule l'invite « Vol libre » reste relevée", BV.get("HauteurInvite") == 0.9, BV.get("HauteurInvite"))
 ligne = [l for l in cfgsrc.splitlines() if l.strip().startswith("HauteurInvite = false")]
 verifier("1. Réglage marqué « (V6.9.10.8) »", len(ligne) == 1 and "(V6.9.10.8)" in ligne[0], ligne)
 
@@ -77,7 +77,7 @@ cp = serveur[serveur.index("local function creerPrompt("):serveur.index("local d
 verifier("3. creerPrompt : point d'attache seulement si une hauteur est donnée, sinon l'invite reste sur la pièce",
          "local h = hauteur or (Config.InvitesConsole or {}).HauteurInvite" in cp and "if h then attache, point = Config.pointInvite(objet or part, h, exclu, part) end" in cp
          and "prompt.Parent = attache or part" in cp and "return prompt, point or part.Position" in cp)
-verifier("3. Vol libre : sa propre hauteur (Config.BoutonVolLibre.HauteurInvite, 1,5 par défaut)", "reglagesBouton.HauteurInvite or 1.5" in serveur)
+verifier("3. Vol libre : sa propre hauteur (Config.BoutonVolLibre.HauteurInvite, 0,9 par défaut depuis V6.9.16)", "reglagesBouton.HauteurInvite or 0.9" in serveur)
 verifier("3. Jukebox (TardisExtras) : sur sa pièce quand la hauteur vaut false",
          'invites.HauteurInvite and Config.pointInvite(objet, invites.HauteurInvite, nil, part, "TardisJukebox") or part' in extras)
 verifier("3. Casier (Interactions) : sur sa pièce quand la hauteur vaut false",

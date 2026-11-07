@@ -1,5 +1,5 @@
 """Simulations de la V6.9.10.4 (sens du texte des écrans de la console) : le vrai module TardisServeur › Ecrans, avec des
-maths réelles. Sur la face Top, le haut d'une SurfaceGui va vers la face Right de la pièce (Roblox) ; sur les faces
+maths réelles. Sur la face Top, le haut d'une SurfaceGui va vers la face Left de la pièce (-X, V6.9.16) ; sur les faces
 de côté, il suit le haut de la pièce. L'écran ingénieur (RotationEcran = Auto par défaut) tourne son contenu de 0, 90,
 180 ou 270° pour que le haut du texte aille vers le haut du monde, ou vers le centre de la console s'il est à plat.
   1. Réglages : AttributRotation, RotationDestination 0, RotationIngenieur Auto, marqués « (V6.9.10.4) ».
@@ -79,7 +79,7 @@ face_de = lambda g: g.props["Face"].nom.split(".")[-1] if g is not None else Non
 toile = lambda g, p: tuple(round(x * g.props["PixelsPerStud"], 3) for x in taille_face(p, face_de(g))) if g is not None else (0, 0)
 def taille_face(p, face):
     """Taille (studs) de l'image d'une SurfaceGui, comme dans Roblox. V6.9.10.5 : sur Top et Bottom, le haut de l'image va
-    vers la face Right (+X) : la largeur court le long de Z et la hauteur le long de X (avant : (X, Z), à l'envers)."""
+    le long de X (V6.9.16 : vers -X, vu en jeu) : la largeur court le long de Z et la hauteur le long de X (avant : (X, Z), à l'envers)."""
     s = p.props["Size"]
     if face in ("Top", "Bottom"): return (s.z, s.x)
     if face in ("Left", "Right"): return (s.z, s.y)
@@ -103,9 +103,10 @@ def neg(v): return Vec3(-v.x, -v.y, -v.z)
 def dot(a, b): return a.x * b.x + a.y * b.y + a.z * b.z
 def cross(a, b): return Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
 def repere(R, face):
+    # (V6.9.16) face Top : haut de la SurfaceGui vers -X, constaté en jeu (avant : +X, l'écran ingénieur était à l'envers)
     droite_p, haut_p, look = col(R, 0), col(R, 1), neg(col(R, 2))
     return {"Front": (look, haut_p), "Back": (neg(look), haut_p), "Right": (droite_p, haut_p), "Left": (neg(droite_p), haut_p),
-            "Top": (haut_p, droite_p), "Bottom": (neg(haut_p), droite_p)}[face]
+            "Top": (haut_p, neg(droite_p)), "Bottom": (neg(haut_p), droite_p)}[face]
 def haut_lu(p, gui):
     """Le haut du texte tel qu'il apparaît dans le monde : haut de la toile tourné de la rotation des couches."""
     R = p.props["CFrame"].R
@@ -202,7 +203,7 @@ verifier("6. L'Output donne le sens de chaque écran (0° pour la destination, a
          "face Front, sens 0° (1024 × 614 px)" in L and re.search(r"ingénieur « Console › Ecran-Ingenieure » : face Top \(auto\), sens \d+° \(auto\)", L) is not None, L)
 
 # ================================================================== 7. (V6.9.10.5) Les couches tournées remplissent EXACTEMENT la face Top
-# Image de la face Top dans Roblox : largeur le long de Z, hauteur le long de X (haut de l'image = face Right). Une fois
+# Image de la face Top dans Roblox : largeur le long de Z, hauteur le long de X (haut de l'image = face Left, -X depuis V6.9.16). Une fois
 # tournées, les couches doivent couvrir toute l'image (ni bande étroite, ni débord), et le contenu lu doit avoir toute la
 # largeur de la face dans le sens de la lecture.
 def emprise(c, Wp, Hp):

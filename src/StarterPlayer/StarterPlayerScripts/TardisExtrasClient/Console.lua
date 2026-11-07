@@ -15,6 +15,8 @@
 --   • jukebox en tableau N° | PISTE | DURÉE (CATÉGORIE si une durée est inconnue), la piste ou la playlist qui joue en
 --     jaune, la ligne choisie en cyan léger, puis JOUER (principal), PLAYLIST, ARRÊTER (danger) ; volume en segments ;
 --   • le message de la console est une notification de la charte (badge TARDIS, ou REFUSÉ).
+-- V6.9.16 : menu de l'énergie élargi (760 px) en deux colonnes : ÉTAT (intégrité, alimentation, boucliers, alerte,
+--   démarrage, portes) et PANNES EN COURS à gauche ; RÉGULATION à droite, chaque réglage avec son état et sa plage.
 
 return function(contexte)
 	local C, Config, UI, UserInputService = contexte.C, contexte.Config, contexte.UI, contexte.UserInputService
@@ -126,11 +128,26 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- Menu de gestion de l'énergie (écran ingénieur)
 	--------------------------------------------------------------------
-	local LARGEUR_ENERGIE, HAUTEUR_ENERGIE = 440, 612
+	-- (V6.9.16) Plus large (760 px avant l'échelle, 440 avant) et plus détaillé, en deux colonnes : à gauche l'ÉTAT
+	-- (intégrité, alimentation, boucliers, alerte, démarrage, portes) et les PANNES EN COURS ; à droite la RÉGULATION,
+	-- chaque réglage avec son état (nominal, sous-tension, surtension, air vicié, fuite de vapeur) et sa plage.
+	local LARGEUR_ENERGIE, HAUTEUR_ENERGIE = 760, 640
+	local HAUTEUR_COLONNES = 432
 	local guiEnergie, _, corpsEnergie = panneau("TardisMenuEnergie", LARGEUR_ENERGIE, HAUTEUR_ENERGIE)
 	UI.plaque(corpsEnergie, "Gestion de l'énergie", UI.texteBadge("Energie", "C.T.A.T."), UI.codeObjet(def) .. "  ·  ÉCRAN INGÉNIEUR",
 		{ ordre = 1, largeurBande = LARGEUR_ENERGIE, exterieur = exterieur })
-	UI.etiquette(corpsEnergie, "État", { LayoutOrder = 2 })
+	local colonnes = creer("Frame", { Name = "Colonnes", Size = UDim2.new(1, 0, 0, HAUTEUR_COLONNES), BackgroundTransparency = 1, LayoutOrder = 2,
+		Parent = corpsEnergie })
+	local function colonne(nom, droite)
+		local cadre = creer("Frame", { Name = nom, Position = UDim2.new(droite and 0.5 or 0, droite and 12 or 0, 0, 0), Size = UDim2.new(0.5, -12, 1, 0),
+			BackgroundTransparency = 1, Parent = colonnes })
+		creer("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8), Parent = cadre })
+		return cadre
+	end
+	local colEtat, colRegulation = colonne("Etat", false), colonne("Regulation", true)
+	creer("Frame", { Name = "Separateur", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), Size = UDim2.new(0, 1, 1, 0),
+		BackgroundColor3 = C.ligne, BackgroundTransparency = 0.3, BorderSizePixel = 0, Parent = colonnes })
+	UI.etiquette(colEtat, "État", { LayoutOrder = 1 })
 
 	-- Une ligne d'état « NOM ······ VALEUR DÉTAIL » (la valeur en gras à sa couleur, le détail discret) et, si
 	-- hauteurJauge > 0, sa jauge à 10 segments dessous. detailApres : le détail tout à droite (intégrité : « 99 % 9875 PV ») ;
@@ -138,13 +155,14 @@ return function(contexte)
 	local jauges = {} -- [cle] = { valeur, detail, segments }
 	local function ligneEtat(cle, nom, ordre, hauteurJauge, detailApres)
 		local cadre = creer("Frame", { Name = "Jauge_" .. cle, Size = UDim2.new(1, 0, 0, 22 + (hauteurJauge > 0 and 4 + hauteurJauge or 0)),
-			BackgroundTransparency = 1, LayoutOrder = ordre, Parent = corpsEnergie })
+			BackgroundTransparency = 1, LayoutOrder = ordre, Parent = colEtat })
 		texte({ Name = "Nom", Text = UI.majuscules(nom), Font = UI.POLICE_GRAS, TextSize = 14, Size = UDim2.new(1, -230, 0, 22), Parent = cadre })
+		-- (V6.9.16) valeur plus large (« VERROUILLÉES ») quand le détail est à sa gauche
 		local valeur = valeurGrasse(texte({ Name = "Valeur", Text = "—", Font = UI.POLICE_CODE, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Right,
-			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, detailApres and -98 or 0, 0, 0), Size = UDim2.fromOffset(92, 22), Parent = cadre }))
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, detailApres and -98 or 0, 0, 0), Size = UDim2.fromOffset(detailApres and 92 or 128, 22), Parent = cadre }))
 		local detail = texte({ Name = "Detail", Text = "", Font = UI.POLICE_CODE, TextSize = 11, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Right,
-			TextTruncate = Enum.TextTruncate.AtEnd, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, detailApres and 0 or -100, 0, 0),
-			Size = UDim2.fromOffset(detailApres and 90 or 124, 22), Parent = cadre })
+			TextTruncate = Enum.TextTruncate.AtEnd, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, detailApres and 0 or -134, 0, 0),
+			Size = UDim2.fromOffset(detailApres and 90 or 110, 22), Parent = cadre })
 		local segments = nil
 		if hauteurJauge > 0 then
 			segments = UI.jaugeSegments(cadre, nil, { hauteurSegment = hauteurJauge, nomObjet = "Segments" })
@@ -152,12 +170,54 @@ return function(contexte)
 		end
 		jauges[cle] = { valeur = valeur, detail = detail, segments = segments }
 	end
-	ligneEtat("integrite", "Intégrité", 3, 16, true)
-	ligneEtat("alimentation", "Alimentation", 4, 0, false)
-	ligneEtat("bouclier", "Boucliers", 5, 12, false)
-	creer("Frame", { Name = "Filet", Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.ligne, BackgroundTransparency = 0.3, BorderSizePixel = 0, LayoutOrder = 6,
-		Parent = corpsEnergie })
-	UI.etiquette(corpsEnergie, "Régulation", { LayoutOrder = 7 })
+	ligneEtat("integrite", "Intégrité", 2, 16, true)
+	ligneEtat("alimentation", "Alimentation", 3, 0, false)
+	ligneEtat("bouclier", "Boucliers", 4, 12, false)
+	ligneEtat("alerte", "Alerte", 5, 0, false)         -- (V6.9.16)
+	ligneEtat("demarrage", "Démarrage", 6, 0, false)   -- (V6.9.16)
+	ligneEtat("portes", "Portes", 7, 0, false)         -- (V6.9.16)
+	creer("Frame", { Name = "Filet", Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.ligne, BackgroundTransparency = 0.3, BorderSizePixel = 0, LayoutOrder = 8,
+		Parent = colEtat })
+	-- (V6.9.16) Pannes en cours : une ligne par panne (rouge : critique, ambre : à régler), « SYSTÈMES NOMINAUX » sinon
+	UI.etiquette(colEtat, "Pannes en cours", { LayoutOrder = 9 })
+	local MAX_PANNES = 8
+	local cadrePannes = creer("Frame", { Name = "Pannes", Size = UDim2.new(1, 0, 0, MAX_PANNES * 17), BackgroundTransparency = 1, LayoutOrder = 10, Parent = colEtat })
+	creer("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = cadrePannes })
+	local lignesPannes = {}
+	for n = 1, MAX_PANNES do
+		lignesPannes[n] = texte({ Name = "Panne" .. n, Text = "", Font = UI.POLICE_CODE, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = UDim2.new(1, 0, 0, 17), LayoutOrder = n, Visible = false, Parent = cadrePannes })
+	end
+	local function pannesEnCours()
+		local liste = {}
+		local function ajouter(libelle, critique) table.insert(liste, { libelle = libelle, critique = critique }) end
+		if exterieur:GetAttribute("Incendie") == true and not exterieur:GetAttribute("IncendieEteint") then ajouter("Incendie de console", true) end
+		if exterieur:GetAttribute("Breche") ~= nil then ajouter("Brèche dans la structure", true) end
+		if exterieur:GetAttribute("RedemarrageRequis") == true then ajouter("Coupure de sécurité : redémarrage requis", true) end
+		if exterieur:GetAttribute("Avarie") == true then ajouter("Avarie des systèmes", true) end
+		if exterieur:GetAttribute("RotorBloque") == true then ajouter("Rotor bloqué", true) end
+		local grille = exterieur:GetAttribute("VapeurSurcharge")
+		if grille ~= nil then ajouter("Fuite de vapeur : grille n°" .. tostring(grille), false) end
+		if exterieur:GetAttribute("FuiteAir") ~= nil then ajouter("Fuite d'air", false) end
+		if exterieur:GetAttribute("Alimentation") == false then ajouter("Hors tension", false) end
+		return liste
+	end
+	local function majPannes()
+		local liste = pannesEnCours()
+		for n, ligne in lignesPannes do
+			local panne = liste[n]
+			if n == 1 and not panne then
+				ligne.Text, ligne.TextColor3, ligne.Visible = "●  SYSTÈMES NOMINAUX", C.vert, true
+			elseif panne then
+				ligne.Text = "●  " .. UI.majuscules(panne.libelle)
+				ligne.TextColor3 = panne.critique and C.rouge or C.ambre
+				ligne.Visible = true
+			else
+				ligne.Visible = false
+			end
+		end
+	end
+	UI.etiquette(colRegulation, "Régulation", { LayoutOrder = 1 })
 
 	-- Envoi des réglages : un à la fois (le serveur refuse deux commandes Tech à moins de 0,25 s), la dernière valeur gagne
 	local aEnvoyer, ordreEnvoi, envoiEnCours = {}, {}, false
@@ -196,16 +256,35 @@ return function(contexte)
 			or (systeme == "Air" and v < (TECH.SeuilAirVicie or 25))
 		return alerte and C.rouge or C[r.role]
 	end
+	-- (V6.9.16) Ce que fait le réglage à cette valeur, et sa couleur
+	local function etatRegulation(systeme, v)
+		if systeme == "Energie" then
+			if v < (TECH.SousTension or 20) then return "Sous-tension : lumières baissées", C.rouge end
+			if v > (TECH.SurtensionAuDessus or 90) then return "Surtension : risque de fuite de vapeur", C.rouge end
+			return "Tension nominale", C.vert
+		elseif systeme == "Air" then
+			if v < (TECH.SeuilAirVicie or 25) then return "Air vicié", C.rouge end
+			if exterieur:GetAttribute("FuiteAir") ~= nil then return "Fuite d'air en cours", C.ambre end
+			return "Air respirable", C.vert
+		end
+		if exterieur:GetAttribute("VapeurSurcharge") ~= nil then return "Grille en surcharge", C.ambre end
+		if v <= 0 then return "Vapeur coupée", C.texte2 end
+		return string.format("Intensité × %.1f", v / 50), C.vert
+	end
 	local function afficherRegulation(systeme, v)
 		local r = regulations[systeme]
 		local couleur = couleurRegulation(systeme, v)
 		r.valeur.Text = string.format("%d %%", v)
 		r.valeur.TextColor3 = couleur
 		r.segments.regler(v, couleur)
+		local libelle, couleurEtat = etatRegulation(systeme, v)
+		r.etat.Text = "●  " .. UI.majuscules(libelle)
+		r.etat.TextColor3 = couleurEtat
 	end
 	-- Une ligne de la régulation : le nom (et ce qu'il règle), − valeur + (boutons à coins coupés de 44 px), jauge de 16 px
-	local function reguler(systeme, nom, sousNom, role, ordre)
-		local cadre = creer("Frame", { Name = "Regul_" .. systeme, Size = UDim2.new(1, 0, 0, 66), BackgroundTransparency = 1, LayoutOrder = ordre, Parent = corpsEnergie })
+	-- (V6.9.16) dessous : l'état du réglage (à gauche) et sa plage (à droite)
+	local function reguler(systeme, nom, sousNom, role, ordre, plage)
+		local cadre = creer("Frame", { Name = "Regul_" .. systeme, Size = UDim2.new(1, 0, 0, 88), BackgroundTransparency = 1, LayoutOrder = ordre, Parent = colRegulation })
 		texte({ Name = "Nom", Text = UI.majuscules(nom), Font = UI.POLICE_GRAS, TextSize = 14, Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, -170, 0, 20), Parent = cadre })
 		texte({ Name = "SousNom", Text = UI.majuscules(sousNom), Font = UI.POLICE_CODE, TextSize = 10, TextColor3 = C.texte2, Position = UDim2.fromOffset(0, 24),
 			Size = UDim2.new(1, -170, 0, 14), Parent = cadre })
@@ -217,7 +296,11 @@ return function(contexte)
 			Size = UDim2.fromOffset(UI.JETONS.cible, UI.JETONS.cible), Font = UI.POLICE_GRAS, TextSize = 22 })
 		local segments = UI.jaugeSegments(cadre, nil, { hauteurSegment = 16, nomObjet = "Segments" })
 		segments.cadre.Position = UDim2.fromOffset(0, 50)
-		local r = { valeur = valeur, segments = segments, role = role, voulu = nil }
+		local etat = texte({ Name = "Etat", Text = "", Font = UI.POLICE_CODE, TextSize = 11, TextTruncate = Enum.TextTruncate.AtEnd,
+			Position = UDim2.fromOffset(0, 70), Size = UDim2.new(1, -120, 0, 16), Parent = cadre })
+		texte({ Name = "Plage", Text = UI.majuscules(plage), Font = UI.POLICE_CODE, TextSize = 10, TextColor3 = C.texte2, TextXAlignment = Enum.TextXAlignment.Right,
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 70), Size = UDim2.fromOffset(116, 16), Parent = cadre })
+		local r = { valeur = valeur, segments = segments, role = role, voulu = nil, etat = etat }
 		regulations[systeme] = r
 		local function changer(delta)
 			local actuel = r.voulu or tonumber(exterieur:GetAttribute("Regul" .. systeme)) or 50
@@ -232,11 +315,12 @@ return function(contexte)
 		moins.Activated:Connect(function() changer(-PAS) end)
 		plus.Activated:Connect(function() changer(PAS) end)
 	end
-	reguler("Energie", "Énergie", "Tension", "cyan", 8)
-	reguler("Air", "Air", "Recyclage", "ambre", 9)
-	reguler("Vapeur", "Vapeur", "Refroidissement", "texte", 10)
-	UI.ligneAide(corpsEnergie, "Les réglages passent par la régulation, comme la tablette technicien.", { LayoutOrder = 11 })
-	local fermerEnergie = UI.boutonCoupe(corpsEnergie, "Fermer (Échap)", "secondaire", { Name = "Fermer", LayoutOrder = 12 })
+	reguler("Energie", "Énergie", "Tension", "cyan", 2, string.format("Nominal %d–%d %%", TECH.SousTension or 20, TECH.SurtensionAuDessus or 90))
+	reguler("Air", "Air", "Recyclage", "ambre", 3, string.format("Vicié sous %d %%", TECH.SeuilAirVicie or 25))
+	reguler("Vapeur", "Vapeur", "Refroidissement", "texte", 4, "Normal : 50 %")
+	UI.ligneAide(colRegulation, "Les réglages passent par la régulation, comme la tablette technicien. Une surtension "
+		.. "prolongée fait lâcher les grilles de vapeur ; un air trop bas voile la salle.", { LayoutOrder = 5 })
+	local fermerEnergie = UI.boutonCoupe(corpsEnergie, "Fermer (Échap)", "secondaire", { Name = "Fermer", LayoutOrder = 3 })
 	fermerEnergie.Activated:Connect(fermerPanneau)
 
 	local function couleurNiveau(v, bas, haut)
@@ -264,6 +348,18 @@ return function(contexte)
 		majJauge("bouclier", energieBouclier, string.format("%d %%", energieBouclier), (actif or energieBouclier <= 0) and couleurBouclier or C.texte,
 			actif or (energieBouclier <= 0 and "TOMBÉS" or "INACTIFS"), couleurBouclier)
 		jauges.bouclier.detail.TextColor3 = actif and couleurBouclier or C.texte2
+		-- (V6.9.16) alerte, démarrage, portes, puis les pannes en cours
+		local alerte = exterieur:GetAttribute("Alerte") == true
+		majJauge("alerte", nil, alerte and "ACTIVE" or "AUCUNE", alerte and C.rouge or C.vert, "")
+		local blocage = nil
+		if exterieur:GetAttribute("Alimentation") == false then blocage = "HORS TENSION"
+		elseif exterieur:GetAttribute("DemarrageBloque") then blocage = "BLOQUÉ"
+		elseif exterieur:GetAttribute("RotorBloque") then blocage = "ROTOR BLOQUÉ" end
+		majJauge("demarrage", nil, blocage and "IMPOSSIBLE" or "PRÊT", blocage and C.rouge or C.vert, blocage or "")
+		local verrouillees = exterieur:GetAttribute("PortesVerrouillees") == true or exterieur:GetAttribute("Verrouille") == true
+		majJauge("portes", nil, verrouillees and "VERROUILLÉES" or "LIBRES", verrouillees and C.ambre or C.vert,
+			exterieur:GetAttribute("PorteOuverte") == true and "OUVERTES" or "FERMÉES")
+		majPannes()
 		for systeme, r in regulations do
 			local v = tonumber(exterieur:GetAttribute("Regul" .. systeme)) or 50
 			-- Le serveur a répondu (ou un autre a réglé) et rien ne reste à envoyer : sa valeur fait foi
@@ -271,7 +367,10 @@ return function(contexte)
 			afficherRegulation(systeme, r.voulu or v)
 		end
 	end
-	for _, nom in { "PointsDeVie", "PV", "Alimentation", "BouclierEnergie", "BouclierJoueurs", "BouclierBalles", "BouclierComplet", "RegulEnergie", "RegulAir", "RegulVapeur" } do
+	for _, nom in { "PointsDeVie", "PV", "Alimentation", "BouclierEnergie", "BouclierJoueurs", "BouclierBalles", "BouclierComplet", "RegulEnergie", "RegulAir", "RegulVapeur",
+		-- (V6.9.16) détails : alerte, démarrage, portes et pannes
+		"Alerte", "DemarrageBloque", "RotorBloque", "PortesVerrouillees", "Verrouille", "PorteOuverte", "Incendie", "IncendieEteint", "Breche",
+		"RedemarrageRequis", "Avarie", "VapeurSurcharge", "FuiteAir" } do
 		exterieur:GetAttributeChangedSignal(nom):Connect(function()
 			if ouvert and ouvert.gui == guiEnergie then majEnergie(nom) end
 		end)

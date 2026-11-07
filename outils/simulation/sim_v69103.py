@@ -186,7 +186,7 @@ verifier("4. FaceEcran = Aucune : pas d'affichage", gi.props.get("Enabled") is F
 S["ing"].m_SetAttribute("FaceEcran", None)
 verifier("4. Attribut retiré : retour à la face automatique (Top)", face_de(gi) == "Top" and gi.props.get("Enabled") is True)
 clic = enfant_classe(S["ing"], "ClickDetector"); invite = enfant_classe(S["ing"], "ProximityPrompt")
-verifier("4. Clic et invite toujours sur la pièce", len(clic) == 1 and len(invite) == 1)
+verifier("4. Clic toujours sur la pièce, sans invite (V6.9.16)", len(clic) == 1 and len(invite) == 0)
 n = len(canal.extra.get("envoisClient", [])); clic[0].extra.setdefault("MouseClick", Signal("MouseClick")).declencher(pilote); H.avancer(0.1)
 verifier("4. Clic d'un pilote : menu de l'énergie, avec la pièce de l'écran", canal.extra.get("envoisClient", [])[n:] == [[pilote, "__energie", S["ing"]]], canal.extra.get("envoisClient", [])[n:])
 
@@ -217,7 +217,7 @@ verifier("4. Model : affichage sur la Vitre (pièce nommée comme un écran), pa
          gui_de(S["vitre"], "TardisEcranIngenieur") is not None and gui_de(S["bouton"], "TardisEcranIngenieur") is None and gui_de(S["boitier"], "TardisEcranIngenieur") is None)
 gi = gui_de(S["vitre"], "TardisEcranIngenieur")
 verifier("4. Model : face automatique Top sur la vitre inclinée", face_de(gi) == "Top", face_de(gi))
-verifier("4. Model : clic sur tout le Model (ClickDetector du Model), invite sur la vitre", len(enfant_classe(S["modele"], "ClickDetector")) == 1 and len(enfant_classe(S["vitre"], "ProximityPrompt")) == 1)
+verifier("4. Model : clic sur tout le Model (ClickDetector du Model), sans invite (V6.9.16)", len(enfant_classe(S["modele"], "ClickDetector")) == 1 and len(enfant_classe(S["vitre"], "ProximityPrompt")) == 0)
 verifier("4. Model : contenu présent", val(gi, "energie") == "80 %" and val(gi, "bouclier") == "INACTIFS  ·  100 %")
 verifier("4. Model : ecranIngenieur() rend la vitre (distance du menu de l'énergie)", premier(appeler(S["module"].get("ecranIngenieur"), [])) is S["vitre"])
 S["modele"].m_SetAttribute("FaceEcran", "Bottom")
@@ -287,7 +287,7 @@ L = lignes[0] if lignes else ""
 verifier("6. Elle nomme le TARDIS et chaque écran de destination, avec sa face et sa taille en pixels",
          L.startswith("[TARDIS] TARDIS_1 · écrans de la console : ") and L.count("destination « Console › Ecran » : face ") == 2
          and "face Front, sens 0° (1024 × 614 px)" in L and "face Back, sens 0° (1024 × 614 px)" in L, L)
-verifier("6. … et l'écran ingénieur : la pièce choisie dans le Model et sa face automatique", "ingénieur « Console › Ecran-Ingenieure › Vitre » : face Top (auto), sens 180° (auto) (683 × 1024 px)" in L, L)  # V6.9.10.5 : vraie image de la face Top
+verifier("6. … et l'écran ingénieur : la pièce choisie dans le Model et sa face automatique", "ingénieur « Console › Ecran-Ingenieure › Vitre » : face Top (auto), sens 0° (auto) (683 × 1024 px)" in L, L)  # V6.9.10.5 : vraie image de la face Top ; V6.9.16 : haut de la face Top vers -X, d'où 0° au lieu de 180°
 n6 = len(roblox.SORTIE); H.avancer(12)
 verifier("6. Pas de deuxième ligne ensuite (12 s plus tard)", not [l for l in roblox.SORTIE[n6:] if "écrans de la console" in l], roblox.SORTIE[n6:])
 tard = piece("Ecran", S["console"], (0, 4, 0), (2, 1.2, 0.1))

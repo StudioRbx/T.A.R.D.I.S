@@ -4,8 +4,8 @@
 --     d'un Folder « Ecran » (deux écrans ou plus). Destination choisie, état, mode du voyage, alerte, démarrage bloqué,
 --     camouflé, rétréci, maintenance ; les messages courts de la console (« PAS POSÉ »…) s'y affichent 2 s.
 --   Écran ingénieur « Console › Ecran-Ingenieure » : intégrité (PV), énergie, régulation (énergie, air, vapeur) et
---     boucliers, en barres et en pourcentages, rouges quand c'est bas. Un clic (ou Z) ouvre le menu de gestion de
---     l'énergie aux pilotes et aux techniciens ; les autres lisent « Réservé aux pilotes et aux ingénieurs ».
+--     boucliers, en barres et en pourcentages, rouges quand c'est bas. Un clic sur l'écran (V6.9.16 : plus
+--     d'invite ni de touche) ouvre le menu de gestion de l'énergie aux pilotes et aux techniciens ; les autres lisent « Réservé aux pilotes et aux ingénieurs ».
 --     (V6.9.10.3) Un Model (ou un dossier) : la pièce qui porte l'attribut « FaceEcran », sinon une pièce nommée
 --     Ecran / Screen / Vitre / Affichage / Display, sinon la plus grande pièce visible.
 -- Face de l'affichage : attribut « FaceEcran » de la pièce (Front, Back, Top, Bottom, Left, Right, Auto), sinon celui
@@ -121,8 +121,8 @@ return function(contexte)
 	-- Sens de l'affichage (V6.9.10.4)
 	--------------------------------------------------------------------
 	-- Une SurfaceGui n'a pas toujours le haut là où on lit : sur les faces de côté, son haut suit le haut de la pièce
-	-- (une pièce couchée sur le flanc donne un texte tourné) ; sur la face Top, son haut va vers la face Right de la
-	-- pièce (comportement connu de Roblox, différent des Decals). Le contenu est donc tourné de 0, 90, 180 ou 270°.
+	-- (une pièce couchée sur le flanc donne un texte tourné) ; sur la face Top, son haut va vers la face Left de la
+	-- pièce (-X ; V6.9.16 : +X avant, ce qui retournait l'écran ingénieur). Le contenu est donc tourné de 0, 90, 180 ou 270°.
 	-- Attribut « RotationEcran » sur la pièce (ou le Model) : 0, 90, 180, 270 ou Auto ; absent = réglage par défaut.
 	-- Auto : le haut du texte va vers le haut du monde (écran incliné ou debout) ; pour un écran à plat, vers le centre
 	-- de la console (le joueur lit depuis l'extérieur).
@@ -131,7 +131,7 @@ return function(contexte)
 		if face == Enum.NormalId.Back then return -cf.LookVector, cf.UpVector end
 		if face == Enum.NormalId.Right then return cf.RightVector, cf.UpVector end
 		if face == Enum.NormalId.Left then return -cf.RightVector, cf.UpVector end
-		if face == Enum.NormalId.Top then return cf.UpVector, cf.RightVector end
+		if face == Enum.NormalId.Top then return cf.UpVector, -cf.RightVector end -- (V6.9.16) -X : l'écran ingénieur était à l'envers
 		return -cf.UpVector, cf.RightVector -- Bottom : supposé comme Top (à corriger avec RotationEcran au besoin)
 	end
 	local function rotationAuto(part, face, centre)
@@ -164,9 +164,9 @@ return function(contexte)
 	end
 
 	-- Taille (studs) d'une face : largeur et hauteur de l'image de la SurfaceGui posée dessus.
-	-- Top et Bottom (V6.9.10.5) : Roblox oriente le haut de l'image vers la face Right de la pièce (+X, voir repereFace),
-	-- donc la HAUTEUR de l'image court le long de X et sa LARGEUR le long de Z (sa droite = (-normale):Cross(haut) = +Z
-	-- pour Top) : (Size.Z, Size.X). Avant : (Size.X, Size.Z), à l'envers ; une fois tournées d'un quart de tour, les
+	-- Top et Bottom (V6.9.10.5) : Roblox oriente le haut de l'image le long de l'axe X de la pièce (voir repereFace),
+	-- donc la HAUTEUR de l'image court le long de X et sa LARGEUR le long de Z : (Size.Z, Size.X).
+	-- Avant : (Size.X, Size.Z), à l'envers ; une fois tournées d'un quart de tour, les
 	-- couches de l'affichage recevaient des proportions inversées et l'écran ingénieur n'était plus qu'une bande étroite
 	-- au milieu de la face.
 	local function tailleFace(part, face)
@@ -685,27 +685,13 @@ return function(contexte)
 		ajuster(ecran)
 		ingenieur = ecran
 		suivre(ecran)
-		-- Clic sans bouton (ClickDetector, sur tout le Model s'il y en a un) et invite pour la manette et le mobile
+		-- Clic sans bouton (ClickDetector, sur tout le Model s'il y en a un ; un toucher sur mobile).
+		-- (V6.9.16) Plus d'invite (touche et texte « Gestion de l'énergie ») : il suffit de cliquer sur l'écran.
 		local clic = Instance.new("ClickDetector")
 		clic.Name = "TardisEcranIngenieur"
 		clic.MaxActivationDistance = 12
 		clic.Parent = (modele and modele:IsA("Model")) and modele or part
 		clic.MouseClick:Connect(cliquerIngenieur)
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.Name = "TardisEcranIngenieur"
-		prompt.ActionText = "Gestion de l'énergie"
-		prompt.ObjectText = "Écran ingénieur"
-		prompt.HoldDuration = 0
-		prompt.MaxActivationDistance = 8
-		prompt.RequiresLineOfSight = false
-		-- (V6.9.10.1, relecture) pas E : les invites du Selecteur, du levier et de l'alerte restent visibles
-		local invites = Config.InvitesConsole or {}
-		local okTouche, touche = pcall(function() return Enum.KeyCode[invites.Touche or "Z"] end)
-		local okManette, manette = pcall(function() return Enum.KeyCode[invites.Manette or "DPadRight"] end)
-		prompt.KeyboardKeyCode = okTouche and touche or Enum.KeyCode.Z
-		prompt.GamepadKeyCode = okManette and manette or Enum.KeyCode.DPadRight
-		prompt.Parent = part
-		prompt.Triggered:Connect(cliquerIngenieur)
 		dessinerIngenieur()
 	end
 

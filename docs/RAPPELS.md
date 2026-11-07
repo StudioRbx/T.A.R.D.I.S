@@ -17,6 +17,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **`SiegeEquipage`** : sièges de l'équipage ;
 - **`Grille`** (ou un dossier `Grilles`) : vapeur et purge ;
 - sous-dossiers de destinations **`REFUSE`** et **`SANS_EXPRESS`** si tu veux des zones interdites ;
+- **V6.9.16, animations du kit** (facultatif ; fait seulement dans la map de test DEVMAP, **à refaire sur les autres maps**) : ajouter un **BindableEvent `TardisAnimer`** dans la pièce du levier ou du bouton (ou jusqu'à 3 parents au-dessus), et terminer ses scripts d'animation par `local animer = script.Parent:FindFirstChild("TardisAnimer") if animer then animer.Event:Connect(Used) end` (`Used` = la fonction du clic). Dans DEVMAP : `Console › LeverLeft › Main › Lever` et `Controls › LockLever › Main › Lever` (scripts Move et Effects), `Console › Datapanel › Redbutton › Button` (s'enfonce et remonte avec son son). Aussi dans DEVMAP seulement : attribut **`FaceEcran = "Back"`** sur l'`Ecran` de destination de la console placé vers z ≈ -435.
 - **V6.9.14** (tout facultatif) : dans `PortesInterieures` de TARDIS_1, deux Models **`Gauche`** et **`Droite`** (les pièces de chaque battant), chacun avec une Part **`Charniere`** (petite, ancrée, invisible) sur l'axe de rotation, la Part `Portail` en dehors : les portes intérieures s'ouvrent avec les extérieures ; sans eux, elles sont seulement cachées. À reproduire dans les autres TARDIS ;
 - **V6.9.13** (tout facultatif) :
   - dans l'intérieur de TARDIS_1, un dossier **`Structure`** (ou **`Breches`**) de Parts **ancrées et invisibles**, aux endroits où une brèche peut s'ouvrir ; sans lui, la brèche est sur la console ;
@@ -56,8 +57,9 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V6.9.15)
-- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (218 tests de la V6.7 à la V6.9.15, dont 6 réussis et 18 sans objet ; 194 encore à faire).
+## 6. Tests en jeu et releases (V6.9.16)
+- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (226 tests de la V6.7 à la V6.9.16, dont 6 réussis et 18 sans objet ; 202 encore à faire).
+- **V6.9.16** : regarde l'écran ingénieur (texte à l'endroit, un clic ouvre le menu de l'énergie), le menu de l'énergie élargi, et actionne les leviers et l'alerte : le kit doit s'animer.
 - **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
 - **Releases GitHub à jour** : les 39 versions de la V6.5 à la V6.9.15 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 

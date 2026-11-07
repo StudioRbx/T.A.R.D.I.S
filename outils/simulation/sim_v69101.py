@@ -341,22 +341,19 @@ verifier("6. Tout redevient normal (intégrité verte, énergie cyan, air jaune)
 xs.m_SetAttribute("Alimentation", False); H.avancer(0.2)
 verifier("6. Hors tension : l'écran ingénieur s'éteint aussi", champ(gi, "Veille").props["Visible"] is True)
 xs.m_SetAttribute("Alimentation", True); H.avancer(0.2)
-# Clic sans bouton : ClickDetector et invite
+# Clic sans bouton : ClickDetector (V6.9.16 : plus d'invite ni de touche, un clic sur l'écran suffit)
 clic = enfant_classe(P["ingenieur"], "ClickDetector"); invite = enfant_classe(P["ingenieur"], "ProximityPrompt")
-verifier("6. Clic sur l'écran (ClickDetector) et invite (mobile, manette)", len(clic) == 1 and len(invite) == 1 and invite[0].props["HoldDuration"] == 0)
-verifier("Relecture 9. Invite de l'écran ingénieur : touche Z (pas E, qui cacherait Selecteur, levier, alerte)", invite[0].props["KeyboardKeyCode"].nom == "Enum.KeyCode.Z"
-         and invite[0].props["GamepadKeyCode"].nom == "Enum.KeyCode.DPadRight", invite[0].props.get("KeyboardKeyCode"))
+verifier("6. Clic sur l'écran (ClickDetector), sans invite (V6.9.16)", len(clic) == 1 and len(invite) == 0, (len(clic), len(invite)))
 envoisC = lambda: canal.extra.get("envoisClient", [])
-def cliquer_ecran(qui, par="clic"):
+def cliquer_ecran(qui):
     n = len(envoisC())
-    if par == "clic": declencher(clic[0], "MouseClick", qui)
-    else: declencher(invite[0], "Triggered", qui)
+    declencher(clic[0], "MouseClick", qui)
     H.avancer(0.6)
     return envoisC()[n:]
 r_ = cliquer_ecran(pilote)
 verifier("6. Clic d'un pilote : le menu de gestion de l'énergie s'ouvre (« __energie »)", r_ == [[pilote, "__energie", P["ingenieur"]]], r_)
-r_ = cliquer_ecran(tech, "invite")
-verifier("6. Invite d'un technicien de Config.Techniciens : menu ouvert", r_ and r_[0][1] == "__energie", r_)
+r_ = cliquer_ecran(tech)
+verifier("6. Clic d'un technicien de Config.Techniciens : menu ouvert", r_ and r_[0][1] == "__energie", r_)
 r_ = cliquer_ecran(techAttr)
 verifier("6. Technicien C.T.A.T. (attribut TardisTechnicien_TARDIS_1) : menu ouvert", r_ and r_[0][1] == "__energie", r_)
 r_ = cliquer_ecran(visiteur)

@@ -4,7 +4,7 @@
      jukebox), aucun identifiant de musique inventé, mots de recherche de la Toolbox dans le commentaire.
   2. Bouton Vol libre en Model (Console › Selecteur › Colors) : vrai TardisServeur (Selecteur, levier, traiterOrdre,
      bloc du bouton) et vrai module VolLibre : clic sur tout le Model, invite « Vol libre » (F) sur un point d'attache
-     1,5 stud au-dessus du bouton, sans ligne de vue, 10 studs ; l'invite du Selecteur (E) reste visible, sur une autre
+     1,5 stud (0,9 depuis V6.9.16) au-dessus du bouton, sans ligne de vue, 10 studs ; l'invite du Selecteur (E) reste visible, sur une autre
      pièce ; trop proches : écartées à l'écran ; clic ou invite → vol libre pour un pilote seulement.
   3. Mêmes invites relevées pour les autres commandes : jukebox en Model (vrai TardisExtras), alerte (vrai
      brancherCommande, même pièce qu'avant pour TardisSystemes).
@@ -83,7 +83,7 @@ rs = game.m_FindFirstChild("ReplicatedStorage"); Players = game.m_FindFirstChild
 tache(lambda: R.update(Config=premier(appeler(G["require"], [rs.m_FindFirstChild("TardisConfig")]))))
 Config = R["Config"]; E = Config.get("Etats")
 BV, IC, CA, JD = Config.get("BoutonVolLibre"), Config.get("InvitesConsole"), Config.get("Casiers"), Config.get("JukeboxDossier")
-verifier("1. Config.BoutonVolLibre.HauteurInvite = 1,5 ; Distance au moins 10 ; touche F", BV.get("HauteurInvite") == 1.5 and BV.get("Distance") >= 10 and BV.get("Touche") == "F",
+verifier("1. Config.BoutonVolLibre.HauteurInvite = 0,9 (V6.9.16 : 1,5 avant) ; Distance au moins 10 ; touche F", BV.get("HauteurInvite") == 0.9 and BV.get("Distance") >= 10 and BV.get("Touche") == "F",
          (BV.get("HauteurInvite"), BV.get("Distance")))
 verifier("1. Config.InvitesConsole.HauteurInvite = false (V6.9.10.8 : invites de la console revenues sur leur commande)", IC.get("HauteurInvite") is False)
 verifier("1. Config.Casiers : caméra à 7 studs, dégagement minimal, marge, fermeture à 12 studs",
@@ -180,8 +180,8 @@ verifier("2. Une invite « Vol libre », sur un point d'attache (Attachment) dan
 iv = invV[0]
 mn, mx = boite_monde([P["rouge"], P["vert"]])  # pièces VISIBLES du bouton
 pv = monde_attache(iv.parent)
-verifier("2. Point de l'invite : 1,5 stud au-dessus du haut du bouton (pièces visibles), au milieu", proche(pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 1.5, (mn[2] + mx[2]) / 2), 1e-6),
-         (pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 1.5, (mn[2] + mx[2]) / 2)))
+verifier("2. Point de l'invite : 0,9 stud au-dessus du haut du bouton (pièces visibles), au milieu (V6.9.16)", proche(pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 0.9, (mn[2] + mx[2]) / 2), 1e-6),
+         (pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 0.9, (mn[2] + mx[2]) / 2)))
 verifier("2. … donc au-dessus de toutes les pièces du Selecteur (rien ne le cache)", pv.y > boite_monde([P["socle"], P["molette"], P["cadre"], P["rouge"], P["vert"]])[1][1])
 verifier("2. Invite : touche F (manette Y), sans ligne de vue, 10 studs au moins, active TARDIS posé",
          iv.props["KeyboardKeyCode"].nom == "Enum.KeyCode.F" and iv.props["GamepadKeyCode"].nom == "Enum.KeyCode.ButtonY" and iv.props["RequiresLineOfSight"] is False

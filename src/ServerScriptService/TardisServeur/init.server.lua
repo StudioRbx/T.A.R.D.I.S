@@ -1078,6 +1078,21 @@ local function creerPrompt(part, action, objet, exclu, hauteur)
 	return prompt, point or part.Position
 end
 
+-- (V6.9.16) Animation du kit : les leviers et le bouton rouge ont déjà leurs scripts d'animation (clic sur leur
+-- ClickDetector « Use », qu'un script ne peut pas déclencher). Un BindableEvent « TardisAnimer » posé à côté de ces
+-- scripts (dans la pièce ou jusqu'à 3 parents au-dessus) est déclenché quand la commande réussit ; leurs scripts
+-- l'écoutent comme un clic. Sans BindableEvent : rien ne change.
+local NOM_ANIMATION = "TardisAnimer"
+local function animerKit(part)
+	local o = part
+	for _ = 0, 3 do
+		if not o or o == interieur then return end
+		local ev = o:FindFirstChild(NOM_ANIMATION)
+		if ev and ev:IsA("BindableEvent") then ev:Fire() return end
+		o = o.Parent
+	end
+end
+
 local dernierUsage = 0
 local function disponible()
 	local maintenant = os.clock()
@@ -1167,6 +1182,7 @@ local function brancherCommande(cle, texteActif, texteInactif, attribut, valeurA
 			if not disponible() then return end
 			local ok, erreur = action()
 			if ok then
+				animerKit(part) -- (V6.9.16)
 				alerter((exterieur:GetAttribute(attribut) == valeurActive) and messageActif or messageInactif)
 			else
 				alerter(erreur)
@@ -1210,6 +1226,7 @@ if Config.Chemins.Verrou then
 			task.spawn(function()
 				local ok, erreur = basculerVerrou()
 				if ok then
+					animerKit(partVerrou) -- (V6.9.16)
 					alerter(exterieur:GetAttribute("PortesVerrouillees") and "PORTES VERROUILLÉES" or "PORTES DÉVERROUILLÉES")
 				else
 					alerter(erreur)
@@ -2224,7 +2241,7 @@ if Config.Chemins.VolLibre then
 		end
 		local reglagesBouton = Config.BoutonVolLibre or {}
 		local distanceVol = math.max(tonumber(reglagesBouton.Distance) or 10, 10)
-		local promptVol, pointVol = creerPrompt(partVol, "Vol libre", objetVol, nil, reglagesBouton.HauteurInvite or 1.5)
+		local promptVol, pointVol = creerPrompt(partVol, "Vol libre", objetVol, nil, reglagesBouton.HauteurInvite or 0.9)
 		promptVol.Name = "TardisVolLibre"
 		promptVol.MaxActivationDistance = distanceVol
 		promptVol.RequiresLineOfSight = false

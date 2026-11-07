@@ -7,10 +7,23 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 218 tests** — ⬜ 194 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 226 tests** — ⬜ 202 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.16 — Retouches de la console
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| S'approcher du bouton Vol libre | l'invite « Vol libre » est un peu plus basse qu'avant, toujours au-dessus des autres | ⬜ |  |
+| Regarder l'écran ingénieur | le texte est à l'endroit | ⬜ |  |
+| Cliquer sur l'écran ingénieur (pilote ou technicien) | le menu de gestion de l'énergie s'ouvre ; plus de touche « Z » ni de texte d'invite | ⬜ |  |
+| Ouvrir le menu de l'énergie | deux colonnes : ÉTAT (avec alerte, démarrage, portes, pannes en cours) et RÉGULATION (avec les plages) | ⬜ |  |
+| Le même menu sur un petit écran (émulateur) | il tient entier à l'écran | ⬜ |  |
+| Actionner le levier de démarrage, puis le verrou des portes | les leviers du kit s'animent | ⬜ |  |
+| Lancer l'alerte | le bouton rouge s'enfonce et remonte avec son son | ⬜ |  |
+| Commande refusée (par exemple sans être pilote) | aucune animation | ⬜ |  |
 
 ## V6.9.15 — Confort de l'interface et accessibilité
 

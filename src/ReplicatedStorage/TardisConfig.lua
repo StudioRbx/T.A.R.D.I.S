@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.15"
+Config.Version = "6.9.16"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -98,7 +98,8 @@ Config.InvitesConsole = {
 Config.BoutonVolLibre = {
 	Touche = "F",            -- (V6.9.10.1) touche de l'invite (manette : Y)
 	Distance = 10,           -- (V6.9.10.1) distance du clic et de l'invite (studs) ; V6.9.10.5 : au moins 10
-	HauteurInvite = 1.5,     -- (V6.9.10.5) l'invite « Vol libre » flotte tant de studs au-dessus du bouton (Model Colors : clic sur tout le Model)
+	HauteurInvite = 0.9,     -- (V6.9.10.5) l'invite « Vol libre » flotte tant de studs au-dessus du bouton (Model Colors : clic sur tout le Model) ;
+	                         -- (V6.9.16) 1,5 → 0,9 : un peu plus bas, toujours au-dessus des autres invites
 }
 -- Casiers (tenues) : la caméra se place face au joueur sans jamais entrer dans un mur (V6.9.10.5). Elle essaie devant,
 -- devant à gauche, devant à droite et plus haut, garde la place la plus dégagée, et ne bouge pas si tout est bouché.
