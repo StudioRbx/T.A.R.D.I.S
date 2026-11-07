@@ -57,8 +57,9 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V7.4.1)
+## 6. Tests en jeu et releases (V7.4.2)
 - Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (248 tests de la V6.7 à la V7.2.1, dont 6 réussis et 18 sans objet ; 224 encore à faire).
+- **V7.4.2** : ouvre la caméra de la Lampe (parasites), puis V (vue du dessus), Z (zoom), N (nuit), C (cadre) ; à deux, clique sur l'autre joueur (suivi) ; en vol libre, P (porte, dessous).
 - **V7.4.1** : règle la force des secousses à 25 % puis provoque un choc (tremblement doux), active le champ de vision fixe et vole vite (le champ ne bouge plus), puis descends les PV sous 25 % à bord (bords rouges).
 - **V7.3.5** : lève un bouclier et regarde la rue par la porte (voile bleuté), coupe le courant et regarde la salle depuis dehors (noire), puis à deux joueurs porte ouverte (silhouettes de l'autre côté).
 - **V7.3.4** : approche-toi des commandes (contour cyan), tire le levier de vol pendant un voyage (clignotement rouge), verrouille depuis la tablette (levier et lampes rouges), coupe le courant (étincelles), décolle puis atterris (levier de vol : vérifie l'axe).
@@ -74,7 +75,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **V6.9.17** : dans Zone obstruée (map en Streaming), appuie sur T puis sur Y en pilote : le menu et la tablette doivent s'ouvrir ; le diagnostic de l'Output doit finir par « streaming : ok ».
 - **V6.9.16** : regarde l'écran ingénieur (texte à l'endroit, un clic ouvre le menu de l'énergie), le menu de l'énergie élargi, et actionne les leviers et l'alerte : le kit doit s'animer.
 - **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
-- **Releases GitHub à jour** : les 53 versions de la V6.5 à la V7.4.1 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+- **Releases GitHub à jour** : les 54 versions de la V6.5 à la V7.4.2 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.

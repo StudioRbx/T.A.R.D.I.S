@@ -212,14 +212,14 @@ Donner des réglages contre la fatigue et la nausée, puis faire de la caméra d
 
 **Objectif :** Faire de la caméra de la Lampe un vrai outil RP : vue du dessus, zoom, vision de nuit, cadre de surveillance, grésillement, suivi d'un joueur et plusieurs points de vue.
 
-- **G-282. Grésillement à l'entrée de la caméra extérieure** *(petit)* : Au lieu d'une coupure nette, 0,3 seconde de parasites quand on entre ou sort de la caméra de la Lampe.
-- **G-278. Vue du dessus dans la caméra extérieure** *(petit)* : Une touche passe la caméra de la Lampe (TardisCamera) en vue verticale, plus haute, comme une carte vivante des alentours ; la même touche revient à la vue normale.
-- **G-285. Zoom optique dans la caméra extérieure** *(petit)* : La molette monte déjà la caméra ; une autre touche changerait le champ de vision pour zoomer sur un point.
-- **G-284. Vision de nuit dans la caméra extérieure** *(petit)* : Une touche passe l'image en vert et la rend plus lumineuse, pour voir autour du TARDIS la nuit.
-- **G-283. Cadre de caméra de surveillance** *(petit)* : Option : heure, « REC » et lignes de balayage sur l'image de la caméra de la Lampe.
-- **G-289. Image qui grésille quand le TARDIS est abîmé** *(petit)* : Plus les PV sont bas, plus l'image de la caméra de la Lampe se brouille par moments.
-- **G-287. Suivre un joueur avec la caméra extérieure** *(moyen)* : Un clic sur un joueur verrouille la caméra sur lui ; elle tourne autour de lui jusqu'à ce qu'on le relâche.
-- **G-288. Plusieurs points de vue extérieurs** *(moyen)* : Une touche passe de la Lampe au-dessus de la porte, puis sous la cabine en vol.
+- ✅ **G-282. Grésillement à l'entrée de la caméra extérieure** *(petit)* : Au lieu d'une coupure nette, 0,3 seconde de parasites quand on entre ou sort de la caméra de la Lampe.
+- ✅ **G-278. Vue du dessus dans la caméra extérieure** *(petit)* : Une touche passe la caméra de la Lampe (TardisCamera) en vue verticale, plus haute, comme une carte vivante des alentours ; la même touche revient à la vue normale.
+- ✅ **G-285. Zoom optique dans la caméra extérieure** *(petit)* : La molette monte déjà la caméra ; une autre touche changerait le champ de vision pour zoomer sur un point.
+- ✅ **G-284. Vision de nuit dans la caméra extérieure** *(petit)* : Une touche passe l'image en vert et la rend plus lumineuse, pour voir autour du TARDIS la nuit.
+- ✅ **G-283. Cadre de caméra de surveillance** *(petit)* : Option : heure, « REC » et lignes de balayage sur l'image de la caméra de la Lampe.
+- ✅ **G-289. Image qui grésille quand le TARDIS est abîmé** *(petit)* : Plus les PV sont bas, plus l'image de la caméra de la Lampe se brouille par moments.
+- ✅ **G-287. Suivre un joueur avec la caméra extérieure** *(moyen)* : Un clic sur un joueur verrouille la caméra sur lui ; elle tourne autour de lui jusqu'à ce qu'on le relâche.
+- ✅ **G-288. Plusieurs points de vue extérieurs** *(moyen)* : Une touche passe de la Lampe au-dessus de la porte, puis sous la cabine en vol.
 
 **Dans Studio :** Rien. Les points de vue de G-288 se calculent depuis la porte et la base de la cabine.
 

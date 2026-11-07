@@ -35,8 +35,9 @@
 | V7.3.3 | Alerte et auto-destruction | ✅ faite (07/11) |
 | V7.3.4 | Console : commandes qui bougent | ✅ faite (07/11) |
 | V7.3.5 | Vue par la porte | ✅ faite (07/11) |
-| V7.4 | Caméras et confort de l'écran (2 lots) | 🚧 en cours |
+| V7.4 | Caméras et confort de l'écran (2 lots) | ✅ faite (07/11) |
 | V7.4.1 | Confort de l'écran : secousses et nausée | ✅ faite (07/11) |
+| V7.4.2 | Caméra extérieure de la lampe | ✅ faite (07/11) |
 | V7.5 | Régénération de la C.A.T. (6 lots) | 🔜 prévue |
 | V7.6 | Vol libre et rayon tracteur (5 lots) | 🔜 prévue |
 | V7.7 | Systèmes du TARDIS (7 lots) | 🔜 prévue |

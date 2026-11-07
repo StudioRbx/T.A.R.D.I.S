@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.4.1"
+Config.Version = "7.4.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -340,6 +340,31 @@ Config.CameraOrbite = {
 	DistanceMax = 35,   -- (V6.9.10) molette : au plus loin
 	Elevation = 20,     -- (V6.9.10) degrés au-dessus de l'horizon au départ (clic droit + souris pour changer)
 	RechargeZone = 4,   -- (V6.9.10) secondes entre deux demandes de chargement de la zone autour de la cabine (Streaming)
+}
+-- Caméra extérieure de la Lampe (V7.4.2). Pendant la caméra, ses touches lui sont réservées (elles ne déclenchent rien
+-- d'autre tant qu'elle est ouverte) ; à la manette : croix directionnelle. Les touches sont des noms de Enum.KeyCode.
+Config.CameraExterieure = {
+	Parasites = true,           -- (G-282) grésillement à l'entrée et à la sortie, au lieu d'une coupure nette
+	DureeParasites = 0.3,       -- secondes
+	ToucheDessus = "V",         -- (G-278) vue du dessus, comme une carte vivante (la même touche revient)
+	HauteurDessus = 60,         -- studs au-dessus de la Lampe au départ (molette : de 25 à 150)
+	HauteurDessusMin = 25,
+	HauteurDessusMax = 150,
+	ToucheZoom = "Z",           -- (G-285) zoom optique : chaque appui grossit davantage, puis revient
+	Grossissements = { 1, 2, 4 }, -- × 1 (normal), × 2, × 4
+	ToucheNuit = "N",           -- (G-284) vision de nuit : image verte et plus lumineuse
+	CouleurNuit = Color3.fromRGB(110, 255, 120),
+	LuminositeNuit = 0.3,
+	ToucheCadre = "C",          -- (G-283) cadre de caméra de surveillance : heure, « REC », lignes de balayage
+	CadreSurveillance = false,  -- cadre affiché au départ (ensuite, le choix de chaque joueur est gardé)
+	SeuilBrouillage = 50,       -- (G-289) PV (en %) sous lesquels l'image se brouille par moments
+	BrouillagesParMinute = 12,  -- brouillages par minute à 0 PV (moins quand les PV sont plus hauts)
+	DureeBrouillage = 0.2,      -- secondes
+	DistanceSuivi = 14,         -- (G-287) clic sur un joueur : la caméra tourne autour de lui à cette distance (molette : 6 à 40)
+	VitesseSuivi = 12,          -- degrés par seconde (moitié moins vite avec « réduire les effets »)
+	ToleranceClic = 4,          -- studs autour du point cliqué (un peu plus pour un joueur lointain)
+	PorteeClic = 400,           -- studs
+	TouchePointDeVue = "P",     -- (G-288) Lampe → au-dessus de la porte → sous la cabine (en vol libre seulement)
 }
 
 -- Vue de la rue depuis l'intérieur
@@ -2367,6 +2392,57 @@ function Config.aveuglement(distance, angle, portee, angleMax)
 	portee, angleMax = tonumber(portee) or 60, tonumber(angleMax) or 15
 	if portee <= 0 or angleMax <= 0 or distance >= portee or angle >= angleMax then return 0 end
 	return (1 - distance / portee) * (1 - angle / angleMax)
+end
+
+-- (V7.4.2, G-285) Champ de vision pour un grossissement optique (× 2 : deux fois plus gros au centre)
+function Config.champZoom(champ0, grossissement)
+	champ0, grossissement = tonumber(champ0) or 70, math.max(tonumber(grossissement) or 1, 1)
+	return math.clamp(math.deg(2 * math.atan(math.tan(math.rad(champ0) / 2) / grossissement)), 1, 120)
+end
+
+-- (V7.4.2, G-282, G-289) Force des parasites (0 à 1), t secondes après le début d'un grésillement de durée « duree » :
+-- forte au début, elle s'efface
+function Config.forceParasites(t, duree)
+	t, duree = tonumber(t) or 0, tonumber(duree) or 0.3
+	if duree <= 0 or t < 0 or t >= duree then return 0 end
+	return 1 - (t / duree) ^ 2
+end
+
+-- (V7.4.2, G-289) Chance qu'un brouillage commence pendant dt secondes : 0 au-dessus du seuil (PV en %), jusqu'à
+-- « parMinute » brouillages par minute à 0 PV
+function Config.chanceBrouillage(pv, dt, seuil, parMinute)
+	pv, seuil = tonumber(pv), tonumber(seuil) or 50
+	if not pv or seuil <= 0 or pv >= seuil then return 0 end
+	local gravite = math.clamp((seuil - math.max(pv, 0)) / seuil, 0, 1)
+	return math.clamp(gravite * (tonumber(parMinute) or 12) / 60 * (tonumber(dt) or 0), 0, 1)
+end
+
+-- (V7.4.2, G-287) Parmi des positions, l'indice de celle que vise un rayon (origine, direction unitaire) : devant, à
+-- moins de « portee », et la plus proche du rayon à moins de « tolerance » studs (2 % de plus par stud de distance)
+function Config.cibleVisee(origine, direction, positions, tolerance, portee)
+	tolerance, portee = tonumber(tolerance) or 4, tonumber(portee) or 400
+	local meilleur, ecartMin = nil, math.huge
+	for i, p in positions do
+		local v = p - origine
+		local avance = v:Dot(direction)
+		if avance > 0 and avance <= portee then
+			local permis = tolerance + avance * 0.02
+			local ecart = (v - direction * avance).Magnitude / permis
+			if ecart <= 1 and ecart < ecartMin then meilleur, ecartMin = i, ecart end
+		end
+	end
+	return meilleur
+end
+
+-- (V7.4.2, G-288) Point de vue extérieur suivant : Lampe → Porte → Dessous (en vol seulement) → Lampe
+function Config.pointDeVueSuivant(actuel, enVol)
+	local ordre = { "Lampe", "Porte", "Dessous" }
+	local i = table.find(ordre, actuel) or 0
+	for _ = 1, #ordre do
+		i = i % #ordre + 1
+		if ordre[i] ~= "Dessous" or enVol then return ordre[i] end
+	end
+	return "Lampe"
 end
 
 return Config

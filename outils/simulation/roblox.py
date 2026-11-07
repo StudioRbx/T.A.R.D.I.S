@@ -537,7 +537,7 @@ class Instance:
         for e in s.enfants:
             if e.Name == k: return e
         if k in ("Changed",): return s.changed
-        if k[0].isupper() and k.endswith(("ed", "Added", "Removing", "Triggered", "Event", "Activated")) or k in ("MouseEnter", "MouseLeave", "InputBegan", "MouseClick") or k in ("Heartbeat", "RenderStepped", "Stepped", "OnServerEvent", "OnClientEvent", "Event", "Triggered", "Touched", "Error", "MessageOut", "Chatted", "PlayerAdded", "PlayerRemoving", "CharacterAdded", "CharacterRemoving", "ChildAdded", "ChildRemoved", "DescendantAdded", "DescendantRemoving"):
+        if k[0].isupper() and k.endswith(("ed", "Added", "Removing", "Triggered", "Event", "Activated")) or k in ("MouseEnter", "MouseLeave", "InputBegan", "MouseClick") or k in ("Heartbeat", "RenderStepped", "Stepped", "OnServerEvent", "OnClientEvent", "Event", "Triggered", "Touched", "Error", "MessageOut", "Chatted", "PlayerAdded", "PlayerRemoving", "CharacterAdded", "CharacterRemoving", "ChildAdded", "ChildRemoved", "DescendantAdded", "DescendantRemoving", "TouchTap"):
             s.extra[k] = Signal(s.Name + "." + k); return s.extra[k]
         raise LuaError(f"{k} is not a valid member of {s.ClassName} \"{s.Name}\"")
     def __lua_setindex__(s, k, v):
@@ -674,6 +674,21 @@ class Instance:
     def m_IsClient(s): return not s._cote().extra.get("serveur", True)
     def m_BindToRenderStep(s, nom, priorite=None, f=None, *a): s.extra.setdefault("rendu", {})[nom] = f; return []
     def m_UnbindFromRenderStep(s, nom, *a): s.extra.setdefault("rendu", {}).pop(nom, None); return []
+    # V7.4.2 : ContextActionService (actions liées à des touches, rangées dans extra["actions"][nom] = (fonction, touches))
+    def m_BindActionAtPriority(s, nom, f, tactile=False, priorite=None, *touches): s.extra.setdefault("actions", {})[nom] = (f, list(touches)); return []
+    def m_BindAction(s, nom, f, tactile=False, *touches): s.extra.setdefault("actions", {})[nom] = (f, list(touches)); return []
+    def m_UnbindAction(s, nom): s.extra.setdefault("actions", {}).pop(nom, None); return []
+    def m_SetTitle(s, nom, titre): s.extra.setdefault("titres", {})[nom] = titre; return []
+    def m_ScreenPointToRay(s, x, y, profondeur=0):  # V7.4.2 : Camera (rayon unitaire depuis la caméra, champ vertical FieldOfView)
+        return Table({"Origin": Vec3(*s.props["CFrame"].p) if isinstance(s.props.get("CFrame"), CF) else Vec3(0, 0, 0), "Direction": s._direction_ecran(x, y)})
+    def _direction_ecran(s, x, y):
+        cf = s.props.get("CFrame"); taille = s.props.get("ViewportSize")
+        if not isinstance(cf, CF): return Vec3(0, 0, -1)
+        l, h = (taille.args[0], taille.args[1]) if isinstance(taille, Valeur) and len(taille.args) >= 2 else (1280, 720)
+        t = math.tan(math.radians(float(s.props.get("FieldOfView", 70))) / 2)
+        dx, dy = (2 * float(x) / l - 1) * t * l / h, (1 - 2 * float(y) / h) * t
+        d = Vec3.arith("+", Vec3.arith("+", Vec3.arith("*", cf.col(0), dx), Vec3.arith("*", cf.col(1), dy)), cf.__lua_index__("LookVector"))
+        return d.unite()
     def m_GetRankInGroup(s, g): return 0
     def m_ReleaseFocus(s, *a): s.extra["focus"] = False; return []  # (V6.9.10.6) TextBox
     def m_CaptureFocus(s, *a): s.extra["focus"] = True; return []
