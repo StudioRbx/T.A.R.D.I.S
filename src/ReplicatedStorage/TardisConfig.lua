@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.1.2"
+Config.Version = "7.2.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -270,6 +270,16 @@ Config.Effets = {
 	Catastrophe = true,          -- (V6.9.9) Catastrophe : fumée noire et étincelles autour de la cabine, éclats à l'atterrissage forcé
 	DureeFumeeCatastrophe = 20,  -- (V6.9.9) secondes de fumée qui traîne après l'atterrissage forcé
 	RetardVitres = 1,            -- (V6.9.9) en démat, les vitres s'éteignent ce nombre de secondes après le reste (0 = comme le reste)
+	-- Cabine vivante (V7.2.1)
+	FenetresNuit = 0.55,         -- (V7.2.1, G-1) posée, avec du courant et la nuit : lueur chaude et fixe des vitres (0 à 1, 0 = aucune)
+	TeinteVitres = 0.25,         -- (V7.2.1, G-6) part de la couleur de l'état de la salle (Config.CouleursSalle) dans les vitres (0 = aucune)
+	VitresHorsTension = 0.8,     -- (V7.2.1, G-3) hors tension : les vitres s'assombrissent de cette part (0 = inchangées)
+	PanneauMaintenance = true,   -- (V7.2.1, G-66) en maintenance : lampe fixe et ambrée, panneau « HORS SERVICE » sur la porte
+	Fremissement = 0.03,         -- (V7.2.1, G-10) silence du départ : la cabine frémit (studs, × l'échelle ; 0 = jamais), la lampe s'allume faiblement
+	AvanceLampe = 0.4,           -- (V7.2.1, G-9) en remat, la lampe apparaît ce nombre de secondes avant le reste (0 = en même temps)
+	ContourRemat = true,         -- (V7.2.1, G-13) remat : contour lumineux de la cabine qui bat au rythme des souffles
+	OmbresFenetres = 60,         -- (V7.2.1, G-14) la nuit, à moins de ce nombre de studs, la lueur projette les croisillons au sol (0 = jamais)
+	RefletSoleil = true,         -- (V7.2.1, G-99) le jour : éclat bref du soleil sur une vitre (jamais en « aucun flash »)
 }
 -- Vitres de la cabine (V6.9.9) : rangées dans un dossier (ou Model) « Fenetres » de l'extérieur, ou nommées « Vitre… ».
 -- Sans l'un ni l'autre, détection automatique : pièces en verre (Glass) ou semi-transparentes.
@@ -1617,6 +1627,70 @@ function Config.facteurHeure(clockTime)
 	else x = 1 - (heure - 17.5) / 2 end
 	x = x * x * (3 - 2 * x)
 	return nuit + (jour - nuit) * x
+end
+
+-- Part de nuit selon l'heure du jeu (V7.2.1) : 1 la nuit, 0 en plein jour, avec le même fondu que facteurHeure
+-- (lever entre 5 h et 7 h, coucher entre 17 h 30 et 19 h 30)
+function Config.nuitDe(clockTime)
+	local heure = (tonumber(clockTime) or 12) % 24
+	local x -- 0 = nuit, 1 = jour
+	if heure < 5 or heure >= 19.5 then x = 0
+	elseif heure < 7 then x = (heure - 5) / 2
+	elseif heure < 17.5 then x = 1
+	else x = 1 - (heure - 17.5) / 2 end
+	return 1 - x * x * (3 - 2 * x)
+end
+
+-- Fenêtres allumées la nuit (V7.2.1, G-1), de 0 à 1 : seulement posée (ni en voyage, ni en vol libre), avec du courant,
+-- visible (pas camouflée) et la nuit. Rien en Silencieux (discret).
+function Config.fenetresNuit(clockTime, etat, alimente, visible, discret)
+	local force = math.clamp(tonumber((Config.Effets or {}).FenetresNuit) or 0, 0, 1)
+	if force <= 0 or etat ~= Config.Etats.Pose or not alimente or discret then return 0 end
+	return force * Config.nuitDe(clockTime) * math.clamp(tonumber(visible) or 0, 0, 1)
+end
+
+-- Couleur d'une vitre (V7.2.1, G-3 et G-6) : sa couleur d'origine, mêlée à la couleur de l'état de la salle
+-- (Config.CouleursSalle × Effets.TeinteVitres), puis assombrie hors tension (Effets.VitresHorsTension)
+local SOMBRE_VITRES = Color3.fromRGB(10, 12, 16)
+function Config.couleurVitre(base, nomEtat, alimente)
+	local reglages = Config.Effets or {}
+	local couleur = base
+	local teinte, force = Config.teinteSalle(nomEtat)
+	local part = math.clamp(tonumber(reglages.TeinteVitres) or 0, 0, 1)
+	if teinte and part > 0 and alimente then couleur = couleur:Lerp(teinte, math.clamp(force / 0.35 * part, 0, 1)) end
+	if not alimente then couleur = couleur:Lerp(SOMBRE_VITRES, math.clamp(tonumber(reglages.VitresHorsTension) or 0, 0, 1)) end
+	return couleur
+end
+
+-- Frémissement du départ (V7.2.1, G-10), de 0 à 1 : pendant le silence avant la démat (Decalage du mode), il monte
+-- doucement puis s'arrête net quand les souffles commencent. 0 si le mode n'a pas de silence (ou Silencieux).
+function Config.fremissement(etat, ecoule, mode)
+	if etat ~= Config.Etats.Demat or (Config.Modes[Config.normaliserMode(mode)] or {}).Discret then return 0 end
+	local _, decalage = Config.Timing(etat, mode)
+	ecoule = tonumber(ecoule) or 0
+	if decalage <= 0 or ecoule < 0 or ecoule >= decalage then return 0 end
+	local p = ecoule / decalage
+	return p * p * (3 - 2 * p)
+end
+
+-- Transparence de la lampe (V7.2.1, G-9) : comme le reste de la cabine (Config.Alpha), mais en avance de
+-- Effets.AvanceLampe secondes pendant la remat : elle apparaît la première, seule dans le vide
+function Config.alphaLampe(etat, ecoule, mode, reduit)
+	local avance = math.max(tonumber((Config.Effets or {}).AvanceLampe) or 0, 0)
+	if etat ~= Config.Etats.Remat or avance <= 0 then return Config.Alpha(etat, ecoule, mode, reduit) end
+	return Config.Alpha(etat, ecoule + avance, mode, reduit)
+end
+
+-- Reflet du soleil sur une vitre (V7.2.1, G-99) : de -1 à 1, 1 quand le reflet du soleil sur la vitre (normale
+-- tournée vers l'extérieur) part droit vers la caméra. soleil : Lighting:GetSunDirection() ; versCamera : de la vitre
+-- vers la caméra. -1 si le soleil est couché ou derrière la vitre.
+function Config.refletSoleil(soleil, normale, versCamera)
+	if typeof(soleil) ~= "Vector3" or typeof(normale) ~= "Vector3" or typeof(versCamera) ~= "Vector3" then return -1 end
+	if soleil.Y <= 0 or soleil:Dot(normale) <= 0 or versCamera.Magnitude < 1e-6 then return -1 end
+	local d = -soleil.Unit
+	local n = normale.Unit
+	local r = d - n * (2 * d:Dot(n))
+	return r:Dot(versCamera.Unit)
 end
 
 -- État de la salle pour ses lumières (53) : "Alerte", "Voyage" (démat, remat, vol libre visible),

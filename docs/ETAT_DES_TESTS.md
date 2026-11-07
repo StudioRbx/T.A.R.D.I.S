@@ -7,10 +7,21 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 242 tests** — ⬜ 218 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 248 tests** — ⬜ 224 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V7.2.1 — Cabine : lampe et vitres vivantes
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Mettre `Lighting.ClockTime` à 22, TARDIS posé | les vitres de la cabine gardent une lueur chaude et fixe ; de près, les croisillons se dessinent au sol | ⬜ |  |
+| Couper le courant (attribut `Alimentation` = false sur la cabine) | vitres sombres, enseigne presque éteinte ; tout revient avec le courant | ⬜ |  |
+| Décoller, regarder la cabine de dehors | frémissement léger et lampe faible avant les souffles ; vitres qui virent à l'ambre | ⬜ |  |
+| Atterrir, regarder de dehors | la lampe apparaît la première ; un contour coloré bat pendant la remat puis disparaît | ⬜ |  |
+| Passer en maintenance | lampe fixe et ambrée, panneau « HORS SERVICE » sur la porte | ⬜ |  |
+| De jour, tourner autour de la cabine face au soleil | de temps en temps un éclat bref sur une vitre (rien en « aucun flash ») | ⬜ |  |
 
 ## V7.1.2 — Banc d'essai des simulations
 

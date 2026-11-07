@@ -1,5 +1,5 @@
 {
- "version": "7.1.2",
+ "version": "7.2.1",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 103769,
-   "empreinte": 1278291828
+   "taille": 108570,
+   "empreinte": 512481476
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -142,8 +142,8 @@
    "nom": "TardisEffets",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 77710,
-   "empreinte": 417529492
+   "taille": 89629,
+   "empreinte": 2053437262
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/init.client.lua",
@@ -349,8 +349,8 @@
    "nom": "Signalisation",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 20806,
-   "empreinte": 677433337
+   "taille": 21145,
+   "empreinte": 7898670
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/SousTitres.lua",

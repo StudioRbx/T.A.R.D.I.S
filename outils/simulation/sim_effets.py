@@ -88,7 +88,7 @@ verifier("Config.NomFenetres = Fenetres, Config.NomVitre = Vitre", Config.get("N
 cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 fin_bloc = cfgsrc.find("-- Néons de la salle selon l'état (V6.9.10.1)")  # (réglage ajouté juste après en V6.9.10.1)
 bloc = cfgsrc[cfgsrc.index("-- Effets visuels du voyage (V6.9.9)"):fin_bloc if fin_bloc > 0 else cfgsrc.index("-- Vue de l'intérieur depuis l'extérieur")]
-effets_v699 = bloc.split("\n}")[0]
+effets_v699 = bloc.split("\n}")[0].split("-- Cabine vivante (V7.2.1)")[0]  # (réglages ajoutés en V7.2.1 : sim_v721)
 nouvelles = [l for l in effets_v699.splitlines() if re.match(r"\s*\w+ = ", l)] + [l for l in bloc.splitlines() if l.startswith("Config.")]
 verifier("Chaque nouveau réglage est commenté « (V6.9.9) »", len(nouvelles) == 12 and all("(V6.9.9)" in l for l in nouvelles),
          (len(nouvelles), [l for l in nouvelles if "(V6.9.9)" not in l][:3]))
@@ -159,6 +159,7 @@ verifier("Tablette (réglages) : interrupteur « Aucun flash », qui active auss
 # ------------------------------------------------------------------ 3. TardisEffets : le script entier, image par image
 perso = Instance("Model", "Pilote", ws); hrp = Instance("Part", "HumanoidRootPart", perso); joueur.props["Character"] = perso  # à bord
 G["script"] = Instance("LocalScript", "TardisEffets", game.m_FindFirstChild("StarterPlayer"))
+EF.set("RefletSoleil", False)  # (V7.2.1) le reflet du soleil calcule des positions : il est simulé avec de vrais vecteurs dans sim_v721
 tache(lambda: I.executer(lire("StarterPlayer/StarterPlayerScripts/TardisEffets.client.lua"), "TardisEffets"))
 verifier("TardisEffets se charge (faux monde : cabine, vitre, lampe, salle, rotor)", not roblox.ERREURS and len(RunService.extra["RenderStepped"].connexions) == 3, roblox.ERREURS[:3])
 lueur = ws.m_FindFirstChild("TardisLueur_TARDIS_1"); halo = ws.m_FindFirstChild("TardisHalo_TARDIS_1")

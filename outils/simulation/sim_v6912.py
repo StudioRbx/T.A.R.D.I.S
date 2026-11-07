@@ -460,11 +460,12 @@ verifier("7. Les flammes repartent : le crépitement reprend", len(sons("Panne_F
 x.m_SetAttribute("Incendie", False); x.m_SetAttribute("VapeurSurcharge", None); image(0.1, 5)
 verifier("7. Pannes réglées : plus de sifflement ni de crépitement (rien ne reste)", not sons("Panne_Vapeur") and not sons("Panne_Feu"))
 grincements = []
+deja = bool(sons("Panne_Grincement"))  # un grincement déjà en cours : son début réel est inconnu (V7.2.1)
 for _ in range(400):
     image(0.1); n_ = len(sons("Panne_Grincement"))
     if n_ and (not grincements or grincements[-1][1] == 0): grincements.append((H.t, n_))
     elif not n_ and grincements and grincements[-1][1]: grincements.append((H.t, 0))
-debuts = [t for t, n_ in grincements if n_]
+debuts = [t for t, n_ in grincements if n_][1 if deja else 0:]
 verifier("7. Avarie : un grincement au hasard toutes les 8 à 15 s, sur le rotor, joué une fois puis retiré",
          len(debuts) >= 2 and all(7.9 <= b - a <= 15.3 for a, b in zip(debuts, debuts[1:])) and all(s_.parent is rotorA and s_.props.get("Looped") is False for s_ in sons("Panne_Grincement") or [])
          and any(n_ == 0 for _, n_ in grincements), [round(b - a, 1) for a, b in zip(debuts, debuts[1:])])

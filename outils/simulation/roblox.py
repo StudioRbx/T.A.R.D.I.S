@@ -674,6 +674,9 @@ class Instance:
     def m_CaptureFocus(s, *a): s.extra["focus"] = True; return []
     def m_PivotTo(s, cf): s.props["Pivot"] = cf; return []
     def m_GetScale(s): return s.props.get("Scale", 1)
+    def m_GetSunDirection(s):  # V7.2.1 : Lighting:GetSunDirection() (le soleil tourne avec ClockTime, levé à 6 h)
+        a = (float(s.props.get("ClockTime", 14) or 14) - 6) / 12 * math.pi
+        return Vec3(math.cos(a), math.sin(a), 0.3)
     def m_ScaleTo(s, e): s.props["Scale"] = e; return []
     def _parts(s):  # V7.1.2 : les pièces placées (CFrame et taille calculables) du Model
         r = []

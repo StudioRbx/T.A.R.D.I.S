@@ -3,7 +3,9 @@
 -- lueur de la cabine, tourbillon de poussière, ondes au sol, arcs d'urgence, choc d'atterrissage ; depuis la V6.9.9 :
 -- lueurs selon l'heure, lumières de la salle selon l'état, Catastrophe plus violente, vitres qui s'éteignent en dernier,
 -- et l'option « aucun flash » (UI.sansFlash) ; depuis la V6.9.10 : rotor qui suit la vitesse du vol libre ;
--- depuis la V6.9.10.1 : les néons de la salle prennent aussi la couleur de l'état.
+-- depuis la V6.9.10.1 : les néons de la salle prennent aussi la couleur de l'état ; depuis la V7.2.1 : cabine vivante
+-- (fenêtres allumées la nuit, vitres sombres hors tension et teintées par l'état, maintenance, frémissement du départ,
+-- lampe qui arrive la première, contour de la remat, ombres des croisillons, reflet du soleil).
 -- Tout est calculé à partir des attributs "Etat" et "DebutEtat" posés par le serveur (Config.Souffle),
 -- donc tous les joueurs voient la même chose au même moment (même ceux qui arrivent en cours de vol).
 
@@ -96,6 +98,8 @@ local function enregistrer(objet)
 				fiche.vitre = true
 				nombreVitres += 1
 			end
+			-- (V7.2.1, G-9) La lampe (et ce qu'elle contient) apparaît la première en remat
+			if lampe and (objet == lampe or objet:IsDescendantOf(lampe)) then fiche.lampe = true end
 			visuels[objet] = fiche
 			return
 		end
@@ -329,7 +333,7 @@ local function proteger(nom, fonction, ...)
 	end
 end
 
-local alphaVitreActuel = 0
+local alphaVitreActuel, alphaLampeActuel = 0, 0
 -- Vitres en retard seulement quand leur lueur est préparée (pas en Silencieux, ni camouflé, ni porté : correction de relecture V6.9.9)
 local vitresEnRetard = false
 local function fondu(etat, ecoule, camouflage, mode)
@@ -339,11 +343,13 @@ local function fondu(etat, ecoule, camouflage, mode)
 	-- Vitres (V6.9.9) : en démat, la même animation avec un retard qui grandit jusqu'à Config.Effets.RetardVitres
 	local retard = (nombreVitres > 0 and etat == E.Demat and vitresEnRetard) and Config.retardVitres(etat, ecoule, mode) or 0
 	local alphaVitre = retard > 0 and math.max(Config.Alpha(etat, ecoule - retard, mode, adouci), camouflage) or alpha
-	if alpha ~= alphaActuel or alphaVitre ~= alphaVitreActuel then
-		alphaActuel, alphaVitreActuel = alpha, alphaVitre
+	-- (V7.2.1, G-9) En remat, la lampe a Config.Effets.AvanceLampe secondes d'avance sur le reste
+	local alphaLampe = (etat == E.Remat and lampe) and math.max(Config.alphaLampe(etat, ecoule, mode, adouci), camouflage) or alpha
+	if alpha ~= alphaActuel or alphaVitre ~= alphaVitreActuel or alphaLampe ~= alphaLampeActuel then
+		alphaActuel, alphaVitreActuel, alphaLampeActuel = alpha, alphaVitre, alphaLampe
 		for objet, fiche in visuels do
 			if objet.Parent then
-				local a = fiche.vitre and alphaVitre or alpha
+				local a = (fiche.lampe and alphaLampe) or (fiche.vitre and alphaVitre) or alpha
 				for prop, origine in fiche.transparences do
 					objet[prop] = origine + (1 - origine) * a
 				end
@@ -371,12 +377,13 @@ local function eteindreLueurVitres()
 		lueurVitres = nil
 	end
 end
-local function preparerLueurVitres(mode)
-	eteindreLueurVitres()
-	if nombreVitres <= 0 or (tonumber(EFFETS.RetardVitres) or 0) <= 0 then return end
+-- (V7.2.1) Copie lumineuse des vitres, rangée hors de la cabine (aussi pour les fenêtres allumées la nuit, G-1).
+-- mince : la copie est amincie pour rester derrière la vraie vitre (pas de scintillement quand les deux sont visibles)
+local function copierVitres(nom, mince)
+	if nombreVitres <= 0 then return nil end
 	local pivot = exterieur:GetPivot()
 	local modele = Instance.new("Model")
-	modele.Name = "TardisLueurVitres_" .. def.Nom
+	modele.Name = nom
 	local copies = {}
 	for objet, fiche in visuels do
 		local origine = fiche.transparences.Transparency
@@ -389,6 +396,11 @@ local function preparerLueurVitres(mode)
 				copie.Color = COULEUR_VITRES
 				if copie:IsA("UnionOperation") then copie.UsePartColor = true end
 				if copie:IsA("MeshPart") then copie.TextureID = "" end
+				if mince then
+					local t = copie.Size
+					local m = math.min(t.X, t.Y, t.Z)
+					copie.Size = Vector3.new(t.X * (t.X == m and 0.5 or 0.98), t.Y * (t.Y == m and 0.5 or 0.98), t.Z * (t.Z == m and 0.5 or 0.98))
+				end
 				copie.Transparency = 1
 				copie.Parent = modele
 				copies[copie] = { origine = origine, decalage = pivot:ToObjectSpace(objet.CFrame) }
@@ -405,7 +417,13 @@ local function preparerLueurVitres(mode)
 	lumiereVitres.Color, lumiereVitres.Brightness, lumiereVitres.Range, lumiereVitres.Shadows = COULEUR_VITRES, 0, math.max(taille.X, taille.Z) * 1.6, false
 	lumiereVitres.Parent = support
 	modele.Parent = workspace
-	lueurVitres = { modele = modele, copies = copies, lumiere = lumiereVitres, support = support, mode = mode }
+	return { modele = modele, copies = copies, lumiere = lumiereVitres, support = support }
+end
+local function preparerLueurVitres(mode)
+	eteindreLueurVitres()
+	if (tonumber(EFFETS.RetardVitres) or 0) <= 0 then return end
+	lueurVitres = copierVitres("TardisLueurVitres_" .. def.Nom)
+	if lueurVitres then lueurVitres.mode = mode end
 end
 -- Une image : la lueur suit la cabine pendant la démat, puis reste figée et s'éteint pendant le Vol
 local function majLueurVitres(etat, ecoule, facteur)
@@ -434,6 +452,186 @@ if EFFETS.Lueur ~= false then
 	lumiereLueur.Brightness, lumiereLueur.Range, lumiereLueur.Shadows = 0, 12, false
 	lumiereLueur.Parent = lueur
 	halo = piece({ Name = "TardisHalo_" .. def.Nom, Shape = Enum.PartType.Ball, Transparency = 1, Size = Vector3.one, Color = couleurLampe })
+end
+
+--------------------------------------------------------------------
+-- Cabine vivante (V7.2.1) : la cabine raconte l'état du TARDIS. Fenêtres allumées la nuit (G-1), vitres sombres hors
+-- tension (G-3) et teintées par l'état de la salle (G-6), panneau de maintenance (G-66), frémissement du silence du
+-- départ (G-10), contour qui bat pendant la remat (G-13), ombres des croisillons de près la nuit (G-14), reflet du
+-- soleil le jour (G-99). Tout est local, et rien n'est rangé dans la cabine (le fondu le prendrait pour une de ses pièces).
+--------------------------------------------------------------------
+local COULEUR_MAINTENANCE = Color3.fromRGB(255, 170, 40)
+local fenetresNuit = nil  -- (G-1) copie lumineuse des vitres : { modele, copies, lumiere, support, pivot, force }
+local panneau, panneauPivot = nil, nil -- (G-66) panneau « HORS SERVICE » posé sur la porte
+local contour = nil       -- (G-13) Highlight de la remat (contour seulement)
+local tremblement = nil   -- (G-10) décalage local de la cabine pendant le frémissement
+local dernierReflet, prochainTestReflet = -math.huge, 0 -- (G-99)
+local function procheCouleur(a, b)
+	return math.abs(a.R - b.R) < 0.003 and math.abs(a.G - b.G) < 0.003 and math.abs(a.B - b.B) < 0.003
+end
+
+-- G-1 : fenêtres allumées la nuit (copie mince derrière les vraies vitres, qui suit la cabine)
+local function majFenetresNuit(force)
+	if force <= 0.01 then
+		if fenetresNuit then fenetresNuit.modele:Destroy() fenetresNuit = nil end
+		return
+	end
+	if not fenetresNuit then
+		fenetresNuit = copierVitres("TardisFenetresNuit_" .. def.Nom, true)
+		if not fenetresNuit then return end
+	end
+	local pivot = exterieur:GetPivot()
+	if fenetresNuit.pivot == pivot and fenetresNuit.force == force then return end -- rien n'a changé
+	fenetresNuit.pivot, fenetresNuit.force = pivot, force
+	for copie, infos in fenetresNuit.copies do
+		copie.CFrame = pivot * infos.decalage
+		copie.Transparency = 1 - (1 - math.max(infos.origine, 0.3)) * force
+	end
+	fenetresNuit.support.CFrame = pivot
+	fenetresNuit.lumiere.Brightness = 0.9 * force
+end
+
+-- G-3 et G-6 : couleur des vraies vitres (couleur de l'état de la salle, sombre hors tension), en douceur.
+-- Si un autre script change la couleur d'une vitre (reflets du Decor, thème), elle devient sa nouvelle couleur d'origine.
+local function majCouleursVitres(nomEtat, alimente, lissage)
+	for objet, fiche in visuels do
+		if fiche.vitre and objet.Parent and objet:IsA("BasePart") then
+			local actuelle = objet.Color
+			if not fiche.couleurEcrite or not procheCouleur(actuelle, fiche.couleurEcrite) then fiche.couleurBase = actuelle end
+			local cible = Config.couleurVitre(fiche.couleurBase, nomEtat, alimente)
+			if not procheCouleur(actuelle, cible) then
+				objet.Color = actuelle:Lerp(cible, lissage)
+			elseif actuelle ~= cible then
+				objet.Color = cible
+			end
+			fiche.couleurEcrite = objet.Color
+		end
+	end
+end
+
+-- G-66 : panneau « HORS SERVICE » sur la porte pendant la maintenance
+local function majPanneau(actif, visible)
+	if not actif then
+		if panneau then panneau:Destroy() panneau, panneauPivot = nil, nil end
+		return
+	end
+	local portes = exterieur:FindFirstChild(Config.NomDossierPortes)
+	if not portes then return end
+	if not panneau then
+		panneau = piece({ Name = "TardisPanneau_" .. def.Nom, Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(245, 240, 225), Transparency = 1 })
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = "Ecran"
+		gui.Face = Enum.NormalId.Front
+		gui.LightInfluence = 0.3
+		gui.Parent = panneau
+		local texte = Instance.new("TextLabel")
+		texte.Name = "Texte"
+		texte.BackgroundTransparency = 1
+		texte.Size = UDim2.fromScale(1, 1)
+		texte.TextScaled = true
+		texte.Font = Enum.Font.GothamBold
+		texte.TextColor3 = Color3.fromRGB(170, 30, 20)
+		texte.Text = "HORS SERVICE"
+		texte.Parent = gui
+	end
+	local pivot = exterieur:GetPivot()
+	if pivot ~= panneauPivot then
+		panneauPivot = pivot
+		local cadre, taille
+		if portes:IsA("Model") then cadre, taille = portes:GetBoundingBox()
+		elseif portes:IsA("BasePart") then cadre, taille = portes.CFrame, portes.Size
+		else return end
+		-- Le panneau se pose sur la face des portes tournée vers l'extérieur de la cabine
+		local dehors = cadre.Position - pivot.Position
+		dehors = Vector3.new(dehors.X, 0, dehors.Z)
+		if dehors.Magnitude < 0.05 then dehors = pivot.LookVector end
+		dehors = dehors.Unit
+		local versPortes = cadre:VectorToObjectSpace(dehors)
+		local profondeur = math.abs(versPortes.X) * taille.X + math.abs(versPortes.Y) * taille.Y + math.abs(versPortes.Z) * taille.Z
+		local e = echelle()
+		local position = cadre.Position + dehors * (profondeur / 2 + 0.04 * e) + Vector3.new(0, taille.Y * 0.1, 0)
+		panneau.Size = Vector3.new(2.2, 0.7, 0.05) * e
+		panneau.CFrame = CFrame.lookAt(position, position + dehors)
+	end
+	local transparence = 1 - math.clamp(visible, 0, 1)
+	if panneau.Transparency ~= transparence then panneau.Transparency = transparence end
+	panneau.Ecran.Enabled = visible > 0.5
+end
+
+-- G-13 : contour de la cabine qui bat pendant la remat (Highlight rangé dans le Workspace, pas dans la cabine)
+local function majContour(force, couleur)
+	if force <= 0.01 then
+		if contour then contour:Destroy() contour = nil end
+		return
+	end
+	if not contour then
+		contour = Instance.new("Highlight")
+		contour.Name = "TardisContour_" .. def.Nom
+		contour.FillTransparency = 1
+		contour.DepthMode = Enum.HighlightDepthMode.Occluded
+		contour.Adornee = exterieur
+		contour.Parent = workspace
+	end
+	contour.OutlineColor = couleur
+	contour.OutlineTransparency = 1 - force
+end
+
+-- G-10 : frémissement de la cabine pendant le silence du départ (décalage local, retiré à la fin du silence)
+local function majFremissement(force, t)
+	local amplitude = math.max(tonumber(EFFETS.Fremissement) or 0, 0) * echelle()
+	local porte = exterieur:GetAttribute("Porteur") ~= nil or exterieur:GetAttribute("VolLibre") ~= nil
+	local cible = nil
+	if force > 0.001 and amplitude > 0 and not porte then
+		cible = CFrame.new(math.noise(t * 23, 1.7) * amplitude * force, math.noise(t * 19, 5.3) * amplitude * 0.4 * force,
+			math.noise(t * 29, 9.1) * amplitude * force)
+	end
+	if cible == nil and tremblement == nil then return end
+	local pivot = exterieur:GetPivot()
+	if tremblement then pivot = pivot * tremblement:Inverse() end -- le décalage précédent est retiré
+	tremblement = cible
+	exterieur:PivotTo(cible and pivot * cible or pivot)
+end
+
+-- G-14 : la lueur projette les croisillons des fenêtres au sol, de près et la nuit (pas en « effets réduits »)
+local function majOmbres(nuit, reduit)
+	local lumiereLueur = lueur and lueur:FindFirstChild("Lumiere")
+	if not lumiereLueur then return end
+	local distance = tonumber(EFFETS.OmbresFenetres) or 0
+	local camera = workspace.CurrentCamera
+	local ombres = false
+	if distance > 0 and not reduit and nuit > 0.5 and camera then
+		ombres = (camera.CFrame.Position - exterieur:GetPivot().Position).Magnitude < distance * echelle()
+	end
+	if lumiereLueur.Shadows ~= ombres then lumiereLueur.Shadows = ombres end
+end
+
+-- G-99 : le jour, un éclat bref quand le reflet du soleil sur une vitre arrive dans l'œil (au plus un toutes les 6 s)
+local function majReflet(t, nuit, visible)
+	if t < prochainTestReflet then return end
+	prochainTestReflet = t + 0.25
+	if nuit > 0.2 or visible < 0.9 or t - dernierReflet < 6 or nombreVitres <= 0 then return end
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	local oeil = camera.CFrame.Position
+	local pivot = exterieur:GetPivot()
+	if (oeil - pivot.Position).Magnitude > 250 then return end
+	local soleil = Lighting:GetSunDirection()
+	for objet, fiche in visuels do
+		if fiche.vitre and objet.Parent and objet:IsA("BasePart") and objet.Transparency < 0.9 then
+			local taille, cadre = objet.Size, objet.CFrame
+			local normale = (taille.X <= taille.Y and taille.X <= taille.Z) and cadre.RightVector or (taille.Y <= taille.Z and cadre.UpVector or cadre.LookVector)
+			if normale:Dot(objet.Position - pivot.Position) < 0 then normale = -normale end
+			if Config.refletSoleil(soleil, normale, oeil - objet.Position) > 0.995 then
+				dernierReflet = t
+				local e = echelle()
+				local eclat = piece({ Name = "TardisReflet_" .. def.Nom, Shape = Enum.PartType.Ball, Color = Color3.new(1, 1, 0.92),
+					Transparency = 0.1, Size = Vector3.one * 0.4 * e, CFrame = CFrame.new(objet.Position + normale * 0.1) })
+				tween(eclat, 0.35, { Size = Vector3.one * 1.4 * e, Transparency = 1 })
+				Debris:AddItem(eclat, 0.5)
+				return
+			end
+		end
+	end
 end
 
 RunService.RenderStepped:Connect(function(dt)
@@ -495,6 +693,8 @@ RunService.RenderStepped:Connect(function(dt)
 	local discret = enVoyage and (Config.Modes[modeAnime] or {}).Discret == true -- Silencieux : ni lumière ni effet dehors
 	local camoufle = exterieur:GetAttribute("Camouflage") == true
 	local visible = (1 - alphaActuel) * (1 - camouflage)
+	-- (V7.2.1, G-10) Silence du départ : la cabine frémit, la lampe s'allume faiblement
+	local fremissement = (not discret and not camoufle) and Config.fremissement(etat, ecoule, mode) or 0
 
 	-- 2) Lampe du toit : elle bat au rythme des souffles, vacille en urgence, éclate au départ et à l'arrivée
 	if lumiere then
@@ -508,6 +708,7 @@ RunService.RenderStepped:Connect(function(dt)
 			else
 				brillance *= 0.5 + 0.5 * math.sin(t * Config.VitesseLampe)
 			end
+			if fremissement > 0 then brillance *= 1 + 1.5 * fremissement * (0.7 + 0.3 * math.sin(t * 9)) end -- (V7.2.1, G-10)
 			brillance *= facteurHeure -- V6.9.9 : plus vive la nuit, plus discrète le jour
 		end
 		brillance += brillanceBase * 2.5 * flashLampe * facteurHeure
@@ -519,6 +720,10 @@ RunService.RenderStepped:Connect(function(dt)
 		lumiere.Range = porteeBase * echelle() * (1 + 0.6 * souffle + flashLampe) -- (G-79) ScaleTo réduit la portée, on la garde réduite
 		-- Alerte : la lampe du toit passe au rouge
 		lumiere.Color = exterieur:GetAttribute("Alerte") and (Config.CouleurAlerte or Color3.fromRGB(255, 30, 30)) or couleurLampe
+		-- (V7.2.1, G-66) Maintenance : lampe fixe et ambrée (l'alerte garde le rouge)
+		if EFFETS.PanneauMaintenance ~= false and exterieur:GetAttribute("Maintenance") and not exterieur:GetAttribute("Alerte") then
+			lumiere.Color = COULEUR_MAINTENANCE
+		end
 	end
 
 	-- 2 bis) Lueur de la cabine et halo de la lampe
@@ -545,6 +750,36 @@ RunService.RenderStepped:Connect(function(dt)
 				halo.Transparency = 1
 			end
 		end)
+	end
+
+	-- 2 quater) Cabine vivante (V7.2.1)
+	local nuit = Config.nuitDe(Lighting.ClockTime)
+	local alimente = exterieur:GetAttribute("Alimentation") ~= false
+	proteger("fenetres", function()
+		local pose = etat == E.Pose and not enVoyage and exterieur:GetAttribute("VolLibre") == nil
+		majFenetresNuit(Config.fenetresNuit(Lighting.ClockTime, pose and E.Pose or E.Vol, alimente, visible, camoufle))
+	end)
+	proteger("couleurVitres", function()
+		local nomEtat = Config.etatSalle(etat, exterieur:GetAttribute("VolPhase"), exterieur:GetAttribute("VolLibre") ~= nil,
+			exterieur:GetAttribute("VolVortex") == true, exterieur:GetAttribute("Alerte") == true)
+		majCouleursVitres(nomEtat, alimente, math.clamp(dt * 3, 0, 1))
+	end)
+	if EFFETS.PanneauMaintenance ~= false then
+		proteger("panneau", majPanneau, exterieur:GetAttribute("Maintenance") ~= nil and etat == E.Pose, visible)
+	end
+	if EFFETS.ContourRemat ~= false then
+		proteger("contour", function()
+			local force = 0
+			if etatAnime == E.Remat and not discret and not camoufle then
+				force = math.clamp(0.8 * souffle * (1 - 0.5 * visible), 0, 0.85) * (reduit and 0.5 or 1)
+			end
+			majContour(force, Config.couleurDehors(modeAnime or mode))
+		end)
+	end
+	proteger("fremissement", majFremissement, fremissement, t)
+	proteger("ombres", majOmbres, nuit, reduit)
+	if EFFETS.RefletSoleil ~= false and not sansFlash then
+		proteger("reflet", majReflet, t, nuit, visible)
 	end
 
 	-- 2 ter) Ambiance pour le joueur qui se trouve dans l'intérieur

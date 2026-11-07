@@ -308,6 +308,13 @@ return function(contexte)
 				en.label.TextColor3 = SOMBRE:Lerp(base, math.clamp(intensite, 0, 1))
 				if en.gui then en.gui.Brightness = en.brillance * math.max(intensite, 0.05) end
 			end
+		elseif exterieur:GetAttribute("Alimentation") == false then
+			-- (V7.2.1, G-3) Hors tension : l'enseigne s'éteint presque (elle se rallume quand le courant revient)
+			actif = true
+			for _, en in enseignes do
+				en.label.TextColor3 = SOMBRE:Lerp(en.couleur, 0.15)
+				if en.gui then en.gui.Brightness = en.brillance * 0.1 end
+			end
 		elseif actif then
 			actif = false
 			for _, en in enseignes do
