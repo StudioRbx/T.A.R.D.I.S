@@ -178,6 +178,84 @@ return function(contexte)
 			return vignette
 		end
 
+		local CORPS = (Config.Regeneration or {}).Corps or {} -- V7.5.2
+
+		-- (V7.5.2, G-209) Copie d'un accessoire, préparée avant le changement : la pièce seule, sans soudure ni attache, prête à
+		-- brûler à l'endroit où elle était quand le serveur retire l'accessoire. nil si l'accessoire ne se copie pas.
+		local function copieAccessoire(accessoire)
+			local poignee = accessoire:FindFirstChild("Handle")
+			if not poignee or not poignee:IsA("BasePart") then return nil end
+			local ok, copie = pcall(function() return poignee:Clone() end)
+			if not ok or not copie then return nil end
+			for _, d in copie:GetDescendants() do
+				if d:IsA("JointInstance") or d:IsA("WeldConstraint") or d:IsA("Attachment") or d:IsA("BaseScript")
+					or d:IsA("ParticleEmitter") or d:IsA("Sound") then d:Destroy() end
+			end
+			copie.Name = "TardisRegenCendre"
+			copie.Anchored, copie.CanCollide, copie.CanQuery, copie.CanTouch, copie.Massless = true, false, false, false, true
+			return { copie = copie, poignee = poignee, cf = poignee.CFrame }
+		end
+
+		-- (V7.5.2, G-209) L'ancien accessoire rougeoie, se met à tomber en tournant et part en cendres. Renvoie la copie.
+		local function brulerAccessoire(c, solY, reduit)
+			local copie, depart = c.copie, c.cf
+			copie.CFrame = depart
+			copie.Parent = workspace
+			creer("Highlight", { Name = "Braise", FillColor = Color3.fromRGB(255, 70, 20), OutlineColor = Color3.fromRGB(255, 170, 60),
+				FillTransparency = 0.15, OutlineTransparency = 0.3, DepthMode = Enum.HighlightDepthMode.Occluded, Parent = copie })
+			if not reduit then
+				local cendres = creer("ParticleEmitter", { Name = "Cendres", Texture = FUMEE, Color = ColorSequence.new(Color3.fromRGB(90, 70, 60), Color3.fromRGB(30, 28, 26)),
+					Size = NumberSequence.new(0.25, 0.05), Transparency = NumberSequence.new(0.2, 1), Speed = NumberRange.new(0.5, 2),
+					Lifetime = NumberRange.new(0.8, 1.6), SpreadAngle = Vector2.new(180, 180), Acceleration = Vector3.new(0, -4, 0), Rate = 0, Parent = copie })
+				cendres:Emit(20)
+			end
+			local duree = CORPS.DureeCendres or 1.4
+			local chute = math.max(depart.Position.Y - (solY or depart.Position.Y - 3) - 0.2, 0)
+			animer(copie, duree, { CFrame = CFrame.new(0, -chute, 0) * depart * CFrame.Angles(0.7, 0, 0.4), Transparency = 1, Size = copie.Size * 0.4 }, Enum.EasingStyle.Quad)
+			Debris:AddItem(copie, duree + 0.6)
+			return copie
+		end
+
+		-- (V7.5.2, G-210) Les nouveaux accessoires apparaissent un par un, chacun avec une étincelle.
+		-- suivi.ajouter(accessoire, t) quand un accessoire arrive ; suivi.maj(t) à chaque image ; suivi.finir() rend tout visible.
+		local function apparitionsAccessoires(reduit)
+			local suivi, file, dernier = {}, {}, -math.huge
+			local intervalle, dureeFondu = CORPS.IntervalleApparition or 0.25, CORPS.DureeApparition or 0.5
+			function suivi.ajouter(accessoire, t)
+				local poignee = accessoire:FindFirstChild("Handle")
+				if not poignee or not poignee:IsA("BasePart") then return end
+				poignee.LocalTransparencyModifier = 1
+				dernier = math.max(t, dernier + intervalle)
+				table.insert(file, { poignee = poignee, debut = dernier })
+			end
+			function suivi.maj(t)
+				for k = #file, 1, -1 do
+					local a = file[k]
+					if not a.poignee.Parent then
+						table.remove(file, k)
+					elseif t >= a.debut then
+						if not a.etincelle then
+							a.etincelle = true
+							local e = creer("ParticleEmitter", { Name = "TardisRegenEtincelle", Texture = ETINCELLE, LightEmission = 1,
+								Color = ColorSequence.new(Color3.fromRGB(255, 250, 225), Color3.fromRGB(255, 170, 50)), Size = NumberSequence.new(0.3, 0),
+								Speed = NumberRange.new(2, 6), Lifetime = NumberRange.new(0.3, 0.6), SpreadAngle = Vector2.new(180, 180), Rate = 0, Parent = a.poignee })
+							e:Emit(reduit and 4 or 14)
+							Debris:AddItem(e, 1)
+						end
+						local reste = Config.fonduApparition(t, a.debut, dureeFondu)
+						a.poignee.LocalTransparencyModifier = reste
+						if reste <= 0 then table.remove(file, k) end
+					end
+				end
+			end
+			function suivi.finir()
+				for _, a in file do if a.poignee.Parent then a.poignee.LocalTransparencyModifier = 0 end end
+				table.clear(file)
+			end
+			function suivi.enAttente() return #file end
+			return suivi
+		end
+
 		local function surveillerRegeneration(personnage)
 			local dejaJoue = nil -- une régénération n'est jouée qu'une fois (signal ou rattrapage)
 			local function effets()
@@ -246,6 +324,21 @@ return function(contexte)
 					if membre then
 						table.insert(bras, membre)
 						table.insert(mains, garder(creer("Attachment", { Position = Vector3.new(0, -membre.Size.Y / 2, 0), Parent = membre })))
+					end
+				end
+				-- (V7.5.2, G-206) Des fils d'or coulent de l'épaule à la main, avant que les mains ne s'embrasent
+				local filsBras = {}
+				if CORPS.FluxBras ~= false then
+					for _, paire in { { "Left Arm", "Left Arm" }, { "Right Arm", "Right Arm" }, { "LeftUpperArm", "LeftHand" }, { "RightUpperArm", "RightHand" } } do
+						local epaule, main = personnage:FindFirstChild(paire[1]), personnage:FindFirstChild(paire[2])
+						if epaule and main then
+							local a0 = garder(creer("Attachment", { Name = "TardisRegenEpaule", Position = Vector3.new(0, epaule.Size.Y / 2 - 0.1, 0), Parent = epaule }))
+							local a1 = garder(creer("Attachment", { Name = "TardisRegenPoignet", Position = Vector3.new(0, -main.Size.Y / 2 + 0.1, 0), Parent = main }))
+							table.insert(filsBras, garder(creer("Beam", { Name = "TardisRegenFilBras", Attachment0 = a0, Attachment1 = a1, Texture = FEU,
+								TextureMode = Enum.TextureMode.Wrap, TextureLength = 1.5, TextureSpeed = 2.5, LightEmission = 1, LightInfluence = 0,
+								Segments = 6, FaceCamera = true, Width0 = 0.22, Width1 = 0.12, Enabled = false,
+								Color = ColorSequence.new(OR_CLAIR, OR), Transparency = NumberSequence.new(1), Parent = epaule })))
+						end
 					end
 				end
 				-- Jets de la tête et des mains : faisceaux + flammes
@@ -779,12 +872,52 @@ return function(contexte)
 					secouer(0.5)
 				end
 
+				-- (V7.5.2, G-209, G-210) Les accessoires : les anciens brûlent quand le serveur les retire, les nouveaux apparaissent
+				-- un par un. Les copies des anciens sont préparées un peu avant le changement (40 %).
 				local depart = os.clock()
+				local anciens, brules = {}, 0
+				local apparitions = CORPS.Apparition ~= false and apparitionsAccessoires(reduit) or nil
+				local copiesPretes = false
+				local function preparerCopies()
+					copiesPretes = true
+					if CORPS.Cendres == false then return end
+					for _, objet in personnage:GetChildren() do
+						if objet:IsA("Accessory") and not anciens[objet] then
+							local c = copieAccessoire(objet)
+							if c then anciens[objet] = c end
+						end
+					end
+				end
+				table.insert(connexions, personnage.ChildRemoved:Connect(function(objet)
+					local c = anciens[objet]
+					if not c then return end
+					anciens[objet] = nil
+					if brules < (CORPS.CendresMax or 8) then
+						brules += 1
+						brulerAccessoire(c, solTrouve and sol.Y or nil, reduit)
+					else
+						c.copie:Destroy()
+					end
+				end))
+				table.insert(connexions, personnage.ChildAdded:Connect(function(objet)
+					if apparitions and copiesPretes and objet:IsA("Accessory") then apparitions.ajouter(objet, os.clock() - depart) end
+				end))
+
+				depart = os.clock()
 				local flashFait, eclatFait = false, false
 				table.insert(connexions, RunService.RenderStepped:Connect(function()
 					local t = os.clock() - depart
 					local p = math.clamp(t / duree, 0, 1)
 					local i = intensite(p)
+					-- (V7.5.2) fils d'or dans les bras, copies des anciens accessoires (suivies jusqu'au changement), nouveaux accessoires
+					local fb = Config.fluxBras(p)
+					for _, fil in filsBras do
+						fil.Enabled = fb > 0.01
+						fil.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.85 * fb), NumberSequenceKeypoint.new(0.5, 1 - 0.6 * fb), NumberSequenceKeypoint.new(1, 1 - 0.85 * fb) })
+					end
+					if not copiesPretes and p >= 0.4 then preparerCopies() end
+					for objet, c in anciens do if objet.Parent and c.poignee.Parent then c.cf = c.poignee.CFrame end end
+					if apparitions then apparitions.maj(t) end
 					local vacillement = (p > 0.2 and p < 0.85) and (0.9 + 0.1 * math.noise(t * 7, 0.5, 0.5) * 2) or 1
 					-- Débit des flammes et des étincelles
 					for _, f in flux do f.e.Rate = (p >= f.seuil and p < 0.9) and f.debit * i * vacillement or 0 end
@@ -806,13 +939,15 @@ return function(contexte)
 						end
 					end
 					-- Lueur et lumière
+					-- (V7.5.2, G-207) la lueur bat comme un cœur, de plus en plus vite jusqu'à l'éruption
+					local coeur = CORPS.Battement ~= false and (0.45 + 0.55 * Config.battementCoeur(t, duree, CORPS.BattementDebut, CORPS.BattementFin)) or 1
 					if not (eclatFait and t - duree * 0.52 < 0.6) then
-						lueur.FillTransparency = 1 - 0.7 * i
+						lueur.FillTransparency = 1 - 0.7 * i * coeur
 					end
-					lueur.OutlineTransparency = 1 - i
+					lueur.OutlineTransparency = 1 - i * coeur
 					lumiere.Brightness = 14 * i * vacillement
 					lumiere.Range = 10 + 45 * i
-					lumiereTete.Brightness = 6 * i
+					lumiereTete.Brightness = 6 * i * coeur
 					-- Sol brûlant
 					if brulure then
 						local largeur = 1 + 7 * i
@@ -877,6 +1012,34 @@ return function(contexte)
 				-- une quinzaine de secondes, et le sol brûlant refroidit lentement
 				task.delay(duree, function()
 					rendreCamera()
+					-- (V7.5.2) les nouveaux accessoires encore en attente apparaissent ; les copies inutilisées sont jetées
+					task.delay(1.1, function()
+						if apparitions then apparitions.finir() end
+						for objet, c in anciens do c.copie:Destroy() anciens[objet] = nil end
+					end)
+					-- (V7.5.2, G-213) les cheveux fument aussi, et s'arrêtent avec les mains
+					if CORPS.FumeeCheveux ~= false then
+						for _, objet in personnage:GetChildren() do
+							local typeNom = nil
+							pcall(function() typeNom = objet.AccessoryType.Name end)
+							local poignee = objet:IsA("Accessory") and objet:FindFirstChild("Handle")
+							if poignee and Config.estCheveux(objet.Name, typeNom) then
+								local fumee = creer("ParticleEmitter", { Name = "TardisRegenFumeeCheveux", Texture = FUMEE, LightEmission = 1, Color = ColorSequence.new(OR_CLAIR, OR),
+									Size = NumberSequence.new(0.2, 0.7), Transparency = NumberSequence.new(0.45, 1), Speed = NumberRange.new(0.4, 1),
+									Lifetime = NumberRange.new(0.8, 1.4), SpreadAngle = Vector2.new(60, 60), EmissionDirection = Enum.NormalId.Top,
+									Acceleration = Vector3.new(0, 1.5, 0), Rate = Config.debitFumeeApres(0) * 0.7, Parent = poignee })
+								task.spawn(function()
+									for k = 1, 15 do
+										task.wait(1)
+										if not fumee.Parent then return end
+										fumee.Rate = Config.debitFumeeApres(k) * 0.7
+									end
+								end)
+								Debris:AddItem(fumee, 17)
+								break
+							end
+						end
+					end
 					if tete.Parent then
 						local souffle = creer("ParticleEmitter", { Texture = FUMEE, LightEmission = 1, Color = ColorSequence.new(OR_CLAIR, OR),
 							Size = NumberSequence.new(0.3, 1.4), Transparency = NumberSequence.new(0.2, 1), Speed = NumberRange.new(3, 6),
@@ -899,7 +1062,7 @@ return function(contexte)
 								for k = 1, 15 do
 									task.wait(1)
 									if not volutes.Parent then return end
-									volutes.Rate = math.max(0, 14 - k)
+									volutes.Rate = Config.debitFumeeApres(k)
 									braises.Rate = math.max(0, 6 - k * 0.4)
 								end
 							end)

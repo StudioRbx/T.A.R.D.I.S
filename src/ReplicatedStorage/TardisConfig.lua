@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.5.1"
+Config.Version = "7.5.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1055,6 +1055,25 @@ Config.Regeneration = {
 		DebitBraises = 10,          -- braises par seconde au plus fort
 		VignetteTemoins = true,     -- (G-240) pour les témoins, l'or vient du bord de l'écran tourné vers la régénération
 		ForceVignette = 0.55,       -- opacité du bord doré au plus fort
+	},
+	-- Le corps change (V7.5.2)
+	Corps = {
+		FluxBras = true,            -- (G-206) des fils d'or coulent de l'épaule à la main avant les jets des mains
+		Battement = true,           -- (G-207) la lueur sous la peau bat comme un cœur, de plus en plus vite jusqu'à l'éruption...
+		BattementDebut = 1.1,       -- ...battements par seconde au début...
+		BattementFin = 3.2,         -- ...et juste avant l'éclat
+		TeinteAvant = true,         -- (G-208) juste avant l'éclat, la peau glisse vers les couleurs du nouvel avatar...
+		DebutTeinte = 0.4,          -- ...à partir de ce moment (part de la durée)...
+		DureeTeinte = 0.12,         -- ...pendant cette part de la durée (0,4 + 0,12 = l'éclat)
+		Cendres = true,             -- (G-209) les anciens accessoires rougeoient et tombent en cendres au changement...
+		CendresMax = 8,             -- ...au plus ce nombre d'accessoires...
+		DureeCendres = 1.4,         -- ...en tant de secondes
+		Apparition = true,          -- (G-210) les nouveaux accessoires apparaissent un par un, chacun avec une étincelle...
+		IntervalleApparition = 0.25, -- ...à ce rythme (secondes)...
+		DureeApparition = 0.5,      -- ...et chacun en tant de secondes
+		FumeeCheveux = true,        -- (G-213) les cheveux fument après la régénération, aussi longtemps que les mains
+		RepousseDoree = true,       -- (G-215) un membre qui repousse sort en or (Neon)...
+		DureeRepousseDoree = 1,     -- ...puis prend sa vraie couleur en tant de secondes
 	},
 	-- Son optionnel : un Sound "Regeneration" dans ReplicatedStorage > TardisAssets > Sons
 	BonusPV = 100,           -- PV en plus après une régénération...
@@ -2500,6 +2519,76 @@ function Config.poidsBordsRegen(direction)
 	local fond = 0.25 * devant + 0.5 * derriere * (1 - math.min(n * 2, 1))
 	local function bord(x) return math.clamp(math.max(x, 0) * cote + fond, 0, 1) end
 	return bord(-v.X), bord(v.X), bord(v.Y), bord(-v.Y)
+end
+
+-- (V7.5.2, G-206) Force des fils d'or dans les bras (0 à 1), selon l'avancement p : ils montent tout de suite, tiennent
+-- pendant la montée, puis s'effacent avant l'éclat (les jets des mains prennent le relais)
+function Config.fluxBras(p)
+	p = tonumber(p) or 0
+	if p <= 0 then return 0 end
+	if p < 0.1 then return p / 0.1 end
+	if p < 0.4 then return 1 end
+	if p < 0.52 then return 1 - (p - 0.4) / 0.12 end
+	return 0
+end
+
+-- (V7.5.2, G-207) Battement de cœur de la lueur (0 à 1) au temps t d'une régénération de « duree » secondes : deux coups
+-- par battement (« poum-poum »), le rythme passe de « debut » à « fin » battements par seconde jusqu'à l'éclat (52 %),
+-- puis la lueur ne bat plus (1)
+function Config.battementCoeur(t, duree, debut, fin)
+	t, duree = math.max(tonumber(t) or 0, 0), math.max(tonumber(duree) or 8, 0.1)
+	debut, fin = tonumber(debut) or 1.1, tonumber(fin) or 3.2
+	local T = 0.52 * duree
+	if t >= T then return 1 end
+	-- la fréquence monte comme le carré du temps : la phase est son intégrale
+	local tours = debut * t + (fin - debut) * t ^ 3 / (3 * T * T)
+	local x = tours % 1
+	local function coup(centre, largeur) local d = (x - centre) / largeur return math.exp(-d * d) end
+	return math.clamp(math.max(coup(0.1, 0.08), 0.6 * coup(0.34, 0.08)), 0, 1)
+end
+
+-- (V7.5.2, G-208) Couleurs du nouvel avatar pour BodyColors (HeadColor3…), lues dans une HumanoidDescription
+function Config.couleursCorps(description)
+	local couleurs, trouve = {}, false
+	for _, paire in { { "HeadColor3", "HeadColor" }, { "TorsoColor3", "TorsoColor" }, { "LeftArmColor3", "LeftArmColor" },
+		{ "RightArmColor3", "RightArmColor" }, { "LeftLegColor3", "LeftLegColor" }, { "RightLegColor3", "RightLegColor" } } do
+		local ok, valeur = pcall(function() return description[paire[2]] end)
+		if ok and typeof(valeur) == "Color3" then couleurs[paire[1]] = valeur trouve = true end
+	end
+	return trouve and couleurs or nil
+end
+
+-- (V7.5.2, G-215) Propriété de BodyColors qui donne la couleur d'un membre (R6 et R15)
+function Config.proprieteBodyColors(membre)
+	membre = tostring(membre or "")
+	if membre == "Head" then return "HeadColor3" end
+	if membre == "Torso" or membre == "UpperTorso" or membre == "LowerTorso" then return "TorsoColor3" end
+	for _, cote in { "Left", "Right" } do
+		if string.sub(membre, 1, #cote) == cote then
+			local reste = string.sub(membre, #cote + 1)
+			if reste == " Arm" or reste == "UpperArm" or reste == "LowerArm" or reste == "Hand" then return cote .. "ArmColor3" end
+			if reste == " Leg" or reste == "UpperLeg" or reste == "LowerLeg" or reste == "Foot" then return cote .. "LegColor3" end
+		end
+	end
+	return nil
+end
+
+-- (V7.5.2, G-213) Un accessoire est-il une coiffure ? (type Hair, ou un nom qui le dit)
+function Config.estCheveux(nom, typeAccessoire)
+	if typeAccessoire == "Hair" then return true end
+	local n = string.lower(tostring(nom or ""))
+	return string.find(n, "hair", 1, true) ~= nil or string.find(n, "cheveu", 1, true) ~= nil
+end
+
+-- (V7.5.2, G-210) Transparence d'un nouvel accessoire qui apparaît (1 = invisible) : il attend son tour, puis se révèle
+function Config.fonduApparition(t, debut, duree)
+	duree = math.max(tonumber(duree) or 0.5, 1e-3)
+	return math.clamp(1 - ((tonumber(t) or 0) - (tonumber(debut) or 0)) / duree, 0, 1)
+end
+
+-- (V7.5.2, G-213) Débit des volutes après la régénération, k secondes après la fin (les mains ; les cheveux en prennent 70 %)
+function Config.debitFumeeApres(k)
+	return math.max(0, 14 - (tonumber(k) or 0))
 end
 
 return Config

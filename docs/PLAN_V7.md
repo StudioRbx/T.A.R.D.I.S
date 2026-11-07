@@ -249,13 +249,13 @@ Mettre en scène la régénération (caméra, corps, poses, lieu), puis lui donn
 
 **Objectif :** Montrer la transformation sur le corps : énergie qui descend le long des bras, lueur qui bat, peau qui change en douceur, anciens accessoires qui brûlent, nouveaux qui apparaissent, membre qui repousse en lumière.
 
-- **G-206. Énergie qui descend le long des bras** *(petit)* : Avant que les mains crachent leurs jets, des filets dorés (Beams fins) coulent de l'épaule jusqu'à la main. Le jet semble venir du corps et pas de nulle part.
-- **G-207. Lueur de la peau qui bat comme un cœur** *(petit)* : La lueur (Highlight) monte aujourd'hui de façon lisse ; la faire battre lentement, puis de plus en plus vite jusqu'à l'éruption, donne du rythme à la montée.
-- **G-208. Couleur de peau qui change en douceur** *(moyen)* : Juste avant l'éclat, les couleurs du corps (BodyColors) glissent vers celles du nouvel avatar. Le changement ne se fait plus d'un seul coup sous la lumière.
-- **G-209. Anciens accessoires qui brûlent et tombent** *(moyen)* : Au changement, les accessoires de l'ancien avatar se détachent, rougeoient puis tombent en cendres, avant que les nouveaux arrivent. On voit vraiment l'ancien visage partir.
-- **G-210. Nouveaux accessoires qui apparaissent un à un** *(petit)* : Après l'application du nouvel avatar, chaque accessoire (cheveux, chapeau…) apparaît en fondu avec une petite étincelle, au lieu de surgir d'un coup.
-- **G-213. Cheveux qui fument encore après** *(petit)* : En partie là : les mains fument déjà après la régénération. Ajouter quelques volutes sur l'accessoire de cheveux, qui s'arrêtent en même temps.
-- **G-215. Membre qui repousse en lumière** *(petit)* : Dans surveillerMembres, le bras ou la jambe apparaît d'un coup. Il pourrait d'abord apparaître en lumière dorée (Neon), puis prendre sa vraie couleur en 1 seconde.
+- ✅ **G-206. Énergie qui descend le long des bras** *(petit)* : Avant que les mains crachent leurs jets, des filets dorés (Beams fins) coulent de l'épaule jusqu'à la main. Le jet semble venir du corps et pas de nulle part.
+- ✅ **G-207. Lueur de la peau qui bat comme un cœur** *(petit)* : La lueur (Highlight) monte aujourd'hui de façon lisse ; la faire battre lentement, puis de plus en plus vite jusqu'à l'éruption, donne du rythme à la montée.
+- ✅ **G-208. Couleur de peau qui change en douceur** *(moyen)* : Juste avant l'éclat, les couleurs du corps (BodyColors) glissent vers celles du nouvel avatar. Le changement ne se fait plus d'un seul coup sous la lumière.
+- ✅ **G-209. Anciens accessoires qui brûlent et tombent** *(moyen)* : Au changement, les accessoires de l'ancien avatar se détachent, rougeoient puis tombent en cendres, avant que les nouveaux arrivent. On voit vraiment l'ancien visage partir.
+- ✅ **G-210. Nouveaux accessoires qui apparaissent un à un** *(petit)* : Après l'application du nouvel avatar, chaque accessoire (cheveux, chapeau…) apparaît en fondu avec une petite étincelle, au lieu de surgir d'un coup.
+- ✅ **G-213. Cheveux qui fument encore après** *(petit)* : En partie là : les mains fument déjà après la régénération. Ajouter quelques volutes sur l'accessoire de cheveux, qui s'arrêtent en même temps.
+- ✅ **G-215. Membre qui repousse en lumière** *(petit)* : Dans surveillerMembres, le bras ou la jambe apparaît d'un coup. Il pourrait d'abord apparaître en lumière dorée (Neon), puis prendre sa vraie couleur en 1 seconde.
 
 **Dans Studio :** Rien.
 

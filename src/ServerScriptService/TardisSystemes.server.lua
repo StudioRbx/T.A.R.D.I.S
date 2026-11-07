@@ -858,6 +858,20 @@ local function surveillerMembres(joueur, personnage, duree)
 						m.Name = modele.moteur
 						m.Part0, m.Part1, m.C0, m.C1 = torse, neuf, modele.C0, modele.C1
 						m.Parent = torse
+						-- (V7.5.2, G-215) Le membre sort en or (Neon), puis prend sa vraie couleur (celle de BodyColors, donc du
+						-- nouvel avatar) en une seconde
+						local CORPS = REGEN.Corps or {}
+						if CORPS.RepousseDoree ~= false then
+							local corps = personnage:FindFirstChildOfClass("BodyColors")
+							local propriete = Config.proprieteBodyColors(membre)
+							local vraie = (corps and propriete and corps[propriete]) or neuf.Color
+							local matiere = neuf.Material
+							neuf.Material = Enum.Material.Neon
+							neuf.Color = Color3.fromRGB(255, 200, 90)
+							local fondu = game:GetService("TweenService"):Create(neuf, TweenInfo.new(CORPS.DureeRepousseDoree or 1), { Color = vraie })
+							fondu.Completed:Connect(function() if neuf.Parent then neuf.Material = matiere end end)
+							fondu:Play()
+						end
 						-- Un peu d'énergie dorée sur le membre neuf
 						local eclat = Instance.new("ParticleEmitter")
 						eclat.Color = ColorSequence.new(Color3.fromRGB(255, 235, 150), Color3.fromRGB(255, 150, 40))
@@ -1043,6 +1057,21 @@ local function surveillerPersonnage(joueur, personnage)
 				description, origine = choisirDescription(joueur, humanoid)
 				prete = true
 			end)
+			-- (V7.5.2, G-208) Juste avant l'éclat, la peau glisse vers les couleurs du nouvel avatar (tout le monde le voit)
+			local CORPS = REGEN.Corps or {}
+			if CORPS.TeinteAvant ~= false then
+				task.delay(duree * (CORPS.DebutTeinte or 0.4), function()
+					local limite = os.clock() + duree * 0.1
+					while not prete and os.clock() < limite do task.wait(0.1) end
+					local couleurs = description and personnage.Parent and Config.couleursCorps(description)
+					local corps = couleurs and personnage:FindFirstChildOfClass("BodyColors")
+					if corps then
+						pcall(function()
+							TweenService:Create(corps, TweenInfo.new(duree * (CORPS.DureeTeinte or 0.12), Enum.EasingStyle.Sine), couleurs):Play()
+						end)
+					end
+				end)
+			end
 			task.delay(duree * 0.55, function()
 				local limite = os.clock() + duree * 0.35
 				while not prete and os.clock() < limite do task.wait(0.1) end
