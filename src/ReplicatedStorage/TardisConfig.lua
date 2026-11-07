@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.5.4"
+Config.Version = "7.5.4.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -76,6 +76,7 @@ Config.Ecrans = {
 Config.EcranIngenieur = {
 	Pas = 5,                 -- (V6.9.10.1) pas des boutons − / + de la régulation (%)
 	DistanceFermeture = 14,  -- (V6.9.10.1) le menu se ferme si on s'éloigne de l'écran de plus de tant de studs
+	EchelleMax = 1.5,        -- (V7.5.4.1) le menu (1120 × 760) grandit jusqu'à tant de fois sa taille : presque plein écran
 }
 -- Panneau du jukebox de la console (V6.9.10.1) : « Console › JukeBox », mêmes pistes que la tablette (Config.Jukebox)
 Config.JukeboxConsole = {
@@ -98,8 +99,9 @@ Config.InvitesConsole = {
 Config.BoutonVolLibre = {
 	Touche = "F",            -- (V6.9.10.1) touche de l'invite (manette : Y)
 	Distance = 10,           -- (V6.9.10.1) distance du clic et de l'invite (studs) ; V6.9.10.5 : au moins 10
-	HauteurInvite = 0.9,     -- (V6.9.10.5) l'invite « Vol libre » flotte tant de studs au-dessus du bouton (Model Colors : clic sur tout le Model) ;
+	HauteurInvite = 0.05,    -- (V6.9.10.5) l'invite « Vol libre » flotte tant de studs au-dessus du bouton (Model Colors : clic sur tout le Model) ;
 	                         -- (V6.9.16) 1,5 → 0,9 : un peu plus bas, toujours au-dessus des autres invites
+	                         -- (V7.5.4.1) 0,9 → 0,05 : l'invite est posée sur les dalles de verre colorées du bouton
 }
 -- Casiers (tenues) : la caméra se place face au joueur sans jamais entrer dans un mur (V6.9.10.5). Elle essaie devant,
 -- devant à gauche, devant à droite et plus haut, garde la place la plus dégagée, et ne bouge pas si tout est bouché.
@@ -2311,7 +2313,71 @@ Config.CommandesConsole = {
 	LevierVol = true,            -- (G-101) le levier de vol s'abaisse au décollage et remonte à l'atterrissage
 	AngleLevierVol = 35,         -- degrés ; une Part « Charniere » à côté du levier donne l'axe, sinon le bout du levier
 	DureeBascule = 0.4,          -- secondes
+	-- (V7.5.4.1) Le kit a deux poses pour le levier de vol et pour le bouton du démarrage : la visible (Fly, On) et une
+	-- cachée (Land, Off). Les pièces qui changent de place entre les deux suivent ensemble le mouvement d'une pose à
+	-- l'autre (vis : rotation autour de l'axe trouvé + glissement le long de cet axe). Sans la pose cachée : l'ancienne
+	-- bascule du seul levier (AngleLevierVol).
+	PosesKit = {
+		Levier = { Visible = { "Controls", "Matlever", "Fly" }, Autre = { "Controls", "Matlever", "Land" } },
+		Demarrage = { Visible = { "Controls", "Power", "On" }, Autre = { "Controls", "Power", "Off" } },
+	},
+	DureePose = 0.6,             -- (V7.5.4.1) secondes pour aller d'une pose à l'autre
+	PoseDemarrage = true,        -- (V7.5.4.1) le bouton du démarrage tourne vers la pose Off quand le démarrage est bloqué
+	-- (V7.5.4.1) Panneau 1 de la console : clic direct (sans invite) pour les pilotes. La Cloche n'est pas touchée.
+	PanneauClic = true,
+	Panneau1 = {
+		Bouclier = { "Console", "Panel 1", "Bouclier" }, -- les deux boucliers à la fois (BoucliersPanneau)
+		Siege = { "Console", "Panel 1", "Siege" },       -- mode siège
+		Cloak = { "Console", "Panel 1", "Cloak" },       -- camouflage
+	},
+	BoucliersPanneau = { "Joueurs", "Balles" },
 }
+
+-- (V7.5.4.1) Alarme du bouton Alerte : le son « Neon TARDIS Alarm » du kit (Rotor › Rotor › Warning1) est copié dans
+-- TardisAssets › Sons › Alarme s'il n'y est pas ; le client le joue en boucle tant que l'alerte est levée. Volume au plus
+-- VolumeMax. CouperAncienne : l'ancien script du kit (Rotor › Rotor › Warning) reste éteint, pour ne pas jouer deux alarmes.
+Config.Alarme = { Source = { "Rotor", "Rotor", "Warning1" }, VolumeMax = 0.25, CouperAncienne = true }
+
+-- (V7.5.4.1) Mouvement entre deux poses du kit : « a » et « b » = CFrame d'une même pièce dans chaque pose. Renvoie
+-- { axe, angle, pivot, glisse } (vis) ou nil si les deux poses ne sont pas tournées l'une par rapport à l'autre.
+function Config.poseKit(a, b)
+	if typeof(a) ~= "CFrame" or typeof(b) ~= "CFrame" then return nil end
+	local T = b * a:Inverse()
+	local axe, angle = T:ToAxisAngle()
+	if not angle or math.abs(angle) < 1e-4 or axe.Magnitude < 1e-6 then return nil end
+	local u = axe.Unit
+	local t = T.Position
+	local glisse = u * t:Dot(u)
+	local tperp = t - glisse
+	local pivot = (tperp + u:Cross(tperp) / math.tan(angle / 2)) * 0.5
+	return { axe = u, angle = angle, pivot = pivot, glisse = glisse }
+end
+
+-- (V7.5.4.1) CFrame d'une pièce à la fraction f (0 = pose visible, 1 = pose cachée) du mouvement « pose »
+function Config.cframePose(base, pose, f)
+	if not pose then return base end
+	f = math.clamp(tonumber(f) or 0, 0, 1)
+	return CFrame.new(pose.pivot + pose.glisse * f) * CFrame.fromAxisAngle(pose.axe, pose.angle * f) * CFrame.new(-pose.pivot) * base
+end
+
+-- (V7.5.4.1) Une pièce de la pose visible bouge-t-elle ? Oui si, une fois déplacée par « pose », elle tombe sur une
+-- pièce de la pose cachée (positions = liste de Vector3), à « tolerance » studs près (0,02 par défaut).
+function Config.pieceBouge(cf, pose, positions, tolerance)
+	if not pose or typeof(cf) ~= "CFrame" then return false end
+	local tol = tonumber(tolerance) or 0.02
+	if (Config.cframePose(cf, pose, 1).Position - cf.Position).Magnitude <= tol then return false end
+	local arrivee = Config.cframePose(cf, pose, 1).Position
+	for _, position in positions or {} do
+		if (position - arrivee).Magnitude <= tol then return true end
+	end
+	return false
+end
+
+-- (V7.5.4.1) Courbe douce (début et fin lents) pour les poses du kit
+function Config.douceur(x)
+	x = math.clamp(tonumber(x) or 0, 0, 1)
+	return x * x * (3 - 2 * x)
+end
 
 -- (G-101) Le levier de vol est baissé pendant la dématérialisation et le vol, levé posé et à la rematérialisation
 function Config.levierVolBaisse(etat)

@@ -83,7 +83,7 @@ rs = game.m_FindFirstChild("ReplicatedStorage"); Players = game.m_FindFirstChild
 tache(lambda: R.update(Config=premier(appeler(G["require"], [rs.m_FindFirstChild("TardisConfig")]))))
 Config = R["Config"]; E = Config.get("Etats")
 BV, IC, CA, JD = Config.get("BoutonVolLibre"), Config.get("InvitesConsole"), Config.get("Casiers"), Config.get("JukeboxDossier")
-verifier("1. Config.BoutonVolLibre.HauteurInvite = 0,9 (V6.9.16 : 1,5 avant) ; Distance au moins 10 ; touche F", BV.get("HauteurInvite") == 0.9 and BV.get("Distance") >= 10 and BV.get("Touche") == "F",
+verifier("1. Config.BoutonVolLibre.HauteurInvite = 0,05 (V7.5.4.1 : sur les dalles ; 0,9 avant) ; Distance au moins 10 ; touche F", BV.get("HauteurInvite") == 0.05 and BV.get("Distance") >= 10 and BV.get("Touche") == "F",
          (BV.get("HauteurInvite"), BV.get("Distance")))
 verifier("1. Config.InvitesConsole.HauteurInvite = false (V6.9.10.8 : invites de la console revenues sur leur commande)", IC.get("HauteurInvite") is False)
 verifier("1. Config.Casiers : caméra à 7 studs, dégagement minimal, marge, fermeture à 12 studs",
@@ -180,9 +180,9 @@ verifier("2. Une invite « Vol libre », sur un point d'attache (Attachment) dan
 iv = invV[0]
 mn, mx = boite_monde([P["rouge"], P["vert"]])  # pièces VISIBLES du bouton
 pv = monde_attache(iv.parent)
-verifier("2. Point de l'invite : 0,9 stud au-dessus du haut du bouton (pièces visibles), au milieu (V6.9.16)", proche(pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 0.9, (mn[2] + mx[2]) / 2), 1e-6),
-         (pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 0.9, (mn[2] + mx[2]) / 2)))
-verifier("2. … donc au-dessus de toutes les pièces du Selecteur (rien ne le cache)", pv.y > boite_monde([P["socle"], P["molette"], P["cadre"], P["rouge"], P["vert"]])[1][1])
+verifier("2. Point de l'invite : 0,05 stud au-dessus du haut du bouton, au milieu : posée sur les dalles de verre (V7.5.4.1 ; 0,9 en V6.9.16)", proche(pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 0.05, (mn[2] + mx[2]) / 2), 1e-6),
+         (pv.t(), ((mn[0] + mx[0]) / 2, mx[1] + 0.05, (mn[2] + mx[2]) / 2)))
+verifier("2. … au-dessus du haut du bouton (posée sur les dalles, pas dedans)", pv.y > mx[1])
 verifier("2. Invite : touche F (manette Y), sans ligne de vue, 10 studs au moins, active TARDIS posé",
          iv.props["KeyboardKeyCode"].nom == "Enum.KeyCode.F" and iv.props["GamepadKeyCode"].nom == "Enum.KeyCode.ButtonY" and iv.props["RequiresLineOfSight"] is False
          and iv.props["MaxActivationDistance"] >= 10 and iv.props.get("Enabled") is True, {k: iv.props.get(k) for k in ("MaxActivationDistance", "RequiresLineOfSight", "Enabled")})

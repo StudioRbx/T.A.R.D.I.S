@@ -248,12 +248,16 @@ return function(contexte)
 			end
 		end
 		-- Alarme : le son "Alarme" (TardisAssets > Sons) tourne en boucle dans la salle tant que l'alerte est activée
+		-- (V7.5.4.1) Le serveur copie l'alarme du kit dans TardisAssets › Sons › Alarme au démarrage : on l'attend (10 s au
+		-- plus, sans bloquer le reste) ; son volume est limité à Config.Alarme.VolumeMax (25 %)
+		task.spawn(function()
 		local alarme = nil
-		local modeleAlarme = sons and sons:FindFirstChild("Alarme")
+		local modeleAlarme = sons and (sons:FindFirstChild("Alarme") or sons:WaitForChild("Alarme", 10))
 		if support and modeleAlarme and modeleAlarme:IsA("Sound") then
 			alarme = modeleAlarme:Clone()
 			alarme.Name = "TardisAlarme"
 			alarme.Looped = true
+			alarme.Volume = math.min(alarme.Volume, tonumber((Config.Alarme or {}).VolumeMax) or 0.25)
 			alarme.Parent = support -- le volume des réglages s'applique tout seul (sons de l'intérieur)
 			local function majAlarme()
 				local active = exterieur:GetAttribute("Alerte") == true and exterieur:GetAttribute("Alimentation") ~= false
@@ -270,6 +274,7 @@ return function(contexte)
 			end
 			majAlarme()
 		end
+		end)
 		-- Jukebox (V6.7.3) : son LOCAL (pas positionné), audible seulement à bord, en fondu quand on entre ou sort.
 		-- Attribut "Jukebox" : un numéro de piste (en boucle) ou un nom de playlist ("Action" : aléatoire, enchaînée).
 		-- (V6.9.10.5) Pistes : Config.Jukebox et les Sound du dossier TardisAssets › Jukebox (Config.pistesJukebox, mêmes

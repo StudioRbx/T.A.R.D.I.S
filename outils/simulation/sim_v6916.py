@@ -26,8 +26,8 @@ console = lire("StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Console.lu
 bloc = config[config.find("Config.BoutonVolLibre"):]
 bloc = bloc[:bloc.find("\n}")]
 lignes = [l for l in bloc.splitlines() if l.strip().startswith("HauteurInvite")]
-verifier("1. Config.BoutonVolLibre.HauteurInvite = 0.9, marqué « V6.9.16 »",
-         len(lignes) == 1 and re.match(r"\s*HauteurInvite\s*=\s*0\.9\s*,", lignes[0]) and "(V6.9.16) 1,5 → 0,9" in bloc, lignes)
+verifier("1. Config.BoutonVolLibre.HauteurInvite = 0.05 (V7.5.4.1, après 0,9 de la V6.9.16)",
+         len(lignes) == 1 and re.match(r"\s*HauteurInvite\s*=\s*0\.05\s*,", lignes[0]) and "(V6.9.16) 1,5 → 0,9" in bloc and "(V7.5.4.1) 0,9 → 0,05" in bloc, lignes)
 verifier("1. Serveur : même valeur par défaut (0.9) si le réglage manque", "reglagesBouton.HauteurInvite or 0.9" in serveur
          and "reglagesBouton.HauteurInvite or 1.5" not in serveur)
 
@@ -45,10 +45,10 @@ verifier("3. Le ClickDetector reste et ouvre le menu", 'Instance.new("ClickDetec
 def const(nom):
     m = re.search(r"local " + nom + r"\s*=\s*(\d+)", console)
     return int(m.group(1)) if m else None
-verifier("4. Menu 760 × 640 (LARGEUR_ENERGIE, HAUTEUR_ENERGIE), passé au panneau",
-         "local LARGEUR_ENERGIE, HAUTEUR_ENERGIE = 760, 640" in console and 'panneau("TardisMenuEnergie", LARGEUR_ENERGIE, HAUTEUR_ENERGIE)' in console)
+verifier("4. Menu 1120 × 760 (V7.5.4.1 ; 760 × 640 avant), passé au panneau avec son plafond d'échelle",
+         "local LARGEUR_ENERGIE, HAUTEUR_ENERGIE = 1120, 760" in console and 'panneau("TardisMenuEnergie", LARGEUR_ENERGIE, HAUTEUR_ENERGIE, tonumber(REGLAGES.EchelleMax) or 1.5)' in console)
 verifier("4. Deux colonnes : ÉTAT (avec les pannes en cours) et RÉGULATION",
-         "colRegulation" in console and "Pannes en cours" in console and const("HAUTEUR_COLONNES") == 432, const("HAUTEUR_COLONNES"))
+         "colRegulation" in console and "Pannes en cours" in console and const("HAUTEUR_COLONNES") == 540, const("HAUTEUR_COLONNES"))
 verifier("4. Plages de la régulation affichées (tension nominale, air vicié, vapeur normale)",
          "Nominal %d–%d %%" in console and "Vicié sous %d %%" in console and "Normal : 50 %" in console)
 

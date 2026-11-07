@@ -1,5 +1,5 @@
 {
- "version": "7.5.4",
+ "version": "7.5.4.1",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 163847,
-   "empreinte": 1055699243
+   "taille": 167784,
+   "empreinte": 1774485173
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -79,8 +79,8 @@
    "nom": "TardisServeur",
    "classe": "Script",
    "parTardis": false,
-   "taille": 121742,
-   "empreinte": 1776022555
+   "taille": 129059,
+   "empreinte": 2103395216
   },
   {
    "fichier": "src/ServerScriptService/TardisSupervision.server.lua",
@@ -214,8 +214,8 @@
    "nom": "Ambiance",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 41609,
-   "empreinte": 2034304779
+   "taille": 41988,
+   "empreinte": 1381281166
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/AutoDestruction.lua",
@@ -250,8 +250,8 @@
    "nom": "Console",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 37984,
-   "empreinte": 932324903
+   "taille": 55183,
+   "empreinte": 995419252
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Copilote.lua",

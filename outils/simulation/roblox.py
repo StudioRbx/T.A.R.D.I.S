@@ -415,6 +415,21 @@ class CF(Valeur):
             R = s.R
             return Fonction("ToEulerAnglesYXZ", py=lambda _s: [math.asin(max(-1, min(1, -R[1][2]))), math.atan2(R[0][2], R[2][2]), math.atan2(R[1][0], R[1][1])])
         if k == "Orthonormalize": return Fonction("Orthonormalize", py=lambda _s: CF(s.p, _dequat(_quat(s.R))))
+        if k == "ToAxisAngle":  # (V7.5.4.1) poses du kit
+            def axe_angle(_s):
+                R = s.R
+                angle = math.acos(max(-1.0, min(1.0, (R[0][0] + R[1][1] + R[2][2] - 1) / 2)))
+                if angle < 1e-9: return [Vec3(1, 0, 0), 0.0]
+                if math.pi - angle < 1e-6:
+                    d = [math.sqrt(max(0.0, (R[i][i] + 1) / 2)) for i in range(3)]
+                    i = max(range(3), key=lambda j: d[j])
+                    a = [0.0, 0.0, 0.0]; a[i] = d[i]
+                    for j in range(3):
+                        if j != i: a[j] = R[i][j] / (2 * d[i])
+                    return [Vec3(*a), angle]
+                k2 = 2 * math.sin(angle)
+                return [Vec3((R[2][1] - R[1][2]) / k2, (R[0][2] - R[2][0]) / k2, (R[1][0] - R[0][1]) / k2), angle]
+            return Fonction("ToAxisAngle", py=axe_angle)
         if k == "GetComponents": return Fonction("GetComponents", py=lambda _s: list(s.p) + [c for ligne in s.R for c in ligne])
         # Avec une valeur de remplissage (pièce dont la position n'est pas connue), le résultat reste une valeur de remplissage
         sv = lambda f: (lambda _s, v: f(v) if en_vec3(v) is not None else Valeur("Vector3"))
@@ -490,6 +505,7 @@ def _defauts(classe):
     if classe == "Model": return {"PrimaryPart": None, "ModelStreamingMode": Valeur("Enum.ModelStreamingMode.Default")}  # V6.9.10.1 : comme Roblox, pas de PrimaryPart par défaut ; V6.9.17 : mode de Streaming
     if classe == "ColorCorrectionEffect": return {"Brightness": 0, "Contrast": 0, "Saturation": 0, "TintColor": Couleur(1, 1, 1), "Enabled": True}
     if classe == "BlurEffect": return {"Size": 24, "Enabled": True}
+    if classe == "Sound": return {"Volume": 0.5, "Looped": False, "Playing": False, "SoundId": "", "PlaybackSpeed": 1}  # V7.5.4.1 : alarme du kit (volume lu puis borné)
     if classe == "ParticleEmitter": return {"Rate": 5, "Enabled": True}
     if classe in ("Beam", "Trail", "Fire", "Smoke", "Sparkles"): return {"Enabled": True}
     # V6.9.10.6 : objets d'interface, comme dans Roblox (lus par les menus avant d'être écrits : ZIndex, transparences…)

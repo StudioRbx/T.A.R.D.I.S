@@ -52,6 +52,7 @@ sujets() {
 		sim_v752) echo "Régénération : le corps change (V7.5.2)" ;;
 		sim_v753) echo "Régénération : poses du corps (V7.5.3)" ;;
 		sim_v754) echo "Régénération à bord et selon le lieu (V7.5.4)" ;;
+		sim_v7541) echo "Retours DEVMAP : poses du kit, alarme, panneau 1, énergie (V7.5.4.1)" ;;
 		sim_paquet) echo "paquet studio synchro" ;;
 		*) echo "" ;;
 	esac
@@ -64,7 +65,7 @@ if [ -z "$filtre" ] || [ "$filtre" = "analyse" ]; then
 	"$PY" outils/simulation/analyse.py . || echecs="$echecs analyse"
 	lancees=1
 fi
-for s in sim_config sim_modules sim_supervision sim_voyage sim_effets sim_outils sim_v6910 sim_v69101 sim_v69102 sim_v69103 sim_v69104 sim_v69105 sim_v69106 sim_v69107 sim_v69108 sim_v69109 sim_v6911 sim_v6912 sim_v6913 sim_v6914 sim_v6915 sim_v6916 sim_v6917 sim_v711 sim_v712 sim_v721 sim_v722 sim_v723 sim_v724 sim_v731 sim_v732 sim_v733 sim_v734 sim_v735 sim_v741 sim_v742 sim_v751 sim_v752 sim_v753 sim_v754 sim_paquet; do
+for s in sim_config sim_modules sim_supervision sim_voyage sim_effets sim_outils sim_v6910 sim_v69101 sim_v69102 sim_v69103 sim_v69104 sim_v69105 sim_v69106 sim_v69107 sim_v69108 sim_v69109 sim_v6911 sim_v6912 sim_v6913 sim_v6914 sim_v6915 sim_v6916 sim_v6917 sim_v711 sim_v712 sim_v721 sim_v722 sim_v723 sim_v724 sim_v731 sim_v732 sim_v733 sim_v734 sim_v735 sim_v741 sim_v742 sim_v751 sim_v752 sim_v753 sim_v754 sim_v7541 sim_paquet; do
 	if [ -n "$filtre" ] && [ "$s" != "$filtre" ] && ! sujets "$s" | grep -qw -- "$filtre"; then continue; fi
 	lancees=$((lancees + 1))
 	echo; echo "=== $s ($(sujets "$s")) ==="

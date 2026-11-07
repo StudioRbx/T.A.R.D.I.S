@@ -57,8 +57,9 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V7.5.4)
+## 6. Tests en jeu et releases (V7.5.4.1)
 - Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (248 tests de la V6.7 à la V7.2.1, dont 6 réussis et 18 sans objet ; 224 encore à faire).
+- **V7.5.4.1** : décolle et atterris (levier d'un bloc), bloque puis débloque le démarrage, lève l'alerte (alarme à 25 %), clique Bouclier, Siege et Cloak du panneau 1, ouvre l'écran de l'énergie (trois onglets).
 - **V7.5.4** : régénère-toi à bord (plus court, vitres et salle dorées, jets vers le rotor), dans l'eau (bulles, vapeur), puis sur l'herbe, la neige et le métal.
 - **V7.5.3** : régénère-toi debout (mains qui tremblent, flexion puis redressement, pose du style), avec Douce ou Colonne (lévitation), puis assis ; à la fin, il regarde ses mains.
 - **V7.5.2** : régénère-toi avec un chapeau et des cheveux (fils d'or, cœur, peau qui change, chapeau en cendres, nouveaux accessoires un par un, cheveux qui fument) ; perds un membre et regarde-le repousser en or.
@@ -79,7 +80,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - **V6.9.17** : dans Zone obstruée (map en Streaming), appuie sur T puis sur Y en pilote : le menu et la tablette doivent s'ouvrir ; le diagnostic de l'Output doit finir par « streaming : ok ».
 - **V6.9.16** : regarde l'écran ingénieur (texte à l'endroit, un clic ouvre le menu de l'énergie), le menu de l'énergie élargi, et actionne les leviers et l'alerte : le kit doit s'animer.
 - **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
-- **Releases GitHub à jour** : les 58 versions de la V6.5 à la V7.5.4 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+- **Releases GitHub à jour** : les 59 versions de la V6.5 à la V7.5.4.1 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.

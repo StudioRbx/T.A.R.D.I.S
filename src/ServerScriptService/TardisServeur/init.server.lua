@@ -86,6 +86,43 @@ for nom, reglage in Config.Sons or {} do
 	end
 end
 
+-- (V7.5.4.1) Alarme du bouton Alerte : le son du kit (Config.Alarme.Source, « Neon TARDIS Alarm ») est copié dans
+-- TardisAssets › Sons › Alarme s'il n'y est pas (un Sound « Alarme » posé à la main reste prioritaire), volume au plus
+-- Config.Alarme.VolumeMax. Le client le joue en boucle tant que l'alerte est levée. L'ancien script du kit (Warning, qui
+-- jouait Warning1 et Warning2 au clic, sans suivre l'alerte) reste éteint et ses deux sons muets : une seule alarme.
+do
+	local reglageAlarme = Config.Alarme or {}
+	local maxi = tonumber(reglageAlarme.VolumeMax) or 0.25
+	local source = interieur
+	for _, nom in reglageAlarme.Source or {} do source = source and source:FindFirstChild(nom) end
+	if source and not source:IsA("Sound") then source = nil end
+	local alarme = dossierSons:FindFirstChild("Alarme")
+	if not alarme and source then
+		alarme = source:Clone()
+		alarme.Name = "Alarme"
+		alarme.Looped = true
+		alarme.Playing = false
+		alarme.Parent = dossierSons
+	end
+	if alarme and alarme:IsA("Sound") then alarme.Volume = math.min(alarme.Volume, maxi) end
+	if reglageAlarme.CouperAncienne ~= false and source and source.Parent then
+		local salle = source.Parent
+		for _, objet in salle:GetChildren() do
+			if objet:IsA("Sound") and objet.SoundId == source.SoundId then
+				objet:Stop()
+				objet.Volume = 0
+			end
+		end
+		local ancien = salle:FindFirstChild("Warning")
+		if ancien and ancien:IsA("BaseScript") then
+			ancien.Enabled = false
+			ancien:GetPropertyChangedSignal("Enabled"):Connect(function()
+				if ancien.Enabled then ancien.Enabled = false end
+			end)
+		end
+	end
+end
+
 -- [nom] = { son extérieur, son intérieur }
 -- Sons des voyages, tirés de Config.Modes (ceux du mode Express sont optionnels), et sons de la salle joués par les
 -- autres scripts (V6.7.3 : Cloitre et Reparation n'étaient pas préparés, donc jamais joués)
@@ -1385,9 +1422,90 @@ do
 			maj()
 		end)
 	end
+	-- (V7.5.4.1) Poses du kit (Config.CommandesConsole.PosesKit) : le Model visible (Fly, On) et sa copie cachée dans
+	-- l'autre position (Land, Off). Le mouvement d'une pose à l'autre est trouvé sur la pièce cliquable de chacune ; toutes
+	-- les pièces visibles qui retombent sur une pièce de la copie cachée bougent ensemble (bout beige et bras blancs du
+	-- levier ; partie blanche et bout noir du bouton), les autres (ampoules, LED, axe) restent en place.
+	local posesKit = reglages.PosesKit or {}
+	local DUREE_POSE = math.max(tonumber(reglages.DureePose) or 0.6, 0)
+	local function trouverChemin(chemin)
+		local o = interieur
+		for _, nom in chemin or {} do
+			o = o and o:FindFirstChild(nom)
+		end
+		return o
+	end
+	local function partCliquable(modele)
+		if modele:IsA("BasePart") and modele:FindFirstChildWhichIsA("ClickDetector") then return modele end
+		for _, objet in modele:GetDescendants() do
+			if objet:IsA("ClickDetector") and objet.Parent and objet.Parent:IsA("BasePart") then return objet.Parent end
+		end
+		return nil
+	end
+	local function lirePose(cle)
+		local defPose = posesKit[cle]
+		if type(defPose) ~= "table" then return nil end
+		local visible, autre = trouverChemin(defPose.Visible), trouverChemin(defPose.Autre)
+		if not visible or not autre then return nil end
+		local a, b = partCliquable(visible), partCliquable(autre)
+		if not a or not b then return nil end
+		local pose = Config.poseKit(a.CFrame, b.CFrame)
+		if not pose then return nil end
+		local positions = {}
+		for _, objet in autre:GetDescendants() do
+			if objet:IsA("BasePart") then table.insert(positions, objet.Position) end
+		end
+		local info = { pieces = {}, pose = pose, actuelle = 0, jeton = 0, nombre = 0 }
+		for _, objet in visible:GetDescendants() do
+			if objet:IsA("BasePart") and (objet == a or Config.pieceBouge(objet.CFrame, pose, positions, 0.05)) then
+				info.pieces[objet] = objet.CFrame
+				info.nombre += 1
+			end
+		end
+		return info
+	end
+	local function allerPose(info, f)
+		info.jeton += 1
+		local moi, depart = info.jeton, info.actuelle
+		local function poser(x)
+			info.actuelle = x
+			for part, base in info.pieces do
+				if part.Parent then part.CFrame = Config.cframePose(base, info.pose, x) end
+			end
+		end
+		if DUREE_POSE <= 0 or depart == f then poser(f) return end
+		task.spawn(function()
+			local duree = math.max(DUREE_POSE * math.abs(f - depart), 1e-3)
+			local debut = os.clock()
+			while true do
+				task.wait()
+				if info.jeton ~= moi then return end
+				local k = math.min((os.clock() - debut) / duree, 1)
+				poser(depart + (f - depart) * Config.douceur(k))
+				if k >= 1 then return end
+			end
+		end)
+	end
+	local poseLevier = reglages.LevierVol ~= false and lirePose("Levier") or nil
+	if poseLevier then
+		local function majPoseLevier()
+			allerPose(poseLevier, Config.levierVolBaisse(etatActuel()) and 1 or 0)
+		end
+		exterieur:GetAttributeChangedSignal("Etat"):Connect(majPoseLevier)
+		majPoseLevier()
+	end
+	local poseDemarrage = reglages.PoseDemarrage ~= false and lirePose("Demarrage") or nil
+	if poseDemarrage then
+		local function majPoseDemarrage()
+			allerPose(poseDemarrage, exterieur:GetAttribute("DemarrageBloque") == true and 1 or 0)
+		end
+		exterieur:GetAttributeChangedSignal("DemarrageBloque"):Connect(majPoseDemarrage)
+		majPoseDemarrage()
+	end
 	-- (G-101) Levier de vol : baissé au décollage (dématérialisation et vol), levé à l'atterrissage. Il tourne autour d'une
 	-- Part « Charniere » rangée à côté de lui s'il y en a une, sinon autour de son bout (face -Y)
-	if reglages.LevierVol ~= false and levier and levier.Parent then
+	-- (V7.5.4.1) seulement si le kit n'a pas sa pose cachée (Land) : sinon le levier entier suit la pose, plus haut
+	if not poseLevier and reglages.LevierVol ~= false and levier and levier.Parent then
 		local baisse = false
 		local function pivotLevier(base)
 			local charniere = (objetLevier and objetLevier:FindFirstChild("Charniere")) or (levier.Parent and levier.Parent:FindFirstChild("Charniere"))
@@ -2331,6 +2449,23 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 		local nom = (type == "Balles" and "Bouclier anti-balles") or (type == "Complet" and "Bouclier complet") or "Bouclier anti-joueurs"
 		repondre(ok, erreur, nom .. (actif and " activé." or " désactivé."))
 
+	elseif action == "BouclierDouble" then
+		-- (V7.5.4.1) Panneau 1 › Bouclier : anti-joueurs et anti-balles d'un seul geste. Si l'un des deux est éteint, les
+		-- deux s'allument ; s'ils sont tous les deux allumés, les deux s'éteignent.
+		local types = (Config.CommandesConsole or {}).BoucliersPanneau or { "Joueurs", "Balles" }
+		local lever = false
+		for _, t in types do
+			if exterieur:GetAttribute("Bouclier" .. t) ~= true then lever = true end
+		end
+		local refus = nil
+		for _, t in types do
+			if (exterieur:GetAttribute("Bouclier" .. t) == true) ~= lever then
+				local ok, erreur = basculerBouclier(t)
+				if not ok then refus = refus or erreur or "?" end
+			end
+		end
+		repondre(refus == nil, refus, lever and "Boucliers anti-joueurs et anti-balles activés." or "Boucliers désactivés.")
+
 	elseif action == "Siege" then
 		-- Mode Siège (V6.9) : bouclier, verrou et alerte d'un seul geste ; un second appui les relâche
 		task.spawn(function()
@@ -2393,6 +2528,39 @@ local function traiterOrdre(joueur, action, donnees, rappel)
 	end
 end
 remote.OnServerEvent:Connect(traiterOrdre)
+
+--------------------------------------------------------------------
+-- (V7.5.4.1) Panneau 1 de la console : Bouclier, Siege et Cloak répondent au clic (ClickDetector « Use » du kit, sans
+-- invite), avec les mêmes contrôles que la tablette (pilote ou copilote, posé, courant, délai entre deux ordres). Leur
+-- animation reste celle du kit. La Cloche n'est pas touchée.
+--------------------------------------------------------------------
+do
+	local reglages = Config.CommandesConsole or {}
+	local ACTIONS_PANNEAU = { Bouclier = "BouclierDouble", Siege = "Siege", Cloak = "Camouflage" }
+	if reglages.PanneauClic ~= false then
+		for cle, chemin in reglages.Panneau1 or {} do
+			local action = ACTIONS_PANNEAU[cle]
+			if action and cle ~= "Cloche" then
+				task.spawn(function()
+					local o = interieur
+					for i, nom in chemin do
+						o = o and (o:FindFirstChild(nom) or o:WaitForChild(nom, i == 1 and 10 or 5))
+					end
+					if not o then return end
+					local clic = o:FindFirstChild("Use", true)
+					if not (clic and clic:IsA("ClickDetector")) then clic = o:FindFirstChildWhichIsA("ClickDetector", true) end
+					if not clic then
+						warn("[TARDIS] Panneau 1 › " .. cle .. " : pas de ClickDetector, le clic reste sans effet.")
+						return
+					end
+					clic.MouseClick:Connect(function(joueur)
+						traiterOrdre(joueur, action) -- la réponse (ou le refus) s'affiche chez le joueur, comme depuis la tablette
+					end)
+				end)
+			end
+		end
+	end
+end
 
 --------------------------------------------------------------------
 -- Bouton Vol libre de la console (V6.9.10.1) : Console › Selecteur › Colors. Un clic ou l'invite (touche F) lance le vol

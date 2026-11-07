@@ -100,7 +100,7 @@ cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 def bloc(debut, fin="\n}"):
     i = cfgsrc.index(debut); return cfgsrc[i:cfgsrc.index(fin, i)]
 blocs = [bloc("Config.Ecrans = {"), bloc("Config.EcranIngenieur = {"), bloc("Config.JukeboxConsole = {"), bloc("Config.BoutonVolLibre = {"), bloc("Config.NeonsSalle = {"), bloc("Config.InvitesConsole = {")]
-nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l) and "(V6.9.10.3)" not in l and "(V6.9.10.4)" not in l and "(V6.9.10.5)" not in l and "(V6.9.10.8)" not in l]  # V6.9.10.8 : invites remises sur leur commande (sim_v69108) ; V6.9.10.3 : réglages des écrans ajoutés depuis (sim_v69103) ; V6.9.10.5 : hauteur des invites (sim_v69105)
+nouvelles = [l for b in blocs for l in b.splitlines()[1:] if re.match(r"\s*\w+ = ", l) and "(V6.9.10.3)" not in l and "(V6.9.10.4)" not in l and "(V6.9.10.5)" not in l and "(V6.9.10.8)" not in l and "(V7.5.4.1)" not in l]  # V7.5.4.1 : plafond d'échelle de l'écran de l'énergie (sim_v7541) ; V6.9.10.8 : invites remises sur leur commande (sim_v69108) ; V6.9.10.3 : réglages des écrans ajoutés depuis (sim_v69103) ; V6.9.10.5 : hauteur des invites (sim_v69105)
 nouvelles += [l for l in cfgsrc.splitlines() if re.match(r"\s*(Alerte|VolLibre|EcranIngenieur|Casier|JukeBox) = \{ \"Console\"", l) or l.startswith("Config.CheminsFacultatifs") or l.startswith("Config.CheminsSecours")]
 verifier("Chaque nouveau réglage est marqué « (V6.9.10.1) »", len(nouvelles) == 24 and all("(V6.9.10.1)" in l for l in nouvelles),
          (len(nouvelles), [l for l in nouvelles if "(V6.9.10.1)" not in l][:3]))

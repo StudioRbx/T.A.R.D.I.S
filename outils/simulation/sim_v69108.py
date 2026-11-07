@@ -32,7 +32,7 @@ Config = R["Config"]
 verifier("1. Vrai TardisConfig chargé, version 6.9.10.8 ou suivante", Config is not None and tuple(int(x) for x in str(Config.get("Version")).split(".")) >= (6, 9, 10, 8) and not roblox.ERREURS, (Config and Config.get("Version"), roblox.ERREURS[:3]))
 IC, BV = Config.get("InvitesConsole"), Config.get("BoutonVolLibre")
 verifier("1. Config.InvitesConsole.HauteurInvite = false : invites de la console sur leur commande", IC.get("HauteurInvite") is False, IC.get("HauteurInvite"))
-verifier("1. Config.BoutonVolLibre.HauteurInvite = 0,9 (V6.9.16 : 1,5 avant) : seule l'invite « Vol libre » reste relevée", BV.get("HauteurInvite") == 0.9, BV.get("HauteurInvite"))
+verifier("1. Config.BoutonVolLibre.HauteurInvite = 0,05 (V7.5.4.1 : posée sur les dalles ; 0,9 avant)", BV.get("HauteurInvite") == 0.05, BV.get("HauteurInvite"))
 ligne = [l for l in cfgsrc.splitlines() if l.strip().startswith("HauteurInvite = false")]
 verifier("1. Réglage marqué « (V6.9.10.8) »", len(ligne) == 1 and "(V6.9.10.8)" in ligne[0], ligne)
 

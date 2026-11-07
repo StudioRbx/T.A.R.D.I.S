@@ -17,6 +17,10 @@
 --   • le message de la console est une notification de la charte (badge TARDIS, ou REFUSÉ).
 -- V6.9.16 : menu de l'énergie élargi (760 px) en deux colonnes : ÉTAT (intégrité, alimentation, boucliers, alerte,
 --   démarrage, portes) et PANNES EN COURS à gauche ; RÉGULATION à droite, chaque réglage avec son état et sa plage.
+-- V7.5.4.1 : menu de l'énergie presque plein écran (1120 × 760, échelle jusqu'à 1,5) et trois pages par onglets :
+--   ÉTAT & RÉGULATION (les deux colonnes, sur fond de carte), SYSTÈMES (neuf cartes : boucliers, alimentation, alerte,
+--   siège, camouflage, portes, voyage, démarrage, équipage) et DIAGNOSTIC (structure, pannes avec la marche à suivre,
+--   environnement et bilan).
 
 return function(contexte)
 	local C, Config, UI, UserInputService = contexte.C, contexte.Config, contexte.UI, contexte.UserInputService
@@ -62,14 +66,14 @@ return function(contexte)
 	-- quand la fenêtre change) et la taille de l'interface des réglages.
 	--------------------------------------------------------------------
 	local panneaux = {} -- [gui] = { cadre, echelle, largeur, hauteur }
-	local function panneau(nom, largeur, hauteur)
+	local function panneau(nom, largeur, hauteur, echelleMax)
 		local gui = creer("ScreenGui", { Name = nom, ResetOnSpawn = false, Enabled = false, DisplayOrder = 15, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 			Parent = playerGui })
 		local carte, contenu = UI.panneauCoupe({ Name = "Carte", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(largeur, hauteur), BackgroundColor3 = C.fond, BackgroundTransparency = 0.04, Parent = gui },
 			{ coupe = 16, rayon = 16, marges = 18, pile = 10 })
 		local echelle = creer("UIScale", { Scale = UI.tailleInterface(), Parent = carte })
-		panneaux[gui] = { cadre = carte, echelle = echelle, largeur = largeur, hauteur = hauteur }
+		panneaux[gui] = { cadre = carte, echelle = echelle, largeur = largeur, hauteur = hauteur, maxi = echelleMax or 1.15 }
 		return gui, carte, contenu
 	end
 	-- Taille de l'écran (pixels), ou nil (caméra pas encore là)
@@ -82,7 +86,7 @@ return function(contexte)
 		local p = panneaux[gui]
 		if not p then return end
 		local taille = tailleEcran()
-		local base = taille and math.clamp(math.min(taille.X * 0.92 / p.largeur, taille.Y * 0.86 / p.hauteur), 0.5, 1.15) or 1
+		local base = taille and math.clamp(math.min(taille.X * 0.92 / p.largeur, taille.Y * 0.86 / p.hauteur), 0.5, p.maxi) or 1
 		p.echelle.Scale = base * UI.tailleInterface()
 	end
 
@@ -131,17 +135,57 @@ return function(contexte)
 	-- (V6.9.16) Plus large (760 px avant l'échelle, 440 avant) et plus détaillé, en deux colonnes : à gauche l'ÉTAT
 	-- (intégrité, alimentation, boucliers, alerte, démarrage, portes) et les PANNES EN COURS ; à droite la RÉGULATION,
 	-- chaque réglage avec son état (nominal, sous-tension, surtension, air vicié, fuite de vapeur) et sa plage.
-	local LARGEUR_ENERGIE, HAUTEUR_ENERGIE = 760, 640
-	local HAUTEUR_COLONNES = 432
-	local guiEnergie, _, corpsEnergie = panneau("TardisMenuEnergie", LARGEUR_ENERGIE, HAUTEUR_ENERGIE)
+	-- (V7.5.4.1) Presque plein écran : 1120 × 760 avant l'échelle (plafond Config.EcranIngenieur.EchelleMax, 1,5 ; 1920 × 1080
+	-- → 1,22), en trois pages par onglets. HAUTEUR_COLONNES = hauteur d'une page.
+	local LARGEUR_ENERGIE, HAUTEUR_ENERGIE = 1120, 760
+	local HAUTEUR_COLONNES = 540
+	local guiEnergie, _, corpsEnergie = panneau("TardisMenuEnergie", LARGEUR_ENERGIE, HAUTEUR_ENERGIE, tonumber(REGLAGES.EchelleMax) or 1.5)
 	UI.plaque(corpsEnergie, "Gestion de l'énergie", UI.texteBadge("Energie", "C.T.A.T."), UI.codeObjet(def) .. "  ·  ÉCRAN INGÉNIEUR",
 		{ ordre = 1, largeurBande = LARGEUR_ENERGIE, exterieur = exterieur })
-	local colonnes = creer("Frame", { Name = "Colonnes", Size = UDim2.new(1, 0, 0, HAUTEUR_COLONNES), BackgroundTransparency = 1, LayoutOrder = 2,
+	-- (V7.5.4.1) Onglets des pages ; la page choisie reste la même d'une ouverture à l'autre
+	local majEnergie -- (définie plus bas)
+	local rangeeOnglets = creer("Frame", { Name = "Onglets", Size = UDim2.new(1, 0, 0, UI.JETONS.cible), BackgroundTransparency = 1, LayoutOrder = 2,
 		Parent = corpsEnergie })
+	creer("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10), Parent = rangeeOnglets })
+	local cadrePages = creer("Frame", { Name = "Pages", Size = UDim2.new(1, 0, 0, HAUTEUR_COLONNES), BackgroundTransparency = 1, LayoutOrder = 3,
+		Parent = corpsEnergie })
+	local PAGES_ENERGIE = { { cle = "Etat", nom = "État & régulation" }, { cle = "Systemes", nom = "Systèmes" }, { cle = "Diagnostic", nom = "Diagnostic" } }
+	local pagesEnergie, ongletsEnergie, pageEnergie = {}, {}, 1
+	for i, page in PAGES_ENERGIE do
+		pagesEnergie[i] = creer("Frame", { Name = "Page_" .. page.cle, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = i == 1, Parent = cadrePages })
+		ongletsEnergie[i] = UI.puce(rangeeOnglets, string.format("%d · %s", i, page.nom), { Name = "Onglet_" .. page.cle,
+			Size = UDim2.fromOffset(260, UI.JETONS.cible), LayoutOrder = i })
+	end
+	local function afficherPageEnergie(i)
+		pageEnergie = math.clamp(tonumber(i) or 1, 1, #PAGES_ENERGIE)
+		for n, page in pagesEnergie do
+			page.Visible = n == pageEnergie
+			ongletsEnergie[n].regler(n == pageEnergie)
+		end
+		if majEnergie and ouvert and ouvert.gui == guiEnergie then majEnergie() end
+	end
+	for i, onglet in ongletsEnergie do
+		onglet.bouton.Activated:Connect(function() afficherPageEnergie(i) end)
+	end
+	afficherPageEnergie(1)
+	-- Fond de carte commun (colonnes de la page 1, cartes des pages 2 et 3)
+	local function fondCarte(cadre, marge)
+		cadre.BackgroundColor3 = C.panneau
+		cadre.BackgroundTransparency = 0.45
+		cadre.BorderSizePixel = 0
+		creer("UICorner", { CornerRadius = UDim.new(0, 10), Parent = cadre })
+		creer("UIStroke", { Color = C.ligne, Transparency = 0.55, Thickness = 1, Parent = cadre })
+		creer("UIPadding", { PaddingLeft = UDim.new(0, marge), PaddingRight = UDim.new(0, marge), PaddingTop = UDim.new(0, marge - 2),
+			PaddingBottom = UDim.new(0, marge - 2), Parent = cadre })
+		return cadre
+	end
+	local colonnes = creer("Frame", { Name = "Colonnes", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, LayoutOrder = 2,
+		Parent = pagesEnergie[1] })
 	local function colonne(nom, droite)
 		local cadre = creer("Frame", { Name = nom, Position = UDim2.new(droite and 0.5 or 0, droite and 12 or 0, 0, 0), Size = UDim2.new(0.5, -12, 1, 0),
 			BackgroundTransparency = 1, Parent = colonnes })
-		creer("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8), Parent = cadre })
+		fondCarte(cadre, 16)
+		creer("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10), Parent = cadre })
 		return cadre
 	end
 	local colEtat, colRegulation = colonne("Etat", false), colonne("Regulation", true)
@@ -190,16 +234,17 @@ return function(contexte)
 	end
 	local function pannesEnCours()
 		local liste = {}
-		local function ajouter(libelle, critique) table.insert(liste, { libelle = libelle, critique = critique }) end
-		if exterieur:GetAttribute("Incendie") == true and not exterieur:GetAttribute("IncendieEteint") then ajouter("Incendie de console", true) end
-		if exterieur:GetAttribute("Breche") ~= nil then ajouter("Brèche dans la structure", true) end
-		if exterieur:GetAttribute("RedemarrageRequis") == true then ajouter("Coupure de sécurité : redémarrage requis", true) end
-		if exterieur:GetAttribute("Avarie") == true then ajouter("Avarie des systèmes", true) end
-		if exterieur:GetAttribute("RotorBloque") == true then ajouter("Rotor bloqué", true) end
+		-- (V7.5.4.1) conseil : la marche à suivre, affichée sur la page DIAGNOSTIC
+		local function ajouter(libelle, critique, conseil) table.insert(liste, { libelle = libelle, critique = critique, conseil = conseil }) end
+		if exterieur:GetAttribute("Incendie") == true and not exterieur:GetAttribute("IncendieEteint") then ajouter("Incendie de console", true, "Éteindre le feu au plus vite") end
+		if exterieur:GetAttribute("Breche") ~= nil then ajouter("Brèche dans la structure", true, "Réparer la brèche avant qu'elle ne s'agrandisse") end
+		if exterieur:GetAttribute("RedemarrageRequis") == true then ajouter("Coupure de sécurité : redémarrage requis", true, "Redémarrer l'alimentation de la console") end
+		if exterieur:GetAttribute("Avarie") == true then ajouter("Avarie des systèmes", true, "Réparer depuis la tablette technicien") end
+		if exterieur:GetAttribute("RotorBloque") == true then ajouter("Rotor bloqué", true, "Débloquer le rotor depuis la tablette technicien") end
 		local grille = exterieur:GetAttribute("VapeurSurcharge")
-		if grille ~= nil then ajouter("Fuite de vapeur : grille n°" .. tostring(grille), false) end
-		if exterieur:GetAttribute("FuiteAir") ~= nil then ajouter("Fuite d'air", false) end
-		if exterieur:GetAttribute("Alimentation") == false then ajouter("Hors tension", false) end
+		if grille ~= nil then ajouter("Fuite de vapeur : grille n°" .. tostring(grille), false, "Baisser la tension puis réparer la grille") end
+		if exterieur:GetAttribute("FuiteAir") ~= nil then ajouter("Fuite d'air", false, "Colmater la fuite et remonter le recyclage d'air") end
+		if exterieur:GetAttribute("Alimentation") == false then ajouter("Hors tension", false, "Rétablir l'alimentation") end
 		return liste
 	end
 	local function majPannes()
@@ -222,7 +267,6 @@ return function(contexte)
 	-- Envoi des réglages : un à la fois (le serveur refuse deux commandes Tech à moins de 0,25 s), la dernière valeur gagne
 	local aEnvoyer, ordreEnvoi, envoiEnCours = {}, {}, false
 	local regulations = {} -- [systeme] = { valeur, segments, role, voulu } ; voulu = valeur demandée, affichée en attendant le serveur
-	local majEnergie -- (définie plus bas)
 	local function envoyerReglages()
 		if envoiEnCours then return end
 		envoiEnCours = true
@@ -320,7 +364,7 @@ return function(contexte)
 	reguler("Vapeur", "Vapeur", "Refroidissement", "texte", 4, "Normal : 50 %")
 	UI.ligneAide(colRegulation, "Les réglages passent par la régulation, comme la tablette technicien. Une surtension "
 		.. "prolongée fait lâcher les grilles de vapeur ; un air trop bas voile la salle.", { LayoutOrder = 5 })
-	local fermerEnergie = UI.boutonCoupe(corpsEnergie, "Fermer (Échap)", "secondaire", { Name = "Fermer", LayoutOrder = 3 })
+	local fermerEnergie = UI.boutonCoupe(corpsEnergie, "Fermer (Échap)", "secondaire", { Name = "Fermer", LayoutOrder = 4 })
 	fermerEnergie.Activated:Connect(fermerPanneau)
 
 	local function couleurNiveau(v, bas, haut)
@@ -336,7 +380,213 @@ return function(contexte)
 		j.detail.Text = UI.majuscules(detailTexte or "")
 		if j.segments and p then j.segments.regler(p, couleurJauge or couleur) end
 	end
+	--------------------------------------------------------------------
+	-- (V7.5.4.1) Page SYSTÈMES : neuf cartes (titre, valeur, trois lignes, jauge pour certaines)
+	--------------------------------------------------------------------
+	local Players = game:GetService("Players")
+	local grilleCartes = creer("Frame", { Name = "Cartes", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = pagesEnergie[2] })
+	creer("UIGridLayout", { CellSize = UDim2.new(1 / 3, -8, 1 / 3, -8), CellPadding = UDim2.fromOffset(12, 12), SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = grilleCartes })
+	local cartes = {} -- [cle] = { valeur, lignes, jauge }
+	local function carte(parent, cle, titre, ordre, avecJauge, nombreLignes, taille)
+		local cadre = creer("Frame", { Name = "Carte_" .. cle, Size = taille or UDim2.fromScale(1, 1), BackgroundTransparency = 1, LayoutOrder = ordre, Parent = parent })
+		fondCarte(cadre, 14)
+		UI.etiquette(cadre, titre, { Name = "Titre" })
+		local valeur = valeurGrasse(texte({ Name = "Valeur", Text = "—", Font = UI.POLICE_CODE, TextSize = 22, TextTruncate = Enum.TextTruncate.AtEnd,
+			Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 28), Parent = cadre }))
+		local lignes = {}
+		for n = 1, nombreLignes or 3 do
+			lignes[n] = texte({ Name = "Ligne" .. n, Text = "", Font = UI.POLICE_CODE, TextSize = 12, TextColor3 = C.texte2, TextTruncate = Enum.TextTruncate.AtEnd,
+				Position = UDim2.fromOffset(0, 54 + (n - 1) * 20), Size = UDim2.new(1, 0, 0, 18), Parent = cadre })
+		end
+		local jauge = nil
+		if avecJauge then
+			jauge = UI.jaugeSegments(cadre, nil, { hauteurSegment = 10, nomObjet = "Segments" })
+			jauge.cadre.AnchorPoint = Vector2.new(0, 1)
+			jauge.cadre.Position = UDim2.fromScale(0, 1)
+		end
+		cartes[cle] = { cadre = cadre, valeur = valeur, lignes = lignes, jauge = jauge }
+		return cartes[cle]
+	end
+	-- lignes : { "texte" } ou { { "texte", couleur } } ; p : pourcentage de la jauge
+	local function majCarte(cle, valeurTexte, couleur, lignes, p, couleurJauge)
+		local c = cartes[cle]
+		if not c then return end
+		c.valeur.Text = UI.majuscules(valeurTexte)
+		c.valeur.TextColor3 = couleur or C.texte
+		for n, label in c.lignes do
+			local d = lignes and lignes[n]
+			if type(d) == "table" then
+				label.Text, label.TextColor3 = UI.majuscules(d[1] or ""), d[2] or C.texte2
+			else
+				label.Text, label.TextColor3 = UI.majuscules(d or ""), C.texte2
+			end
+		end
+		if c.jauge and p then c.jauge.regler(p, couleurJauge or couleur) end
+	end
+	local function ligneOuiNon(nom, oui, texteOui, texteNon, couleurOui)
+		return { nom .. " : " .. (oui and (texteOui or "actif") or (texteNon or "inactif")), oui and (couleurOui or C.vert) or C.texte2 }
+	end
+	local function nomJoueur(id)
+		local n = tonumber(id)
+		local j = n and Players:GetPlayerByUserId(n)
+		return j and j.DisplayName or nil
+	end
+	local NOMS_ETATS = { Pose = "Posé", Demat = "Dématérialisation", Vol = "En vol", Remat = "Rematérialisation" }
+	carte(grilleCartes, "boucliers", "Boucliers", 1, true)
+	carte(grilleCartes, "alimentation", "Alimentation", 2, true)
+	carte(grilleCartes, "alerte", "Alerte", 3, false)
+	carte(grilleCartes, "siege", "Mode siège", 4, false)
+	carte(grilleCartes, "camouflage", "Camouflage", 5, false)
+	carte(grilleCartes, "portes", "Portes", 6, false)
+	carte(grilleCartes, "voyage", "Voyage", 7, false)
+	carte(grilleCartes, "demarrage", "Démarrage", 8, false)
+	carte(grilleCartes, "equipage", "Équipage", 9, false)
+	local function majSystemes()
+		local function a(nom) return exterieur:GetAttribute(nom) end
+		local bj, bb, bc = a("BouclierJoueurs") == true, a("BouclierBalles") == true, a("BouclierComplet") == true
+		local eb = math.floor((tonumber(a("BouclierEnergie")) or 100) + 0.5)
+		local nb = (bj and 1 or 0) + (bb and 1 or 0) + (bc and 1 or 0)
+		majCarte("boucliers", nb > 0 and string.format("%d actif%s · %d %%", nb, nb > 1 and "s" or "", eb) or (eb <= 0 and "Tombés" or "Inactifs"),
+			nb > 0 and C.cyan or (eb <= 0 and C.rouge or C.texte2),
+			{ ligneOuiNon("Anti-joueurs", bj, nil, nil, C.cyan), ligneOuiNon("Anti-balles", bb, nil, nil, C.cyan), ligneOuiNon("Complet", bc, nil, nil, C.cyan) },
+			eb, couleurNiveau(eb, 15, 40))
+		local alimente = a("Alimentation") ~= false
+		local tension = tonumber(a("RegulEnergie")) or 50
+		local libelleTension, couleurTension = etatRegulation("Energie", tension)
+		majCarte("alimentation", alimente and "Nominale" or "Coupée", alimente and C.vert or C.rouge,
+			{ string.format("Régulation : %d %%", tension), { libelleTension, couleurTension },
+				ligneOuiNon("Redémarrage requis", a("RedemarrageRequis") == true, "oui", "non", C.rouge) },
+			tension, couleurRegulation("Energie", tension))
+		local alerte = a("Alerte") == true
+		majCarte("alerte", alerte and "Active" or "Aucune", alerte and C.rouge or C.vert,
+			{ ligneOuiNon("Alarme sonore", alerte and alimente, "en marche", "muette", C.rouge),
+				ligneOuiNon("Mode siège", a("Siege") == true, "levé", "au repos", C.ambre),
+				ligneOuiNon("Auto-destruction", a("AutoDestructionDebut") ~= nil, "en cours", "non", C.rouge) })
+		local siege = a("Siege") == true
+		local rSiege = Config.Siege or {}
+		majCarte("siege", siege and "Levé" or "Au repos", siege and C.ambre or C.texte2,
+			{ "Bouclier : " .. tostring(rSiege.Bouclier or "Complet"), "Verrou des portes : " .. (rSiege.Verrou ~= false and "oui" or "non"),
+				"Alerte générale : " .. (rSiege.Alerte ~= false and "oui" or "non") })
+		local camoufle = a("Camouflage") == true
+		majCarte("camouflage", camoufle and "Actif" or "Inactif", camoufle and C.cyan or C.texte2,
+			{ "Extérieur : " .. (camoufle and "invisible" or "visible"), "Commande : panneau 1 › Cloak", "" })
+		local verrouillees = a("PortesVerrouillees") == true or a("Verrouille") == true
+		majCarte("portes", verrouillees and "Verrouillées" or "Libres", verrouillees and C.ambre or C.vert,
+			{ ligneOuiNon("Porte", a("PorteOuverte") == true, "ouverte", "fermée", C.ambre), ligneOuiNon("Verrou", verrouillees, "mis", "levé", C.ambre), "" })
+		local etat = a("Etat")
+		majCarte("voyage", NOMS_ETATS[etat] or tostring(etat or "—"), etat == "Pose" and C.vert or C.cyan,
+			{ "Mode : " .. tostring(a("Mode") or "Normal"), "Lieu : " .. tostring(a("Position") or "—"),
+				ligneOuiNon("Vol libre", a("VolLibre") ~= nil, "en cours", "non", C.cyan) })
+		local blocage = (a("Alimentation") == false and "Hors tension") or (a("DemarrageBloque") == true and "Bloqué")
+			or (a("RotorBloque") == true and "Rotor bloqué") or nil
+		majCarte("demarrage", blocage and ("Impossible · " .. blocage) or "Prêt", blocage and C.rouge or C.vert,
+			{ ligneOuiNon("Levier de vol", Config.levierVolBaisse and Config.levierVolBaisse(etat), "baissé", "levé", C.cyan),
+				ligneOuiNon("Verrou du démarrage", a("DemarrageBloque") == true, "bloqué", "libre", C.ambre),
+				ligneOuiNon("Rotor", a("RotorBloque") == true, "bloqué", "libre", C.rouge) })
+		local copilote = nomJoueur(a("Copilote"))
+		majCarte("equipage", copilote and ("Copilote : " .. copilote) or "Sans copilote", copilote and C.cyan or C.texte2,
+			{ "Porté par : " .. (nomJoueur(a("Porteur")) or "personne"), "Pilote du vol libre : " .. (nomJoueur(a("VolLibre")) or "—"),
+				ligneOuiNon("Taille", a("Retreci") == true, "réduite", "normale", C.ambre) })
+	end
+
+	--------------------------------------------------------------------
+	-- (V7.5.4.1) Page DIAGNOSTIC : structure et pannes (avec la marche à suivre) à gauche, environnement et bilan à droite
+	--------------------------------------------------------------------
+	local pageDiag = pagesEnergie[3]
+	local colStructure = creer("Frame", { Name = "Structure", Size = UDim2.new(0.5, -12, 1, 0), BackgroundTransparency = 1, Parent = pageDiag })
+	fondCarte(colStructure, 16)
+	creer("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8), Parent = colStructure })
+	local colEnvironnement = creer("Frame", { Name = "Environnement", Position = UDim2.new(0.5, 12, 0, 0), Size = UDim2.new(0.5, -12, 1, 0), BackgroundTransparency = 1,
+		Parent = pageDiag })
+	fondCarte(colEnvironnement, 16)
+	creer("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8), Parent = colEnvironnement })
+	UI.etiquette(colStructure, "Structure", { LayoutOrder = 1 })
+	local jaugeStructure = UI.jaugeSegments(colStructure, "Intégrité", { hauteurSegment = 20, ordre = 2, nomObjet = "JaugeIntegrite", largeurValeur = 200 })
+	local lignesStructure = {}
+	for n = 1, 3 do
+		lignesStructure[n] = texte({ Name = "Etat" .. n, Text = "", Font = UI.POLICE_CODE, TextSize = 12, TextColor3 = C.texte2, TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = UDim2.new(1, 0, 0, 18), LayoutOrder = 2 + n, Parent = colStructure })
+	end
+	creer("Frame", { Name = "Filet", Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.ligne, BackgroundTransparency = 0.3, BorderSizePixel = 0, LayoutOrder = 6,
+		Parent = colStructure })
+	UI.etiquette(colStructure, "Pannes et marche à suivre", { LayoutOrder = 7 })
+	local MAX_PANNES_DIAG = 6
+	local lignesDiag = {}
+	for n = 1, MAX_PANNES_DIAG do
+		local cadre = creer("Frame", { Name = "Panne" .. n, Size = UDim2.new(1, 0, 0, 38), BackgroundTransparency = 1, LayoutOrder = 7 + n, Visible = false, Parent = colStructure })
+		local titre = texte({ Name = "Libelle", Text = "", Font = UI.POLICE_GRAS, TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd, Size = UDim2.new(1, 0, 0, 18), Parent = cadre })
+		local conseil = texte({ Name = "Conseil", Text = "", Font = UI.POLICE_CODE, TextSize = 11, TextColor3 = C.texte2, TextTruncate = Enum.TextTruncate.AtEnd,
+			Position = UDim2.fromOffset(16, 19), Size = UDim2.new(1, -16, 0, 16), Parent = cadre })
+		lignesDiag[n] = { cadre = cadre, titre = titre, conseil = conseil }
+	end
+	UI.etiquette(colEnvironnement, "Environnement", { LayoutOrder = 1 })
+	local jaugesEnv = {}
+	for i, sys in { { "Energie", "Énergie · tension" }, { "Air", "Air · recyclage" }, { "Vapeur", "Vapeur · refroidissement" } } do
+		local j = UI.jaugeSegments(colEnvironnement, sys[2], { hauteurSegment = 14, ordre = 2 * i, nomObjet = "Env_" .. sys[1] })
+		local etatEnv = texte({ Name = "EtatEnv_" .. sys[1], Text = "", Font = UI.POLICE_CODE, TextSize = 11, TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = UDim2.new(1, 0, 0, 16), LayoutOrder = 2 * i + 1, Parent = colEnvironnement })
+		jaugesEnv[sys[1]] = { jauge = j, etat = etatEnv }
+	end
+	creer("Frame", { Name = "Filet", Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.ligne, BackgroundTransparency = 0.3, BorderSizePixel = 0, LayoutOrder = 8,
+		Parent = colEnvironnement })
+	UI.etiquette(colEnvironnement, "Bilan", { LayoutOrder = 9 })
+	local bilan = valeurGrasse(texte({ Name = "Bilan", Text = "—", Font = UI.POLICE_CODE, TextSize = 18, Size = UDim2.new(1, 0, 0, 26), LayoutOrder = 10,
+		Parent = colEnvironnement }))
+	local bilanDetail = texte({ Name = "BilanDetail", Text = "", Font = UI.POLICE_CODE, TextSize = 12, TextColor3 = C.texte2, TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 11, Parent = colEnvironnement })
+	UI.ligneAide(colEnvironnement, "Les valeurs se règlent sur la page 1 (ÉTAT & RÉGULATION) ou depuis la tablette technicien.", { LayoutOrder = 12 })
+	local function majDiagnostic()
+		local function a(nom) return exterieur:GetAttribute(nom) end
+		local pv = tonumber(a("PointsDeVie")) or 100
+		local couleurPV = couleurNiveau(pv, 20, 50)
+		jaugeStructure.regler(pv, couleurPV, string.format("%d %%  ·  %s PV", pv, tostring(a("PV") or "?")))
+		local etats = {
+			ligneOuiNon("Brèche", a("Breche") ~= nil, "ouverte", "aucune", C.rouge),
+			ligneOuiNon("Incendie", a("Incendie") == true and not a("IncendieEteint"), "en cours", "aucun", C.rouge),
+			ligneOuiNon("Avarie", a("Avarie") == true, "en cours", "aucune", C.rouge),
+		}
+		for n, label in lignesStructure do
+			label.Text, label.TextColor3 = UI.majuscules(etats[n][1]), etats[n][2] == C.texte2 and C.vert or etats[n][2]
+		end
+		local liste = pannesEnCours()
+		local critiques = 0
+		for _, panne in liste do if panne.critique then critiques += 1 end end
+		for n, ligne in lignesDiag do
+			local panne = liste[n]
+			if n == 1 and not panne then
+				ligne.titre.Text, ligne.titre.TextColor3, ligne.conseil.Text, ligne.cadre.Visible = "●  SYSTÈMES NOMINAUX", C.vert, "AUCUNE ACTION REQUISE", true
+			elseif panne then
+				ligne.titre.Text = "●  " .. UI.majuscules(panne.libelle)
+				ligne.titre.TextColor3 = panne.critique and C.rouge or C.ambre
+				ligne.conseil.Text = "→  " .. UI.majuscules(panne.conseil or "")
+				ligne.cadre.Visible = true
+			else
+				ligne.cadre.Visible = false
+			end
+		end
+		for systeme, j in jaugesEnv do
+			local v = tonumber(a("Regul" .. systeme)) or 50
+			local couleur = regulations[systeme] and couleurRegulation(systeme, v) or C.cyan
+			j.jauge.regler(v, couleur)
+			local libelle, couleurEtat = etatRegulation(systeme, v)
+			j.etat.Text, j.etat.TextColor3 = "●  " .. UI.majuscules(libelle), couleurEtat
+		end
+		local aRegler = #liste - critiques
+		if #liste == 0 then
+			bilan.Text, bilan.TextColor3 = "SYSTÈMES NOMINAUX", C.vert
+			bilanDetail.Text = UI.majuscules(string.format("Intégrité %d %% · aucune panne en cours", pv))
+		else
+			bilan.Text = string.format("%d PANNE%s EN COURS", #liste, #liste > 1 and "S" or "")
+			bilan.TextColor3 = critiques > 0 and C.rouge or C.ambre
+			bilanDetail.Text = UI.majuscules(string.format("%d critique%s · %d à régler · intégrité %d %%", critiques, critiques > 1 and "s" or "", aRegler, pv))
+		end
+	end
+
 	majEnergie = function(attributChange)
+		-- (V7.5.4.1) pages 2 et 3 (cartes des systèmes, diagnostic)
+		majSystemes()
+		majDiagnostic()
 		local pv = tonumber(exterieur:GetAttribute("PointsDeVie")) or 100
 		majJauge("integrite", pv, string.format("%d %%", pv), couleurNiveau(pv, 20, 50), string.format("%s PV", tostring(exterieur:GetAttribute("PV") or "?")))
 		local alimente = exterieur:GetAttribute("Alimentation") ~= false
@@ -370,7 +620,9 @@ return function(contexte)
 	for _, nom in { "PointsDeVie", "PV", "Alimentation", "BouclierEnergie", "BouclierJoueurs", "BouclierBalles", "BouclierComplet", "RegulEnergie", "RegulAir", "RegulVapeur",
 		-- (V6.9.16) détails : alerte, démarrage, portes et pannes
 		"Alerte", "DemarrageBloque", "RotorBloque", "PortesVerrouillees", "Verrouille", "PorteOuverte", "Incendie", "IncendieEteint", "Breche",
-		"RedemarrageRequis", "Avarie", "VapeurSurcharge", "FuiteAir" } do
+		"RedemarrageRequis", "Avarie", "VapeurSurcharge", "FuiteAir",
+		-- (V7.5.4.1) pages SYSTÈMES et DIAGNOSTIC
+		"Siege", "Camouflage", "Etat", "Mode", "Position", "VolLibre", "Copilote", "Porteur", "Retreci", "AutoDestructionDebut" } do
 		exterieur:GetAttributeChangedSignal(nom):Connect(function()
 			if ouvert and ouvert.gui == guiEnergie then majEnergie(nom) end
 		end)

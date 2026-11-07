@@ -136,11 +136,11 @@ carte = trouve(menu, "Carte")
 verifier("2. Menu fermé au départ", menu.props.get("Enabled") is False)
 recevoir(W, "__energie", W["ing"])
 verifier("2. « __energie » : le menu s'ouvre", menu.props.get("Enabled") is True)
-verifier("2. Plus grand : 760 × 640 px avant l'échelle (V6.9.16, deux colonnes ; avant : 440 × 612)", taille(carte) == [760, 640] and carte.props["AnchorPoint"].args == [0.5, 0.5], taille(carte))
+verifier("2. Plus grand : 1120 × 760 px avant l'échelle (V7.5.4.1, trois pages ; 760 × 640 en V6.9.16)", taille(carte) == [1120, 760] and carte.props["AnchorPoint"].args == [0.5, 0.5], taille(carte))
 ech = enfants(carte, classe="UIScale")[0]
-verifier("2. Échelle qui suit l'écran (1920 × 1080 : 1,15, plafond ; comme la tablette technicien)", abs(ech.props["Scale"] - 1.15) < 1e-9, ech.props["Scale"])
+verifier("2. Échelle qui suit l'écran (1920 × 1080 : 1080 × 0,86 / 760, presque plein écran)", abs(ech.props["Scale"] - 1080 * 0.86 / 760) < 1e-9, ech.props["Scale"])
 W["camera"].props["ViewportSize"] = Valeur("Vector2", [1024, 600]); W["camera"].m_GetPropertyChangedSignal("ViewportSize").declencher(); H.avancer(0.01)
-verifier("2. Petite fenêtre (1024 × 600) : le menu rétrécit pour tenir (600 × 0,86 / 640)", abs(ech.props["Scale"] - 600 * 0.86 / 640) < 1e-9, ech.props["Scale"])
+verifier("2. Petite fenêtre (1024 × 600) : le menu rétrécit pour tenir (600 × 0,86 / 760)", abs(ech.props["Scale"] - 600 * 0.86 / 760) < 1e-9, ech.props["Scale"])
 W["camera"].props["ViewportSize"] = Valeur("Vector2", [1920, 1080])
 verifier("2. Panneau de la charte : fond #0A1626, filet cyan (Contour), coins coupés (deux traits en biais), lueur",
          rgb(carte.props["BackgroundColor3"]) == JETONS["panneau"] and rgb(enfants(carte, "Contour")[0].props["Color"]) == JETONS["cyan"]
@@ -156,7 +156,8 @@ verifier("2. Alerte : la bande de la plaque passe au rouge", all(rgb(b.props["Ba
 ext.m_SetAttribute("Alerte", False)
 verifier("2. Fin de l'alerte : cyan", all(rgb(b.props["BackgroundColor3"]) == JETONS["cyan"] for b in bandes))
 etiquettes = [texte_de(e) for e in tous(menu, "Etiquette")]
-verifier("2. Sections « ÉTAT », « PANNES EN COURS » (V6.9.16) et « RÉGULATION » (étiquettes en police de données)", etiquettes == ["ÉTAT", "PANNES EN COURS", "RÉGULATION"]
+verifier("2. Sections « ÉTAT », « PANNES EN COURS » (V6.9.16) et « RÉGULATION », puis celles des pages Systèmes et Diagnostic (V7.5.4.1) (étiquettes en police de données)",
+         etiquettes[:3] == ["ÉTAT", "PANNES EN COURS", "RÉGULATION"] and {"STRUCTURE", "PANNES ET MARCHE À SUIVRE", "ENVIRONNEMENT", "BILAN"} <= set(etiquettes)
          and all(police(e) == "RobotoMono" for e in tous(menu, "Etiquette")), etiquettes)
 J_ = lambda cle: trouve(menu, "Jauge_" + cle)
 jv = lambda cle: texte_de(trouve(J_(cle), "Valeur")); jd = lambda cle: texte_de(trouve(J_(cle), "Detail"))
