@@ -61,7 +61,7 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 - Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (226 tests de la V6.7 à la V6.9.16, dont 6 réussis et 18 sans objet ; 202 encore à faire).
 - **V6.9.16** : regarde l'écran ingénieur (texte à l'endroit, un clic ouvre le menu de l'énergie), le menu de l'énergie élargi, et actionne les leviers et l'alerte : le kit doit s'animer.
 - **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
-- **Releases GitHub à jour** : les 39 versions de la V6.5 à la V6.9.15 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+- **Releases GitHub à jour** : les 40 versions de la V6.5 à la V6.9.16 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.
