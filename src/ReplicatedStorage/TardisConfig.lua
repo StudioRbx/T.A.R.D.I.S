@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.4.2"
+Config.Version = "7.5.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1038,6 +1038,24 @@ Config.Regeneration = {
 	Nombre = 0,              -- nombre de régénérations avant la vraie mort ; 0 = infini
 	Duree = 8,               -- durée de la régénération (secondes) : montée, éruption, changement, dissipation
 	CameraCinematique = true, -- celui qui se régénère voit la scène de l'extérieur (caméra qui tourne autour de lui)
+	-- Mise en scène de la caméra cinématique (V7.5.1)
+	Cinema = {
+		TouchePasser = "Space",     -- (G-238) rend la caméra normale tout de suite (manette : B) ; l'effet continue pour les autres
+		ProfondeurDeChamp = true,   -- (G-233) mise au point sur la tête, décor flou derrière
+		ZoneNette = 3,              -- studs nets autour de la tête
+		FlouFond = 0.6,             -- force du flou derrière (0 à 1)
+		FlouAvant = 0.35,           -- force du flou devant (les braises tout près de l'objectif)
+		BandesNoires = true,        -- (G-234) bandes de cinéma en haut et en bas
+		HauteurBandes = 0.11,       -- part de l'écran pour chaque bande
+		PlanFinal = true,           -- (G-235) à la fin, la caméra passe devant le nouveau visage...
+		DureePlanFinal = 2,         -- ...pendant ce temps (secondes)...
+		DistancePlanFinal = 3.2,    -- ...à cette distance (studs), en s'approchant doucement
+		TrajetParStyle = true,      -- (G-236) Colonne en contre-plongée, Volcan qui recule à l'explosion, Douce en gros plan lent
+		Braises = true,             -- (G-264) braises tout près de l'objectif (jamais avec « réduire les effets »)
+		DebitBraises = 10,          -- braises par seconde au plus fort
+		VignetteTemoins = true,     -- (G-240) pour les témoins, l'or vient du bord de l'écran tourné vers la régénération
+		ForceVignette = 0.55,       -- opacité du bord doré au plus fort
+	},
 	-- Son optionnel : un Sound "Regeneration" dans ReplicatedStorage > TardisAssets > Sons
 	BonusPV = 100,           -- PV en plus après une régénération...
 	BonusDuree = 300,        -- ...pendant ce temps (secondes)
@@ -2443,6 +2461,45 @@ function Config.pointDeVueSuivant(actuel, enVol)
 		if ordre[i] ~= "Dessous" or enVol then return ordre[i] end
 	end
 	return "Lampe"
+end
+
+-- (V7.5.1, G-236) Trajet de la caméra cinématique de la régénération, selon le style (2 Volcan, 3 Douce, 5 Colonne ;
+-- les autres : l'orbite d'avant). p : avancement (0 à 1), i : intensité (0 à 1), angleDepart : radians.
+-- Renvoie { angle (radians), rayon, hauteur (studs au-dessus de la tête), visee (studs au-dessus de la tête où la
+-- caméra regarde), zoom (0 à 1 : part du zoom du moment du changement) }.
+function Config.trajetCinema(style, p, i, angleDepart)
+	p, i, angleDepart = math.clamp(tonumber(p) or 0, 0, 1), math.clamp(tonumber(i) or 0, 0, 1), tonumber(angleDepart) or 0
+	if style == 5 then -- Colonne : en contre-plongée, le regard monte vers le ciel avec la colonne
+		return { angle = angleDepart + p * 1.4, rayon = 7 - 1.5 * i, hauteur = -3.2, visee = 1 + 7 * i, zoom = 0.5 }
+	elseif style == 2 then -- Volcan : tout près, puis la caméra recule d'un coup à l'explosion (55 %)
+		local recul = math.clamp((p - 0.55) / 0.08, 0, 1)
+		recul = 1 - (1 - recul) ^ 3
+		return { angle = angleDepart + p * 2, rayon = (7 - 1.5 * i) * (1 - recul) + 13 * recul, hauteur = 1.4 + 3.5 * recul, visee = 1.5 * recul, zoom = 0 }
+	elseif style == 3 then -- Douce : gros plan lent
+		return { angle = angleDepart + p * 0.9, rayon = 4.2 - 1.2 * i, hauteur = 0.5, visee = 0, zoom = 0.6 }
+	end
+	return { angle = angleDepart + p * 2.4, rayon = 9.5 - 2.5 * i, hauteur = 1.6 + 1.4 * i, visee = 0, zoom = 1 }
+end
+
+-- (V7.5.1, G-235) Position du plan final : devant le visage (à plat), à « distance » studs, un peu au-dessus des yeux
+function Config.positionPlanFinal(tete, devant, distance)
+	local plat = Vector3.new(devant.X, 0, devant.Z)
+	plat = plat.Magnitude > 1e-3 and plat.Unit or Vector3.new(0, 0, -1)
+	return tete + plat * (tonumber(distance) or 3.2) + Vector3.new(0, 0.15, 0)
+end
+
+-- (V7.5.1, G-240) Force de chaque bord de l'écran (gauche, droite, haut, bas ; 0 à 1) pour une lumière vue dans cette
+-- direction, dans le repère de la caméra (X à droite, Y en haut, -Z devant) : fort du côté de la lumière, un peu partout
+-- quand elle est droit devant, la moitié partout quand elle est juste derrière
+function Config.poidsBordsRegen(direction)
+	if direction.Magnitude < 1e-6 then return 0.5, 0.5, 0.5, 0.5 end
+	local v = direction.Unit
+	local devant, derriere = math.max(-v.Z, 0), math.max(v.Z, 0)
+	local n = math.abs(v.X) + math.abs(v.Y)
+	local cote = n > 1e-3 and (1 - 0.7 * devant) / n or 0
+	local fond = 0.25 * devant + 0.5 * derriere * (1 - math.min(n * 2, 1))
+	local function bord(x) return math.clamp(math.max(x, 0) * cote + fond, 0, 1) end
+	return bord(-v.X), bord(v.X), bord(v.Y), bord(-v.Y)
 end
 
 return Config

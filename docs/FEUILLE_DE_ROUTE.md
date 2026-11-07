@@ -38,7 +38,8 @@
 | V7.4 | Caméras et confort de l'écran (2 lots) | ✅ faite (07/11) |
 | V7.4.1 | Confort de l'écran : secousses et nausée | ✅ faite (07/11) |
 | V7.4.2 | Caméra extérieure de la lampe | ✅ faite (07/11) |
-| V7.5 | Régénération de la C.A.T. (6 lots) | 🔜 prévue |
+| V7.5 | Régénération de la C.A.T. (6 lots) | 🚧 en cours |
+| V7.5.1 | Régénération : caméra de cinéma | ✅ faite (07/11) |
 | V7.6 | Vol libre et rayon tracteur (5 lots) | 🔜 prévue |
 | V7.7 | Systèmes du TARDIS (7 lots) | 🔜 prévue |
 | V7.8 | Voyage : modes, zones et destinations (11 lots) | 🔜 prévue |

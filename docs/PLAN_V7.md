@@ -233,13 +233,13 @@ Mettre en scène la régénération (caméra, corps, poses, lieu), puis lui donn
 
 **Objectif :** Donner à la caméra cinématique de la régénération une vraie mise en scène : flou de fond, bandes noires, plan final sur le visage, trajet propre à chaque style, et une touche pour la passer.
 
-- **G-233. Profondeur de champ pendant la caméra cinématique** *(petit)* : Un DepthOfFieldEffect fait la mise au point sur la tête et floute le décor derrière. Le plan ressemble à une vraie scène de film.
-- **G-234. Bandes noires de cinéma pendant la régénération** *(petit)* : Deux bandes noires en haut et en bas de l'écran pendant la caméra cinématique. On sent tout de suite le moment fort.
-- **G-235. Plan final sur le nouveau visage** *(petit)* : À la fin, la caméra passe devant le visage pendant 2 secondes avant de rendre la main. Le joueur voit sa nouvelle apparence de face.
-- **G-236. Trajet de caméra propre à chaque style** *(moyen)* : Colonne en contre-plongée vers le ciel, Volcan qui recule d'un coup à l'explosion, Douce en gros plan lent. Aujourd'hui tous les styles ont la même orbite.
-- **G-264. Braises qui passent devant la caméra cinématique** *(petit)* : Pendant la caméra cinématique de la régénération, quelques braises et étincelles passent tout près de l'objectif, avec un léger flou. Le plan gagne en profondeur.
-- **G-240. Vignette dorée côté régénération pour les témoins** *(petit)* : Au lieu de teinter toute l'image, l'or vient du bord de l'écran tourné vers la régénération. On sait d'où vient la lumière.
-- **G-238. Passer la caméra cinématique d'une touche** *(petit)* : Une touche rend la caméra normale tout de suite, pour ceux qui veulent garder la main. L'effet visible par les autres continue.
+- ✅ **G-233. Profondeur de champ pendant la caméra cinématique** *(petit)* : Un DepthOfFieldEffect fait la mise au point sur la tête et floute le décor derrière. Le plan ressemble à une vraie scène de film.
+- ✅ **G-234. Bandes noires de cinéma pendant la régénération** *(petit)* : Deux bandes noires en haut et en bas de l'écran pendant la caméra cinématique. On sent tout de suite le moment fort.
+- ✅ **G-235. Plan final sur le nouveau visage** *(petit)* : À la fin, la caméra passe devant le visage pendant 2 secondes avant de rendre la main. Le joueur voit sa nouvelle apparence de face.
+- ✅ **G-236. Trajet de caméra propre à chaque style** *(moyen)* : Colonne en contre-plongée vers le ciel, Volcan qui recule d'un coup à l'explosion, Douce en gros plan lent. Aujourd'hui tous les styles ont la même orbite.
+- ✅ **G-264. Braises qui passent devant la caméra cinématique** *(petit)* : Pendant la caméra cinématique de la régénération, quelques braises et étincelles passent tout près de l'objectif, avec un léger flou. Le plan gagne en profondeur.
+- ✅ **G-240. Vignette dorée côté régénération pour les témoins** *(petit)* : Au lieu de teinter toute l'image, l'or vient du bord de l'écran tourné vers la régénération. On sait d'où vient la lumière.
+- ✅ **G-238. Passer la caméra cinématique d'une touche** *(petit)* : Une touche rend la caméra normale tout de suite, pour ceux qui veulent garder la main. L'effet visible par les autres continue.
 
 **Dans Studio :** Rien.
 

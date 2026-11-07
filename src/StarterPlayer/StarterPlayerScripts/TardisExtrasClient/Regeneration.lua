@@ -8,6 +8,9 @@ return function(contexte)
 	local interieur, jeSuisDedans, joueur, maRacine, partTemporaire, remote = contexte.interieur, contexte.jeSuisDedans, contexte.joueur, contexte.maRacine, contexte.partTemporaire, contexte.remote
 	local secouer, texte = contexte.secouer, contexte.texte
 	local Debris = game:GetService("Debris")
+	local UserInputService = game:GetService("UserInputService")
+	local ContextActionService = nil -- (V7.5.1) touche pour passer la scène
+	pcall(function() ContextActionService = game:GetService("ContextActionService") end)
 
 	--------------------------------------------------------------------
 	-- 18) Régénération (équipe C.A.T.) : l'énergie monte sous la peau, jaillit de la tête et des mains en
@@ -19,6 +22,161 @@ return function(contexte)
 		local FEU = "rbxasset://textures/particles/fire_main.dds"
 		local FUMEE = "rbxasset://textures/particles/smoke_main.dds"
 		local ETINCELLE = "rbxasset://textures/particles/sparkles_main.dds"
+		local CINEMA = (Config.Regeneration or {}).Cinema or {} -- V7.5.1
+
+		-- (V7.5.1) Caméra de cinéma de celui qui se régénère : trajet propre au style (G-236), profondeur de champ (G-233),
+		-- bandes noires (G-234), braises devant l'objectif (G-264), plan final sur le nouveau visage (G-235) et une touche
+		-- pour passer la scène (G-238). o = { personnage, tete, racine, style, reduit }.
+		-- scene.image(p, i, t) à chaque image ; scene.fin() à la fin (plan final, puis la caméra rendue) ; scene.rendre()
+		-- rend la caméra tout de suite.
+		local function cameraCinema(o)
+			local tete, racine = o.tete, o.racine
+			local scene = { actif = true }
+			-- (V7.1.1, G-237) L'orbite ne traverse plus les murs : un rayon de la tête vers la caméra la rapproche
+			local paramsCamera = RaycastParams.new()
+			paramsCamera.FilterType = Enum.RaycastFilterType.Exclude
+			paramsCamera.FilterDescendantsInstances = { o.personnage }
+			paramsCamera.RespectCanCollide = true
+			local champOrigine = camera.FieldOfView
+			local regard = racine.CFrame.LookVector
+			local angleDepart = math.atan2(regard.Z, regard.X)
+			camera.CameraType = Enum.CameraType.Scriptable
+			local style = CINEMA.TrajetParStyle ~= false and o.style or 1
+			local debutFinal, connexionFinal, connexionTouche = nil, nil, nil
+
+			-- G-233 : mise au point sur la tête
+			local flou = nil
+			if CINEMA.ProfondeurDeChamp ~= false then
+				flou = creer("DepthOfFieldEffect", { Name = "TardisRegenFlou", FocusDistance = 9, InFocusRadius = CINEMA.ZoneNette or 3,
+					FarIntensity = CINEMA.FlouFond or 0.6, NearIntensity = CINEMA.FlouAvant or 0.35, Parent = camera })
+			end
+			-- G-234 : bandes noires, qui glissent depuis les bords ; l'aide de la touche est écrite dans la bande du bas
+			local ecran = creer("ScreenGui", { Name = "TardisRegenCinema", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 40, Parent = joueur.PlayerGui })
+			local NOIR = Color3.new(0, 0, 0)
+			local bandeHaut = creer("Frame", { Name = "BandeHaut", BackgroundColor3 = NOIR, BorderSizePixel = 0, Size = UDim2.fromScale(1, 0), Parent = ecran })
+			local bandeBas = creer("Frame", { Name = "BandeBas", BackgroundColor3 = NOIR, BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.fromScale(0, 1), Size = UDim2.fromScale(1, 0), Parent = ecran })
+			local hauteurBandes = CINEMA.BandesNoires ~= false and (CINEMA.HauteurBandes or 0.11) or 0
+			if hauteurBandes > 0 then
+				animer(bandeHaut, 0.5, { Size = UDim2.fromScale(1, hauteurBandes) })
+				animer(bandeBas, 0.5, { Size = UDim2.fromScale(1, hauteurBandes) })
+			end
+			local touche = CINEMA.TouchePasser or "Space"
+			creer("TextLabel", { Name = "Passer", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -8), Size = UDim2.fromOffset(300, 22),
+				BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(200, 200, 200), TextTransparency = 0.2, Font = Enum.Font.Gotham, TextSize = 14,
+				TextXAlignment = Enum.TextXAlignment.Right, Text = (touche == "Space" and "Espace" or touche) .. " : passer la scène", Parent = ecran })
+			-- G-264 : quelques braises tout près de l'objectif (floues avec la profondeur de champ)
+			local porteBraises, braises = nil, nil
+			if CINEMA.Braises ~= false and not o.reduit then
+				porteBraises = creer("Part", { Name = "TardisRegenBraisesObjectif", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+					Transparency = 1, Size = Vector3.new(6, 4, 0.2), CFrame = camera.CFrame * CFrame.new(0, 0, -2.5), Parent = workspace })
+				braises = creer("ParticleEmitter", { Name = "Braises", Texture = ETINCELLE, LightEmission = 1,
+					Color = ColorSequence.new(Color3.fromRGB(255, 225, 120), Color3.fromRGB(255, 105, 20)),
+					Size = NumberSequence.new(0.18, 0.04), Transparency = NumberSequence.new(0.25, 1), Speed = NumberRange.new(0.6, 1.6),
+					Lifetime = NumberRange.new(0.8, 1.4), SpreadAngle = Vector2.new(180, 180), Acceleration = Vector3.new(0, 1.5, 0), Rate = 0, Parent = porteBraises })
+			end
+
+			function scene.rendre()
+				if not scene.actif then return end
+				scene.actif = false
+				if connexionFinal then connexionFinal:Disconnect() end
+				if connexionTouche then connexionTouche:Disconnect() end
+				if ContextActionService then ContextActionService:UnbindAction("TardisRegenPasser") end
+				camera.CameraType = Enum.CameraType.Custom
+				camera.FieldOfView = champOrigine
+				local h = joueur.Character and joueur.Character:FindFirstChildOfClass("Humanoid")
+				if h then camera.CameraSubject = h end
+				if flou then flou:Destroy() end
+				if porteBraises then porteBraises:Destroy() end
+				animer(bandeHaut, 0.4, { Size = UDim2.fromScale(1, 0) })
+				animer(bandeBas, 0.4, { Size = UDim2.fromScale(1, 0) })
+				task.delay(0.45, function() ecran:Destroy() end)
+			end
+
+			-- G-238 : la touche rend la caméra (les autres voient toujours l'effet)
+			if ContextActionService then
+				ContextActionService:BindActionAtPriority("TardisRegenPasser", function(_, etat)
+					if etat == Enum.UserInputState.Begin then scene.rendre() end
+					return Enum.ContextActionResult.Sink
+				end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode[touche], Enum.KeyCode.ButtonB)
+				ContextActionService:SetTitle("TardisRegenPasser", "Passer")
+			else
+				connexionTouche = UserInputService.InputBegan:Connect(function(input)
+					if input.KeyCode == Enum.KeyCode[touche] or input.KeyCode == Enum.KeyCode.ButtonB then scene.rendre() end
+				end)
+			end
+
+			local function placer(position, vise)
+				camera.CFrame = CFrame.lookAt(position, vise)
+				if flou then flou.FocusDistance = (position - tete.Position).Magnitude end
+			end
+
+			function scene.image(p, i, t)
+				if not scene.actif or debutFinal or not tete.Parent then return end
+				local trajet = Config.trajetCinema(style, p, i, angleDepart)
+				local respiration = Vector3.new(math.noise(t * 0.6, 1, 1) * 0.25, math.noise(t * 0.5, 2, 2) * 0.2, 0)
+				local cible = tete.Position + Vector3.new(0, 0.3, 0)
+				local decalage = Vector3.new(math.cos(trajet.angle) * trajet.rayon, trajet.hauteur, math.sin(trajet.angle) * trajet.rayon)
+				local obstacle = workspace:Raycast(cible, decalage, paramsCamera)
+				if obstacle then decalage = decalage.Unit * math.max((obstacle.Position - cible).Magnitude - 0.6, 1.5) end
+				placer(cible + decalage + respiration, cible + Vector3.new(0, trajet.visee, 0))
+				local zoom = math.clamp(1 - math.abs(p - 0.55) / 0.12, 0, 1) * trajet.zoom
+				if not UI.champFixe() then camera.FieldOfView = champOrigine - 14 * zoom * zoom end -- (V7.4.1, G-280)
+				if porteBraises then
+					porteBraises.CFrame = camera.CFrame * CFrame.new(0, 0, -2.5)
+					braises.Rate = (CINEMA.DebitBraises or 10) * i
+				end
+			end
+
+			-- G-235 : plan final devant le nouveau visage, qui s'approche doucement, puis la caméra est rendue
+			function scene.fin()
+				if not scene.actif or debutFinal then return end
+				if CINEMA.PlanFinal == false or not tete.Parent or not racine.Parent then
+					scene.rendre()
+					return
+				end
+				debutFinal = os.clock()
+				if braises then braises.Rate = 0 end
+				camera.FieldOfView = champOrigine
+				local dureePlan = CINEMA.DureePlanFinal or 2
+				local distance = CINEMA.DistancePlanFinal or 3.2
+				connexionFinal = RunService.RenderStepped:Connect(function()
+					local t = os.clock() - debutFinal
+					if t >= dureePlan or not tete.Parent then
+						scene.rendre()
+						return
+					end
+					local q = math.sin(math.clamp(t / dureePlan, 0, 1) * math.pi / 2)
+					local position = Config.positionPlanFinal(tete.Position, tete.CFrame.LookVector, distance * (1 - 0.2 * q))
+					local obstacle = workspace:Raycast(tete.Position, position - tete.Position, paramsCamera)
+					if obstacle then position = tete.Position + (position - tete.Position).Unit * math.max((obstacle.Position - tete.Position).Magnitude - 0.4, 1) end
+					placer(position, tete.Position)
+				end)
+			end
+			return scene
+		end
+
+		-- (V7.5.1, G-240) Pour les témoins : l'or vient du bord de l'écran tourné vers la régénération.
+		-- vignette.maj(position, force) à chaque image ; l'écran est rendu par la fonction pour être détruit à la fin.
+		local function vignetteTemoin(couleur)
+			local ecran = creer("ScreenGui", { Name = "TardisRegenVignette", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 35, Enabled = false, Parent = joueur.PlayerGui })
+			local degrades = {}
+			for _, b in { { "Gauche", UDim2.fromScale(0, 0), UDim2.fromScale(0.3, 1), 0 }, { "Droite", UDim2.fromScale(0.7, 0), UDim2.fromScale(0.3, 1), 180 },
+				{ "Haut", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.3), 90 }, { "Bas", UDim2.fromScale(0, 0.7), UDim2.fromScale(1, 0.3), -90 } } do
+				local bord = creer("Frame", { Name = b[1], BorderSizePixel = 0, BackgroundColor3 = couleur, Position = b[2], Size = b[3], Parent = ecran })
+				table.insert(degrades, creer("UIGradient", { Rotation = b[4], Transparency = NumberSequence.new(1), Parent = bord }))
+			end
+			local vignette = { ecran = ecran }
+			function vignette.maj(position, force)
+				ecran.Enabled = force > 0.01
+				if not ecran.Enabled then return end
+				local poids = { Config.poidsBordsRegen(camera.CFrame:VectorToObjectSpace(position - camera.CFrame.Position)) }
+				for k, degrade in degrades do
+					degrade.Transparency = NumberSequence.new(1 - math.clamp(poids[k] * force, 0, 1) * (CINEMA.ForceVignette or 0.55), 1)
+				end
+			end
+			return vignette
+		end
 
 		local function surveillerRegeneration(personnage)
 			local dejaJoue = nil -- une régénération n'est jouée qu'une fois (signal ou rattrapage)
@@ -584,29 +742,16 @@ return function(contexte)
 				local eclat = garder(creer("BloomEffect", { Name = "TardisRegenEclat", Intensity = 0, Size = 32, Threshold = 0.85, Parent = Lighting }))
 
 				-- Caméra : celui qui se régénère voit la scène de l'extérieur ; la caméra tourne lentement autour de lui,
-				-- respire comme à l'épaule, et se rapproche au moment du changement
-				local cinematique = moi and REG.CameraCinematique ~= false
-				-- (V7.1.1, G-237) L'orbite ne traverse plus les murs : un rayon de la tête vers la caméra la rapproche
-				local paramsCamera = RaycastParams.new()
-				paramsCamera.FilterType = Enum.RaycastFilterType.Exclude
-				paramsCamera.FilterDescendantsInstances = { personnage }
-				paramsCamera.RespectCanCollide = true
-				local angleDepart = 0
-				local champOrigine = camera.FieldOfView
-				if cinematique then
-					local regard = racine.CFrame.LookVector
-					angleDepart = math.atan2(regard.Z, regard.X)
-					camera.CameraType = Enum.CameraType.Scriptable
-				end
+				-- respire comme à l'épaule, et se rapproche au moment du changement (V7.5.1 : cameraCinema, plus haut)
+				local scene = (moi and REG.CameraCinematique ~= false)
+					and cameraCinema({ personnage = personnage, tete = tete, racine = racine, style = style, reduit = reduit }) or nil
+				-- Fin de la régénération : plan final sur le nouveau visage, puis la caméra est rendue
 				local function rendreCamera()
-					if cinematique then
-						cinematique = false
-						camera.CameraType = Enum.CameraType.Custom
-						camera.FieldOfView = champOrigine
-						local h = joueur.Character and joueur.Character:FindFirstChildOfClass("Humanoid")
-						if h then camera.CameraSubject = h end
-					end
+					if scene then scene.fin() end
 				end
+				-- (V7.5.1, G-240) bord doré pour les témoins (créé quand la régénération est assez proche)
+				local temoin = not moi and CINEMA.VignetteTemoins ~= false
+				local vignette = nil
 
 				-- Éclat du changement : pour tout le monde, la lumière avale le Voyageur un instant (la nouvelle apparence
 				-- apparaît dessous) ; pour celui qui se régénère, l'écran entier devient blanc
@@ -678,23 +823,20 @@ return function(contexte)
 					-- Ambiance, selon la distance
 					local distance = (camera.CFrame.Position - racine.Position).Magnitude
 					local proche = math.clamp(1 - distance / 90, 0, 1) * i
-					teinte.TintColor = Color3.new(1, 1, 1):Lerp(couleurAmbiance, 0.35 * proche)
+					-- (V7.5.1, G-240) les témoins : l'image n'est presque plus teintée, l'or vient du bord tourné vers la régénération
+					teinte.TintColor = Color3.new(1, 1, 1):Lerp(couleurAmbiance, (temoin and 0.08 or 0.35) * proche)
+					if temoin and (vignette or proche > 0.01) then
+						if not vignette then
+							vignette = vignetteTemoin(couleurAmbiance)
+							garder(vignette.ecran)
+						end
+						vignette.maj(racine.Position, proche)
+					end
 					teinte.Brightness = 0.12 * proche
 					eclat.Intensity = 1.4 * proche
 					if proche > 0.05 then secouer(secousseMax * proche * (moi and 1 or 0.6)) end
-					-- Caméra cinématique : orbite lente, respiration à l'épaule, zoom au changement
-					if cinematique and tete.Parent then
-						local angle = angleDepart + p * 2.4
-						local rayon = 9.5 - 2.5 * i
-						local respiration = Vector3.new(math.noise(t * 0.6, 1, 1) * 0.25, math.noise(t * 0.5, 2, 2) * 0.2, 0)
-						local cible = tete.Position + Vector3.new(0, 0.3, 0)
-						local decalage = Vector3.new(math.cos(angle) * rayon, 1.6 + 1.4 * i, math.sin(angle) * rayon)
-						local obstacle = workspace:Raycast(cible, decalage, paramsCamera)
-						if obstacle then decalage = decalage.Unit * math.max((obstacle.Position - cible).Magnitude - 0.6, 1.5) end
-						camera.CFrame = CFrame.lookAt(cible + decalage + respiration, cible)
-						local zoom = math.clamp(1 - math.abs(p - 0.55) / 0.12, 0, 1)
-						if not UI.champFixe() then camera.FieldOfView = champOrigine - 14 * zoom * zoom end -- (V7.4.1, G-280)
-					end
+					-- Caméra cinématique : trajet du style, respiration à l'épaule, zoom au changement (V7.5.1 : cameraCinema)
+					if scene then scene.image(p, i, t) end
 					-- Au moment du changement : l'éclat pour tout le monde, et la lumière avale l'écran de celui qui se régénère
 					if not eclatFait and p >= 0.52 then
 						eclatFait = true
