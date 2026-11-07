@@ -272,6 +272,25 @@ return function(contexte)
 				local humanoid = personnage:FindFirstChildOfClass("Humanoid")
 				local reduit = UI.effetsReduits()
 				local sansFlash = UI.sansFlash() -- « aucun flash » (V6.9.9) : ni éclat, ni explosion de lumière, ni voile blanc
+				-- (V7.5.4, G-217) Sous l'eau ? (il nage, ou l'eau du Terrain l'entoure)
+				local LIEU = REG.Lieu or {}
+				local sousEau = false
+				if LIEU.SousEau ~= false then
+					local occupation = 0
+					pcall(function()
+						local region = Region3.new(racine.Position - Vector3.new(2, 2, 2), racine.Position + Vector3.new(2, 2, 2)):ExpandToGrid(4)
+						local materiaux, occupations = workspace.Terrain:ReadVoxels(region, 4)
+						local taille = materiaux.Size
+						for x = 1, taille.X do
+							for y = 1, taille.Y do
+								for z = 1, taille.Z do
+									if materiaux[x][y][z] == Enum.Material.Water then occupation = math.max(occupation, occupations[x][y][z]) end
+								end
+							end
+						end
+					end)
+					sousEau = Config.sousEau(humanoid and humanoid:GetState().Name, occupation)
+				end
 
 				-- Palette de la série : cœur blanc-jaune, flammes dorées, bords orange
 				local BLANC_OR, OR_CLAIR, OR, ORANGE = Color3.fromRGB(255, 250, 225), Color3.fromRGB(255, 225, 120), Color3.fromRGB(255, 170, 50), Color3.fromRGB(255, 105, 20)
@@ -282,6 +301,14 @@ return function(contexte)
 				local function emetteur(parent, proprietes, debitMax, seuil)
 					proprietes.Parent = parent
 					proprietes.Rate = 0
+					if sousEau and proprietes.Texture == FEU then
+						-- (V7.5.4, G-217) sous l'eau, les flammes deviennent des bulles qui montent
+						proprietes.Texture = ETINCELLE
+						proprietes.Color = ColorSequence.new(Color3.fromRGB(235, 248, 255), Color3.fromRGB(170, 215, 245))
+						proprietes.LightEmission = 0.4
+						proprietes.Acceleration = Vector3.new(0, 8, 0)
+						proprietes.Drag = 3
+					end
 					local e = garder(creer("ParticleEmitter", proprietes))
 					table.insert(flux, { e = e, debit = debitMax, seuil = seuil or 0 })
 					return e
@@ -370,27 +397,36 @@ return function(contexte)
 				emetteur(racine, { Texture = ETINCELLE, LightEmission = 1, Color = ColorSequence.new(OR, ORANGE), Size = NumberSequence.new(0.12, 0),
 					Speed = NumberRange.new(1, 3), Lifetime = NumberRange.new(1.2, 2.2), SpreadAngle = Vector2.new(180, 180),
 					Acceleration = Vector3.new(0, 3, 0), Drag = 0.5 }, 30, 0.05)
+				-- (V7.5.4, G-217) Sous l'eau : de la vapeur monte du corps
+				if sousEau then
+					emetteur(racine, { Texture = FUMEE, LightEmission = 0.2, Color = ColorSequence.new(Color3.fromRGB(240, 245, 250)), Size = NumberSequence.new(0.8, 3),
+						Transparency = NumberSequence.new(0.5, 1), Speed = NumberRange.new(2, 4), Lifetime = NumberRange.new(1.2, 2.2), SpreadAngle = Vector2.new(40, 40),
+						EmissionDirection = Enum.NormalId.Top, Acceleration = Vector3.new(0, 4, 0) }, 35, 0.1)
+				end
 
 				local secousseMax, couleurFlash, couleurAmbiance = 0.5, BLANC_OR, OR
 				local parImage = nil -- animation propre au style, appelée à chaque image : parImage(p, i, t)
 				local sol = racine.Position - Vector3.new(0, (humanoid and humanoid.HipHeight or 0) + racine.Size.Y / 2 + 2, 0)
-				local solTrouve = false
+				local solTrouve, materiauSol = false, nil
 				do
 					-- Le vrai sol sous les pieds, s'il est à portée
 					local params = RaycastParams.new()
 					params.FilterType = Enum.RaycastFilterType.Exclude
 					params.FilterDescendantsInstances = { personnage }
 					local r = workspace:Raycast(racine.Position, Vector3.new(0, -12, 0), params)
-					if r then sol, solTrouve = r.Position, true end
+					if r then sol, solTrouve, materiauSol = r.Position, true, r.Material end
 				end
 				local flashPour = nil -- couleur de l'éclat du changement (nil = celle du style) ; `false` = aucun éclat
-				local avecSolBrulant = true
+				local avecSolBrulant = not sousEau -- (V7.5.4, G-217) pas de sol brûlant sous l'eau
 
 				-- Sol brûlant : un disque qui rougeoie sous les pieds, s'élargit avec l'intensité, et met longtemps à refroidir
-				local brulure = nil
+				local brulure, genreSol = nil, nil
 				local function solBrulant(couleur)
 					if not solTrouve or not avecSolBrulant then return end
-					brulure = partTemporaire({ Name = "TardisRegenBrulure", Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon, Color = couleur,
+					-- (V7.5.4, G-223) selon le matériau : herbe noircie, neige en flaque, métal qui rougeoie
+					genreSol = LIEU.SolSelonMateriau ~= false and materiauSol and Config.solBrulantSelon(materiauSol.Name) or nil
+					couleur = genreSol and genreSol.couleur or couleur
+					brulure = partTemporaire({ Name = "TardisRegenBrulure", Shape = Enum.PartType.Cylinder, Material = Enum.Material[genreSol and genreSol.materiau or "Neon"], Color = couleur,
 						Transparency = 1, Size = Vector3.new(0.08, 1, 1), CFrame = CFrame.new(sol + Vector3.new(0, 0.08, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
 					creer("PointLight", { Color = couleur, Brightness = 0, Range = 12, Parent = brulure })
 				end
@@ -953,7 +989,7 @@ return function(contexte)
 						local largeur = 1 + 7 * i
 						brulure.Size = Vector3.new(0.08, largeur, largeur)
 						brulure.Transparency = 1 - 0.55 * i
-						brulure.PointLight.Brightness = 3 * i
+						brulure.PointLight.Brightness = 3 * i * (genreSol and genreSol.lumiere or 1)
 					end
 					-- Ambiance, selon la distance
 					local distance = (camera.CFrame.Position - racine.Position).Magnitude
@@ -1073,9 +1109,18 @@ return function(contexte)
 					if brulure then
 						local ancienne = brulure
 						brulure = nil
-						animer(ancienne, 12, { Transparency = 1, Color = Color3.fromRGB(40, 20, 10) }, Enum.EasingStyle.Quad)
-						animer(ancienne.PointLight, 10, { Brightness = 0 })
-						Debris:AddItem(ancienne, 12.5)
+						-- (V7.5.4, G-223) le refroidissement dépend du sol : tache noire sur l'herbe, flaque sur la neige, métal qui rougeoie longtemps
+						local g = genreSol or {}
+						local refroidi = g.refroidi or 12
+						animer(ancienne, refroidi, { Transparency = g.transparenceFin or 1, Color = g.couleurFin or Color3.fromRGB(40, 20, 10) }, Enum.EasingStyle.Quad)
+						animer(ancienne.PointLight, refroidi * 0.85, { Brightness = 0 })
+						if g.materiauFin then
+							task.delay(refroidi * 0.5, function() if ancienne.Parent then ancienne.Material = Enum.Material[g.materiauFin] end end)
+						end
+						if (g.transparenceFin or 1) < 1 then
+							task.delay(refroidi, function() if ancienne.Parent then animer(ancienne, 3, { Transparency = 1 }) end end)
+						end
+						Debris:AddItem(ancienne, refroidi + 3.5)
 					end
 					task.delay(1.2, function()
 						for _, c in connexions do c:Disconnect() end
@@ -1211,6 +1256,83 @@ return function(contexte)
 	--------------------------------------------------------------------
 	-- 18 bis) Régénération à bord de ce TARDIS : la console crache des étincelles, la salle tremble
 	--------------------------------------------------------------------
+	-- (V7.5.4, G-65 / G-141 / G-220) Vitres dorées qui pulsent, lumière dorée dans la salle, rotor qui brille en or et
+	-- jets attirés par le rotor ; d = durée de la régénération (0 : rien, seulement les étincelles)
+	local function orABord(d)
+		local ABORD = (Config.Regeneration or {}).ABord or {}
+		local OR = Color3.fromRGB(255, 190, 70)
+		local reduit = UI.effetsReduits()
+		local debut = os.clock()
+		local objets, vitres, faisceaux = {}, {}, {}
+		local function garder(o) table.insert(objets, o) return o end
+		if ABORD.Vitres ~= false then
+			local dossier = exterieur:FindFirstChild(Config.NomFenetres or "Fenetres", true)
+			local prefixe = Config.NomVitre or "Vitre"
+			for _, o in exterieur:GetDescendants() do
+				if #vitres >= 8 then break end
+				if o:IsA("BasePart") and ((dossier and o:IsDescendantOf(dossier)) or string.sub(o.Name, 1, #prefixe) == prefixe) then
+					table.insert(vitres, {
+						halo = garder(creer("Highlight", { Name = "TardisRegenVitre", Adornee = o, FillColor = OR, FillTransparency = 1, OutlineTransparency = 1,
+							DepthMode = Enum.HighlightDepthMode.Occluded, Parent = o })),
+						lumiere = garder(creer("PointLight", { Name = "TardisRegenVitre", Color = OR, Brightness = 0, Range = 10, Parent = o })),
+					})
+				end
+			end
+		end
+		local rotor = interieur:FindFirstChild(Config.NomRotor or "Rotor")
+		local rotorPart = rotor and (rotor:IsA("BasePart") and rotor or rotor:FindFirstChildWhichIsA("BasePart", true))
+		local salle = (ABORD.LueurSalle ~= false and rotorPart)
+			and garder(creer("PointLight", { Name = "TardisRegenSalle", Color = OR, Brightness = 0, Range = 60, Parent = rotorPart })) or nil
+		local haloRotor = (ABORD.JetsVersRotor ~= false and rotorPart) and garder(creer("Highlight", { Name = "TardisRegenRotor", Adornee = rotor, FillColor = OR,
+			OutlineColor = Color3.fromRGB(255, 240, 190), FillTransparency = 1, OutlineTransparency = 1, Parent = rotor })) or nil
+		-- Les jets attirés : du torse de celui qui se régénère dans la salle jusqu'au rotor, courbés au hasard
+		if haloRotor then
+			task.delay(0.3, function()
+				if not rotorPart.Parent or os.clock() - debut >= d then return end
+				local cible = garder(creer("Attachment", { Name = "TardisRegenRotorCible", Parent = rotorPart }))
+				local maintenant = workspace:GetServerTimeNow()
+				for _, autre in Players:GetPlayers() do
+					local perso = autre.Character
+					local torse = perso and (perso:FindFirstChild("UpperTorso") or perso:FindFirstChild("Torso"))
+					local quand = perso and tonumber(perso:GetAttribute("TardisRegeneration"))
+					if torse and quand and maintenant - quand < 3 and (torse.Position - rotorPart.Position).Magnitude < 120 then
+						local depart = garder(creer("Attachment", { Name = "TardisRegenVersRotor", Parent = torse }))
+						for _ = 1, reduit and 1 or 3 do
+							table.insert(faisceaux, garder(creer("Beam", { Name = "TardisRegenVersRotor", Attachment0 = depart, Attachment1 = cible,
+								Texture = "rbxasset://textures/particles/fire_main.dds", TextureMode = Enum.TextureMode.Wrap, TextureLength = 3, TextureSpeed = 4,
+								LightEmission = 1, LightInfluence = 0, Segments = 16, FaceCamera = true, CurveSize0 = math.random(-8, 8), CurveSize1 = math.random(-8, 8),
+								Width0 = 0.5, Width1 = 0.15, Color = ColorSequence.new(Color3.fromRGB(255, 250, 225), OR), Transparency = NumberSequence.new(1), Parent = torse })))
+						end
+					end
+				end
+			end)
+		end
+		local connexion
+		connexion = RunService.RenderStepped:Connect(function()
+			local t = os.clock() - debut
+			if t >= d then
+				connexion:Disconnect()
+				for _, o in objets do if o.Parent then o:Destroy() end end
+				return
+			end
+			local p = Config.pulsationOr(t, d)
+			for _, v in vitres do
+				v.halo.FillTransparency = 1 - 0.6 * p
+				v.lumiere.Brightness = 3 * p
+			end
+			-- La salle : une vague dorée de quelques secondes, au début de l'éruption
+			if salle then salle.Brightness = 4 * math.clamp(1 - math.abs(t - d * 0.3) / (d * 0.2), 0, 1) end
+			-- Les jets vers le rotor pendant l'éruption (15 % à 52 %) ; le rotor brille en or
+			local e = math.clamp(math.min((t - d * 0.15) / (d * 0.05), (d * 0.52 - t) / (d * 0.08)), 0, 1)
+			if haloRotor then
+				haloRotor.FillTransparency = 1 - 0.55 * math.max(e, p * 0.4)
+				haloRotor.OutlineTransparency = 1 - 0.8 * e
+			end
+			for _, f in faisceaux do
+				if f.Parent then f.Transparency = NumberSequence.new(1 - 0.8 * e, 1 - 0.4 * e) end
+			end
+		end)
+	end
 	exterieur:GetAttributeChangedSignal("RegenerationABord"):Connect(function()
 		local console = interieur:FindFirstChild("Console")
 		if console then
@@ -1229,6 +1351,8 @@ return function(contexte)
 			end
 		end
 		if jeSuisDedans() then secouer(0.7) end
+		local d = tonumber(exterieur:GetAttribute("RegenerationABordDuree")) or 0
+		if d > 0 then orABord(d) end
 	end)
 
 	return {}

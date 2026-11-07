@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.5.3"
+Config.Version = "7.5.4"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1088,6 +1088,20 @@ Config.Regeneration = {
 		HauteurLevitation = 1.5,    -- ...de tant de studs
 		RegarderMains = true,       -- (G-202) à la fin, il regarde ses nouvelles mains, puis touche son visage...
 		DureeRegardMains = 2.6,     -- ...pendant tant de secondes (puis il peut repartir)
+	},
+	-- Régénération à bord et selon le lieu (V7.5.4)
+	ABord = {
+		FacteurDuree = 0.6,         -- (C-238) à bord, la régénération dure moins longtemps (part de Duree) : le TARDIS aide son Time Lord
+		Recharge = false,           -- (C-266) option : l'énergie recharge le TARDIS au lieu de l'abîmer (DegatsTardis)...
+		RechargeIntegrite = 400,    -- ...elle rend tant de points d'intégrité...
+		RechargeBouclier = 25,      -- ...et tant de % d'énergie au bouclier
+		Vitres = true,              -- (G-65) les vitres s'illuminent en or et pulsent jusqu'à la fin
+		LueurSalle = true,          -- (G-141) une lumière dorée envahit la salle quelques secondes
+		JetsVersRotor = true,       -- (G-220) une partie des jets se courbe vers le rotor, qui brille en or
+	},
+	Lieu = {
+		SousEau = true,             -- (G-217) sous l'eau : les flammes deviennent des bulles et de la vapeur, pas de sol brûlant
+		SolSelonMateriau = true,    -- (G-223) sol brûlé selon le matériau : herbe noircie, neige en flaque, métal qui rougeoie
 	},
 	-- Son optionnel : un Sound "Regeneration" dans ReplicatedStorage > TardisAssets > Sons
 	BonusPV = 100,           -- PV en plus après une régénération...
@@ -2648,6 +2662,62 @@ function Config.poseDecouverte(etape)
 		return { ["Right Shoulder"] = { 0, 40, 150 }, ["Left Shoulder"] = { 0, 0, 0 }, ["Neck"] = { 5, 0, 0 } }
 	end
 	return { ["Right Shoulder"] = { 0, 25, 100 }, ["Left Shoulder"] = { 0, -25, -100 }, ["Neck"] = { 20, 0, 0 } }
+end
+
+-- (V7.5.4, C-238) Durée d'une régénération : plus courte à bord (facteur entre 0,1 et 1, 0,6 par défaut ; jamais moins d'1 s)
+function Config.dureeRegeneration(base, aBord, facteur)
+	base = tonumber(base) or 5
+	if not aBord then return base end
+	return math.max(1, base * math.clamp(tonumber(facteur) or 0.6, 0.1, 1))
+end
+
+-- (V7.5.4, C-266) Effet d'une régénération à bord sur le TARDIS : { degats = n } (par défaut), ou, avec l'option
+-- Regeneration.ABord.Recharge, { reparation = points d'intégrité, bouclier = % d'énergie rendus }
+function Config.effetABord(regen)
+	regen = regen or {}
+	local ab = regen.ABord or {}
+	if ab.Recharge == true then
+		return { reparation = math.max(0, tonumber(ab.RechargeIntegrite) or 400), bouclier = math.clamp(tonumber(ab.RechargeBouclier) or 25, 0, 100) }
+	end
+	return { degats = math.max(0, tonumber(regen.DegatsTardis) or 400) }
+end
+
+-- (V7.5.4, G-65 / G-220) Pulsation dorée au temps t d'une régénération de durée d (0 à 1) : elle monte pendant les
+-- premiers 15 %, bat 1,5 fois par seconde, puis retombe pendant les derniers 15 %
+function Config.pulsationOr(t, d)
+	t, d = tonumber(t) or 0, math.max(tonumber(d) or 1, 0.01)
+	if t <= 0 or t >= d then return 0 end
+	local enveloppe = math.min(1, t / (d * 0.15), (d - t) / (d * 0.15))
+	return enveloppe * (0.6 + 0.4 * math.sin(2 * math.pi * 1.5 * t))
+end
+
+-- (V7.5.4, G-217) Sous l'eau ? Il nage (état Swimming), ou l'eau du Terrain remplit au moins la moitié de l'endroit
+function Config.sousEau(etat, occupationEau)
+	return etat == "Swimming" or (tonumber(occupationEau) or 0) >= 0.5
+end
+
+-- (V7.5.4, G-223) Sol brûlé selon le matériau (nom d'Enum.Material) : nil = le disque habituel ; sinon
+-- { genre, couleur (nil : celle du style), materiau, lumiere (facteur), couleurFin, materiauFin, transparenceFin, refroidi (s) }
+local SOLS = {
+	Grass = "herbe", LeafyGrass = "herbe", Ground = "herbe", Mud = "herbe",
+	Snow = "neige", Glacier = "neige", Ice = "neige",
+	Metal = "metal", DiamondPlate = "metal", CorrodedMetal = "metal", Foil = "metal",
+}
+function Config.solBrulantSelon(materiau)
+	local genre = SOLS[tostring(materiau)]
+	if genre == "herbe" then
+		-- l'herbe noircit : une tache sombre qui reste un moment
+		return { genre = genre, materiau = "Neon", lumiere = 1, couleurFin = Color3.fromRGB(18, 14, 10), materiauFin = "Slate", transparenceFin = 0.35, refroidi = 14 }
+	elseif genre == "neige" then
+		-- la neige fond : une flaque d'eau, presque sans lumière
+		return { genre = genre, couleur = Color3.fromRGB(150, 200, 235), materiau = "Glass", lumiere = 0.3, couleurFin = Color3.fromRGB(110, 165, 210),
+			materiauFin = "Glass", transparenceFin = 0.45, refroidi = 10 }
+	elseif genre == "metal" then
+		-- le métal rougeoie, plus fort et plus longtemps
+		return { genre = genre, couleur = Color3.fromRGB(255, 80, 25), materiau = "Neon", lumiere = 1.4, couleurFin = Color3.fromRGB(70, 65, 65),
+			materiauFin = "Metal", transparenceFin = 1, refroidi = 20 }
+	end
+	return nil
 end
 
 return Config

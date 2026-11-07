@@ -280,13 +280,13 @@ Mettre en scène la régénération (caméra, corps, poses, lieu), puis lui donn
 
 **Objectif :** Faire réagir le TARDIS et le lieu à la régénération : plus courte à bord, énergie rendue au TARDIS, vitres et salle dorées, jets attirés par le rotor, régénération sous l'eau, sol brûlé selon le matériau.
 
-- **C-238. Régénération plus courte à bord du TARDIS** *(petit)* : Une régénération à bord dure moins longtemps (par exemple 60 % de Config.Regeneration.Duree), car le TARDIS aide son Time Lord. Le TARDIS devient un refuge RP pour la C.A.T.
-- **C-266. Régénération à bord qui recharge le TARDIS** *(petit)* : Option : l'énergie d'une régénération à bord recharge l'énergie du TARDIS (ou le carburant Artron prévu) au lieu d'enlever 400 points d'intégrité (Config.Regeneration.DegatsTardis).
-- **G-65. Vitres dorées pendant une régénération à bord** *(petit)* : Quand un pilote se régénère à bord (attribut RegenerationABord), les vitres s'illuminent en or et pulsent jusqu'à la fin. Dehors, on devine qu'il se passe quelque chose.
-- **G-141. Lueur dorée pendant une régénération à bord** *(petit)* : En plus des étincelles de la console (RegenerationABord), une lumière dorée envahit la salle quelques secondes, puis retombe.
-- **G-220. Jets attirés par le rotor à bord** *(moyen)* : Lors d'une régénération à bord (RegenerationABord), une partie des jets se courbe vers le rotor, qui brille en or un instant. On voit que le TARDIS absorbe l'énergie.
-- **G-217. Régénération sous l'eau avec des bulles** *(moyen)* : Si le joueur nage ou se trouve dans l'eau du Terrain, les flammes deviennent des bulles et de la vapeur, et il n'y a pas de sol brûlant.
-- **G-223. Sol brûlé selon le matériau** *(moyen)* : Comme le terrain réactif (Decor) : herbe noircie, neige qui fond en flaque, métal qui rougeoie. Aujourd'hui solBrulant fait le même disque partout.
+- ✅ **C-238. Régénération plus courte à bord du TARDIS** *(petit)* : Une régénération à bord dure moins longtemps (par exemple 60 % de Config.Regeneration.Duree), car le TARDIS aide son Time Lord. Le TARDIS devient un refuge RP pour la C.A.T.
+- ✅ **C-266. Régénération à bord qui recharge le TARDIS** *(petit)* : Option : l'énergie d'une régénération à bord recharge l'énergie du TARDIS (ou le carburant Artron prévu) au lieu d'enlever 400 points d'intégrité (Config.Regeneration.DegatsTardis).
+- ✅ **G-65. Vitres dorées pendant une régénération à bord** *(petit)* : Quand un pilote se régénère à bord (attribut RegenerationABord), les vitres s'illuminent en or et pulsent jusqu'à la fin. Dehors, on devine qu'il se passe quelque chose.
+- ✅ **G-141. Lueur dorée pendant une régénération à bord** *(petit)* : En plus des étincelles de la console (RegenerationABord), une lumière dorée envahit la salle quelques secondes, puis retombe.
+- ✅ **G-220. Jets attirés par le rotor à bord** *(moyen)* : Lors d'une régénération à bord (RegenerationABord), une partie des jets se courbe vers le rotor, qui brille en or un instant. On voit que le TARDIS absorbe l'énergie.
+- ✅ **G-217. Régénération sous l'eau avec des bulles** *(moyen)* : Si le joueur nage ou se trouve dans l'eau du Terrain, les flammes deviennent des bulles et de la vapeur, et il n'y a pas de sol brûlant.
+- ✅ **G-223. Sol brûlé selon le matériau** *(moyen)* : Comme le terrain réactif (Decor) : herbe noircie, neige qui fond en flaque, métal qui rougeoie. Aujourd'hui solBrulant fait le même disque partout.
 
 **Dans Studio :** Rien.
 

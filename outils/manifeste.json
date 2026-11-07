@@ -1,5 +1,5 @@
 {
- "version": "7.5.3",
+ "version": "7.5.4",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 159805,
-   "empreinte": 579399206
+   "taille": 163847,
+   "empreinte": 1055699243
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -97,8 +97,8 @@
    "nom": "TardisSystemes",
    "classe": "Script",
    "parTardis": false,
-   "taille": 109794,
-   "empreinte": 395188971
+   "taille": 110708,
+   "empreinte": 354577633
   },
   {
    "fichier": "src/ServerScriptService/TardisTenues.lua",
@@ -322,8 +322,8 @@
    "nom": "Regeneration",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 78704,
-   "empreinte": 1282769787
+   "taille": 86037,
+   "empreinte": 1647099264
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Replay.lua",

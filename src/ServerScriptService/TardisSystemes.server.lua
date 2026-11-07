@@ -728,9 +728,19 @@ if not evenementABord then
 	evenementABord.Name = "TardisRegenerationABord"
 	evenementABord.Parent = ServerStorage
 end
-evenementABord.Event:Connect(function(nomTardis)
+evenementABord.Event:Connect(function(nomTardis, duree)
 	if nomTardis ~= def.Nom then return end
-	degats(REGEN.DegatsTardis or 400, "Régénération à bord")
+	-- (V7.5.4, C-266) Par défaut le TARDIS encaisse le choc ; avec l'option Recharge, l'énergie le recharge
+	local effet = Config.effetABord(REGEN)
+	if effet.reparation then
+		reparer(effet.reparation)
+		exterieur:SetAttribute("BouclierEnergie", math.min(100, (tonumber(exterieur:GetAttribute("BouclierEnergie")) or 100) + effet.bouclier))
+		direAuxPilotes("Régénération à bord : l'énergie recharge le TARDIS.", true)
+	else
+		degats(effet.degats, "Régénération à bord")
+	end
+	-- (V7.5.4, G-65 / G-141 / G-220) durée de la régénération : vitres, salle et rotor dorés jusqu'à la fin (clients)
+	exterieur:SetAttribute("RegenerationABordDuree", tonumber(duree) or 0)
 	exterieur:SetAttribute("RegenerationABord", workspace:GetServerTimeNow()) -- étincelles sur la console (clients)
 	interne("alerter", "RÉGÉNÉRATION À BORD")
 	interne("jouer", "Cloitre", false)
@@ -739,6 +749,7 @@ end)
 exterieur:GetAttributeChangedSignal("Catastrophe"):Connect(function()
 	if not exterieur:GetAttribute("Catastrophe") then return end
 	degats((Config.Modes.Catastrophe or {}).Degats or 1500, "Paradoxe : TARDIS dans le TARDIS")
+	exterieur:SetAttribute("RegenerationABordDuree", 0) -- (V7.5.4) seulement les étincelles, pas la lumière dorée
 	exterieur:SetAttribute("RegenerationABord", workspace:GetServerTimeNow()) -- la console crache des étincelles
 	interne("jouer", "Cloitre", false)
 	direAuxPilotes("Paradoxe : la cabine a encaissé le choc (intégrité " .. tostring(exterieur:GetAttribute("PointsDeVie") or "?") .. " %).", false)
@@ -1203,12 +1214,13 @@ local function surveillerPersonnage(joueur, personnage)
 		local nombre = regenerations[joueur.UserId] or 0
 		local maximum = REGEN.Nombre or 0
 		regenerations[joueur.UserId] = nombre + 1
-		local duree = REGEN.Duree or 5
 		-- Où ? Dans un TARDIS, il encaisse le choc
 		local racinePos = (personnage:FindFirstChild("HumanoidRootPart") or personnage:FindFirstChild("Head"))
 		local lieu = racinePos and tardisABord(racinePos.Position) or nil
+		-- (V7.5.4, C-238) à bord, la régénération est plus courte : le TARDIS aide son Time Lord
+		local duree = Config.dureeRegeneration(REGEN.Duree or 5, lieu ~= nil, (REGEN.ABord or {}).FacteurDuree)
 		noterRegeneration(joueur, "Régénération", lieu, nombre + 1)
-		if lieu then evenementABord:Fire(lieu) end
+		if lieu then evenementABord:Fire(lieu, duree) end
 		-- Style de l'animation (Config.Regeneration.Style : 0 = au hasard, 1 à 5 = imposé)
 		local style = REGEN.Style or 0
 		if style < 1 or style > 7 then style = math.random(7) end

@@ -42,6 +42,7 @@
 | V7.5.1 | Régénération : caméra de cinéma | ✅ faite (07/11) |
 | V7.5.2 | Régénération : le corps change | ✅ faite (07/11) |
 | V7.5.3 | Régénération : poses du corps | ✅ faite (07/11) |
+| V7.5.4 | Régénération à bord et selon le lieu | ✅ faite (07/11) |
 | V7.6 | Vol libre et rayon tracteur (5 lots) | 🔜 prévue |
 | V7.7 | Systèmes du TARDIS (7 lots) | 🔜 prévue |
 | V7.8 | Voyage : modes, zones et destinations (11 lots) | 🔜 prévue |
