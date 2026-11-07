@@ -265,12 +265,12 @@ Mettre en scène la régénération (caméra, corps, poses, lieu), puis lui donn
 
 **Objectif :** Donner au corps une vraie gestuelle pendant la régénération : pose propre à chaque style, genou à terre, légère lévitation, mains qui tremblent, nouveau Voyageur qui regarde ses mains, pose assise.
 
-- **G-205. Mains qui tremblent pendant le temps du choix** *(petit)* : Pendant TardisRegenChoix, les épaules et les mains vibrent un peu. Les témoins voient que l'énergie monte avant même que la régénération commence.
-- **G-203. Genou à terre pendant la montée d'énergie** *(moyen)* : Pendant la montée (0 à 15 % de la courbe d'intensité), le corps fléchit, puis se redresse d'un coup quand les jets jaillissent. Le début se lit mieux qu'avec une pose immobile.
-- **G-201. Pose de régénération propre à chaque style** *(moyen)* : Aujourd'hui poseRegeneration (TardisSystemes) donne la même pose à tous les styles. La Douce garderait les bras bas, paumes ouvertes ; le Volcan cambrerait fort ; la Fracture bougerait par à-coups.
-- **G-218. Régénération assise dans un siège** *(petit)* : Quand le joueur est assis (humanoid.Sit), la pose debout se tord. Il faudrait une pose assise, bras levés, et des jets adaptés.
-- **G-204. Légère lévitation pendant l'éruption** *(moyen)* : Pour les styles Douce et Colonne, le corps s'élève de 1 à 2 studs pendant l'éruption puis se repose au changement (AlignPosition côté serveur, vu par tous).
-- **G-202. Le nouveau Voyageur regarde ses mains** *(moyen)* : À la fin de la régénération, une courte pose : il lève les mains devant son visage puis touche sa tête, comme dans la série. On comprend tout de suite qu'il découvre son nouveau corps.
+- ✅ **G-205. Mains qui tremblent pendant le temps du choix** *(petit)* : Pendant TardisRegenChoix, les épaules et les mains vibrent un peu. Les témoins voient que l'énergie monte avant même que la régénération commence.
+- ✅ **G-203. Genou à terre pendant la montée d'énergie** *(moyen)* : Pendant la montée (0 à 15 % de la courbe d'intensité), le corps fléchit, puis se redresse d'un coup quand les jets jaillissent. Le début se lit mieux qu'avec une pose immobile.
+- ✅ **G-201. Pose de régénération propre à chaque style** *(moyen)* : Aujourd'hui poseRegeneration (TardisSystemes) donne la même pose à tous les styles. La Douce garderait les bras bas, paumes ouvertes ; le Volcan cambrerait fort ; la Fracture bougerait par à-coups.
+- ✅ **G-218. Régénération assise dans un siège** *(petit)* : Quand le joueur est assis (humanoid.Sit), la pose debout se tord. Il faudrait une pose assise, bras levés, et des jets adaptés.
+- ✅ **G-204. Légère lévitation pendant l'éruption** *(moyen)* : Pour les styles Douce et Colonne, le corps s'élève de 1 à 2 studs pendant l'éruption puis se repose au changement (AlignPosition côté serveur, vu par tous).
+- ✅ **G-202. Le nouveau Voyageur regarde ses mains** *(moyen)* : À la fin de la régénération, une courte pose : il lève les mains devant son visage puis touche sa tête, comme dans la série. On comprend tout de suite qu'il découvre son nouveau corps.
 
 **Dans Studio :** Facultatif : des Animations publiées par le propriétaire du jeu. Sinon les poses sont faites par le code, comme aujourd'hui.
 

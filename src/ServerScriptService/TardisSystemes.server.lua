@@ -908,33 +908,204 @@ local function bonusPV(humanoid)
 		end
 	end)
 end
--- Pose de la série (R6) : bras écartés sur les côtés, paumes vers le ciel, tête renversée en arrière.
--- Le mouvement est fluide (interpolation des articulations), et tout le monde le voit.
+-- Pose de la série (R6) : bras écartés, tête renversée en arrière. Le mouvement est fluide (interpolation des
+-- articulations), et tout le monde le voit. (V7.5.3) Chaque style a sa pose, le corps fléchit puis se redresse, il
+-- flotte pour certains styles, les mains tremblent pendant le choix, et à la fin il découvre ses nouvelles mains.
 local TweenService = game:GetService("TweenService")
-local POSE = {
-	["Right Shoulder"] = CFrame.Angles(-math.rad(72), 0, 0) * CFrame.Angles(0, 0, math.rad(8)),  -- bras droit levé sur le côté
-	["Left Shoulder"] = CFrame.Angles(-math.rad(72), 0, 0) * CFrame.Angles(0, 0, -math.rad(8)),  -- bras gauche levé sur le côté
-	["Neck"] = CFrame.Angles(-math.rad(28), 0, 0),                                                  -- tête renversée en arrière
-	["Right Hip"] = CFrame.Angles(-math.rad(6), 0, 0),                                              -- jambes légèrement écartées
-	["Left Hip"] = CFrame.Angles(-math.rad(6), 0, 0),
-}
-local function poseRegeneration(personnage, active, duree)
+local NOMS_POSE = { "Right Shoulder", "Left Shoulder", "Neck", "Right Hip", "Left Hip" }
+-- Rotation d'une articulation, en degrés {x, y, z}
+local function rotationDe(a)
+	return CFrame.Angles(math.rad(a[1] or 0), 0, 0) * CFrame.Angles(0, math.rad(a[2] or 0), 0) * CFrame.Angles(0, 0, math.rad(a[3] or 0))
+end
+-- Les articulations de la pose : les cinq du torse, et RootJoint (tout le corps) dans HumanoidRootPart
+local function moteursPose(personnage)
+	local moteurs = {}
 	local torse = personnage:FindFirstChild("Torso")
-	if not torse then return end
-	for nom, rotation in POSE do
-		local moteur = torse:FindFirstChild(nom)
-		if moteur and moteur:IsA("Motor6D") then
-			if active then
-				moteur:SetAttribute("TardisC0", moteur:GetAttribute("TardisC0") or moteur.C0)
-				TweenService:Create(moteur, TweenInfo.new(duree or 0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-					{ C0 = moteur:GetAttribute("TardisC0") * rotation }):Play()
-			elseif moteur:GetAttribute("TardisC0") then
-				local origine = moteur:GetAttribute("TardisC0")
-				moteur:SetAttribute("TardisC0", nil)
-				TweenService:Create(moteur, TweenInfo.new(duree or 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { C0 = origine }):Play()
+	if torse then
+		for _, nom in NOMS_POSE do
+			local m = torse:FindFirstChild(nom)
+			if m and m:IsA("Motor6D") then moteurs[nom] = m end
+		end
+	end
+	local racine = personnage:FindFirstChild("HumanoidRootPart")
+	local rj = racine and racine:FindFirstChild("RootJoint")
+	if rj and rj:IsA("Motor6D") then moteurs.RootJoint = rj end
+	return moteurs
+end
+-- C0 d'origine (gardé dans l'attribut TardisC0 jusqu'au retour)
+local function origineC0(m)
+	local o = m:GetAttribute("TardisC0")
+	if typeof(o) ~= "CFrame" then
+		o = m.C0
+		m:SetAttribute("TardisC0", o)
+	end
+	return o
+end
+local function viser(m, c0, duree, style, direction)
+	TweenService:Create(m, TweenInfo.new(math.max(duree or 0.5, 0.01), style or Enum.EasingStyle.Sine, direction or Enum.EasingDirection.Out), { C0 = c0 }):Play()
+end
+-- Pose des articulations (degrés) ; racine = { penche = degrés vers l'avant, baisse = studs } pour RootJoint (nil : il n'y
+-- touche pas), appliqué dans le repère de la racine
+local function poser(moteurs, articulations, duree, style, direction, racine)
+	for nom, a in articulations do
+		local m = moteurs[nom]
+		if m then viser(m, origineC0(m) * rotationDe(a), duree, style, direction) end
+	end
+	if racine and moteurs.RootJoint then
+		local rj = moteurs.RootJoint
+		viser(rj, CFrame.new(0, -(racine.baisse or 0), 0) * CFrame.Angles(-math.rad(racine.penche or 0), 0, 0) * origineC0(rj), duree, style, direction)
+	end
+end
+-- Jeton de pose : un nouvel ordre de pose annule les étapes encore prévues de l'ancien
+local function nouveauJeton(personnage)
+	local jeton = (personnage:GetAttribute("TardisPoseJeton") or 0) + 1
+	personnage:SetAttribute("TardisPoseJeton", jeton)
+	return function() return personnage.Parent ~= nil and personnage:GetAttribute("TardisPoseJeton") == jeton end
+end
+local function finLevitation(personnage)
+	local racine = personnage:FindFirstChild("HumanoidRootPart")
+	if not racine then return end
+	for _, nom in { "TardisRegenLevitation", "TardisRegenLevitationPoint" } do
+		local o = racine:FindFirstChild(nom)
+		if o then o:Destroy() end
+	end
+end
+-- (V7.5.3, G-204) Il s'élève doucement (AlignPosition), flotte, puis redescend avant la fin
+local function leviter(personnage, total, valide)
+	local POSES = REGEN.Poses or {}
+	task.delay(total * 0.15, function()
+		if not valide() then return end
+		local racine = personnage:FindFirstChild("HumanoidRootPart")
+		if not racine or racine:FindFirstChild("TardisRegenLevitation") then return end
+		local point = Instance.new("Attachment")
+		point.Name = "TardisRegenLevitationPoint"
+		point.Parent = racine
+		local aligne = Instance.new("AlignPosition")
+		aligne.Name = "TardisRegenLevitation"
+		aligne.Mode = Enum.PositionAlignmentMode.OneAttachment
+		aligne.Attachment0 = point
+		aligne.MaxForce = 1e5
+		aligne.Responsiveness = 10
+		local depart = racine.Position
+		aligne.Position = depart
+		aligne.Parent = racine
+		TweenService:Create(aligne, TweenInfo.new(total * 0.2, Enum.EasingStyle.Sine), { Position = depart + Vector3.new(0, POSES.HauteurLevitation or 1.5, 0) }):Play()
+		task.delay(total * 0.4, function()
+			if not valide() or not aligne.Parent then return end
+			TweenService:Create(aligne, TweenInfo.new(total * 0.15, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Position = depart }):Play()
+			task.delay(total * 0.15 + 0.1, function() if valide() then finLevitation(personnage) end end)
+		end)
+	end)
+end
+-- active : prend la pose du style (en « duree » secondes ; total = durée de la régénération) ; sinon : revient au repos
+local function poseRegeneration(personnage, active, duree, style, total)
+	local POSES = REGEN.Poses or {}
+	local moteurs = moteursPose(personnage)
+	local valide = nouveauJeton(personnage)
+	if not active then
+		finLevitation(personnage)
+		for _, m in moteurs do
+			local origine = m:GetAttribute("TardisC0")
+			if typeof(origine) == "CFrame" then
+				m:SetAttribute("TardisC0", nil)
+				viser(m, origine, duree or 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			end
+		end
+		return
+	end
+	duree = duree or 0.9
+	local humanoid = personnage:FindFirstChildOfClass("Humanoid")
+	local assis = POSES.Assis ~= false and humanoid ~= nil and humanoid.Sit == true
+	local pose = Config.poseRegeneration(POSES.ParStyle ~= false and style or 1, assis)
+	local cambrure = pose.cambrure > 0 and { penche = -pose.cambrure } or nil
+	if pose.acoups then
+		-- (G-201) Fracture : la pose arrive par à-coups, en quatre crans secs
+		for k = 1, 4 do
+			task.delay(duree * (k - 1) / 4, function()
+				if not valide() then return end
+				for nom, a in pose.articulations do
+					local m = moteurs[nom]
+					if m then
+						local o = origineC0(m)
+						viser(m, o:Lerp(o * rotationDe(a), k / 4), 0.06, Enum.EasingStyle.Linear)
+					end
+				end
+			end)
+		end
+	elseif not assis and POSES.GenouATerre ~= false and moteurs.RootJoint then
+		-- (G-203) Le corps fléchit d'abord (penché, un genou presque à terre), puis se redresse d'un coup, bras écartés
+		poser(moteurs, { ["Neck"] = { 15, 0, 0 }, ["Right Hip"] = { 0, 0, -50 }, ["Left Hip"] = { 0, 0, -35 },
+			["Right Shoulder"] = { 0, 0, 0 }, ["Left Shoulder"] = { 0, 0, 0 } },
+			duree * 0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, { penche = POSES.Flexion or 22, baisse = POSES.Baisse or 0.6 })
+		task.delay(duree * 0.8, function()
+			if not valide() then return end
+			poser(moteurs, pose.articulations, duree * 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out, cambrure or { penche = 0 })
+		end)
+	else
+		poser(moteurs, pose.articulations, duree, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, cambrure)
+	end
+	if pose.levitation and not assis and POSES.Levitation ~= false then leviter(personnage, total or 8, valide) end
+end
+-- (V7.5.3, G-205) Les mains tremblent (pendant les secondes du choix) ; renvoie la fonction qui les arrête
+local function tremblerMains(personnage)
+	local POSES = REGEN.Poses or {}
+	if POSES.Tremblement == false then return function() end end
+	local moteurs = moteursPose(personnage)
+	local actif, debut = true, os.clock()
+	task.spawn(function()
+		while actif and personnage.Parent do
+			local t = os.clock() - debut
+			for i, nom in { "Right Shoulder", "Left Shoulder" } do
+				local m = moteurs[nom]
+				if m then
+					local x, z = Config.tremblement(t + i * 1.7, POSES.AmplitudeTremblement or 4)
+					m.C0 = origineC0(m) * CFrame.Angles(math.rad(x), 0, math.rad(z))
+				end
+			end
+			task.wait(0.06)
+		end
+	end)
+	return function()
+		actif = false
+		for _, nom in { "Right Shoulder", "Left Shoulder" } do
+			local m = moteurs[nom]
+			local o = m and m:GetAttribute("TardisC0")
+			if typeof(o) == "CFrame" then
+				m.C0 = o
+				m:SetAttribute("TardisC0", nil)
 			end
 		end
 	end
+end
+-- (V7.5.3, G-202) À la fin : il regarde ses nouvelles mains, touche son visage, puis revient au repos ; « fini » est
+-- appelé à la fin du geste (ou tout de suite, s'il n'a pas lieu)
+local function gesteDecouverte(personnage, fini)
+	local POSES = REGEN.Poses or {}
+	local moteurs = moteursPose(personnage)
+	local humanoid = personnage:FindFirstChildOfClass("Humanoid")
+	if POSES.RegarderMains == false or not moteurs["Right Shoulder"] or (humanoid and humanoid.Sit) then
+		poseRegeneration(personnage, false)
+		fini()
+		return
+	end
+	local valide = nouveauJeton(personnage)
+	finLevitation(personnage)
+	local d = POSES.DureeRegardMains or 2.6
+	-- Le corps et les jambes se redressent ; les mains viennent devant les yeux
+	for _, nom in { "Right Hip", "Left Hip", "RootJoint" } do
+		local m = moteurs[nom]
+		local o = m and m:GetAttribute("TardisC0")
+		if typeof(o) == "CFrame" then viser(m, o, 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut) end
+	end
+	poser(moteurs, Config.poseDecouverte(1), d * 0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	task.delay(d * 0.55, function()
+		if not valide() then fini() return end
+		poser(moteurs, Config.poseDecouverte(2), d * 0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		task.delay(d * 0.45, function()
+			if valide() then poseRegeneration(personnage, false) end
+			fini()
+		end)
+	end)
 end
 
 -- Chute dans le vide (V6.9.7) : dernière position où le joueur se tenait sur un sol, loin sous la limite de destruction
@@ -1018,6 +1189,15 @@ local function surveillerPersonnage(joueur, personnage)
 	end)
 
 	local enCours = false
+	-- (V7.5.3) Vitesses d'avant la régénération : gardées jusqu'à la fin du geste de découverte (si une autre régénération
+	-- commence pendant le geste, on ne retient pas les vitesses à 0)
+	local vitessesAvant = nil
+	local function rendreVitesses()
+		if vitessesAvant and humanoid.Parent then
+			humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight = vitessesAvant[1], vitessesAvant[2], vitessesAvant[3]
+		end
+		vitessesAvant = nil
+	end
 	local function derouler(changerTenue)
 		enCours = true
 		local nombre = regenerations[joueur.UserId] or 0
@@ -1043,9 +1223,9 @@ local function surveillerPersonnage(joueur, personnage)
 			if humanoid.Parent and humanoid.Health < humanoid.MaxHealth then humanoid.Health = humanoid.MaxHealth end
 		end)
 		-- Figé, bras écartés
-		local vitesse, saut, hauteurSaut = humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight
+		if not vitessesAvant then vitessesAvant = { humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight } end
 		humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight = 0, 0, 0
-		poseRegeneration(personnage, true, math.max((REGEN.Duree or 7) * 0.15, 0.5))
+		poseRegeneration(personnage, true, math.max((REGEN.Duree or 7) * 0.15, 0.5), style, duree)
 		personnage:SetAttribute("TardisRegenerationDuree", duree)
 		personnage:SetAttribute("TardisRegeneration", workspace:GetServerTimeNow()) -- les clients jouent les effets
 		dire(joueur, maximum > 0 and string.format("Régénération %d/%d…", nombre + 1, maximum) or string.format("Régénération n°%d…", nombre + 1), true)
@@ -1081,12 +1261,12 @@ local function surveillerPersonnage(joueur, personnage)
 		task.delay(duree, function()
 			garde:Disconnect()
 			if not personnage.Parent then return end
-			poseRegeneration(personnage, false)
-			humanoid.WalkSpeed, humanoid.JumpPower, humanoid.JumpHeight = vitesse, saut, hauteurSaut
 			bonusPV(humanoid) -- soigné, avec des PV en plus pendant quelques minutes
 			personnage:SetAttribute("TardisRegeneration", nil)
 			protection:Destroy()
 			enCours = false
+			-- (V7.5.3, G-202) Il découvre ses nouvelles mains, puis peut repartir (sauf si une autre régénération a commencé)
+			gesteDecouverte(personnage, function() if not enCours then rendreVitesses() end end)
 			surveillerMembres(joueur, personnage, REGEN.RepousseDuree or 300)
 		end)
 	end
@@ -1175,7 +1355,9 @@ local function surveillerPersonnage(joueur, personnage)
 			choixEnAttente[joueur.UserId] = function() refuse = true end
 			personnage:SetAttribute("TardisRegenChoix", workspace:GetServerTimeNow() + delai)
 			local fin = os.clock() + delai
+			local arreterTremblement = tremblerMains(personnage) -- (V7.5.3, G-205) les mains tremblent pendant le choix
 			while os.clock() < fin and not refuse and personnage.Parent do task.wait(0.1) end
+			arreterTremblement()
 			choixEnAttente[joueur.UserId] = nil
 			personnage:SetAttribute("TardisRegenChoix", nil)
 			garde:Disconnect()

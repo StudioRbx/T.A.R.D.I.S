@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.5.2"
+Config.Version = "7.5.3"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1074,6 +1074,20 @@ Config.Regeneration = {
 		FumeeCheveux = true,        -- (G-213) les cheveux fument après la régénération, aussi longtemps que les mains
 		RepousseDoree = true,       -- (G-215) un membre qui repousse sort en or (Neon)...
 		DureeRepousseDoree = 1,     -- ...puis prend sa vraie couleur en tant de secondes
+	},
+	-- Poses du corps (V7.5.3)
+	Poses = {
+		ParStyle = true,            -- (G-201) chaque style a sa pose (Volcan cambré, Douce à peine levée, Colonne bras au ciel…)
+		Tremblement = true,         -- (G-205) pendant les secondes du choix, les mains tremblent...
+		AmplitudeTremblement = 4,   -- ...de tant de degrés
+		GenouATerre = true,         -- (G-203) le corps fléchit d'abord (un genou presque à terre), puis se redresse d'un coup
+		Flexion = 22,               -- ...penché en avant de tant de degrés...
+		Baisse = 0.6,               -- ...et abaissé de tant de studs
+		Assis = true,               -- (G-218) assis : seulement les bras levés et la tête renversée, sans flexion
+		Levitation = true,          -- (G-204) les styles Douce et Colonne soulèvent le corps du sol...
+		HauteurLevitation = 1.5,    -- ...de tant de studs
+		RegarderMains = true,       -- (G-202) à la fin, il regarde ses nouvelles mains, puis touche son visage...
+		DureeRegardMains = 2.6,     -- ...pendant tant de secondes (puis il peut repartir)
 	},
 	-- Son optionnel : un Sound "Regeneration" dans ReplicatedStorage > TardisAssets > Sons
 	BonusPV = 100,           -- PV en plus après une régénération...
@@ -2589,6 +2603,51 @@ end
 -- (V7.5.2, G-213) Débit des volutes après la régénération, k secondes après la fin (les mains ; les cheveux en prennent 70 %)
 function Config.debitFumeeApres(k)
 	return math.max(0, 14 - (tonumber(k) or 0))
+end
+
+-- (V7.5.3, G-201) Pose de chaque style (1 à 7), en degrés : épaules {x, y, z} (x : bras levé sur le côté, z : vers
+-- l'avant), cou (négatif : tête renversée), hanches, cambrure du dos (degrés vers l'arrière), à-coups, lévitation
+local POSES_STYLES = {
+	[1] = { epaule = { -72, 0, 8 }, cou = -28, hanche = -6 },                                    -- Classique
+	[2] = { epaule = { -88, 0, 14 }, cou = -45, hanche = -10, cambrure = 12 },                   -- Volcan : cambré, tête très renversée
+	[3] = { epaule = { -22, 0, 4 }, cou = -10, hanche = -3, levitation = true },                 -- Douce : à peine levés, il flotte
+	[4] = { epaule = { -90, 0, 0 }, cou = -18, hanche = -8 },                                    -- Tourbillon : bras à l'horizontale
+	[5] = { epaule = { -155, 0, 0 }, cou = -40, hanche = -4, cambrure = 6, levitation = true },  -- Colonne : bras au ciel, il s'élève
+	[6] = { epaule = { -110, 0, 10 }, cou = -32, hanche = -14, cambrure = 8 },                   -- Supernova : grand écart, cambré
+	[7] = { epaule = { -72, 0, 8 }, cou = -28, hanche = -6, acoups = true },                     -- Fracture : par à-coups
+}
+-- (V7.5.3, G-201 / G-218) Pose de la régénération : articulations R6 (degrés {x, y, z}), cambrure, à-coups, lévitation.
+-- Assis : les bras au ciel et la tête renversée seulement (les jambes ne bougent pas, il ne flotte pas)
+function Config.poseRegeneration(style, assis)
+	local s = POSES_STYLES[tonumber(style) or 1] or POSES_STYLES[1]
+	if assis then s = { epaule = { -160, 0, 0 }, cou = -25 } end
+	local e = s.epaule
+	local articulations = {
+		["Right Shoulder"] = { e[1], e[2], e[3] },
+		["Left Shoulder"] = { e[1], -e[2], -e[3] },
+		["Neck"] = { s.cou, 0, 0 },
+	}
+	if s.hanche then
+		articulations["Right Hip"] = { s.hanche, 0, 0 }
+		articulations["Left Hip"] = { s.hanche, 0, 0 }
+	end
+	return { articulations = articulations, cambrure = s.cambrure or 0, acoups = s.acoups == true, levitation = s.levitation == true }
+end
+
+-- (V7.5.3, G-205) Tremblement des mains au temps t (degrés x et z, jamais plus que l'amplitude a) : deux vibrations
+-- mêlées, qui ne se répètent pas à l'œil
+function Config.tremblement(t, a)
+	t, a = tonumber(t) or 0, tonumber(a) or 4
+	return a * (0.6 * math.sin(37 * t) + 0.4 * math.sin(23 * t + 1)), a * (0.6 * math.sin(31 * t + 2) + 0.4 * math.sin(41 * t))
+end
+
+-- (V7.5.3, G-202) Geste de la découverte, en deux temps : 1 = les mains devant les yeux, paumes vers soi, tête
+-- baissée pour les regarder ; 2 = la main droite touche le visage, la gauche redescend
+function Config.poseDecouverte(etape)
+	if etape == 2 then
+		return { ["Right Shoulder"] = { 0, 40, 150 }, ["Left Shoulder"] = { 0, 0, 0 }, ["Neck"] = { 5, 0, 0 } }
+	end
+	return { ["Right Shoulder"] = { 0, 25, 100 }, ["Left Shoulder"] = { 0, -25, -100 }, ["Neck"] = { 20, 0, 0 } }
 end
 
 return Config
