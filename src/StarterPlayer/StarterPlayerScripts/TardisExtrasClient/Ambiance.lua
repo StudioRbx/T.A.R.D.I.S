@@ -361,12 +361,21 @@ return function(contexte)
 		local reglagesSalle = Config.Salle or {}
 		local cables = {}
 		if reglagesSalle.Cables ~= false then
+			-- (V7.5.4.2) Les pièces « Cable » du kit sont des faisceaux couchés autour de la porte et des cordons de panneau, faits
+			-- de tronçons serrés : balancer chaque tronçon à part les faisait sortir du mur en dents de scie. Seule une pièce
+			-- marquée de l'attribut Config.Salle.AttributBalance (TardisBalance, = true, posé dans Studio) se balance ; les autres
+			-- restent en place.
+			local attributBalance = reglagesSalle.AttributBalance or "TardisBalance"
+			local piecesCable = 0
 			for _, objet in interieur:GetDescendants() do
 				if objet:IsA("BasePart") and objet.Name == "Cable" and objet.Anchored then
-					table.insert(cables, { part = objet, repos = objet.CFrame, haut = objet.CFrame * CFrame.new(0, objet.Size.Y / 2, 0), longueur = objet.Size.Y })
+					piecesCable += 1
+					if objet:GetAttribute(attributBalance) == true then
+						table.insert(cables, { part = objet, repos = objet.CFrame, haut = objet.CFrame * CFrame.new(0, objet.Size.Y / 2, 0), longueur = objet.Size.Y })
+					end
 				end
 			end
-			if #cables == 0 and (reglagesSalle.CordesLocales or 0) > 0 and boiteInt and tailleInt then
+			if piecesCable == 0 and (reglagesSalle.CordesLocales or 0) > 0 and boiteInt and tailleInt then
 				local n = math.floor(reglagesSalle.CordesLocales)
 				local longueur = reglagesSalle.LongueurCordes or 4
 				local rayon = math.min(math.min(tailleInt.X, tailleInt.Z) * 0.3, 12)

@@ -1,5 +1,5 @@
 {
- "version": "7.5.4.1",
+ "version": "7.5.4.2",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 167784,
-   "empreinte": 1774485173
+   "taille": 167921,
+   "empreinte": 750336990
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -97,8 +97,8 @@
    "nom": "TardisSystemes",
    "classe": "Script",
    "parTardis": false,
-   "taille": 110708,
-   "empreinte": 354577633
+   "taille": 111281,
+   "empreinte": 1691739319
   },
   {
    "fichier": "src/ServerScriptService/TardisTenues.lua",
@@ -133,8 +133,8 @@
    "nom": "TardisCamera",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 30538,
-   "empreinte": 230718686
+   "taille": 31269,
+   "empreinte": 976582135
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisEffets.client.lua",
@@ -214,8 +214,8 @@
    "nom": "Ambiance",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 41988,
-   "empreinte": 1381281166
+   "taille": 42582,
+   "empreinte": 349829060
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/AutoDestruction.lua",

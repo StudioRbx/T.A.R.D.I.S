@@ -179,6 +179,9 @@ x.m_SetAttribute("Stabilisateur", None)
 salle2 = Instance("Model", "Salle2", Instance("Folder", "INTERIEURE", Instance("Folder", "TARDIS_9", ws)))
 piece("Rotor", salle2, (0, 2000, 0)); vrai = piece("Cable", salle2, (5, 2008, 0), (0.3, 6, 0.3)); vrai.props["Anchored"] = True
 libre = piece("Cable", salle2, (-5, 2008, 0), (0.3, 6, 0.3)); libre.props["Anchored"] = False
+# (V7.5.4.2) seule une pièce « Cable » marquée TardisBalance se balance ; les faisceaux du kit (non marqués) restent en place
+vrai.m_SetAttribute("TardisBalance", True)
+fixe = piece("Cable", salle2, (0, 2008, 5), (0.3, 6, 0.3)); fixe.props["Anchored"] = True
 n_avant = len([e for e in ws.enfants if e.Name == "TardisCable"])
 tache(lambda: appeler(premier(I.executer(ambiance, "Ambiance")), [contexte(salle2)]))
 verifier("G-163. Une salle avec des pièces « Cable » : aucun câble créé en plus", len([e for e in ws.enfants if e.Name == "TardisCable"]) == n_avant and not roblox.ERREURS, roblox.ERREURS[:3])
@@ -186,7 +189,8 @@ p0 = vrai.props["CFrame"].p
 x.m_SetAttribute("Stabilisateur", False); etat("Demat")
 bouge = 0
 for _ in range(30): image(0.1); bouge = max(bouge, math.dist(vrai.props["CFrame"].p, p0))
-verifier("G-163. … la pièce « Cable » ancrée se balance, pendue par son haut", bouge > 0.1, bouge)
+verifier("G-163. … la pièce « Cable » ancrée et marquée TardisBalance se balance, pendue par son haut", bouge > 0.1, bouge)
+verifier("G-163. … une pièce « Cable » ancrée sans TardisBalance (faisceau du kit) reste en place (V7.5.4.2)", fixe.props["CFrame"].p == (0, 2008, 5), fixe.props["CFrame"].p)
 verifier("G-163. … une pièce « Cable » non ancrée (la physique s'en charge) n'est pas touchée", libre.props["CFrame"].p == (-5, 2008, 0))
 etat("Pose"); image(0.1, 60)
 verifier("G-163. … et reprend exactement sa place au repos", vrai.props["CFrame"].p == p0, vrai.props["CFrame"].p)

@@ -44,6 +44,7 @@
 | V7.5.3 | Régénération : poses du corps | ✅ faite (07/11) |
 | V7.5.4 | Régénération à bord et selon le lieu | ✅ faite (07/11) |
 | V7.5.4.1 | Retours DEVMAP : commandes du kit, alarme, panneau 1, écran énergie | ✅ faite (07/11) |
+| V7.5.4.2 | Retours DEVMAP : caméra extérieure, câbles de la porte, outils du technicien | ✅ faite (07/11) |
 | V7.6 | Vol libre et rayon tracteur (5 lots) | 🔜 prévue |
 | V7.7 | Systèmes du TARDIS (7 lots) | 🔜 prévue |
 | V7.8 | Voyage : modes, zones et destinations (11 lots) | 🔜 prévue |

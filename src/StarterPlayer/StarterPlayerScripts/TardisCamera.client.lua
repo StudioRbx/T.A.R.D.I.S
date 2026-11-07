@@ -487,11 +487,21 @@ local function lierTouches(lier)
 	if not ContextActionService then return end
 	for _, action in ACTIONS do
 		if lier then
-			ContextActionService:BindActionAtPriority(action.nom, function(_, etat)
-				if etat == Enum.UserInputState.Begin then action.f() end
-				return Enum.ContextActionResult.Sink
-			end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode[action.touche], action.manette)
-			ContextActionService:SetTitle(action.nom, action.titre)
+			-- (V7.5.4.2) Les touches sont mises en liste sans trou : une action sans touche de manette (Cadre) passait
+			-- nil à BindActionAtPriority, qui levait une erreur au milieu d'entrer() : la caméra restait « active »
+			-- sans s'ouvrir et le bouton ne répondait plus. Une touche mal écrite dans les réglages est ignorée.
+			local touches = {}
+			local okTouche, touche = pcall(function() return Enum.KeyCode[action.touche] end)
+			if okTouche and touche then table.insert(touches, touche) end
+			if action.manette then table.insert(touches, action.manette) end
+			local okLien = pcall(function()
+				ContextActionService:BindActionAtPriority(action.nom, function(_, etat)
+					if etat == Enum.UserInputState.Begin then action.f() end
+					return Enum.ContextActionResult.Sink
+				end, true, Enum.ContextActionPriority.High.Value, table.unpack(touches))
+				ContextActionService:SetTitle(action.nom, action.titre)
+			end)
+			if not okLien then warn("[TARDIS] Caméra : touche « " .. tostring(action.touche) .. " » non liée (" .. action.nom .. ")") end
 		else
 			ContextActionService:UnbindAction(action.nom)
 		end

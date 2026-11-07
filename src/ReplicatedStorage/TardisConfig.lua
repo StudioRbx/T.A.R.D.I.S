@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.5.4.1"
+Config.Version = "7.5.4.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -2180,6 +2180,7 @@ Config.Salle = {
 	ForceMusique = 0.6,     -- (G-140) 0 à 1 : de combien la musique fait varier les LEDs
 	VolumeMusique = 300,    -- (G-140) PlaybackLoudness considéré comme « fort »
 	Cables = true,          -- (G-163) câbles du plafond qui se balancent en vol
+	AttributBalance = "TardisBalance", -- (V7.5.4.2) attribut à poser (= true) dans Studio sur une pièce « Cable » qui doit se balancer
 	CordesLocales = 6,      -- (G-163) câbles créés s'il n'y a pas de pièces « Cable » dans l'intérieur (0 = aucun)
 	LongueurCordes = 4,     -- (G-163) studs
 	AngleCables = 8,        -- (G-163) degrés de balancement au plus fort

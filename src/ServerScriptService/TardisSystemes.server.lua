@@ -1709,6 +1709,14 @@ local function retirerOutils(joueur, garderCle, seulementMarques)
 	end
 	return retires
 end
+-- (V7.5.4.2) Là où un technicien peut garder ses outils : dans le TARDIS ou à 20 studs au plus de la cabine. Même règle pour
+-- les donner et pour les retirer : un outil demandé ailleurs (menu Technicien ouvert dehors) était donné puis retiré
+-- deux secondes plus tard par la boucle plus bas.
+local function outilsPermis(joueur)
+	local racine = racineDe(joueur)
+	if not racine then return true end
+	return interne("dansInterieur", racine.Position) == true or (racine.Position - exterieur:GetPivot().Position).Magnitude <= 20
+end
 
 --------------------------------------------------------------------
 -- Électricité statique : toucher la cabine pendant une démat (voyage ou en vol) donne un arc et de très légers dégâts
@@ -2094,7 +2102,14 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		local mon = Config.tardisDuJoueur(joueur)
 		if mon and mon.Nom ~= def.Nom then return end -- les outils viennent de l'exemplaire de son TARDIS principal
 		local cle = typeof(donnees) == "table" and donnees.outil
-		if cle == "Retirer" then retirerOutils(joueur) elseif OUTILS[cle] then donnerOutil(joueur, cle) end
+		if cle == "Retirer" then retirerOutils(joueur)
+		elseif OUTILS[cle] then
+			if not outilsPermis(joueur) then
+				dire(joueur, "Les outils se prennent dans le TARDIS ou près de la cabine.", false)
+				return
+			end
+			donnerOutil(joueur, cle)
+		end
 		return
 	end
 	if not estPilote(joueur) then return end
@@ -2118,8 +2133,7 @@ task.spawn(function()
 		task.wait(2)
 		for _, joueur in Players:GetPlayers() do
 			if estTechnicien(joueur) then
-				local racine = racineDe(joueur)
-				if racine and not interne("dansInterieur", racine.Position) and (racine.Position - exterieur:GetPivot().Position).Magnitude > 20 then
+				if racineDe(joueur) and not outilsPermis(joueur) then
 					retirerOutils(joueur)
 				end
 			elseif joueur:GetAttribute("TardisTechnicien") ~= true then
