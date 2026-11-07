@@ -45,6 +45,14 @@ src/
 └─ Workspace/TARDIS/TARDIS_x/EXTERIEURE/TARDISDoors/
    ├─ LeftDoor/Shut.server.lua          battant gauche (dans chaque TARDIS)
    └─ RightDoor/Shut.server.lua         battant droit (dans chaque TARDIS)
+structure/                              le build Studio complet, relevé dans DEVMAP (voir structure/LISEZMOI.md)
+├─ Workspace.TARDIS.TARDIS_1.INTERIEURE.rbxm   intérieur du TARDIS_1 (console, commandes, portail, rotor, spawns)
+├─ Workspace.TARDIS.TARDIS_1.EXTERIEURE.rbxm   extérieur du TARDIS_1 (cabine, portes)
+├─ Workspace.TARDIS.TARDIS_DESTINATIONS.rbxm   destinations de la map de test
+├─ Workspace.TARDIS_2.rbxm / TARDIS_3.rbxm     TARDIS de réserve (pas actifs)
+├─ ReplicatedStorage.TardisAssets.rbxm         sons du voyage et outils du technicien
+├─ index.json                                  parent, taille, empreinte, descendants et position de chaque fichier
+└─ ARBORESCENCE.md                             l'arbre lisible de toute la structure
 docs/
 ├─ ETAT_DES_LIEUX.md                    reprise du 29/10/2026 et comparaison avec ZONE-TSADE
 ├─ ETAT_DES_TESTS.md                    ce qui a été testé en jeu, version par version
@@ -55,6 +63,7 @@ docs/
 outils/
 ├─ manifeste.py                         liste les scripts de src/ avec leur empreinte (outils/manifeste.json)
 ├─ synchro_studio.luau                  met Studio à jour depuis le dépôt et vérifie chaque empreinte
+├─ importer_structure.luau              charge la structure (structure/*.rbxm) dans une map depuis GitHub, vérifiée par empreinte
 ├─ remplacer.py                         remplacements exacts et vérifiés dans les fichiers
 ├─ analyse_luau.py                      variables de niveau principal par section (qui déclare, lit, réaffecte)
 ├─ decouper.py                          découpe un script en modules, avec vérifications de sûreté
@@ -64,7 +73,7 @@ outils/
 CHANGELOG.md                            index de toutes les versions
 ```
 
-Le code de `src/` est **identique octet pour octet** à ce qui tourne dans ZONE-TSADE. Les suffixes `.server.lua` / `.client.lua` / `.lua` indiquent le type d'objet Roblox (Script / LocalScript / ModuleScript), selon la convention de Rojo.
+Le code de `src/` est **identique octet pour octet** à ce qui tourne dans ZONE-TSADE. Le build (pièces, modèles, petits scripts du kit) est dans `structure/`, au format `.rbxm`. Les suffixes `.server.lua` / `.client.lua` / `.lua` indiquent le type d'objet Roblox (Script / LocalScript / ModuleScript), selon la convention de Rojo.
 
 ## Synchroniser Studio avec le dépôt
 
@@ -109,6 +118,8 @@ Le fichier `dist/TARDIS_MiseAJour_V<version>.rbxmx` contient tous les scripts. D
    ```
 6. `TardisConfig` : renseigner `Config.Pilotes`, `Config.Techniciens` et `Config.Tardis` (mettre en commentaire les TARDIS qui n'existent pas dans le Workspace).
 7. Paramètres du jeu › Sécurité : **Enable Studio Access to API Services** (sauvegarde) ; avec StreamingEnabled, `ModelStreamingMode = Persistent` sur les Models du TARDIS.
+
+Pour partir du build complet de DEVMAP plutôt que de son propre kit : `structure/` (voir [structure/LISEZMOI.md](structure/LISEZMOI.md)).
 
 Au lancement, l'Output (côté Server) doit afficher, pour chaque TARDIS actif : `serveur prêt`, `extras prêts`, `systèmes prêts`, puis une ligne de **diagnostic** (pièces obligatoires et optionnelles, sons, destinations).
 

@@ -1,0 +1,94 @@
+{
+ "version": "6.9.16",
+ "source": "DEVMAP (map de test, place 81553016331882)",
+ "date": "2026-11-07",
+ "format": "rbxm binaire (SerializationService:SerializeInstancesAsync), un objet racine par fichier",
+ "fichiers": [
+  {
+   "fichier": "structure/Workspace.TARDIS.TARDIS_1.INTERIEURE.rbxm",
+   "parent": "Workspace/TARDIS/TARDIS_1",
+   "nom": "INTERIEURE",
+   "classe": "Folder",
+   "descendants": 13313,
+   "octets": 728706,
+   "empreinte": 1832868397,
+   "role": "intérieur du TARDIS_1 : console, commandes, portail, rotor, spawns (pièces posées directement dans le dossier)",
+   "centre": [
+    -258.43,
+    397.08,
+    -430.33
+   ],
+   "taille": [
+    83.1,
+    42.0,
+    77.4
+   ]
+  },
+  {
+   "fichier": "structure/Workspace.TARDIS.TARDIS_1.EXTERIEURE.rbxm",
+   "parent": "Workspace/TARDIS/TARDIS_1",
+   "nom": "EXTERIEURE",
+   "classe": "Folder",
+   "descendants": 517,
+   "octets": 80528,
+   "empreinte": 1973238759,
+   "role": "extérieur du TARDIS_1 : Model TARDIS_1 (PrimaryPart = Racine), portes TARDISDoors avec leurs scripts Shut",
+   "pivot": [
+    -74.187,
+    0.02,
+    -480.157
+   ],
+   "orientationY": 180
+  },
+  {
+   "fichier": "structure/Workspace.TARDIS.TARDIS_DESTINATIONS.rbxm",
+   "parent": "Workspace/TARDIS",
+   "nom": "TARDIS_DESTINATIONS",
+   "classe": "Folder",
+   "descendants": 8,
+   "octets": 3622,
+   "empreinte": 1493382996,
+   "role": "destinations de la map de test (ACCORDE / REFUSE) : propres à chaque map"
+  },
+  {
+   "fichier": "structure/Workspace.TARDIS_2.rbxm",
+   "parent": "Workspace",
+   "nom": "TARDIS_2",
+   "classe": "Folder",
+   "descendants": 5115,
+   "octets": 209513,
+   "empreinte": 1399159965,
+   "role": "TARDIS de réserve (extérieur TARDIS_3 + TARDIS_3_INTERIEURE), pas actif dans TardisConfig",
+   "centre": [
+    -122.5,
+    295.8,
+    -425.75
+   ]
+  },
+  {
+   "fichier": "structure/Workspace.TARDIS_3.rbxm",
+   "parent": "Workspace",
+   "nom": "TARDIS_3",
+   "classe": "Folder",
+   "descendants": 6250,
+   "octets": 864782,
+   "empreinte": 558140886,
+   "role": "TARDIS de réserve (extérieur TARDIS_2 + TARDIS_2_INTERIEUR), pas actif dans TardisConfig",
+   "centre": [
+    1.47,
+    185.8,
+    -443.66
+   ]
+  },
+  {
+   "fichier": "structure/ReplicatedStorage.TardisAssets.rbxm",
+   "parent": "ReplicatedStorage",
+   "nom": "TardisAssets",
+   "classe": "Folder",
+   "descendants": 18,
+   "octets": 103543,
+   "empreinte": 1746989678,
+   "role": "sons du voyage (Sons) et outils du technicien (Outils)"
+  }
+ ]
+}
