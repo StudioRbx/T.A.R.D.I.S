@@ -136,6 +136,12 @@ end
 -- Rotor coloré selon le mode du voyage (V6.6.2) : ses néons et ses lumières prennent la couleur du mode
 -- (Config.Modes[mode].CouleurRotor) pendant le voyage, en fondu, puis retrouvent leur couleur d'origine.
 local melangeRotor, couleurRotor = 0, Color3.new(1, 1, 1)
+-- (V7.3.3) Avancement du compte à rebours de l'auto-destruction (0 à 1), nil s'il n'y en a pas
+local function progresAuto()
+	local debut = exterieur:GetAttribute("AutoDestructionDebut")
+	if not debut or not Config.progresAutoDestruction then return nil end
+	return Config.progresAutoDestruction(debut, exterieur:GetAttribute("AutoDestructionDuree"), workspace:GetServerTimeNow())
+end
 local neonsRotor = {} -- [part] = couleur d'origine
 for _, objet in rotor:GetDescendants() do
 	if objet:IsA("BasePart") and objet.Material == Enum.Material.Neon then neonsRotor[objet] = objet.Color end
@@ -852,7 +858,9 @@ RunService.RenderStepped:Connect(function(dt)
 	proteger("rotor", function()
 		local boost = exterieur:GetAttribute("RotorBoost")
 		local boostActif = boost ~= nil and workspace:GetServerTimeNow() - boost < 3
-		local actif = etat ~= E.Pose or boostActif or exterieur:GetAttribute("VolLibre") ~= nil
+		-- (V7.3.3, G-178) Auto-destruction : le rotor pompe de plus en plus vite
+		local pAuto = (Config.AlerteSalle or {}).RotorEmballe ~= false and progresAuto() or nil
+		local actif = etat ~= E.Pose or boostActif or exterieur:GetAttribute("VolLibre") ~= nil or pAuto ~= nil
 		-- Vol libre (V6.9.10) : le rotor suit la vitesse réelle de la cabine (chez le pilote comme chez ceux qui la suivent)
 		local voulu = 1
 		if exterieur:GetAttribute("VolLibre") ~= nil then
@@ -866,9 +874,9 @@ RunService.RenderStepped:Connect(function(dt)
 			dernierePositionCabine = nil
 		end
 		facteurRotorVol += (voulu - facteurRotorVol) * math.min(dt * ((Config.RotorVolLibre or {}).Lissage or 2), 1)
-		local vitesse = Config.VitesseRotor * (boostActif and 3 or 1) * facteurRotorVol
+		local vitesse = Config.VitesseRotor * (boostActif and 3 or 1) * facteurRotorVol * (pAuto and Config.rotorAutoDestruction(pAuto) or 1)
 		phaseRotor = (phaseRotor + dt * vitesse) % (2 * math.pi)
-		local amplitude = Config.AmplitudeRotor * ((etat == E.Pose and not boostActif) and 0.5 or 1)
+		local amplitude = Config.AmplitudeRotor * ((etat == E.Pose and not boostActif and not pAuto) and 0.5 or 1)
 		-- Atterrissage : la course se réduit pendant les 2 dernières secondes, pour s'arrêter sans à-coup
 		if etat == E.Remat then
 			local duree, decalage = Config.Timing(E.Remat, mode)
@@ -885,6 +893,13 @@ RunService.RenderStepped:Connect(function(dt)
 	proteger("couleurRotor", function()
 		local actif = etat ~= E.Pose and exterieur:GetAttribute("Alimentation") ~= false and exterieur:GetAttribute("Alerte") ~= true
 		if actif then couleurRotor = Config.Modes[Config.modeDe(exterieur)].CouleurRotor or couleurRotor end
+		-- (V7.3.3, G-178) Auto-destruction : du rouge au blanc-rouge à mesure que le compte à rebours avance
+		local pAuto = (Config.AlerteSalle or {}).RotorEmballe ~= false and progresAuto() or nil
+		if pAuto then
+			local _, blanc = Config.rotorAutoDestruction(pAuto)
+			couleurRotor = Color3.fromRGB(255, 40, 30):Lerp(Color3.fromRGB(255, 225, 215), blanc)
+			actif = true
+		end
 		local avant = melangeRotor
 		melangeRotor += ((actif and 1 or 0) - melangeRotor) * math.min(dt * 2, 1)
 		if melangeRotor < 0.002 then melangeRotor = 0 end
@@ -938,6 +953,16 @@ RunService.RenderStepped:Connect(function(dt)
 		local dossierLeds = interieur:FindFirstChild(Config.NomLedsAlerte or "LedsAlerte")
 		-- (V7.3.2, G-140) Musique du jukebox (attribut local posé par Ambiance) : les LEDs battent avec le volume, hors alerte
 		local musique = exterieur:GetAttribute("Alerte") ~= true and Config.lumiereMusique(interieur:GetAttribute("TardisMusique")) or nil
+		-- (V7.3.3, G-177) Compte à rebours : les lumières de la salle s'éteignent une à une (restent les LEDs d'alerte et le rotor)
+		local pAuto = (Config.AlerteSalle or {}).ExtinctionLumieres ~= false and progresAuto() or nil
+		local eteintes, rang = 0, 0
+		if pAuto then
+			local n = 0
+			for _, objet in listeLumieres do
+				if objet.Parent and not objet:IsDescendantOf(rotor) and not (dossierLeds and objet:IsDescendantOf(dossierLeds)) then n += 1 end
+			end
+			eteintes = Config.lumieresEteintes(pAuto, n)
+		end
 		for _, objet in listeLumieres do
 			if objet.Parent then
 				local infos = lumieresSalle[objet]
@@ -979,6 +1004,10 @@ RunService.RenderStepped:Connect(function(dt)
 				end
 				local led = dossierLeds ~= nil and objet:IsDescendantOf(dossierLeds)
 				if musique and led and not horsTension then cible *= musique end
+				if pAuto and not led and not infos.rotor then
+					rang += 1
+					if rang <= eteintes then cible = 0 end
+				end
 				-- Les souffles se suivent vite : la lumière les suit de près ; le reste change en douceur
 				infos.facteur += (cible - infos.facteur) * math.min(dt * ((enVoyage or (musique and led)) and 8 or 2), 1)
 				objet.Brightness = infos.brillance * infos.facteur

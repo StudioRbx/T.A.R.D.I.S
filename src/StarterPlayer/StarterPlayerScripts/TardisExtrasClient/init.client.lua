@@ -89,7 +89,7 @@ require(script:WaitForChild("Replay"))({ C = C, RunService = RunService, UI = UI
 --------------------------------------------------------------------
 -- Auto-destruction : compte à rebours puis explosion : module AutoDestruction
 --------------------------------------------------------------------
-require(script:WaitForChild("AutoDestruction"))({ ReplicatedStorage = ReplicatedStorage, RunService = RunService, animer = animer, camera = camera, creer = creer, exterieur = exterieur, jeSuisDedans = jeSuisDedans, joueur = joueur, partTemporaire = partTemporaire, secouer = secouer })
+require(script:WaitForChild("AutoDestruction"))({ Config = Config, Lighting = Lighting, interieur = interieur, ReplicatedStorage = ReplicatedStorage, RunService = RunService, animer = animer, camera = camera, creer = creer, exterieur = exterieur, jeSuisDedans = jeSuisDedans, joueur = joueur, partTemporaire = partTemporaire, secouer = secouer })
 
 --------------------------------------------------------------------
 -- Invitation et casiers (dont celui de la console) : module Interactions

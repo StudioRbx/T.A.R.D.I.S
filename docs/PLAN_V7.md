@@ -148,13 +148,13 @@ Rendre la salle plus vivante et plus lisible : surchauffe et vapeur, ambiance, a
 
 **Objectif :** Mettre en scène l'alerte et le compte à rebours de l'auto-destruction : gyrophares, écrans ALERTE, hologramme rouge, lumières qui s'éteignent une à une, rotor qui s'emballe, image délavée après l'explosion.
 
-- **G-119. Hologramme rouge en alerte** *(petit)* : En alerte et pendant l'auto-destruction, les cercles et le faisceau de l'hologramme passent au rouge et pulsent, au lieu de rester cyan.
-- **G-133. Gyrophares d'alerte qui tournent au plafond** *(moyen)* : En alerte, deux projecteurs rouges tournent au plafond et balaient la salle, en plus de la teinte rouge ; ils se placent sur des pièces « Gyrophare » si elles existent.
-- **G-175. Écrans Diagnostic qui affichent ALERTE** *(petit)* : En alerte, les quatre écrans Diagnostic affichent en grand « ALERTE » en rouge une seconde sur trois, entre leurs lignes habituelles.
-- **G-177. Lumières qui s'éteignent une à une** *(petit)* : Pendant le compte à rebours de l'auto-destruction, les lumières de la salle s'éteignent une par une jusqu'à ne laisser que le rouge.
-- **G-178. Rotor qui s'emballe avant l'explosion** *(petit)* : Pendant le compte à rebours, le rotor monte et descend de plus en plus vite et vire au blanc-rouge.
-- **G-179. Étincelles qui gagnent toute la console** *(petit)* : Pendant l'auto-destruction, chaque seconde une nouvelle pièce de la console crache des étincelles ; à la fin, toute la console brille.
-- **G-271. Image délavée après l'explosion** *(petit)* : Après l'auto-destruction, les joueurs proches voient une image grise qui reprend ses couleurs en quelques secondes, en plus du flash.
+- ✅ **G-119. Hologramme rouge en alerte** *(petit)* : En alerte et pendant l'auto-destruction, les cercles et le faisceau de l'hologramme passent au rouge et pulsent, au lieu de rester cyan.
+- ✅ **G-133. Gyrophares d'alerte qui tournent au plafond** *(moyen)* : En alerte, deux projecteurs rouges tournent au plafond et balaient la salle, en plus de la teinte rouge ; ils se placent sur des pièces « Gyrophare » si elles existent.
+- ✅ **G-175. Écrans Diagnostic qui affichent ALERTE** *(petit)* : En alerte, les quatre écrans Diagnostic affichent en grand « ALERTE » en rouge une seconde sur trois, entre leurs lignes habituelles.
+- ✅ **G-177. Lumières qui s'éteignent une à une** *(petit)* : Pendant le compte à rebours de l'auto-destruction, les lumières de la salle s'éteignent une par une jusqu'à ne laisser que le rouge.
+- ✅ **G-178. Rotor qui s'emballe avant l'explosion** *(petit)* : Pendant le compte à rebours, le rotor monte et descend de plus en plus vite et vire au blanc-rouge.
+- ✅ **G-179. Étincelles qui gagnent toute la console** *(petit)* : Pendant l'auto-destruction, chaque seconde une nouvelle pièce de la console crache des étincelles ; à la fin, toute la console brille.
+- ✅ **G-271. Image délavée après l'explosion** *(petit)* : Après l'auto-destruction, les joueurs proches voient une image grise qui reprend ses couleurs en quelques secondes, en plus du flash.
 
 **Dans Studio :** Facultatif : des Parts « Gyrophare » au plafond de l'intérieur (G-133). Sans elles, le code place deux projecteurs au-dessus de la console.
 

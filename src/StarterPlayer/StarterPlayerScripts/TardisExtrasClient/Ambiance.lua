@@ -28,12 +28,15 @@ return function(contexte)
 			Transparency = 0.85, Size = Vector3.new(0.3, tailleConsole.Y / 2 + 4.5, 0.3),
 			CFrame = CFrame.new(centreConsole.Position + Vector3.new(0, tailleConsole.Y / 4 + 2.25, 0)) })
 		local ecran = creer("SurfaceGui", { Face = Enum.NormalId.Top, LightInfluence = 0, PixelsPerStud = 40, AlwaysOnTop = false, Parent = support })
+		local contours = { UI.contour(C.cyan, 3, 0.2) } -- (V7.3.3, G-119) gardés pour passer au rouge en alerte
 		local cadre = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(0, 40, 70), BackgroundTransparency = 0.55,
-			Parent = ecran }, { UI.coin(999), UI.contour(C.cyan, 3, 0.2) })
+			Parent = ecran }, { UI.coin(999), contours[1] })
 		for i = 1, 3 do
+			contours[i + 1] = UI.contour(C.cyan, 1, 0.7)
 			creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(i / 3.2, i / 3.2),
-				BackgroundTransparency = 1, Parent = cadre }, { UI.coin(999), UI.contour(C.cyan, 1, 0.7) })
+				BackgroundTransparency = 1, Parent = cadre }, { UI.coin(999), contours[i + 1] })
 		end
+		local rougeHolo = nil -- (G-119) dernier état appliqué
 		local calque = creer("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = cadre })
 		local titre = texte({ Text = "HOLOGRAMME", Font = UI.POLICE_GRAS, TextSize = 14, TextColor3 = C.cyan, TextXAlignment = Enum.TextXAlignment.Center,
 			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 10), Size = UDim2.fromOffset(200, 16), Parent = cadre })
@@ -70,6 +73,20 @@ return function(contexte)
 				support.Transparency = 1
 				ecran.Enabled = visible
 				faisceau.Transparency = visible and (0.82 + 0.08 * math.sin(os.clock() * 6)) or 1
+				-- (V7.3.3, G-119) Alerte ou auto-destruction : anneaux, faisceau et titre rouges, qui pulsent (sans battre en « aucun flash »)
+				local enAlerte = (Config.AlerteSalle or {}).HologrammeRouge ~= false
+					and Config.alerteSalle(exterieur:GetAttribute("Alerte"), exterieur:GetAttribute("AutoDestructionDebut"))
+				if enAlerte ~= rougeHolo then
+					rougeHolo = enAlerte
+					local couleur = enAlerte and C.rouge or C.cyan
+					for _, contour in contours do contour.Color = couleur end
+					faisceau.Color = couleur
+					titre.TextColor3 = couleur
+					cadre.BackgroundColor3 = enAlerte and Color3.fromRGB(70, 0, 0) or Color3.fromRGB(0, 40, 70)
+				end
+				if enAlerte and visible then
+					faisceau.Transparency = UI.sansFlash() and 0.6 or (0.45 + 0.35 * (0.5 + 0.5 * math.sin(os.clock() * 8)))
+				end
 				if visible then
 					local pivot = exterieur:GetPivot()
 					local c = pivot.Position
@@ -121,6 +138,7 @@ return function(contexte)
 					tardisPoint.Rotation = math.deg(math.atan2(devant.X, -devant.Z))
 					titre.Text = choix and ("DESTINATION : " .. string.upper(choix)) or string.format("HOLOGRAMME · ±%d STUDS", portee)
 					cadre.BackgroundTransparency = 0.5 + 0.08 * math.sin(os.clock() * 9) -- léger scintillement d'hologramme
+					if rougeHolo and not UI.sansFlash() then cadre.BackgroundTransparency = 0.35 + 0.25 * (0.5 + 0.5 * math.sin(os.clock() * 8)) end
 				end
 			end
 		end)
@@ -670,19 +688,71 @@ return function(contexte)
 						{ "SÉCURITÉ", { "Dernière entrée : " .. tostring(exterieur:GetAttribute("DerniereEntree") or "—"), "Intrusion : " .. tostring(exterieur:GetAttribute("Intrusion") or "aucune"),
 							voyant(exterieur:GetAttribute("Detruit") ~= true, "Structure intacte", "TARDIS DÉTRUIT", true), "Voyages du serveur : " .. tostring(exterieur:GetAttribute("StatsServeur") or 0) } },
 					}
+					-- (V7.3.3, G-175) En alerte, les 4 écrans affichent un grand « ALERTE » rouge une seconde sur trois
+					local alerteEcran = (Config.AlerteSalle or {}).EcransAlerte ~= false
+						and Config.alerteSalle(exterieur:GetAttribute("Alerte"), exterieur:GetAttribute("AutoDestructionDebut"))
+						and Config.ecranAlerte(os.clock())
+					local autoDestruction = exterieur:GetAttribute("AutoDestructionDebut") ~= nil
 					for i, ecran in ecrans do
 						local bloc = contenu[i]
-						ecran.titre.Text = bloc[1]
+						ecran.titre.Text = alerteEcran and "⚠ ALERTE ⚠" or bloc[1]
+						ecran.titre.TextSize = alerteEcran and 44 or 22
 						for k = 1, 4 do
 							local ligne = bloc[2][k] or ""
-							if type(ligne) == "table" then
+							if alerteEcran then
+								ecran.lignes[k].Text, ecran.lignes[k].TextColor3 = (k == 1 and autoDestruction) and "AUTO-DESTRUCTION" or "", C.rouge
+							elseif type(ligne) == "table" then
 								ecran.lignes[k].Text, ecran.lignes[k].TextColor3 = ligne[1], ligne[2]
 							else
 								ecran.lignes[k].Text, ecran.lignes[k].TextColor3 = ligne, C.texte
 							end
 						end
-						ecran.titre.TextColor3 = alimente and C.cyan or C.rouge
+						ecran.titre.TextColor3 = (alimente and not alerteEcran) and C.cyan or C.rouge
 					end
+				end
+			end)
+		end
+	end
+
+	--------------------------------------------------------------------
+	-- 3 quater) (V7.3.3, G-133) Gyrophares : deux projecteurs rouges qui tournent au plafond pendant une alerte
+	-- (aux pièces « Gyrophare » de l'intérieur s'il y en a, sinon au-dessus de la console ; ces pièces ne bougent jamais)
+	--------------------------------------------------------------------
+	do
+		local reglages = Config.AlerteSalle or {}
+		if reglages.Gyrophares ~= false then
+			local positions = {}
+			for _, objet in interieur:GetDescendants() do
+				if objet:IsA("BasePart") and objet.Name == "Gyrophare" and #positions < 4 then table.insert(positions, objet.Position) end
+			end
+			if #positions == 0 then
+				local partConsole = Config.partDe(interieur:FindFirstChild("Console"))
+				local centre = (partConsole and typeof(partConsole.Position) == "Vector3" and partConsole.Position)
+					or (boiteInt and boiteInt.Position) or Vector3.zero
+				local plafond = (boiteInt and tailleInt) and (boiteInt.Position.Y + tailleInt.Y / 2 - 1) or (centre.Y + 10)
+				local haut = math.min(centre.Y + 10, plafond)
+				positions = { Vector3.new(centre.X - 3, haut, centre.Z), Vector3.new(centre.X + 3, haut, centre.Z) }
+			end
+			local gyros = {}
+			for i, position in positions do
+				local support = partTemporaire({ Name = "TardisGyrophare", Transparency = 1, Size = Vector3.new(0.4, 0.4, 0.4), CFrame = CFrame.new(position) })
+				local spot = creer("SpotLight", { Name = "TardisGyrophareLumiere", Color = Color3.fromRGB(255, 30, 30), Brightness = 4, Angle = 45,
+					Range = reglages.PorteeGyrophares or 40, Face = Enum.NormalId.Front, Enabled = false, Parent = support })
+				gyros[i] = { support = support, spot = spot, base = position, decalage = (i - 1) * math.pi }
+			end
+			local allumes = false
+			RunService.RenderStepped:Connect(function() -- (rotation à chaque image, côté client)
+				local alerte = Config.alerteSalle(exterieur:GetAttribute("Alerte"), exterieur:GetAttribute("AutoDestructionDebut"))
+					and exterieur:GetAttribute("Detruit") ~= true
+				if alerte ~= allumes then
+					allumes = alerte
+					for _, g in gyros do g.spot.Enabled = alerte end
+				end
+				if not alerte then return end
+				local vitesse = (reglages.VitesseGyrophares or 3) * (UI.sansFlash() and 0.4 or 1) -- « aucun flash » : ils tournent lentement
+				local angle = os.clock() * vitesse
+				for _, g in gyros do
+					g.support.CFrame = CFrame.new(g.base) * CFrame.Angles(0, angle + g.decalage, 0) * CFrame.Angles(-math.rad(35), 0, 0)
 				end
 			end)
 		end

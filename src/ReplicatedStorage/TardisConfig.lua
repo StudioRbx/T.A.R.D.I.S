@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.3.2"
+Config.Version = "7.3.3"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -2128,6 +2128,79 @@ end
 function Config.delaiVague(distance, maxi, duree)
 	if not duree or duree <= 0 or not maxi or maxi <= 0 then return 0 end
 	return math.floor(duree * math.clamp((distance or 0) / maxi, 0, 1) * 10 + 0.5) / 10
+end
+
+-- (V7.3.3) Alerte et auto-destruction : la salle elle-même réagit (et tout revient si on annule)
+Config.AlerteSalle = {
+	HologrammeRouge = true,     -- (G-119) anneaux et faisceau de l'hologramme rouges, qui pulsent
+	Gyrophares = true,          -- (G-133) deux projecteurs rouges qui tournent au plafond (pièces « Gyrophare » si présentes)
+	VitesseGyrophares = 3,      -- (G-133) radians par seconde
+	PorteeGyrophares = 40,      -- (G-133) studs
+	EcransAlerte = true,        -- (G-175) les écrans Diagnostic affichent « ALERTE » une seconde sur trois
+	ExtinctionLumieres = true,  -- (G-177) pendant le compte à rebours, les lumières s'éteignent une à une
+	RotorEmballe = true,        -- (G-178) le rotor pompe de plus en plus vite et vire au blanc-rouge
+	VitesseRotorMax = 4,        -- (G-178) vitesse du rotor à la fin du compte à rebours (× la normale)
+	EtincellesConsole = true,   -- (G-179) chaque seconde, une pièce de plus de la console crache des étincelles
+	MaxEtincelles = 30,         -- (G-179) pièces de console au plus
+	ImageDelavee = true,        -- (G-271) après l'explosion, l'image des joueurs proches devient grise puis reprend ses couleurs
+	DureeDelavee = 4,           -- (G-271) secondes
+	PorteeDelavee = 200,        -- (G-271) studs
+}
+
+-- Alerte de la salle : alerte générale ou auto-destruction en cours
+function Config.alerteSalle(alerte, debutAutoDestruction)
+	return alerte == true or debutAutoDestruction ~= nil
+end
+
+-- Avancement du compte à rebours (0 à 1), nil s'il n'y en a pas
+function Config.progresAutoDestruction(debut, duree, maintenant)
+	if type(debut) ~= "number" then return nil end
+	duree = (type(duree) == "number" and duree > 0) and duree or 20
+	return math.clamp(((maintenant or debut) - debut) / duree, 0, 1)
+end
+
+-- (G-175) Écran « ALERTE » une seconde sur trois
+function Config.ecranAlerte(t)
+	return math.floor(t or 0) % 3 == 0
+end
+
+-- (G-177) Nombre de lumières éteintes (sur n) à l'avancement p
+function Config.lumieresEteintes(p, n)
+	if type(p) ~= "number" or not n or n <= 0 then return 0 end
+	return math.clamp(math.floor(math.clamp(p, 0, 1) * n), 0, n)
+end
+
+-- (G-178) Rotor qui s'emballe : facteur de vitesse et part de blanc dans le rouge (0 à 1)
+function Config.rotorAutoDestruction(p)
+	p = math.clamp(tonumber(p) or 0, 0, 1)
+	local maxi = math.max((Config.AlerteSalle or {}).VitesseRotorMax or 4, 1)
+	return 1 + p * p * (maxi - 1), p
+end
+
+-- (G-179) Nombre de pièces de la console qui crachent des étincelles (une de plus chaque seconde, toutes à la fin)
+function Config.etincellesConsole(ecoule, p, n)
+	if not n or n <= 0 then return 0 end
+	local parSeconde = math.floor(math.max(ecoule or 0, 0)) + 1
+	local parAvancement = math.floor(math.clamp(p or 0, 0, 1) * n)
+	return math.clamp(math.max(parSeconde, parAvancement), 0, n)
+end
+
+-- (G-179) Lueur de toute la console à la fin (0 avant 75 % du compte à rebours, 1 à la fin)
+function Config.lueurConsole(p)
+	return math.clamp(((tonumber(p) or 0) - 0.75) / 0.25, 0, 1)
+end
+
+-- (G-271) Saturation de l'image après l'explosion : -1 (gris) au début, 0 après la durée
+function Config.delavage(ecoule, duree)
+	if not duree or duree <= 0 then return 0 end
+	return -(1 - math.clamp((ecoule or 0) / duree, 0, 1))
+end
+
+-- (G-271) Force du gris selon la distance à l'explosion (0 = au-delà de la portée)
+function Config.forceDelavage(distance)
+	local portee = (Config.AlerteSalle or {}).PorteeDelavee or 200
+	if portee <= 0 or (distance or 0) > portee then return 0 end
+	return 0.5 + 0.5 * math.clamp(1 - (distance or 0) / portee, 0, 1)
 end
 
 return Config

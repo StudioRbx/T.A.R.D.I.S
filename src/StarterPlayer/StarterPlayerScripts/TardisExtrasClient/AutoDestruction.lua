@@ -5,13 +5,31 @@
 return function(contexte)
 	local ReplicatedStorage, RunService, animer, camera, creer, exterieur = contexte.ReplicatedStorage, contexte.RunService, contexte.animer, contexte.camera, contexte.creer, contexte.exterieur
 	local jeSuisDedans, joueur, partTemporaire, secouer = contexte.jeSuisDedans, contexte.joueur, contexte.partTemporaire, contexte.secouer
+	-- (V7.3.3) la console qui crache des étincelles et l'image délavée ont besoin de la config, de l'intérieur et de Lighting
+	local Config = contexte.Config or require(ReplicatedStorage:WaitForChild("TardisConfig"))
+	local interieur, Lighting = contexte.interieur, contexte.Lighting or game:GetService("Lighting")
+	local reglages = Config.AlerteSalle or {}
 
 	--------------------------------------------------------------------
 	-- 13) Auto-destruction : compte à rebours (secousses, rouge, alarme) puis explosion
 	--------------------------------------------------------------------
 	do
 		local UI = require(ReplicatedStorage:WaitForChild("TardisUI"))
-		local enCours = nil -- { base = CFrame, rouge = Highlight, alarme = Sound }
+		local enCours = nil -- { base = CFrame, rouge = Highlight, alarme = Sound, etincelles = { ParticleEmitter }, lueur = Highlight }
+		-- (V7.3.3, G-179) Pièces de la console, réparties si elles sont nombreuses
+		local function piecesConsole()
+			local console = interieur and interieur:FindFirstChild("Console")
+			if not console then return {} end
+			local toutes = console:IsA("BasePart") and { console } or {}
+			for _, objet in console:GetDescendants() do
+				if objet:IsA("BasePart") then table.insert(toutes, objet) end
+			end
+			local maxi = math.max(reglages.MaxEtincelles or 30, 0)
+			if #toutes <= maxi then return toutes end
+			local choisies = {}
+			for i = 1, maxi do choisies[i] = toutes[math.floor((i - 1) * #toutes / maxi) + 1] end
+			return choisies
+		end
 		RunService.RenderStepped:Connect(function(dt)
 			local debut = exterieur:GetAttribute("AutoDestructionDebut")
 			if debut then
@@ -40,12 +58,40 @@ return function(contexte)
 				enCours.rouge.FillTransparency = 1 - (0.2 + 0.5 * p) * pulsation
 				enCours.rouge.OutlineTransparency = 1 - (0.4 + 0.6 * p)
 				if enCours.alarme then enCours.alarme.PlaybackSpeed = 1 + p * 0.6 end
+				-- (V7.3.3, G-179) Chaque seconde, une pièce de plus de la console crache des étincelles ; à la fin, toute la console rougeoie
+				if reglages.EtincellesConsole ~= false and interieur then
+					if not enCours.pieces then
+						enCours.pieces, enCours.etincelles = piecesConsole(), {}
+						local console = interieur:FindFirstChild("Console")
+						if console then
+							enCours.lueur = creer("Highlight", { Name = "TardisLueurConsole", FillColor = Color3.fromRGB(255, 70, 40), OutlineColor = Color3.fromRGB(255, 200, 160),
+								FillTransparency = 1, OutlineTransparency = 1, DepthMode = Enum.HighlightDepthMode.Occluded, Parent = console })
+						end
+					end
+					local voulues = Config.etincellesConsole(workspace:GetServerTimeNow() - debut, p, #enCours.pieces)
+					local reduit = UI.effetsReduits()
+					for i = #enCours.etincelles + 1, voulues do
+						local piece = enCours.pieces[i]
+						enCours.etincelles[i] = creer("ParticleEmitter", { Name = "TardisEtincelles", Texture = "rbxasset://textures/particles/sparkles_main.dds",
+							Color = ColorSequence.new(Color3.fromRGB(255, 210, 130)), LightEmission = 1, Rate = reduit and 4 or 14,
+							Lifetime = NumberRange.new(0.2, 0.5), Speed = NumberRange.new(6, 12), SpreadAngle = Vector2.new(70, 70),
+							Size = NumberSequence.new(0.15, 0), Parent = piece })
+					end
+					if enCours.lueur then
+						local lueur = Config.lueurConsole(p)
+						enCours.lueur.FillTransparency = 1 - 0.6 * lueur
+						enCours.lueur.OutlineTransparency = 1 - lueur
+					end
+				end
 				local distance = (camera.CFrame.Position - enCours.base.Position).Magnitude
 				if jeSuisDedans() or distance < 80 then secouer(p * 0.7) end
 			elseif enCours then
 				if not exterieur:GetAttribute("Detruit") then exterieur:PivotTo(enCours.base) end
 				enCours.rouge:Destroy()
 				if enCours.alarme then enCours.alarme:Destroy() end
+				-- (V7.3.3) annulée (ou terminée) : plus d'étincelles ni de lueur
+				for _, emetteur in enCours.etincelles or {} do emetteur:Destroy() end
+				if enCours.lueur then enCours.lueur:Destroy() end
 				enCours = nil
 			end
 		end)
@@ -104,6 +150,22 @@ return function(contexte)
 				animer(voile, 1.2, { BackgroundTransparency = 1 })
 				task.delay(1.3, function() flash:Destroy() end)
 				secouer(intensite * 1.5)
+			end
+			-- (V7.3.3, G-271) Image délavée : les joueurs proches voient gris, puis les couleurs reviennent en quelques secondes
+			local gris = reglages.ImageDelavee ~= false and Config.forceDelavage(distance) or 0
+			if gris > 0 then
+				local duree = reglages.DureeDelavee or 4
+				local effet = creer("ColorCorrectionEffect", { Name = "TardisImageDelavee", Saturation = -gris, Parent = Lighting })
+				local depart = os.clock()
+				local lien
+				lien = RunService.RenderStepped:Connect(function()
+					local ecoule = os.clock() - depart
+					effet.Saturation = Config.delavage(ecoule, duree) * gris
+					if ecoule >= duree then
+						lien:Disconnect()
+						effet:Destroy()
+					end
+				end)
 			end
 		end)
 	end

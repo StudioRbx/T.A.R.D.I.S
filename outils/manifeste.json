@@ -1,5 +1,5 @@
 {
- "version": "7.3.2",
+ "version": "7.3.3",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 129953,
-   "empreinte": 536151232
+   "taille": 133535,
+   "empreinte": 732511552
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -142,8 +142,8 @@
    "nom": "TardisEffets",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 94155,
-   "empreinte": 1686155114
+   "taille": 95804,
+   "empreinte": 520970736
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/init.client.lua",
@@ -151,8 +151,8 @@
    "nom": "TardisExtrasClient",
    "classe": "LocalScript",
    "parTardis": false,
-   "taille": 14292,
-   "empreinte": 1328486911
+   "taille": 14353,
+   "empreinte": 1585630340
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisMenu.client.lua",
@@ -214,8 +214,8 @@
    "nom": "Ambiance",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 37246,
-   "empreinte": 1612418601
+   "taille": 41609,
+   "empreinte": 2034304779
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/AutoDestruction.lua",
@@ -223,8 +223,8 @@
    "nom": "AutoDestruction",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 7151,
-   "empreinte": 1220467217
+   "taille": 10639,
+   "empreinte": 1781106727
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Badges.lua",
