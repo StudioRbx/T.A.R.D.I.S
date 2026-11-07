@@ -30,10 +30,10 @@ Corriger d'abord les défauts du code actuel et renforcer les simulations, pour 
 
 **Objectif :** Rendre les simulations plus solides avant les lots qui touchent au serveur : tests rangés par sujet, démarrage complet du serveur, pièces manquantes et pièces en retard.
 
-- **T-202. Simulations rangées par sujet et non par version** *(moyen)* : sim_v697, sim_v698 et sim_v699 mélangent des sujets différents. Les regrouper en sim_voyage, sim_effets, sim_outils… rend chaque test facile à retrouver et à garder à jour pendant la V9.
-- **T-204. Simulation du démarrage complet du serveur** *(gros)* : Charger ensemble les 6 Scripts serveur dans le faux monde et vérifier qu'ils affichent « serveur prêt », « extras prêts », « systèmes prêts » sans erreur ni attente sans fin.
-- **T-205. Simulation d'une place où il manque des pièces** *(moyen)* : Retirer tour à tour chaque pièce optionnelle (Arrivee, Casier, Vanne, Murs…) du faux monde et vérifier qu'aucun script ne plante : seul le diagnostic doit la signaler.
-- **T-206. Simulation des pièces qui arrivent en retard** *(moyen)* : Avec StreamingEnabled, les pièces du TARDIS arrivent parfois après les LocalScripts. Les faire apparaître en retard dans le faux monde vérifie que les scripts clients attendent au lieu de planter.
+- ✅ **T-202. Simulations rangées par sujet et non par version** *(moyen)* : sim_v697, sim_v698 et sim_v699 mélangent des sujets différents. Les regrouper en sim_voyage, sim_effets, sim_outils… rend chaque test facile à retrouver et à garder à jour pendant la V9.
+- ✅ **T-204. Simulation du démarrage complet du serveur** *(gros)* : Charger ensemble les 6 Scripts serveur dans le faux monde et vérifier qu'ils affichent « serveur prêt », « extras prêts », « systèmes prêts » sans erreur ni attente sans fin.
+- ✅ **T-205. Simulation d'une place où il manque des pièces** *(moyen)* : Retirer tour à tour chaque pièce optionnelle (Arrivee, Casier, Vanne, Murs…) du faux monde et vérifier qu'aucun script ne plante : seul le diagnostic doit la signaler.
+- ✅ **T-206. Simulation des pièces qui arrivent en retard** *(moyen)* : Avec StreamingEnabled, les pièces du TARDIS arrivent parfois après les LocalScripts. Les faire apparaître en retard dans le faux monde vérifie que les scripts clients attendent au lieu de planter.
 
 **Dans Studio :** Rien : les outils tournent hors de Roblox (outils/simulation).
 

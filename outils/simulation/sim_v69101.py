@@ -83,7 +83,7 @@ Config = R["Config"]
 CH = Config.get("Chemins")
 chemin = lambda cle: [CH.get(cle).get(i) for i in range(1, CH.get(cle).longueur() + 1)] if CH.get(cle) else None
 verifier("Config.Version = 6.9.10.1 ou plus récente", tuple(int(p) for p in str(Config.get("Version")).split(".") if p.isdigit()) >= (6, 9, 10, 1), Config.get("Version"))
-verifier("Version à 4 nombres lue comme ≥ 6.9.10 (sim_v699, sim_v6910, release, état des tests)", tuple(int(n) for n in Config.get("Version").split(".")) >= (6, 9, 10))
+verifier("Version à 4 nombres lue comme ≥ 6.9.10 (sim_effets, sim_v6910, release, état des tests)", tuple(int(n) for n in Config.get("Version").split(".")) >= (6, 9, 10))
 verifier("3. Config.Chemins.Alerte = Console › Datapanel › Redbutton › Button", chemin("Alerte") == ["Console", "Datapanel", "Redbutton", "Button"], chemin("Alerte"))
 verifier("4. Config.Chemins.VolLibre = Console › Selecteur › Colors", chemin("VolLibre") == ["Console", "Selecteur", "Colors"], chemin("VolLibre"))
 verifier("6. Config.Chemins.EcranIngenieur = Console › Ecran-Ingenieure", chemin("EcranIngenieur") == ["Console", "Ecran-Ingenieure"])

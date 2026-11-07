@@ -1,4 +1,4 @@
-"""Simulations de la V6.9.7 : le vrai code des fonctions corrigées, exécuté avec de faux objets Roblox.
+"""Simulations du voyage (sim_voyage, anciennement sim_v697 de la V6.9.7) : le vrai code des fonctions corrigées, exécuté avec de faux objets Roblox.
   1. Vol libre (module VolLibre) : pilote qui n'envoie plus rien → le TARDIS se pose seul ; pilote qui part pendant
      qu'il est invisible → la cabine se rematérialise d'abord, puis se pose.
   2. Destinations (extrait de TardisServeur) : joueur visé parti pendant le vol → retour au lieu de départ, avec message.
@@ -168,5 +168,5 @@ if M3:
     verifier("16 s plus tard, sol présent : de nouveau la dernière position sûre", secours() == "CF_SURE")
 
 print("\n".join("  ✓ " + o for o in OK)); print("\n".join("  ✗ " + k for k in KO))
-print(f"V6.9.7 : {len(OK)} réussis, {len(KO)} échoués.")
+print(f"VOYAGE (corrections V6.9.7) : {len(OK)} réussis, {len(KO)} échoués.")
 sys.exit(1 if KO else 0)  # (V7.1.1, T-201) code d'échec pour lancer.sh

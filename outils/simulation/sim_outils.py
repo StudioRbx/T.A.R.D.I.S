@@ -1,4 +1,4 @@
-"""Simulations de la V6.9.8 : vérification des propositions déjà faites et nouveaux outils de suivi.
+"""Simulations des outils et de l'interface (sim_outils, anciennement sim_v698 de la V6.9.8) : vérification des propositions déjà faites et nouveaux outils de suivi.
   1. Thème clair (71) : le vrai module TardisUI ; le fond des listes suit le thème et reste lisible.
   2. Vol en formation (27) : réglages dans Config, lus par le client du vol libre.
   3. Écran de destination (51) et recherche du menu rapide (69) : présents dans le code.
@@ -141,5 +141,5 @@ verifier("Glossaire : chaque mode de Config.Modes est expliqué", all(m in gloss
 
 print("\n".join("  ✓ " + o for o in OK))
 print("\n".join("  ✗ " + k for k in KO))
-print(f"V6.9.8 : {len(OK)}/{len(OK) + len(KO)} vérifications réussies")
+print(f"OUTILS ET INTERFACE (V6.9.8) : {len(OK)}/{len(OK) + len(KO)} vérifications réussies")
 sys.exit(1 if KO else 0)

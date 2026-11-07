@@ -169,16 +169,31 @@ try:
 except ValueError:  # Windows refuse 256 Mo tout rond (V6.9.10.8)
     threading.stack_size(255 * 1024 * 1024)
 ERREURS = []   # erreurs levées dans les tâches (comme la sortie rouge de Roblox)
+ATTENTE = {"reelle": False}   # V7.1.2 : WaitForChild attend (banc d'essai) au lieu d'échouer tout de suite
+ATTENTES = []  # avertissements « Infinite yield possible » (attente de plus de 5 s)
+EN_ATTENTE = []  # V7.1.2 : WaitForChild encore en attente (un script bloqué)
+class ArretTache(BaseException): pass  # V7.1.2 : arrête une tâche abandonnée (jamais attrapée par pcall)
+TACHES = []  # V7.1.2 : les tâches lancées, pour les arrêter entre deux places du banc d'essai
+def arreter_taches():
+    """V7.1.2 : réveille chaque tâche en attente pour qu'elle s'arrête ; libère ses fils (sinon Windows en manque)."""
+    for t in list(TACHES):
+        if t.demarree and not t.fini:
+            t.arret = True; t.rendu.clear(); t.ev.set(); t.rendu.wait(2)
+    TACHES.clear()
 class Tache:
     courante = threading.local()
     def __init__(s, f, args, nom="tâche"):
         s.f, s.args, s.nom = f, list(args), nom
         s.ev, s.rendu, s.fini, s.demarree = threading.Event(), threading.Event(), False, False
+        s.arret = False; TACHES.append(s)
     def _corps(s):
         s.ev.wait(); s.ev.clear()
         Tache.courante.t = s
         try:
+            if s.arret: raise ArretTache()
             appeler(s.f, s.args)
+        except ArretTache:
+            pass
         except LuaError as e:
             ERREURS.append(f"[{s.nom}] {e}")
         except Exception as e:
@@ -198,6 +213,7 @@ def ceder():
     if t is None: raise LuaError("task.wait appelé hors d'une tâche")
     t.rendu.set(); t.ev.wait(); t.ev.clear()
     Tache.courante.t = t
+    if t.arret: raise ArretTache()
 def lancer(f, *args, nom="tâche"):
     t = Tache(f, args, nom); reprendre(t); return t
 def attendre(d=0):
@@ -464,10 +480,10 @@ def activer_maths(G):
 # Valeurs par défaut de quelques propriétés (V6.9.9), lues par les effets avant d'être écrites
 def _defauts(classe):
     v3 = lambda x, y, z: Valeur("Vector3", [x, y, z])
-    if classe in ("Part", "MeshPart", "UnionOperation", "WedgePart"):
+    if classe in ("Part", "MeshPart", "UnionOperation", "WedgePart", "SpawnLocation"):  # V7.1.2 : SpawnLocation aussi
         return {"Transparency": 0, "Size": v3(4, 1, 2), "Color": Couleur(0.64, 0.64, 0.64), "Material": Valeur("Enum.Material.Plastic"),
                 "CFrame": Valeur("CFrame"), "Position": v3(0, 0, 0), "Anchored": False, "CanCollide": True, "Reflectance": 0,
-                "CanQuery": True}  # V6.9.10.5 : lu par la caméra des casiers (rayons)
+                "CanQuery": True, "CanTouch": True, "CastShadow": True, "Massless": False, "Locked": False}  # V6.9.10.5 : lu par la caméra des casiers (rayons) ; V7.1.2 : CanTouch, CastShadow…
     if classe in ("PointLight", "SpotLight", "SurfaceLight"):
         return {"Brightness": 1, "Range": 8, "Color": Couleur(1, 1, 1), "Enabled": True, "Shadows": False}
     if classe == "Workspace": return {"StreamingEnabled": False}  # V6.9.17 : map sans Streaming par défaut
@@ -512,6 +528,8 @@ class Instance:
         if k in s.props: return s.props[k]
         if k == "Parent": return s.parent
         if k == "ClassName": return s.ClassName
+        if k == "Archivable": return True  # V7.1.2 : toutes les instances
+        if k == "IsPlaying" and s.ClassName == "Sound": return bool(s.props.get("Playing", False))  # V7.1.2
         if k == "Source" and s.ClassName in ("Script", "LocalScript", "ModuleScript"): return ""
         m = getattr(s, "m_" + k, None)
         if m: return Fonction(k, py=lambda _s, *a: m(*a))
@@ -550,6 +568,19 @@ class Instance:
         return None
     def m_WaitForChild(s, n, delai=None):
         r = s.m_FindFirstChild(n)
+        if r is None and ATTENTE["reelle"] and getattr(Tache.courante, "t", None) is not None:
+            # V7.1.2 (banc d'essai) : on attend pour de vrai, dans le temps virtuel, comme Roblox
+            debut, prevenu = H.t, False
+            cle = f"{s.Name}:WaitForChild(\"{n}\")"; EN_ATTENTE.append(cle)  # attentes encore en cours (bilan du banc)
+            try:
+                while r is None:
+                    if delai is not None and H.t - debut >= float(delai): return None
+                    if not prevenu and delai is None and H.t - debut >= 5:  # comme Roblox : seulement sans délai
+                        prevenu = True; ATTENTES.append(f"Infinite yield possible on '{s.Name}:WaitForChild(\"{n}\")'")
+                    attendre(0.1); r = s.m_FindFirstChild(n)
+            finally:
+                EN_ATTENTE.remove(cle)
+            return r
         if r is None and delai is not None: return None  # V6.9.10.1 : comme Roblox, nil au bout du délai
         if r is None: raise LuaError(f"WaitForChild : « {n} » absent de {s.Name} (simulation)")
         return r
@@ -644,8 +675,29 @@ class Instance:
     def m_PivotTo(s, cf): s.props["Pivot"] = cf; return []
     def m_GetScale(s): return s.props.get("Scale", 1)
     def m_ScaleTo(s, e): s.props["Scale"] = e; return []
-    def m_GetPivot(s): return s.props.get("Pivot", Valeur("CFrame"))
-    def m_GetBoundingBox(s): return [s.props.get("BoiteCFrame", Valeur("CFrame")), s.props.get("BoiteTaille", Valeur("Vector3", [10, 10, 10]))]  # V6.9.10.3 : boîte réglable
+    def _parts(s):  # V7.1.2 : les pièces placées (CFrame et taille calculables) du Model
+        r = []
+        for e in s.enfants:
+            if e.m_IsA("BasePart") and isinstance(e.props.get("CFrame"), CF) and isinstance(e.props.get("Size"), Vec3): r.append(e)
+            r.extend(e._parts())
+        return r
+    def _boite(s):
+        ps = s._parts()
+        if not ps: return None
+        bas = [min(p.props["CFrame"].p[i] - p.props["Size"].t()[i] / 2 for p in ps) for i in range(3)]
+        haut = [max(p.props["CFrame"].p[i] + p.props["Size"].t()[i] / 2 for p in ps) for i in range(3)]
+        return CF(tuple((a + b) / 2 for a, b in zip(bas, haut))), Vec3(*(b - a for a, b in zip(bas, haut)))
+    def m_GetPivot(s):
+        if "Pivot" in s.props or not MATHS.get("actif"): return s.props.get("Pivot", Valeur("CFrame"))
+        # V7.1.2 (maths actives) : comme Roblox, le pivot de la PrimaryPart, sinon le centre de la boîte des pièces
+        pp = s.props.get("PrimaryPart")
+        if isinstance(pp, Instance) and isinstance(pp.props.get("CFrame"), CF): return pp.props["CFrame"]
+        b = s._boite(); return b[0] if b else CF()
+    def m_GetBoundingBox(s):
+        if "BoiteCFrame" not in s.props and MATHS.get("actif"):
+            b = s._boite()  # V7.1.2 : la vraie boîte des pièces (alignée sur les axes)
+            if b: return [b[0], b[1]]
+        return [s.props.get("BoiteCFrame", Valeur("CFrame")), s.props.get("BoiteTaille", Valeur("Vector3", [10, 10, 10]))]  # V6.9.10.3 : boîte réglable
 
 def versPython(v):
     if isinstance(v, Table):
@@ -760,9 +812,15 @@ def environnement(I, serveur=True):
     return G
 SORTIE = []
 
+def propre_script(I, src, script_obj):
+    """V7.1.2 : chaque script (ou module) a sa propre variable `script`, même après une attente
+    (sinon un autre script lancé entre-temps la remplace). Même ligne : les numéros de ligne ne bougent pas."""
+    cle = "__script_%d" % id(script_obj); I.G[cle] = script_obj
+    return "local script = " + cle + "; " + src
+
 def charger_module(I, chemin, script_obj, cache={}):
     if chemin in cache: return cache[chemin]
-    src = open(chemin, encoding="utf-8").read()
+    src = propre_script(I, open(chemin, encoding="utf-8").read(), script_obj)  # V7.1.2 : `script` propre au module
     ancien = I.G.get("script"); I.G["script"] = script_obj
     try:
         r = I.executer(src, os.path.basename(chemin))

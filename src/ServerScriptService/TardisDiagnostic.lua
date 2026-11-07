@@ -21,6 +21,11 @@ local OPTIONNELLES = {
 	{ "Zones", "zones des pannes" }, -- (V6.9.12) dossier facultatif : situe les pannes (diagnostic, tablette technicien)
 	{ "Structure", "brèches de la structure", "Breches" }, -- (V6.9.13) dossier « Structure » (ou « Breches ») : où s'ouvrent les brèches
 	{ "FuiteAir", "fuites d'air", "Conduits" },           -- (V6.9.13) Parts « FuiteAir » (ou dossier « Conduits ») : où fuit l'air
+	{ Config.NomPortesInt or "PortesInterieures", "portes intérieures" }, -- (V7.1.2, T-205) dossier des portes de l'intérieur
+}
+-- (V7.1.2, T-205) Pièces optionnelles de la cabine (cherchées dans l'extérieur)
+local OPTIONNELLES_EXT = {
+	{ Config.NomFenetres or "Fenetres", "vitres de la cabine" },
 }
 
 -- Sons optionnels (ceux des voyages viennent de Config.Modes)
@@ -52,7 +57,7 @@ return function(def, exterieur, interieur)
 	-- Commandes de la console (V6.9.10.1 : les commandes de Config.CheminsFacultatifs comptent parmi les optionnelles ;
 	-- les chemins sont parcourus dans l'ordre alphabétique, pour une ligne toujours identique)
 	local facultatives = Config.CheminsFacultatifs or {}
-	local cles, optionnelles = {}, #OPTIONNELLES
+	local cles, optionnelles = {}, #OPTIONNELLES + #OPTIONNELLES_EXT
 	for cle in Config.Chemins do table.insert(cles, cle) end
 	table.sort(cles)
 	for _, cle in cles do
@@ -77,6 +82,15 @@ return function(def, exterieur, interieur)
 	for _, info in OPTIONNELLES do
 		-- (V6.9.13) info[3] : autre nom accepté (Breches pour Structure, Conduits pour FuiteAir)
 		if not chercherDans(interieur, info[1]) and not (info[3] and chercherDans(interieur, info[3])) then table.insert(optionnellesAbsentes, info[1]) end
+	end
+	for _, info in OPTIONNELLES_EXT do
+		local present = chercherDans(exterieur, info[1])
+		if not present then -- les vitres peuvent aussi être des pièces nommées « Vitre… » (comme pour TardisEffets)
+			for _, objet in exterieur:GetDescendants() do
+				if objet:IsA("BasePart") and string.sub(objet.Name, 1, 5) == "Vitre" then present = true break end
+			end
+		end
+		if not present then table.insert(optionnellesAbsentes, info[1] .. " (cabine)") end
 	end
 
 	-- Sons

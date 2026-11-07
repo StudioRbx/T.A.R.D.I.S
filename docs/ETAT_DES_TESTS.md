@@ -7,10 +7,17 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 240 tests** — ⬜ 216 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 242 tests** — ⬜ 218 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V7.1.2 — Banc d'essai des simulations
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Lancer Play dans DEVMAP | diagnostic de l'Output avec « optionnelles x/16 » ; « portes intérieures » et « Fenetres (cabine) » absentes seulement s'il n'y en a pas | ⬜ |  |
+| Renommer un instant le Levier de la console, lancer Play | au bout de 10 s, « Commande obligatoire 'Levier' introuvable : il manque … » dans l'Output | ⬜ |  |
 
 ## V7.1.1 — Corrections et oublis du code actuel
 

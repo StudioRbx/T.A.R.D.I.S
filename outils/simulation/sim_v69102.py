@@ -82,7 +82,9 @@ verifier("2. Boîte du dossier : de (−20, −2, −20) à (20, 10, 20,5), soit
 verifier("2. Centre de la boîte du dossier : (0, 4, 0,25)", tuple(round(v, 2) for v in cf.p) == (0, 4, 0.25), cf)
 verifier("2. Repère du dossier = centre de sa boîte", premier(R["p"]).p == cf.p)
 verifier("2. Pièce principale du dossier : le Portail", premier(R["pp"]) is portail, premier(R["pp"]))
-verifier("2. Boîte d'un Model : GetBoundingBox (mock 10 × 10 × 10)", list(R["bm"][1].args) == [10, 10, 10], R["bm"][1])
+# V7.1.2 : le faux Roblox calcule la vraie boîte des pièces d'un Model (avant : 10 × 10 × 10 fixe)
+_bmv = rotor.m_GetBoundingBox()[1]
+verifier("2. Boîte d'un Model : celle de GetBoundingBox", tuple(R["bm"][1].t()) == tuple(_bmv.t() if hasattr(_bmv, "t") else _bmv.args), R["bm"][1])
 verifier("2. Boîte d'une pièce : sa CFrame et sa taille", R["bp"][0] is portail.props["CFrame"] and tuple(R["bp"][1].t()) == (6, 8, 1))
 part("Ajout", dossierInt, (100, 0, 0))
 tache(lambda: R.update(b2=f("boite", dossierInt)))

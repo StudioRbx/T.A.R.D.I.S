@@ -1,4 +1,4 @@
-"""Simulations de la V6.9.9 (effets visuels du voyage) : le vrai code, exécuté avec de faux objets Roblox.
+"""Simulations des effets visuels du voyage (sim_effets, anciennement sim_v699 de la V6.9.9) : le vrai code, exécuté avec de faux objets Roblox.
   1. TardisConfig : réglages (V6.9.9) et fonctions sans effet de bord (distorsion, heure, état de la salle, vitres).
   2. TardisUI : préférence « aucun flash » (sansFlash), sauvegardée comme les autres préférences.
   3. TardisEffets (le script entier, image par image) : lueur selon l'heure (46), lumières de la salle selon l'état (53),
@@ -511,5 +511,5 @@ verifier("Aucune erreur au total", not roblox.ERREURS, roblox.ERREURS[:3])
 
 print("\n".join("  ✓ " + o for o in OK))
 print("\n".join("  ✗ " + k for k in KO))
-print(f"V6.9.9 : {len(OK)}/{len(OK) + len(KO)} vérifications réussies")
+print(f"EFFETS DU VOYAGE (V6.9.9) : {len(OK)}/{len(OK) + len(KO)} vérifications réussies")
 sys.exit(1 if KO else 0)

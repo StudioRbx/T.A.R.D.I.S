@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.1.1"
+Config.Version = "7.1.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1021,7 +1021,14 @@ Config.Etats = {
 function Config.Trouver(racine, cle)
 	local objet = racine
 	for _, nom in Config.Chemins[cle] do
-		objet = objet:WaitForChild(nom)
+		-- (V7.1.2, T-205) une commande obligatoire absente : un message clair au bout de 10 s, puis on attend toujours
+		local suivant = objet:WaitForChild(nom, 10)
+		if not suivant then
+			warn("[TARDIS] Commande obligatoire '" .. cle .. "' introuvable : il manque « " .. nom .. " » dans " .. objet:GetFullName()
+				.. " (chemin " .. table.concat(Config.Chemins[cle], " › ") .. ", voir Config.Chemins). Le TARDIS attend qu'elle apparaisse.")
+			suivant = objet:WaitForChild(nom)
+		end
+		objet = suivant
 	end
 	return objet
 end
