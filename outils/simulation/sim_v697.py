@@ -169,3 +169,4 @@ if M3:
 
 print("\n".join("  ✓ " + o for o in OK)); print("\n".join("  ✗ " + k for k in KO))
 print(f"V6.9.7 : {len(OK)} réussis, {len(KO)} échoués.")
+sys.exit(1 if KO else 0)  # (V7.1.1, T-201) code d'échec pour lancer.sh

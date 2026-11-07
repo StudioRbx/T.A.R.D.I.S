@@ -309,9 +309,11 @@ return function(contexte)
 						local ancien = parImage
 						parImage = function(p, i, t)
 							ancien(p, i, t)
-							degrade.Rotation = (t * 140) % 360
-							cadre.Rotation = -(t * 40) % 360
-							cadre.BackgroundTransparency = 1 - 0.45 * i
+							-- (V7.1.1, G-232) « effets réduits » : plus transparent et trois fois plus lent
+							local vitesse = reduit and 0.35 or 1
+							degrade.Rotation = (t * 140 * vitesse) % 360
+							cadre.Rotation = -(t * 40 * vitesse) % 360
+							cadre.BackgroundTransparency = 1 - (reduit and 0.15 or 0.45) * i
 						end
 					end
 					secousseMax, couleurAmbiance = 0.6, Color3.fromRGB(255, 200, 255)
@@ -584,6 +586,11 @@ return function(contexte)
 				-- Caméra : celui qui se régénère voit la scène de l'extérieur ; la caméra tourne lentement autour de lui,
 				-- respire comme à l'épaule, et se rapproche au moment du changement
 				local cinematique = moi and REG.CameraCinematique ~= false
+				-- (V7.1.1, G-237) L'orbite ne traverse plus les murs : un rayon de la tête vers la caméra la rapproche
+				local paramsCamera = RaycastParams.new()
+				paramsCamera.FilterType = Enum.RaycastFilterType.Exclude
+				paramsCamera.FilterDescendantsInstances = { personnage }
+				paramsCamera.RespectCanCollide = true
 				local angleDepart = 0
 				local champOrigine = camera.FieldOfView
 				if cinematique then
@@ -681,7 +688,10 @@ return function(contexte)
 						local rayon = 9.5 - 2.5 * i
 						local respiration = Vector3.new(math.noise(t * 0.6, 1, 1) * 0.25, math.noise(t * 0.5, 2, 2) * 0.2, 0)
 						local cible = tete.Position + Vector3.new(0, 0.3, 0)
-						camera.CFrame = CFrame.lookAt(cible + Vector3.new(math.cos(angle) * rayon, 1.6 + 1.4 * i, math.sin(angle) * rayon) + respiration, cible)
+						local decalage = Vector3.new(math.cos(angle) * rayon, 1.6 + 1.4 * i, math.sin(angle) * rayon)
+						local obstacle = workspace:Raycast(cible, decalage, paramsCamera)
+						if obstacle then decalage = decalage.Unit * math.max((obstacle.Position - cible).Magnitude - 0.6, 1.5) end
+						camera.CFrame = CFrame.lookAt(cible + decalage + respiration, cible)
 						local zoom = math.clamp(1 - math.abs(p - 0.55) / 0.12, 0, 1)
 						camera.FieldOfView = champOrigine - 14 * zoom * zoom
 					end

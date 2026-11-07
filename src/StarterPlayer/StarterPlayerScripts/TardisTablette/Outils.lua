@@ -110,7 +110,8 @@ return function(contexte)
 		majTuile(O.registre, intrusion ~= nil, intrusion and ("Intrusion : " .. intrusion) or "Entrées · sorties", C.rouge, true)
 		majTuile(O.fiche, false, "Dossier d'anomalie", C.texte2, true)
 		local compteARebours = exterieur:GetAttribute("AutoDestructionDebut")
-		majTuile(O.autodestruction, compteARebours ~= nil, compteARebours and "EN COURS !" or "Danger", C.rouge, pose and not compteARebours)
+		-- (V7.1.1, C-155) pendant le compte à rebours, la tuile reste cliquable : elle ouvre l'annulation
+		majTuile(O.autodestruction, compteARebours ~= nil, compteARebours and "EN COURS ! · annuler" or "Danger", C.rouge, pose or compteARebours ~= nil)
 		local okJ, journalRegen = pcall(function() return game:GetService("HttpService"):JSONDecode(ReplicatedStorage:GetAttribute("TardisRegenerations") or "[]") end)
 		local nbRegen = okJ and type(journalRegen) == "table" and #journalRegen or 0
 		local lien = ReplicatedStorage:GetAttribute("TardisLienTimeLord") == true
@@ -237,13 +238,24 @@ return function(contexte)
 	-- Auto-destruction : trois confirmations l'une après l'autre, la dernière après 15 secondes
 	O.autodestruction.bouton.Activated:Connect(function()
 		if O.autodestruction.bouton:GetAttribute("Disponible") == false then return end
+		-- (V7.1.1, C-155) Compte à rebours en cours : seulement l'annulation (le serveur vérifie que c'est le pilote qui l'a engagée)
+		if exterieur:GetAttribute("AutoDestructionDebut") then
+			local c = ouvrirSurcouche("autodestruction", "AUTO-DESTRUCTION EN COURS")
+			ligneTexte(c, "Le compte à rebours tourne. Seul le pilote qui a engagé la procédure peut l'annuler, avant l'explosion.", 1, C.texte, 12)
+			boutonSurcouche(c, "ANNULER L'AUTO-DESTRUCTION", 2, Color3.fromRGB(40, 110, 60), function()
+				remote:FireServer("AutoDestructionAnnuler")
+				fermerSurcouche()
+			end)
+			return
+		end
 		local c = ouvrirSurcouche("autodestruction", "AUTO-DESTRUCTION DU TARDIS")
 		ligneTexte(c, "CONSÉQUENCES", 1, C.rouge, 11)
 		ligneTexte(c, "Rupture du Cœur du TARDIS, l'Œil de l'Harmonie : l'énergie d'une étoile figée est libérée d'un coup. "
 			.. "Dans les 20 secondes qui suivent, la cabine entre en résonance, vire au rouge et l'alarme du Cloître retentit. "
 			.. "À l'explosion, tout ce qui se trouve à moins de 50 studs est détruit : joueurs, objets, véhicules. "
 			.. "Les occupants sont éjectés dehors, dans la zone de l'explosion. "
-			.. "Le TARDIS disparaît et se reconstitue de lui-même au bout de 7 minutes, sur un point enregistré choisi au hasard. "
+			.. "Le TARDIS disparaît et se reconstitue de lui-même au bout de 5 minutes, sur un point enregistré choisi au hasard (jamais en zone interdite). "
+			.. "Pendant les 20 secondes du compte à rebours, celui qui l'a engagée peut encore l'annuler (même tuile). "
 			.. "Pendant ce temps, aucune commande n'est possible.", 2, C.texte, 12)
 		local etape = 0
 		local b1, b2, b3

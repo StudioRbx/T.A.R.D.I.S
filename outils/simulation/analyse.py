@@ -250,5 +250,7 @@ def main(racine):
         for x in lignes: print("  " + x)
         total += len(lignes)
     print(f"\n{len(textes)} fichiers, {sum(len(j) for j in toks.values())} jetons, {total} remarques.")
+    return total
 
-main(sys.argv[1])
+# (V7.1.1, T-201) une remarque fait échouer lancer.sh
+sys.exit(1 if main(sys.argv[1] if len(sys.argv) > 1 else ".") else 0)

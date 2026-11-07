@@ -7,10 +7,25 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 230 tests** — ⬜ 206 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 240 tests** — ⬜ 216 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V7.1.1 — Corrections et oublis du code actuel
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Engager l'auto-destruction, puis toucher la tuile pendant le compte à rebours | bouton « ANNULER L'AUTO-DESTRUCTION » ; après le clic, alerte « AUTO-DESTRUCTION ANNULÉE », pas d'explosion | ⬜ |  |
+| Un autre pilote essaie d'annuler | « Impossible : seul le pilote qui l'a engagée peut l'annuler » | ⬜ |  |
+| Laisser exploser, attendre la reconstitution | le TARDIS revient sur une destination hors ZDC et hors zone REFUSE | ⬜ |  |
+| Entrer dans le TARDIS en technicien, copilote, membre C.A.T. ou invité accepté | pas d'alerte « INTRUSION », pas de sentinelle | ⬜ |  |
+| Entrer en joueur sans rôle | l'alerte « INTRUSION » sonne comme avant | ⬜ |  |
+| Retirer un technicien de la C.T.A.T. pendant qu'il a ses outils | outils retirés, « OUTILS RENDUS : VOUS N'ÊTES PLUS TECHNICIEN » | ⬜ |  |
+| Saut (B) avec « aucun flash » ou « effets réduits » | la cabine s'étire et laisse une distorsion, sans éclair | ⬜ |  |
+| Régénération, style Tourbillon, « effets réduits » | kaléidoscope plus transparent et plus lent | ⬜ |  |
+| Régénération près d'un mur ou dans un couloir | la caméra se rapproche au lieu de passer à travers le mur | ⬜ |  |
+| Voyage avec une cabine à 25 % (attribut `Echelle`) | tourbillon, étincelles et lampe à la taille de la cabine | ⬜ |  |
 
 ## V6.9.17 — Maps en Streaming
 

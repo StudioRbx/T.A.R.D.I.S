@@ -1349,6 +1349,7 @@ local function donnerOutil(joueur, cle)
 	end
 	outil.RequiresHandle = true
 	outil.CanBeDropped = false
+	outil:SetAttribute("TardisOutil", true) -- (V7.1.1) marque : retiré si son porteur n'est plus technicien
 	outil.Parent = sac
 	outil.Activated:Connect(function()
 		local racine = racineDe(joueur)
@@ -1397,15 +1398,22 @@ local function donnerOutil(joueur, cle)
 		end
 	end)
 end
-local function retirerOutils(joueur, garderCle)
+-- (V7.1.1) seulementMarques : ne retire que les outils donnés par le TARDIS (attribut TardisOutil), pas un outil du
+-- jeu qui porterait le même nom ; renvoie le nombre d'outils retirés
+local function retirerOutils(joueur, garderCle, seulementMarques)
+	local retires = 0
 	for _, conteneur in { joueur:FindFirstChildOfClass("Backpack"), joueur.Character } do
 		if conteneur then
 			for cle, infos in OUTILS do
 				local outil = conteneur:FindFirstChild(cle)
-				if outil and not (garderCle and infos.garder) then outil:Destroy() end
+				if outil and not (garderCle and infos.garder) and (not seulementMarques or outil:GetAttribute("TardisOutil") == true) then
+					outil:Destroy()
+					retires += 1
+				end
 			end
 		end
 	end
+	return retires
 end
 
 --------------------------------------------------------------------
@@ -1807,6 +1815,9 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 	end
 end)
 -- Les outils disparaissent quand un technicien sort du TARDIS... sauf le chiffon, qui sert dehors
+-- (V7.1.1, C-242) … et quand le joueur perd le rôle de technicien (retiré du staff, accès coupé) : il ne garde aucun
+-- outil. L'attribut global TardisTechnicien (TardisExtras) dit s'il est encore technicien d'un autre TARDIS, qui a pu
+-- lui donner les mêmes outils : dans ce cas, on n'y touche pas.
 task.spawn(function()
 	while true do
 		task.wait(2)
@@ -1815,6 +1826,10 @@ task.spawn(function()
 				local racine = racineDe(joueur)
 				if racine and not interne("dansInterieur", racine.Position) and (racine.Position - exterieur:GetPivot().Position).Magnitude > 20 then
 					retirerOutils(joueur)
+				end
+			elseif joueur:GetAttribute("TardisTechnicien") ~= true then
+				if retirerOutils(joueur, false, true) > 0 then
+					dire(joueur, "OUTILS RENDUS : VOUS N'ÊTES PLUS TECHNICIEN", false)
 				end
 			end
 		end

@@ -421,10 +421,11 @@ local function creerEffetsVol()
 	local base = exterieur.PrimaryPart
 	if not base or vol.effetsVol then return end
 	local e = {}
+	local k = math.clamp(tonumber(exterieur:GetAttribute("Echelle")) or 1, 0.05, 20) -- (V7.1.1, G-79) à l'échelle de la cabine
 	-- Particules temporelles autour de la cabine (discrètes)
-	e.particules = creer("ParticleEmitter", { Rate = 0, Lifetime = NumberRange.new(0.5, 1), Speed = NumberRange.new(1, 4),
+	e.particules = creer("ParticleEmitter", { Rate = 0, Lifetime = NumberRange.new(0.5, 1), Speed = NumberRange.new(1 * k, 4 * k),
 		SpreadAngle = Vector2.new(180, 180), LightEmission = 1, Color = ColorSequence.new(C.cyan, C.ambre),
-		Size = NumberSequence.new(0.3, 0), Transparency = NumberSequence.new(0.3, 1), Parent = base })
+		Size = NumberSequence.new(0.3 * k, 0), Transparency = NumberSequence.new(0.3, 1), Parent = base })
 	e.particules.Shape = Enum.ParticleEmitterShape.Box
 	-- Moteur (optionnel : Sound "Moteur" dans TardisAssets > Sons)
 	local moteur = sonAsset("Moteur")
@@ -458,9 +459,33 @@ local function detruireEffetsVol()
 	if e.moteur then e.moteur:Destroy() end
 end
 
--- Éclair de lumière d'un saut temporel (au départ et à l'arrivée)
-local function flashTemporel(position)
-	if UI.effetsReduits() or UI.sansFlash() then return end -- « aucun flash » (V6.9.9)
+-- (V7.1.1, G-44) Saut sans éclair (« aucun flash » ou « effets réduits ») : une silhouette de verre de la cabine s'étire
+-- vers l'avant puis s'efface (au départ) ; à l'arrivée, une ondulation transparente. Ni lumière ni Neon.
+local function distorsionTemporelle(position, direction)
+	local taille = vol.taille or Vector3.new(4, 8, 4)
+	local avant = (typeof(direction) == "Vector3" and direction.Magnitude > 0.01) and direction.Unit or nil
+	local trace = creer("Part", { Name = "TardisDistorsion", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		CastShadow = false, Material = Enum.Material.Glass, Color = Color3.fromRGB(205, 225, 240), Transparency = 0.82, Parent = workspace })
+	if avant then
+		local longueur = math.max(taille.Z, 1)
+		local etire = longueur * 4
+		trace.Size = Vector3.new(taille.X, taille.Y, longueur)
+		trace.CFrame = CFrame.lookAt(position, position + avant)
+		animer(trace, 0.5, { Size = Vector3.new(taille.X * 0.55, taille.Y * 0.85, etire),
+			CFrame = CFrame.lookAt(position + avant * (etire - longueur) / 2, position + avant * etire), Transparency = 1 }, Enum.EasingStyle.Quad)
+	else
+		local d = math.max(taille.X, taille.Y, taille.Z)
+		trace.Shape = Enum.PartType.Ball
+		trace.Size = Vector3.new(d, d, d) * 0.8
+		trace.CFrame = CFrame.new(position)
+		animer(trace, 0.5, { Size = Vector3.new(d, d, d) * 1.6, Transparency = 1 }, Enum.EasingStyle.Quad)
+	end
+	task.delay(0.55, function() trace:Destroy() end)
+end
+
+-- Éclair de lumière d'un saut temporel (au départ et à l'arrivée) ; direction : sens du saut (au départ)
+local function flashTemporel(position, direction)
+	if UI.effetsReduits() or UI.sansFlash() then distorsionTemporelle(position, direction) return end -- « aucun flash » (V6.9.9)
 	local boule = creer("Part", { Name = "TardisFlash", Shape = Enum.PartType.Ball, Anchored = true, CanCollide = false,
 		CanQuery = false, CanTouch = false, CastShadow = false, Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(190, 235, 255), Transparency = 0.1, Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(position),
@@ -489,7 +514,8 @@ end
 exterieur:GetAttributeChangedSignal("VolSaut"):Connect(function()
 	if vol.pilote or not exterieur:GetAttribute("VolLibre") then return end -- le pilote a déjà ses éclairs
 	vol.sautEnAttente = true
-	flashTemporel((exterieur:GetPivot() * CFrame.new(0, vol.taille.Y / 2, 0)).Position)
+	local pivot = exterieur:GetPivot()
+	flashTemporel((pivot * CFrame.new(0, vol.taille.Y / 2, 0)).Position, pivot.LookVector)
 end)
 
 exterieur:GetAttributeChangedSignal("VolPhase"):Connect(function()
@@ -1017,7 +1043,7 @@ sautTemporel = function()
 	if arrivee.Y > plafond then arrivee = Vector3.new(arrivee.X, plafond, arrivee.Z) end
 	vol.centre = arrivee
 	vol.dernierEnvoi = 0 -- la nouvelle position part tout de suite
-	flashTemporel(depart)
+	flashTemporel(depart, arrivee - depart)
 	flashTemporel(arrivee)
 	-- Petit choc à l'écran : champ de vision qui s'ouvre d'un coup
 	camera.FieldOfView += 18

@@ -144,6 +144,15 @@ end)
 -- Registre des passagers, alerte d'intrusion, zone sûre
 --------------------------------------------------------------------
 local dedans = {}       -- [joueur] = true s'il est dans le TARDIS
+local invitesAcceptes = {} -- (V7.1.1) [joueur] = true : a accepté une invitation, jusqu'à sa sortie du TARDIS
+-- (V7.1.1, C-215) L'équipage n'est pas un intrus : pilotes, copilote, techniciens de ce TARDIS, équipes C.A.T. et
+-- C.T.A.T., invités qui ont accepté
+local function membreEquipage(joueur)
+	if estPilote(joueur) or invitesAcceptes[joueur] then return true end
+	if exterieur:GetAttribute("Copilote") == joueur.UserId then return true end
+	if joueur:GetAttribute("TardisTechnicien_" .. def.Nom) == true then return true end
+	return joueur.Team ~= nil and Config.reglagesEquipe(joueur.Team.Name) ~= nil
+end
 local registre = {}     -- lignes "HH:MM\tnom\tentré|sorti"
 local function ajouterRegistre(nom, action, role)
 	table.insert(registre, 1, string.format("%s\t%s\t%s", heure(), nom .. (role and (" (" .. role .. ")") or ""), action))
@@ -196,6 +205,7 @@ task.spawn(function()
 			local estDedans = racine ~= nil and interne("dansInterieur", racine.Position) == true
 			if estDedans ~= (dedans[joueur] == true) then
 				dedans[joueur] = estDedans or nil
+				if not estDedans then invitesAcceptes[joueur] = nil end -- l'invitation sert pour une seule entrée
 				ajouterRegistre(joueur.DisplayName, estDedans and "entré" or "sorti", roleDe(joueur))
 				if estDedans then
 					surPremiereEntree(joueur)
@@ -204,7 +214,7 @@ task.spawn(function()
 				end
 				-- Tablette en lecture seule pour ceux qui ne pilotent pas (visiteurs et techniciens)
 				tabletteLectureSeule(joueur, estDedans and not estPilote(joueur))
-				if estDedans and not estPilote(joueur) then
+				if estDedans and not membreEquipage(joueur) then
 					ajouterIncident(joueur)
 					exterieur:SetAttribute("Intrusion", joueur.DisplayName .. " · " .. heure())
 					direAuxPilotes("INTRUSION : " .. joueur.DisplayName .. " est entré dans le TARDIS.", false)
@@ -216,6 +226,7 @@ task.spawn(function()
 	end
 end)
 Players.PlayerRemoving:Connect(function(joueur)
+	invitesAcceptes[joueur] = nil
 	if dedans[joueur] then
 		ajouterRegistre(joueur.DisplayName, "parti")
 		dedans[joueur] = nil
@@ -991,8 +1002,9 @@ Players.PlayerRemoving:Connect(function(joueur) tenuesEnCours[joueur] = nil end)
 
 --------------------------------------------------------------------
 -- Auto-destruction : 20 s de compte à rebours (secousses, rouge, alarme), puis explosion : joueurs, objets
--- et véhicules à moins de 50 studs. Le TARDIS "détruit" disparaît 7 minutes puis se reconstitue sur une
--- destination enregistrée, au hasard. Les décors ancrés ne sont jamais touchés.
+-- et véhicules à moins de 50 studs. Le TARDIS "détruit" disparaît 5 minutes puis se reconstitue sur une
+-- destination enregistrée, au hasard (V7.1.1 : jamais une ZDC ni une zone REFUSE). Les décors ancrés ne sont
+-- jamais touchés. (V7.1.1, C-155) Le pilote qui l'a engagée peut l'annuler pendant le compte à rebours.
 --------------------------------------------------------------------
 local autoDestruction = nil
 local function pointArriveeInterieur()
@@ -1006,9 +1018,26 @@ local function pointArriveeInterieur()
 	end
 	return Config.pivot(interieur) + Vector3.new(0, 4, 0)
 end
+-- (V7.1.1, C-158) Destinations où le TARDIS peut se reconstituer : ni les ZDC, ni les pièces du dossier REFUSE, ni une
+-- destination posée dans une zone REFUSE
+local function destinationsReconstitution()
+	local nomRefuse = Config.ZoneRestreinte or "REFUSE"
+	local permises = {}
+	for _, part in interne("listeDestinations") or {} do
+		local refusee = string.sub(part.Name, 1, 4) == "ZDC-"
+		local parent = part.Parent
+		while not refusee and parent and parent ~= workspace do
+			if parent.Name == nomRefuse then refusee = true end
+			parent = parent.Parent
+		end
+		if not refusee and interne("dansZoneRefusee", part.Position) == true then refusee = true end
+		if not refusee then table.insert(permises, part) end
+	end
+	return permises
+end
 local function renaitre()
-	local liste = interne("listeDestinations") or {}
-	local cible = #liste > 0 and liste[math.random(#liste)] or nil
+	local liste = destinationsReconstitution()
+	local cible = #liste > 0 and liste[math.random(#liste)] or nil -- aucune : il se reconstitue là où il était
 	local cf = cible and cible.CFrame or exterieur:GetPivot()
 	exterieur:PivotTo(cf)
 	exterieur:SetAttribute("Detruit", false)
@@ -1025,7 +1054,8 @@ local function lancerAutoDestruction(pilote)
 	if autoDestruction or exterieur:GetAttribute("Detruit") then return false, "déjà en cours" end
 	local etat, occupe = interne("etat")
 	if etat ~= E.Pose or occupe or exterieur:GetAttribute("VolLibre") or exterieur:GetAttribute("Porteur") then return false, "le TARDIS doit être posé" end
-	autoDestruction = { pilote = pilote.UserId }
+	local jeton = { pilote = pilote.UserId } -- (V7.1.1) les délais ci-dessous ne font rien si ce jeton a été annulé
+	autoDestruction = jeton
 	exterieur:SetAttribute("AutoDestructionDuree", 20)
 	exterieur:SetAttribute("AutoDestructionDebut", workspace:GetServerTimeNow())
 	interne("alerter", "AUTO-DESTRUCTION ENGAGÉE")
@@ -1033,6 +1063,7 @@ local function lancerAutoDestruction(pilote)
 	journal("Sécurité", def.Nom .. " : auto-destruction engagée par " .. pilote.Name .. ".")
 	interne("jouer", "Demat_Urg", true)
 	task.delay(19, function()
+		if autoDestruction ~= jeton then return end -- annulée
 		-- Les occupants sont éjectés dehors, dans la zone de l'explosion
 		local pivot = exterieur:GetPivot()
 		for autre in dedans do
@@ -1041,6 +1072,8 @@ local function lancerAutoDestruction(pilote)
 		end
 	end)
 	task.delay(20, function()
+		if autoDestruction ~= jeton then return end -- annulée
+		jeton.explose = true -- plus d'annulation possible
 		local pivot = exterieur:GetPivot()
 		local centre = pivot.Position + Vector3.new(0, 4, 0)
 		local explosion = Instance.new("Explosion")
@@ -1062,6 +1095,19 @@ local function lancerAutoDestruction(pilote)
 		direAuxPilotes("TARDIS DÉTRUIT. Il se reconstituera dans 5 minutes.", false)
 		task.delay(5 * 60, renaitre)
 	end)
+	return true
+end
+-- (V7.1.1, C-155) Annulation pendant le compte à rebours : seulement le pilote qui l'a engagée, avant l'explosion
+local function annulerAutoDestruction(pilote)
+	local jeton = autoDestruction
+	if not jeton or jeton.explose or exterieur:GetAttribute("Detruit") then return false, "aucun compte à rebours en cours" end
+	if jeton.pilote ~= pilote.UserId then return false, "seul le pilote qui l'a engagée peut l'annuler" end
+	autoDestruction = nil
+	exterieur:SetAttribute("AutoDestructionDebut", nil)
+	exterieur:SetAttribute("AutoDestructionDuree", nil)
+	interne("alerter", "AUTO-DESTRUCTION ANNULÉE")
+	direAuxPilotes("Auto-destruction ANNULÉE par " .. pilote.DisplayName .. ".", true)
+	journal("Sécurité", def.Nom .. " : auto-destruction annulée par " .. pilote.Name .. ".")
 	return true
 end
 
@@ -1226,6 +1272,7 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 		if not inv or os.clock() > inv.fin then return end
 		local pilote = Players:GetPlayerByUserId(inv.pilote)
 		if typeof(donnees) == "table" and donnees.accepter then
+			invitesAcceptes[joueur] = true -- (V7.1.1) un invité n'est pas un intrus
 			local racine = racineDe(joueur)
 			if racine then racine.CFrame = pointArriveeInterieur() end
 			if pilote then dire(pilote, joueur.DisplayName .. " a accepté ton invitation.", true) end
@@ -1329,6 +1376,10 @@ remote.OnServerEvent:Connect(function(joueur, action, donnees)
 			local ok, erreur = lancerAutoDestruction(joueur)
 			if not ok then dire(joueur, "Impossible : " .. tostring(erreur), false) end
 		end
+
+	elseif action == "AutoDestructionAnnuler" then
+		local ok, erreur = annulerAutoDestruction(joueur)
+		if not ok then dire(joueur, "Impossible : " .. tostring(erreur), false) end
 
 	elseif action == "Inviter" then
 		local cible = typeof(donnees) == "table" and Players:GetPlayerByUserId(donnees.joueur or 0)

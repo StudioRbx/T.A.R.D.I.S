@@ -57,7 +57,7 @@ def enum(v): return str(getattr(v, "nom", v))
 # ================================================================== 1. Serveur en Streaming, pièces dans le dossier
 I, G, game, ws, t1, ext, dossierInt, salle = place()
 Config = R["Config"]
-verifier("Version 6.9.17", Config.get("Version") == "6.9.17", Config.get("Version"))
+verifier("Version 6.9.17 ou plus récente", tuple(int(p) for p in str(Config.get("Version")).split(".") if p.isdigit()) >= (6, 9, 17), Config.get("Version"))
 enfants_avant = sorted(e.Name for e in dossierInt.enfants)
 exterieur, interieur = modeles(Config)
 verifier("1. L'extérieur est toujours le Model de EXTERIEURE", exterieur is ext)

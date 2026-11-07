@@ -65,3 +65,4 @@ verifier("Recette retirée (Config.Recette absent)", Config.get("Recette") is No
 verifier("Annonce de bord active", Config.get("AnnonceBord").get("Actif") is not False)
 print("\n".join("  ✓ " + o for o in OK)); print("\n".join("  ✗ " + k for k in KO))
 print(f"CONFIG : {len(OK)} réussis, {len(KO)} échoués. Erreurs : {ERREURS}")
+sys.exit(1 if KO else 0)  # (V7.1.1, T-201) code d'échec pour lancer.sh

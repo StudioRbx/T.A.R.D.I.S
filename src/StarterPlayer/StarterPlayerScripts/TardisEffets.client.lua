@@ -115,6 +115,9 @@ end)
 local rotorBase = rotor:GetPivot() -- marche avec une Part OU un Model
 local brillanceBase = lumiere and lumiere.Brightness or 0
 local porteeBase = lumiere and lumiere.Range or 8
+-- (V7.1.1, G-79) Échelle de la cabine (attribut Echelle, réglé par le serveur) : les effets suivent sa taille,
+-- une cabine à 25 % n'a plus des effets géants (portée de la lampe, tourbillon, étincelles, arcs)
+local function echelle() return math.clamp(tonumber(exterieur:GetAttribute("Echelle")) or 1, 0.05, 20) end
 local couleurLampe = lumiere and lumiere.Color or Color3.new(1, 1, 1)
 
 -- Position de la lampe dans le monde (sa lumière est sur une pièce ou sur un Attachment)
@@ -513,7 +516,7 @@ RunService.RenderStepped:Connect(function(dt)
 			brillance = 0 -- plus de courant
 		end
 		lumiere.Brightness = brillance * (1 - camouflage) -- éteinte quand le TARDIS est camouflé
-		lumiere.Range = porteeBase * (1 + 0.6 * souffle + flashLampe)
+		lumiere.Range = porteeBase * echelle() * (1 + 0.6 * souffle + flashLampe) -- (G-79) ScaleTo réduit la portée, on la garde réduite
 		-- Alerte : la lampe du toit passe au rouge
 		lumiere.Color = exterieur:GetAttribute("Alerte") and (Config.CouleurAlerte or Color3.fromRGB(255, 30, 30)) or couleurLampe
 	end
@@ -824,6 +827,7 @@ do
 		local part = piece({ Name = "TardisSouffle", Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(position) })
 		local taille = exterieur:GetExtentsSize()
 		local rayon = math.max(taille.X, taille.Z) * 0.6
+		local e = echelle() -- (G-79) tailles et vitesses à l'échelle de la cabine
 		local emetteurs = {}
 		for i = 1, 14 do
 			local angle = i / 14 * math.pi * 2
@@ -837,13 +841,13 @@ do
 			emetteur.Texture = "rbxasset://textures/particles/smoke_main.dds"
 			emetteur.EmissionDirection = Enum.NormalId.Front
 			emetteur.Color = ColorSequence.new(couleur)
-			emetteur.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, eau and 0.5 or 0.7), NumberSequenceKeypoint.new(0.5, eau and 1.8 or 2.6), NumberSequenceKeypoint.new(1, eau and 2.2 or 3.6) })
+			emetteur.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, (eau and 0.5 or 0.7) * e), NumberSequenceKeypoint.new(0.5, (eau and 1.8 or 2.6) * e), NumberSequenceKeypoint.new(1, (eau and 2.2 or 3.6) * e) })
 			emetteur.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, eau and 0.3 or 0.5), NumberSequenceKeypoint.new(0.6, eau and 0.6 or 0.75), NumberSequenceKeypoint.new(1, 1) })
 			emetteur.Lifetime = NumberRange.new(0.7, 1.4)
-			emetteur.Speed = NumberRange.new(10, 22)
+			emetteur.Speed = NumberRange.new(10 * e, 22 * e)
 			emetteur.SpreadAngle = Vector2.new(10, eau and 35 or 18)
 			emetteur.Drag = 2.5
-			emetteur.Acceleration = Vector3.new(0, eau and -28 or 1.2, 0) -- l'eau retombe, la poussière flotte
+			emetteur.Acceleration = Vector3.new(0, (eau and -28 or 1.2) * e, 0) -- l'eau retombe, la poussière flotte
 			emetteur.Rotation = NumberRange.new(0, 360)
 			emetteur.RotSpeed = NumberRange.new(-90, 90)
 			emetteur.LightInfluence = 1
@@ -858,17 +862,17 @@ do
 		paillettes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
 		paillettes.Color = ColorSequence.new(couleur:Lerp(Color3.new(1, 1, 1), 0.6))
 		paillettes.LightEmission = 0.6
-		paillettes.Size = NumberSequence.new(0.25, 0)
+		paillettes.Size = NumberSequence.new(0.25 * e, 0)
 		paillettes.Transparency = NumberSequence.new(0.2, 1)
 		paillettes.Lifetime = NumberRange.new(0.8, 1.6)
-		paillettes.Speed = NumberRange.new(6, 14)
+		paillettes.Speed = NumberRange.new(6 * e, 14 * e)
 		paillettes.SpreadAngle = Vector2.new(180, 180)
-		paillettes.Acceleration = Vector3.new(0, eau and -20 or -3, 0)
+		paillettes.Acceleration = Vector3.new(0, (eau and -20 or -3) * e, 0)
 		paillettes.Drag = 1.5
 		paillettes.Rate = 0
 		paillettes.Parent = centre
 		table.insert(emetteurs, paillettes)
-		souffleSol = { part = part, emetteurs = emetteurs, eau = eau, couleur = couleur, rayon = rayon }
+		souffleSol = { part = part, emetteurs = emetteurs, eau = eau, couleur = couleur, rayon = rayon, echelle = e }
 	end
 
 	-- Onde au sol : un anneau fin qui court sur le sol en s'effaçant
@@ -891,20 +895,21 @@ do
 		local depart, arrivee = pointSurface(), pointSurface()
 		if (arrivee - depart).Magnitude < 1 then arrivee = pointSurface() end
 		local precedent = depart
+		local e = echelle() -- (G-79) éclair, éclat et lumière à l'échelle de la cabine
 		local n = 5
 		for k = 1, n do
-			local suivant = k == n and arrivee or depart:Lerp(arrivee, k / n) + Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.9
+			local suivant = k == n and arrivee or depart:Lerp(arrivee, k / n) + Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.9 * e
 			local segment = piece({ Name = "TardisArc", Color = k % 2 == 0 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 220, 255),
-				Size = Vector3.new(0.1, 0.1, (suivant - precedent).Magnitude), CFrame = CFrame.lookAt((precedent + suivant) / 2, suivant) })
+				Size = Vector3.new(0.1 * e, 0.1 * e, (suivant - precedent).Magnitude), CFrame = CFrame.lookAt((precedent + suivant) / 2, suivant) })
 			Debris:AddItem(segment, 0.08 + math.random() * 0.06)
 			precedent = suivant
 		end
 		local eclat = piece({ Name = "TardisArcEclat", Shape = Enum.PartType.Ball, Color = Color3.fromRGB(200, 235, 255), Transparency = 0.3,
-			Size = Vector3.one * 0.6, CFrame = CFrame.new(arrivee) })
+			Size = Vector3.one * 0.6 * e, CFrame = CFrame.new(arrivee) })
 		local lum = Instance.new("PointLight")
-		lum.Color, lum.Brightness, lum.Range = Color3.fromRGB(170, 220, 255), 4, 12
+		lum.Color, lum.Brightness, lum.Range = Color3.fromRGB(170, 220, 255), 4, 12 * e
 		lum.Parent = eclat
-		tween(eclat, 0.15, { Size = Vector3.one * 1.6, Transparency = 1 })
+		tween(eclat, 0.15, { Size = Vector3.one * 1.6 * e, Transparency = 1 })
 		Debris:AddItem(eclat, 0.2)
 	end
 
@@ -956,7 +961,7 @@ do
 			local resultat = workspace:Raycast(depart, Vector3.new(0, -14, 0), params)
 			if resultat and EFFETS.Tourbillon ~= false then
 				local eau = resultat.Material == Enum.Material.Water
-				if not souffleSol or souffleSol.eau ~= eau then
+				if not souffleSol or souffleSol.eau ~= eau or math.abs((souffleSol.echelle or 1) - echelle()) > 0.01 then -- (G-79) recréé si la taille change
 					arreterSouffle()
 					local couleur
 					if eau then
@@ -994,17 +999,22 @@ do
 			if Config.modeSaccade(modeAnime) and EFFETS.Arcs ~= false and intensite > 0.05 then
 				local cf, taille = exterieur:GetBoundingBox()
 				if not sansFlash and math.random() < dt * (3 + 9 * s) * intensite * (modeAnime == "Catastrophe" and 2 or 1) then arc(cf, taille) end
+				if arcsPart and arcsPart.Parent and math.abs((arcsPart:GetAttribute("Echelle") or 1) - echelle()) > 0.01 then
+					arcsPart:Destroy() -- (G-79) la cabine a changé de taille : on refait les étincelles
+				end
 				if not arcsPart or not arcsPart.Parent then
 					arcsPart = piece({ Name = "TardisEtincellesLampe", Transparency = 1, Size = Vector3.one, CFrame = CFrame.new(positionLampe()) })
 					local etincelles = Instance.new("ParticleEmitter")
 					etincelles.Name = "Etincelles"
 					etincelles.Color = ColorSequence.new(Color3.fromRGB(255, 240, 200), Color3.fromRGB(255, 140, 60))
 					etincelles.LightEmission = 1
-					etincelles.Size = NumberSequence.new(0.2, 0)
-					etincelles.Speed = NumberRange.new(8, 16)
+					local e = echelle() -- (G-79) étincelles de la lampe à l'échelle de la cabine
+					etincelles.Size = NumberSequence.new(0.2 * e, 0)
+					etincelles.Speed = NumberRange.new(8 * e, 16 * e)
 					etincelles.Lifetime = NumberRange.new(0.3, 0.7)
 					etincelles.SpreadAngle = Vector2.new(60, 60)
-					etincelles.Acceleration = Vector3.new(0, -35, 0)
+					etincelles.Acceleration = Vector3.new(0, -35 * e, 0)
+					arcsPart:SetAttribute("Echelle", e)
 					etincelles.Rate = 0
 					etincelles.Parent = arcsPart
 				end

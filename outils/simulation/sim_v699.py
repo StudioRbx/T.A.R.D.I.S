@@ -479,7 +479,7 @@ def compteARebours(sans):
 verifier("191. Compte à rebours : le rouge clignote ; « aucun flash » : il monte sans clignoter", compteARebours(False) > 0.05 and compteARebours(True) < 0.01)
 pref("sansFlash", False)
 vl = lire("StarterPlayer/StarterPlayerScripts/TardisVolLibre.client.lua")
-fonction = vl[vl.index("local function flashTemporel(position)"):vl.index("--------------------------------------------------------------------", vl.index("local function flashTemporel(position)"))]
+fonction = vl[vl.index("local function distorsionTemporelle(position"):vl.index("--------------------------------------------------------------------", vl.index("local function flashTemporel(position"))]  # V7.1.1 : flashTemporel appelle distorsionTemporelle
 F = {}
 tache(lambda: F.update(f=premier(I.executer("local UI = ...\nlocal creer, animer = UI.creer, UI.animer\nlocal vol = { taille = Vector3.new(4, 9, 4) }\n"
                                             + fonction + "\nreturn flashTemporel", "flashTemporel", (UI,)))))

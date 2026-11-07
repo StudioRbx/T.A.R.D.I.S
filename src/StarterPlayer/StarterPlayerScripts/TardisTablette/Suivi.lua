@@ -133,6 +133,13 @@ return function(contexte)
 		majBoutonSentinelle()
 
 		local rayon = (Config.Sentinelle or {}).Rayon or 35
+		-- (V7.1.1, C-215) L'équipage ne déclenche pas la sentinelle : pilotes, copilote, techniciens de ce TARDIS,
+		-- équipes C.A.T. et C.T.A.T.
+		local function membreEquipage(autre)
+			if autre:GetAttribute("TardisPilote_" .. def.Nom) == true or autre:GetAttribute("TardisTechnicien_" .. def.Nom) == true then return true end
+			if exterieur:GetAttribute("Copilote") == autre.UserId then return true end
+			return autre.Team ~= nil and Config.reglagesEquipe(autre.Team.Name) ~= nil
+		end
 		task.spawn(function()
 			while true do
 				task.wait(0.5)
@@ -141,7 +148,7 @@ return function(contexte)
 				if actif then
 					local centre = exterieur:GetPivot().Position
 					for _, autre in Players:GetPlayers() do
-						if autre ~= joueur then
+						if autre ~= joueur and not membreEquipage(autre) then
 							local racine = autre.Character and autre.Character:FindFirstChild("HumanoidRootPart")
 							if racine and not dansInterieur(racine.Position) then
 								local distance = (racine.Position - centre).Magnitude

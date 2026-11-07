@@ -1862,7 +1862,7 @@ end)
 -- menu (bouton Vol libre), avec exactement les mêmes vérifications. rappel(ok, message) : seulement pour un appel du
 -- serveur lui-même (un client ne peut pas envoyer de fonction par un RemoteEvent).
 local ACTIONS_AILLEURS = {}
-for _, nom in { "Bannir", "CarnetEcrire", "CarnetEffacer", "Categorie", "Couleur", "Decoration", "Enseigne", "Expulser", "InvitationReponse", "Inviter",
+for _, nom in { "AutoDestructionAnnuler", "Bannir", "CarnetEcrire", "CarnetEffacer", "Categorie", "Couleur", "Decoration", "Enseigne", "Expulser", "InvitationReponse", "Inviter",
 	"Jukebox", "MinuterieAnnuler", "Murs", "Projecteur", "ProjecteurDir", "Promouvoir", "Reflets", "StyleConsole", "StyleInterieur", "Tenue", "Theme",
 	"Tracteur", "VolLibreChoc", -- TardisExtras
 	"LienTimeLord", "Maintenance", "Outil", "RefuserRegeneration", "SiegePose", "Stabilisateur", "Tech", "TenuesCompte" } do -- TardisSystemes
@@ -2430,6 +2430,7 @@ do
 		elseif action == "setEtat" then setEtat(...) return true
 		elseif action == "collisions" then setCollisionsExterieur(...) return true
 		elseif action == "listeDestinations" then return listeDestinations()
+		elseif action == "dansZoneRefusee" then return dansZoneRefusee(...) -- (V7.1.1) tirage de la reconstitution
 		elseif action == "destinationChoisie" then return destinationChoisie()
 		elseif action == "reglerAlimentation" then reglerAlimentation(...) return true
 		elseif action == "basculerAlimentation" then return basculerAlimentation()

@@ -57,12 +57,13 @@ Le diagnostic au démarrage (Output : `[TARDIS] TARDIS_1 : … pièces`) liste c
 ## 5. Branchements au jeu (quand tu pourras)
 - Adonis (`G_API`) et niveaux dans `Config.Acces.Adonis` ; module WL (`Config.Acces.WL`) ; journal RoSysLog (`Config.Journal.Cible`).
 
-## 6. Tests en jeu et releases (V6.9.17)
-- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (230 tests de la V6.7 à la V6.9.17, dont 6 réussis et 18 sans objet ; 206 encore à faire).
+## 6. Tests en jeu et releases (V7.1.1)
+- Après tes tests, donne-moi les résultats : je les note dans [ETAT_DES_TESTS.md](ETAT_DES_TESTS.md) (240 tests de la V6.7 à la V7.1.1, dont 6 réussis et 18 sans objet ; 216 encore à faire).
+- **V7.1.1** : dans DEVMAP, engage l'auto-destruction puis annule-la depuis la même tuile de la tablette ; entre en technicien, copilote ou invité (pas d'alerte « INTRUSION ») ; retire un technicien de la C.T.A.T. (ses outils disparaissent) ; saute (B) avec « aucun flash » ; regarde une régénération en « effets réduits » et près d'un mur ; voyage avec une cabine à 25 %.
 - **V6.9.17** : dans Zone obstruée (map en Streaming), appuie sur T puis sur Y en pilote : le menu et la tablette doivent s'ouvrir ; le diagnostic de l'Output doit finir par « streaming : ok ».
 - **V6.9.16** : regarde l'écran ingénieur (texte à l'endroit, un clic ouvre le menu de l'énergie), le menu de l'énergie élargi, et actionne les leviers et l'alerte : le kit doit s'animer.
 - **V6.9.15** : teste aussi sur téléphone avec l'émulateur d'appareil de Studio (onglet Test › Appareil, un téléphone) : « Réduire les effets » doit y être activé d'office, et le menu rapide doit se glisser au doigt. Les nouvelles options (menus sans animation, tablette fermée d'un clic à côté) sont désactivées par défaut : rien ne change tant qu'un joueur ne les active pas.
-- **Releases GitHub à jour** : les 41 versions de la V6.5 à la V6.9.17 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
+- **Releases GitHub à jour** : les 42 versions de la V6.5 à la V7.1.1 ont leur tag et leur release (les 24 en retard, V6.7 → V6.9.10.7, publiées le 06/11/2026). Chaque nouvelle version est publiée avec sa release ; la liste est dans `docs/releases/publiees.txt`.
 
 ## 7. Plus tard (tu m'expliqueras)
 - Ce qui remplacera la **clé du TARDIS**.

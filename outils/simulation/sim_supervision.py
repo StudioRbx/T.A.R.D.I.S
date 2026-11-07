@@ -40,3 +40,4 @@ verifier("Le RemoteEvent TardisMessageStaff n'existe plus", staff is None)
 verifier("Aucune erreur pendant la simulation", not roblox.ERREURS, roblox.ERREURS[:3])
 print("\n".join("  ✓ " + o for o in OK)); print("\n".join("  ✗ " + k for k in KO))
 print(f"SUPERVISION : {len(OK)} réussis, {len(KO)} échoués.")
+sys.exit(1 if KO else 0)  # (V7.1.1, T-201) code d'échec pour lancer.sh
