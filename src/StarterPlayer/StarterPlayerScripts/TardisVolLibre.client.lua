@@ -450,13 +450,96 @@ local function majEffetsVol(vitesse)
 	end
 end
 
+-- (V7.2.3, G-26) Plongeon du vol libre : gerbe d'eau et anneau d'écume à la surface
+local function gerbeEau(position, force)
+	if (Config.Effets or {}).GerbeEau == false then return end
+	local k = math.clamp(tonumber(exterieur:GetAttribute("Echelle")) or 1, 0.05, 20)
+	local reduit = UI.effetsReduits()
+	local part = creer("Part", { Name = "TardisGerbeEau", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(position), Parent = workspace })
+	local gouttes = creer("ParticleEmitter", { Rate = 0, Lifetime = NumberRange.new(0.6, 1.2), Speed = NumberRange.new(14 * k, 28 * k),
+		SpreadAngle = Vector2.new(35, 35), Acceleration = Vector3.new(0, -50 * k, 0), Color = ColorSequence.new(Color3.fromRGB(225, 240, 255)),
+		Size = NumberSequence.new(0.6 * k, 0.1 * k), Transparency = NumberSequence.new(0.2, 1), Parent = part })
+	gouttes:Emit(math.floor((reduit and 15 or 40) * math.clamp(force, 0.3, 1)))
+	local anneau = creer("Part", { Name = "TardisEcume", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Shape = Enum.PartType.Cylinder, Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(240, 248, 255), Transparency = 0.35,
+		Size = Vector3.new(0.2, 3 * k, 3 * k), CFrame = CFrame.new(position + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Parent = workspace })
+	local largeur = math.max(vol.taille.X, vol.taille.Z) * 2.5
+	game:GetService("TweenService"):Create(anneau, TweenInfo.new(1.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Size = Vector3.new(0.2, largeur, largeur), Transparency = 1 }):Play()
+	task.delay(2, function() part:Destroy() anneau:Destroy() end)
+end
+
+-- (V7.2.3) Eau sous la cabine en vol libre, testée 10 fois par seconde chez tout le monde : vol.dansEau (C-77, la vitesse
+-- du pilote), le plongeon (G-26) et le sillage d'écume au ras de l'eau (G-35, selon la vitesse)
+local function majEau(vitesse)
+	local e = vol.effetsVol
+	if not e then return end
+	local maintenant = os.clock()
+	if maintenant - (e.dernierTestEau or 0) >= 0.1 then
+		e.dernierTestEau = maintenant
+		local pivot = exterieur:GetPivot()
+		local centre = (pivot * CFrame.new(0, vol.taille.Y / 2, 0)).Position
+		local terrain = workspace:FindFirstChildOfClass("Terrain")
+		local dansEau = Config.dansLEau(centre, terrain) == true
+		if dansEau ~= (vol.dansEau == true) then
+			vol.dansEau = dansEau
+			if vol.pilote and Config.vitesseDansEau(R.NIVEAUX, vol.niveau) then
+				annoncer(dansEau and "Dans l'eau : vitesse réduite, TURBO coupé" or "Hors de l'eau")
+			end
+			if dansEau and vitesse > 20 then
+				local surface = Config.surfaceEau(centre, terrain, 60)
+				gerbeEau(surface and Vector3.new(centre.X, surface, centre.Z) or centre, vitesse / R.VITESSE_MAX)
+			end
+		end
+		e.surfaceEau = nil
+		local hauteurMax = tonumber((Config.Effets or {}).SillageEau) or 0
+		if hauteurMax > 0 and not dansEau and vitesse > 6 then
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = exclusions()
+			params.IgnoreWater = false
+			local resultat = workspace:Raycast(pivot.Position + Vector3.new(0, 1, 0), Vector3.new(0, -(hauteurMax + 1), 0), params)
+			if resultat and resultat.Material == Enum.Material.Water then
+				e.surfaceEau = resultat.Position
+				e.procheEau = 1 - math.clamp((pivot.Position.Y - resultat.Position.Y) / hauteurMax, 0, 1)
+			end
+		end
+	end
+	if e.surfaceEau then
+		if not e.sillage then
+			local k = math.clamp(tonumber(exterieur:GetAttribute("Echelle")) or 1, 0.05, 20)
+			e.sillage = creer("Part", { Name = "TardisSillage", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Transparency = 1, Size = Vector3.new(2 * k, 0.2, 2 * k), Parent = workspace })
+			e.sillageEcume = creer("ParticleEmitter", { Rate = 0, Lifetime = NumberRange.new(0.8, 1.6), Speed = NumberRange.new(2 * k, 6 * k),
+				SpreadAngle = Vector2.new(25, 10), Acceleration = Vector3.new(0, -8 * k, 0), EmissionDirection = Enum.NormalId.Front,
+				Color = ColorSequence.new(Color3.fromRGB(240, 248, 255)), Size = NumberSequence.new(0.8 * k, 2 * k),
+				Transparency = NumberSequence.new(0.3, 1), Parent = e.sillage })
+		end
+		local horizontal = vol.vitesseVecteur * Vector3.new(1, 0, 1)
+		local arriere = horizontal.Magnitude > 0.1 and -horizontal.Unit or Vector3.new(0, 0, 1)
+		e.sillage.CFrame = CFrame.lookAt(e.surfaceEau, e.surfaceEau + arriere)
+		e.sillageEcume.Rate = (10 + 50 * math.clamp(vitesse / R.VITESSE_MAX, 0, 1)) * (e.procheEau or 1) * (UI.effetsReduits() and 0.4 or 1)
+		e.sillageEcume.Enabled = true
+	elseif e.sillageEcume then
+		e.sillageEcume.Enabled = false
+	end
+end
+
 local function detruireEffetsVol()
 	local e = vol.effetsVol
 	vol.effetsVol = nil
+	vol.dansEau = false
 	if not e then return end
 	e.particules.Enabled = false
 	task.delay(1.2, function() e.particules:Destroy() end)
 	if e.moteur then e.moteur:Destroy() end
+	if e.sillage then
+		local sillage = e.sillage
+		e.sillageEcume.Enabled = false
+		task.delay(1.8, function() sillage:Destroy() end)
+	end
 end
 
 -- (V7.1.1, G-44) Saut sans éclair (« aucun flash » ou « effets réduits ») : une silhouette de verre de la cabine s'étire
@@ -1289,6 +1372,8 @@ local function piloter(dt, t)
 	end
 	-- Boost : accélération brève
 	if os.clock() - vol.dernierBoost < R.BOOST_DUREE then vitesseCible *= 2.2 end
+	-- Dans l'eau (V7.2.3, C-77) : moitié de la vitesse, TURBO et boost coupés
+	if vol.dansEau then vitesseCible = Config.vitesseDansEau(R.NIVEAUX, vol.niveau) or vitesseCible end
 	-- Précision : demi-vitesse, pas de rotation, aucune collision
 	if precision then vitesseCible *= 0.5 end
 	-- Verrouillage de cible : rester au-dessus et en arrière du joueur ou du véhicule suivi
@@ -1676,6 +1761,7 @@ RunService.RenderStepped:Connect(function(dt)
 		piloter(dt, t)
 		majEffetsVol(vol.vitesse.Magnitude)
 		vol.vitesseVecteur = vol.vitesse
+		majEau(vol.vitesse.Magnitude) -- (V7.2.3) eau, plongeon et sillage
 	else
 		-- Autres joueurs : suivi fluide, et vitesse estimée pour les effets
 		local cible = exterieur:GetAttribute("VolLibreCF")
@@ -1696,6 +1782,7 @@ RunService.RenderStepped:Connect(function(dt)
 			vol.dernierePosition = vol.affiche.Position
 		end
 		majEffetsVol(vol.vitesseVue)
+		majEau(vol.vitesseVue) -- (V7.2.3) eau, plongeon et sillage
 	end
 
 	-- Turbulences : le passage rapide du TARDIS repousse les joueurs proches et secoue leur caméra

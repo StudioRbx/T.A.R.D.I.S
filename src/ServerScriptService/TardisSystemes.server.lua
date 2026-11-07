@@ -321,6 +321,23 @@ task.spawn(function()
 		end
 	end
 end)
+-- (V7.2.3, C-179) L'eau et la pluie nettoient la cabine posée (la pluie : attribut Systemes.AttributPluie de workspace)
+task.spawn(function()
+	local reste = 0
+	while true do
+		task.wait(10)
+		local salete = exterieur:GetAttribute("Salete") or 0
+		local surEau = exterieur:GetAttribute("SurEau") == true
+		local pluie = workspace:GetAttribute(S.AttributPluie or "Pluie") == true
+		if salete > 0 and (surEau or pluie) and exterieur:GetAttribute("Etat") == E.Pose then
+			local nouvelle
+			nouvelle, reste = Config.nettoyageSalete(salete, surEau, pluie, 10, reste)
+			if nouvelle ~= salete then exterieur:SetAttribute("Salete", nouvelle) end
+		else
+			reste = 0
+		end
+	end
+end)
 -- Vanne : pièce "Vanne" de l'intérieur (sinon le rotor), à fermer avec la clé à molette (maintenir E 4 s)
 do
 	local vanne = partDe(interieur:FindFirstChild("Vanne", true)) or rotorPart

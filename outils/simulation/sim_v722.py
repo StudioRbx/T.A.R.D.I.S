@@ -38,7 +38,8 @@ attendus = {"MarqueSelonMode": True, "GivreSol": 25, "TerrainDepart": True, "Ven
 verifier("Config.Effets : les 8 réglages des traces au sol", all(EF.get(k) == v for k, v in attendus.items()), {k: EF.get(k) for k in attendus})
 cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 i = cfgsrc.index("-- Traces au sol (V7.2.2)")
-nouvelles = [l for l in cfgsrc[i:cfgsrc.index("\n}", i)].splitlines() if re.match(r"\s*\w+ = ", l)]
+fin_bloc = min(j for j in (cfgsrc.find("\n}", i), cfgsrc.find("\n\t-- Sur l'eau", i)) if j > 0)  # (V7.2.3) le bloc suivant n'en fait pas partie
+nouvelles = [l for l in cfgsrc[i:fin_bloc].splitlines() if re.match(r"\s*\w+ = ", l)]
 verifier("Chaque nouveau réglage est commenté « (V7.2.2, G-…) »", len(nouvelles) == 8 and all("(V7.2.2, G-" in l for l in nouvelles), nouvelles[:2])
 verifier("Les réglages de la V7.2.1 restent tous là", all(EF.get(k) is not None for k in ("FenetresNuit", "RefletSoleil", "MarquesSol", "DureeMarques")))
 ST = SY.get("SaleteTerrain")

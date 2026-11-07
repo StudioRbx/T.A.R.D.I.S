@@ -681,6 +681,9 @@ local function atterrir(cible, nom, invisible, partDestination, mode)
 	if exterieur:GetAttribute("Alimentation") == false then return false, "HORS TENSION" end
 	-- Alerte générale : toujours en urgence
 	if exterieur:GetAttribute("Alerte") then mode, urgenceImposee = "Urgence", true end
+	-- Sous l'eau (V7.2.3, C-62) : la cabine remonte à la surface et y flotte (avant le test des murs, fait à la surface)
+	local okEau, remontee = pcall(Config.remonteeEau, cible, exterieur.PrimaryPart and exterieur.PrimaryPart.Size.Y / 2 or 0, workspace:FindFirstChildOfClass("Terrain"))
+	if okEau and remontee then cible = remontee end
 
 	-- Une partie du TARDIS dans un mur : atterrissage d'urgence obligatoire (même en rapide)
 	local urgenceForcee = false

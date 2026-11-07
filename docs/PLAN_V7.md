@@ -82,13 +82,13 @@ Faire vivre la cabine et ce qui l'entoure : lampe et vitres, traces au sol, eau,
 
 **Objectif :** Rendre l'eau crédible : remontée en surface, vol ralenti sous l'eau, cabine lavée, rides, grandes gerbes, vapeur et sillage.
 
-- **C-62. Remat dans l'eau profonde : remontée en surface** *(petit)* : Une destination sous l'eau pose la cabine au fond. Elle remonterait à la surface et flotterait (SurEau, BaseEau), comme quand elle est posée sur l'eau.
-- **C-77. Vol libre ralenti sous l'eau** *(petit)* : Dans l'eau, la vitesse du vol libre serait divisée par deux et le Turbo coupé, comme dans un milieu épais.
-- **C-179. Eau et pluie qui nettoient la cabine** *(petit)* : Posé sur l'eau (SurEau) ou sous la pluie, la saleté baisse toute seule.
-- **G-25. Rides de l'eau autour de la cabine qui flotte** *(petit)* : Quand la cabine flotte (SurEau, BaseEau), des cercles d'eau partent régulièrement de sa base au rythme du tangage. Aujourd'hui elle tangue mais l'eau autour ne bouge pas.
-- **G-26. Grandes gerbes d'eau à l'arrivée et à l'impact** *(petit)* : Un atterrissage ou une chute du vol libre sur l'eau fait jaillir une grande gerbe et un anneau d'écume, au lieu de la bouffée de poussière. En partie là : le tourbillon a déjà une version eau.
-- **G-27. Vapeur qui monte de l'eau pendant la remat** *(petit)* : Pendant une matérialisation sur l'eau, une vapeur blanche monte de la surface à chaque souffle, comme si l'eau chauffait. Elle se dissipe en quelques secondes après l'arrivée.
-- **G-35. Sillage sur l'eau en vol au ras de l'eau** *(moyen)* : Quand la cabine vole juste au-dessus de l'eau, des gerbes et une traînée d'écume la suivent à la surface, selon sa vitesse (vol.vitesseVecteur dans TardisVolLibre).
+- ✅ **C-62. Remat dans l'eau profonde : remontée en surface** *(petit)* : Une destination sous l'eau pose la cabine au fond. Elle remonterait à la surface et flotterait (SurEau, BaseEau), comme quand elle est posée sur l'eau.
+- ✅ **C-77. Vol libre ralenti sous l'eau** *(petit)* : Dans l'eau, la vitesse du vol libre serait divisée par deux et le Turbo coupé, comme dans un milieu épais.
+- ✅ **C-179. Eau et pluie qui nettoient la cabine** *(petit)* : Posé sur l'eau (SurEau) ou sous la pluie, la saleté baisse toute seule.
+- ✅ **G-25. Rides de l'eau autour de la cabine qui flotte** *(petit)* : Quand la cabine flotte (SurEau, BaseEau), des cercles d'eau partent régulièrement de sa base au rythme du tangage. Aujourd'hui elle tangue mais l'eau autour ne bouge pas.
+- ✅ **G-26. Grandes gerbes d'eau à l'arrivée et à l'impact** *(petit)* : Un atterrissage ou une chute du vol libre sur l'eau fait jaillir une grande gerbe et un anneau d'écume, au lieu de la bouffée de poussière. En partie là : le tourbillon a déjà une version eau.
+- ✅ **G-27. Vapeur qui monte de l'eau pendant la remat** *(petit)* : Pendant une matérialisation sur l'eau, une vapeur blanche monte de la surface à chaque souffle, comme si l'eau chauffait. Elle se dissipe en quelques secondes après l'arrivée.
+- ✅ **G-35. Sillage sur l'eau en vol au ras de l'eau** *(moyen)* : Quand la cabine vole juste au-dessus de l'eau, des gerbes et une traînée d'écume la suivent à la surface, selon sa vitesse (vol.vitesseVecteur dans TardisVolLibre).
 
 **Dans Studio :** Rien. Tester sur une zone de Terrain avec de l'eau profonde.
 

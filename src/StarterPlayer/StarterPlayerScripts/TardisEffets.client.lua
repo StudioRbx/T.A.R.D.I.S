@@ -1040,6 +1040,8 @@ do
 	local etatSol = nil    -- état animé à l'image précédente (pour l'arrivée)
 	local arcsPart = nil   -- étincelles de la lampe en urgence
 	local modeSol = "Normal" -- mode de la dernière animation (pour l'arrivée)
+	local derniereRide = 0   -- (V7.2.3, G-25) heure de la dernière ride autour de la cabine qui flotte
+	local vapeur = nil       -- (V7.2.3, G-27) vapeur qui monte de l'eau pendant la remat
 
 	local function exclusionsSol()
 		local liste = { exterieur, interieur }
@@ -1055,6 +1057,64 @@ do
 		souffleSol = nil
 		for _, emetteur in ancien.emetteurs do emetteur.Enabled = false end
 		task.delay(2.5, function() ancien.part:Destroy() end)
+	end
+
+	-- (V7.2.3, G-27) Vapeur au-dessus de l'eau : une bouffée à chaque souffle de la remat, dissipée après l'arrivée
+	local function bouffeeVapeur(position, intensite)
+		if EFFETS.VapeurEau == false then return end
+		local e = echelle()
+		if not vapeur or not vapeur.Parent then
+			local taille = exterieur:GetExtentsSize()
+			vapeur = piece({ Name = "TardisVapeurEau", Transparency = 1, Size = Vector3.new(taille.X * 1.6, 0.2, taille.Z * 1.6), CFrame = CFrame.new(position) })
+			local emetteur = Instance.new("ParticleEmitter")
+			emetteur.Name = "Vapeur"
+			emetteur.Rate = 0
+			emetteur.Lifetime = NumberRange.new(2, 3.5)
+			emetteur.Speed = NumberRange.new(1.5 * e, 4 * e)
+			emetteur.SpreadAngle = Vector2.new(20, 20)
+			emetteur.Acceleration = Vector3.new(0, 1.5 * e, 0)
+			emetteur.Drag = 1
+			emetteur.Color = ColorSequence.new(Color3.fromRGB(235, 242, 248))
+			emetteur.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5 * e), NumberSequenceKeypoint.new(1, 5 * e) })
+			emetteur.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.25, 0.65), NumberSequenceKeypoint.new(1, 1) })
+			emetteur.Shape = Enum.ParticleEmitterShape.Box
+			emetteur.Parent = vapeur
+		end
+		vapeur.CFrame = CFrame.new(position)
+		vapeur.Vapeur:Emit(math.floor((UI.effetsReduits() and 3 or 8) * (0.4 + 0.6 * intensite)))
+	end
+	local function dissiperVapeur()
+		if not vapeur then return end
+		local ancienne = vapeur
+		vapeur = nil
+		task.delay(4, function() ancienne:Destroy() end)
+	end
+
+	-- (V7.2.3, G-26) Arrivée sur l'eau : grande gerbe et anneau d'écume qui s'élargit
+	local function gerbeArrivee(position)
+		if EFFETS.GerbeEau == false then return end
+		local e = echelle()
+		local taille = exterieur:GetExtentsSize()
+		local largeur = math.max(taille.X, taille.Z)
+		local part = piece({ Name = "TardisGerbeEau", Transparency = 1, Size = Vector3.new(largeur, 0.2, largeur), CFrame = CFrame.new(position) })
+		local gouttes = Instance.new("ParticleEmitter")
+		gouttes.Rate = 0
+		gouttes.Lifetime = NumberRange.new(0.8, 1.4)
+		gouttes.Speed = NumberRange.new(16 * e, 32 * e)
+		gouttes.SpreadAngle = Vector2.new(30, 30)
+		gouttes.Acceleration = Vector3.new(0, -55 * e, 0)
+		gouttes.Color = ColorSequence.new(Color3.fromRGB(225, 240, 255))
+		gouttes.Size = NumberSequence.new(0.7 * e, 0.15 * e)
+		gouttes.Transparency = NumberSequence.new(0.15, 1)
+		gouttes.Shape = Enum.ParticleEmitterShape.Box
+		gouttes.Parent = part
+		gouttes:Emit(UI.effetsReduits() and 20 or 60)
+		local anneau = piece({ Name = "TardisEcume", Material = Enum.Material.SmoothPlastic, Shape = Enum.PartType.Cylinder,
+			Color = Color3.fromRGB(240, 248, 255), Transparency = 0.3, Size = Vector3.new(0.2, largeur, largeur),
+			CFrame = CFrame.new(position + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, 0, math.rad(90)) })
+		tween(anneau, 2.2, { Size = Vector3.new(0.2, largeur * 3.5, largeur * 3.5), Transparency = 1 })
+		Debris:AddItem(part, 2)
+		Debris:AddItem(anneau, 2.4)
 	end
 
 	-- Anneau d'émetteurs autour de la cabine : la matière est soufflée en tournant (tangente + un peu vers l'extérieur)
@@ -1169,6 +1229,15 @@ do
 			flottait = true
 			exterieur:PivotTo(base * CFrame.new(0, math.sin(t * 1.2) * 0.25 - 0.15, 0)
 				* CFrame.Angles(math.sin(t * 0.9) * math.rad(2), 0, math.cos(t * 0.7) * math.rad(2.5)))
+			-- (V7.2.3, G-25) Rides qui partent de la base au rythme du tangage (au plus bas de chaque balancement)
+			local intervalle = tonumber(EFFETS.RidesEau) or 0
+			if intervalle > 0 and t - derniereRide >= intervalle and math.sin(t * 1.2) < -0.6
+				and exterieur:GetAttribute("Camouflage") ~= true then
+				derniereRide = t
+				local taille = exterieur:GetExtentsSize()
+				onde((base * CFrame.new(0, -taille.Y / 2 + 0.1, 0)).Position, Color3.fromRGB(230, 240, 250),
+					math.max(taille.X, taille.Z) * 1.4, 2.2, UI.effetsReduits() and 0.8 or 0.6)
+			end
 		elseif flottait then
 			flottait = false
 			if typeof(base) == "CFrame" and not exterieur:GetAttribute("VolLibre") and not exterieur:GetAttribute("Porteur") then
@@ -1210,6 +1279,8 @@ do
 					creerSouffle(resultat.Position, couleur, eau)
 				end
 				souffleSol.part.CFrame = CFrame.new(resultat.Position)
+				-- (V7.2.3, G-27) Remat au-dessus de l'eau : la vapeur monte à chaque souffle
+				if eau and nouveauSouffle and etatAnime == E.Remat then bouffeeVapeur(resultat.Position, intensite) end
 				-- Débit continu qui suit la respiration, plus une rafale au début de chaque souffle
 				for i, emetteur in souffleSol.emetteurs do
 					if i < #souffleSol.emetteurs then
@@ -1279,8 +1350,10 @@ do
 				if souffleSol then
 					for _, emetteur in souffleSol.emetteurs do emetteur:Emit(14) end
 				end
+				if resultat.Material == Enum.Material.Water then gerbeArrivee(resultat.Position) end -- (V7.2.3, G-26)
 			end
 		end
+		if etatMaintenant ~= E.Remat and vapeur then dissiperVapeur() end -- (V7.2.3, G-27) dissipée après l'arrivée
 		etatSol = etatMaintenant
 	end)
 end

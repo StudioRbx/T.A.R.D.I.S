@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.2.2"
+Config.Version = "7.2.3"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -289,6 +289,11 @@ Config.Effets = {
 	CercleGallifreyen = true,    -- (V7.2.2, G-12) remat : cercle d'écriture gallifreyenne qui tourne sous l'ombre annonciatrice
 	ImageCercle = "",            -- (V7.2.2, G-12) image du cercle (ex. "rbxassetid://123") ; vide = cercle dessiné par le code
 	PoussierePlafond = 20,       -- (V7.2.2, G-22) arrivée sous un toit à moins de ce nombre de studs : poussière qui tombe du plafond (0 = jamais)
+	-- Sur l'eau (V7.2.3)
+	RidesEau = 1.6,              -- (V7.2.3, G-25) cabine qui flotte : une ride part de la base toutes les tant de secondes (0 = jamais)
+	GerbeEau = true,             -- (V7.2.3, G-26) grande gerbe et anneau d'écume à l'arrivée sur l'eau et quand le vol libre plonge
+	VapeurEau = true,            -- (V7.2.3, G-27) remat au-dessus de l'eau : de la vapeur monte à chaque souffle, puis se dissipe
+	SillageEau = 12,             -- (V7.2.3, G-35) vol libre à moins de tant de studs au-dessus de l'eau : sillage d'écume (0 = jamais)
 }
 -- Vitres de la cabine (V6.9.9) : rangées dans un dossier (ou Model) « Fenetres » de l'extérieur, ou nommées « Vitre… ».
 -- Sans l'un ni l'autre, détection automatique : pièces en verre (Glass) ou semi-transparentes.
@@ -446,6 +451,7 @@ Config.VolLibre = {
 	GraviteChute = 70,         -- gravité de la chute (double Espace) : plus petit = chute plus lente
 	VitesseDescente = 14,      -- vitesse de l'atterrissage en douceur (studs/s)
 	DelaiSansNouvelles = 8,    -- V6.9.7 : secondes sans position du pilote (figé, déconnecté) avant que le TARDIS se pose seul
+	FacteurEau = 0.5,          -- V7.2.3 (C-77) : dans l'eau, vitesse × ce facteur, TURBO et boost coupés (0 = aucun ralentissement)
 	-- Croisière (V6.9.10, bouton CROISIÈRE du sous-menu PLUS ou touche Entrée) : cap, altitude et vitesse tenus sans
 	-- toucher aux touches. Une touche de direction, le frein, la chute, CIBLE, ATTERRIR ICI ou l'urgence l'arrêtent.
 	Croisiere = {
@@ -946,6 +952,11 @@ Config.Systemes = {
 	-- (V7.2.2, C-178) Saleté selon le sol de l'atterrissage : SaleteParVoyage × ce facteur (1 pour un sol absent de la liste)
 	SaleteTerrain = { Sand = 1.5, Sandstone = 1.25, Mud = 1.75, Ground = 1.25, Snow = 0.5, Ice = 0.5, Glacier = 0.5,
 		Grass = 0.75, LeafyGrass = 0.75, Water = 0.25 },
+	-- (V7.2.3, C-179) L'eau et la pluie nettoient la cabine posée : % de saleté enlevé par minute (0 = jamais)
+	NettoyageEau = 4,               -- posée sur l'eau (elle flotte)
+	NettoyagePluie = 3,             -- posée sous la pluie (voir AttributPluie)
+	AttributPluie = "Pluie",        -- attribut de workspace (vrai = il pleut), posé par la météo ou par un autre script
+	RemonteeEau = 400,              -- (V7.2.3, C-62) remat sous l'eau à moins de tant de studs de la surface : la cabine remonte et flotte (0 = jamais)
 	DegatsStatique = 0.5,           -- dégâts d'un arc statique (toucher la cabine pendant une démat)
 	-- (V6.9.13) Nouvelles pannes aléatoires (même tirage que la vapeur et l'incendie) : poids dans le tirage (0 = jamais)
 	PoidsFuiteAir = 1,
@@ -1739,6 +1750,74 @@ function Config.brumeNuit(clockTime)
 	local duree = math.max(tonumber((Config.Effets or {}).BrumeNuit) or 0, 0)
 	if duree <= 0 or Config.nuitDe(clockTime) < 0.5 then return 0 end
 	return duree
+end
+
+-- Case de Terrain (4 studs) qui contient un point (V7.2.3) : eau ?, occupation (0 à 1), Y du bas de la case
+function Config.caseEau(position, terrain)
+	if typeof(position) ~= "Vector3" or not terrain then return false, 0, 0 end
+	local bas = Vector3.new(math.floor(position.X / 4) * 4, math.floor(position.Y / 4) * 4, math.floor(position.Z / 4) * 4)
+	local ok, materiau, occupation = pcall(function()
+		local materiaux, occupations = terrain:ReadVoxels(Region3.new(bas, bas + Vector3.new(4, 4, 4)), 4)
+		return materiaux[1][1][1], occupations[1][1][1]
+	end)
+	if not ok then return false, 0, bas.Y end
+	return materiau == Enum.Material.Water, tonumber(occupation) or 0, bas.Y
+end
+
+-- Le point est-il dans l'eau du Terrain ? (V7.2.3) : dans une case d'eau, sous son niveau
+function Config.dansLEau(position, terrain)
+	local eau, occupation, basY = Config.caseEau(position, terrain)
+	return eau and position.Y <= basY + 4 * math.max(occupation, 0.05)
+end
+
+-- Hauteur de la surface au-dessus d'un point dans l'eau (V7.2.3, C-62) : on monte case par case, au plus « maxi » studs.
+-- nil si le point n'est pas dans l'eau ou si la surface est plus haut.
+function Config.surfaceEau(position, terrain, maxi)
+	if not Config.dansLEau(position, terrain) then return nil end
+	maxi = tonumber(maxi) or 400
+	local _, occupation, y = Config.caseEau(position, terrain)
+	while y - position.Y <= maxi do
+		local eauDessus, occupationDessus = Config.caseEau(Vector3.new(position.X, y + 6, position.Z), terrain)
+		if not eauDessus then
+			local surface = y + 4 * math.clamp(occupation, 0, 1)
+			if surface - position.Y > maxi then return nil end
+			return surface
+		end
+		y += 4
+		occupation = occupationDessus
+	end
+	return nil
+end
+
+-- Remat sous l'eau (V7.2.3, C-62) : la cible (CFrame de la Racine, de demi-hauteur donnée) remonte à la surface.
+-- nil si elle n'est pas dans l'eau, si l'eau est trop profonde (Systemes.RemonteeEau) ou si la remontée est coupée.
+function Config.remonteeEau(cible, demiHauteur, terrain)
+	local maxi = tonumber((Config.Systemes or {}).RemonteeEau) or 0
+	if maxi <= 0 or typeof(cible) ~= "CFrame" then return nil end
+	local base = cible.Position - Vector3.new(0, tonumber(demiHauteur) or 0, 0)
+	local surface = Config.surfaceEau(base + Vector3.new(0, 1, 0), terrain, maxi)
+	if not surface or surface <= base.Y then return nil end
+	return cible + Vector3.new(0, surface - base.Y, 0)
+end
+
+-- Vitesse du vol libre dans l'eau (V7.2.3, C-77) : TURBO coupé (au plus l'avant-dernier niveau), boost ignoré,
+-- × VolLibre.FacteurEau ; nil si le ralentissement est coupé (FacteurEau à 0)
+function Config.vitesseDansEau(niveaux, niveau)
+	local facteur = tonumber((Config.VolLibre or {}).FacteurEau) or 0.5
+	if facteur <= 0 or type(niveaux) ~= "table" or #niveaux == 0 then return nil end
+	local n = math.clamp(math.floor(tonumber(niveau) or 1), 1, math.max(#niveaux - 1, 1))
+	return (tonumber(niveaux[n]) or 50) * facteur
+end
+
+-- L'eau et la pluie nettoient la cabine posée (V7.2.3, C-179). Rend la nouvelle saleté (toujours un nombre entier)
+-- et le reste à reporter au prochain appel (les fractions de % s'accumulent).
+function Config.nettoyageSalete(salete, surEau, pluie, secondes, reste)
+	local S = Config.Systemes or {}
+	local parMinute = (surEau and math.max(tonumber(S.NettoyageEau) or 0, 0) or 0)
+		+ (pluie and math.max(tonumber(S.NettoyagePluie) or 0, 0) or 0)
+	local total = (tonumber(reste) or 0) + parMinute * math.max(tonumber(secondes) or 0, 0) / 60
+	local enleve = math.floor(total + 1e-9) -- (les erreurs d'arrondi ne font pas perdre un %)
+	return math.max((tonumber(salete) or 0) - enleve, 0), total - enleve
 end
 
 -- État de la salle pour ses lumières (53) : "Alerte", "Voyage" (démat, remat, vol libre visible),
