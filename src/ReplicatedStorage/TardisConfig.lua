@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.3.3"
+Config.Version = "7.3.4"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -2201,6 +2201,55 @@ function Config.forceDelavage(distance)
 	local portee = (Config.AlerteSalle or {}).PorteeDelavee or 200
 	if portee <= 0 or (distance or 0) > portee then return 0 end
 	return 0.5 + 0.5 * math.clamp(1 - (distance or 0) / portee, 0, 1)
+end
+
+
+--------------------------------------------------------------------
+-- (V7.3.4) Console : commandes qui bougent
+--------------------------------------------------------------------
+Config.CommandesConsole = {
+	ContourVise = true,          -- (G-108) contour cyan sur la commande dont l'invite E est affichée
+	CouleurContour = Color3.fromRGB(0, 230, 255),
+	ClignoteRefus = true,        -- (G-107) la commande clignote deux fois en rouge quand le serveur la refuse
+	CouleurRefus = Color3.fromRGB(255, 40, 40),
+	LeviersSuivent = true,       -- (G-103, G-104) les leviers du kit (LeverUp) restent d'accord avec l'état, même changé ailleurs
+	LampeVerrou = true,          -- (G-103) lampes du levier du verrou : vertes ouvertes, rouges verrouillées
+	EtincellesCoupure = true,    -- (G-104) gerbe d'étincelles sur le levier d'alimentation à la coupure
+	InterrupteurAlerte = true,   -- (G-105) l'interrupteur du Cloister bascule et devient un néon rouge pendant l'alerte
+	Interrupteur = { "Console", "Circuit", "Cloister", "Switch" },
+	AngleInterrupteur = 34,      -- degrés (le kit tourne de 3 × 0,2 rad)
+	LevierVol = true,            -- (G-101) le levier de vol s'abaisse au décollage et remonte à l'atterrissage
+	AngleLevierVol = 35,         -- degrés ; une Part « Charniere » à côté du levier donne l'axe, sinon le bout du levier
+	DureeBascule = 0.4,          -- secondes
+}
+
+-- (G-101) Le levier de vol est baissé pendant la dématérialisation et le vol, levé posé et à la rematérialisation
+function Config.levierVolBaisse(etat)
+	return etat == Config.Etats.Demat or etat == Config.Etats.Vol
+end
+
+-- (G-103, G-104) Position voulue d'un levier du kit (valeur LeverUp) : celle du départ tant que l'état est celui du départ
+function Config.etatLevierKit(leveDepart, actifDepart, actif)
+	if (actif == true) == (actifDepart == true) then return leveDepart == true end
+	return leveDepart ~= true
+end
+
+-- (G-103) Couleur des lampes du levier du verrou
+function Config.couleurLampeVerrou(verrouille)
+	if verrouille then return Color3.fromRGB(255, 50, 40) end
+	return Color3.fromRGB(60, 255, 90)
+end
+
+-- (G-107) Clignotement rouge du refus : allumé de 0 à 0,15 s et de 0,3 à 0,45 s, fini à 0,6 s
+function Config.clignotementRefus(t)
+	t = t or 0
+	if t < 0 or t >= 0.6 then return false end
+	return t < 0.15 or (t >= 0.3 and t < 0.45)
+end
+
+-- (G-101, G-105) Bascule d'une pièce autour d'un pivot (CFrame), d'un angle en degrés autour de l'axe X du pivot
+function Config.cframeBascule(cframe, pivot, angle)
+	return pivot * CFrame.Angles(math.rad(angle or 0), 0, 0) * pivot:Inverse() * cframe
 end
 
 return Config

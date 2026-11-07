@@ -164,12 +164,12 @@ Rendre la salle plus vivante et plus lisible : surchauffe et vapeur, ambiance, a
 
 **Objectif :** Faire bouger les vraies commandes de la console : levier de vol, levier du verrou, levier d'alimentation, interrupteur d'alerte, contour sur la commande visée, clignotement rouge au refus.
 
-- **G-108. Contour lumineux sur la commande visée** *(petit)* : Quand l'invite E d'une commande s'affiche (PromptShown côté client), la pièce reçoit un léger contour cyan : on sait quel levier on va actionner parmi tous ceux de la console.
-- **G-107. Commande qui clignote en rouge au refus** *(moyen)* : Quand le serveur refuse une commande de la console (PATIENTEZ, HORS TENSION, EN MAINTENANCE), la pièce touchée clignote deux fois en rouge, en plus du message à l'écran.
-- **G-103. Levier du verrou qui suit les portes** *(petit)* : Le levier LeverLeft reste baissé tant que PortesVerrouillees est vrai et remonte sinon ; une petite lampe au bout passe du vert au rouge.
-- **G-104. Levier d'alimentation animé avec étincelle** *(petit)* : Le LockLever bascule à chaque coupure ou retour du courant, avec une courte gerbe d'étincelles à la coupure (basculerAlimentation).
-- **G-105. Interrupteur d'alerte qui s'allume en rouge** *(petit)* : Le Switch du Cloister bascule et devient un néon rouge tant que l'Alerte est active : on voit d'où vient l'alerte et comment la lever.
-- **G-101. Levier de vol qui bascule vraiment** *(moyen)* : Le levier de vol (Config.Chemins.Levier) s'abaisse au décollage et remonte à l'atterrissage, selon l'attribut Etat. Aujourd'hui, seul le texte de l'invite change (promptLevier) ; ce sont les vraies commandes, pas les interrupteurs décoratifs déjà prévus.
+- ✅ **G-108. Contour lumineux sur la commande visée** *(petit)* : Quand l'invite E d'une commande s'affiche (PromptShown côté client), la pièce reçoit un léger contour cyan : on sait quel levier on va actionner parmi tous ceux de la console.
+- ✅ **G-107. Commande qui clignote en rouge au refus** *(moyen)* : Quand le serveur refuse une commande de la console (PATIENTEZ, HORS TENSION, EN MAINTENANCE), la pièce touchée clignote deux fois en rouge, en plus du message à l'écran.
+- ✅ **G-103. Levier du verrou qui suit les portes** *(petit)* : Le levier LeverLeft reste baissé tant que PortesVerrouillees est vrai et remonte sinon ; une petite lampe au bout passe du vert au rouge.
+- ✅ **G-104. Levier d'alimentation animé avec étincelle** *(petit)* : Le LockLever bascule à chaque coupure ou retour du courant, avec une courte gerbe d'étincelles à la coupure (basculerAlimentation).
+- ✅ **G-105. Interrupteur d'alerte qui s'allume en rouge** *(petit)* : Le Switch du Cloister bascule et devient un néon rouge tant que l'Alerte est active : on voit d'où vient l'alerte et comment la lever.
+- ✅ **G-101. Levier de vol qui bascule vraiment** *(moyen)* : Le levier de vol (Config.Chemins.Levier) s'abaisse au décollage et remonte à l'atterrissage, selon l'attribut Etat. Aujourd'hui, seul le texte de l'invite change (promptLevier) ; ce sont les vraies commandes, pas les interrupteurs décoratifs déjà prévus.
 
 **Dans Studio :** Vérifier les pièces Levier, LeverLeft, LockLever et le Switch du Cloister sur TARDIS_1. Ajouter une Part « Charniere » sur l'axe de chaque levier pour qu'il pivote juste (à reproduire sur TARDIS_2 et TARDIS_3 en V11).
 

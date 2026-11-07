@@ -32,6 +32,7 @@
 | V7.3.1 | Surchauffe, vapeur et écrans Diagnostic | ✅ faite (07/11) |
 | V7.3.2 | Salle : ambiance, jukebox et style | ✅ faite (07/11) |
 | V7.3.3 | Alerte et auto-destruction | ✅ faite (07/11) |
+| V7.3.4 | Console : commandes qui bougent | ✅ faite (07/11) |
 | V7.3 | Salle de contrôle et console (5 lots) | 🚧 en cours |
 | V7.4 | Caméras et confort de l'écran (2 lots) | 🔜 prévue |
 | V7.5 | Régénération de la C.A.T. (6 lots) | 🔜 prévue |

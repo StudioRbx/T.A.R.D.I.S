@@ -559,5 +559,75 @@ return function(contexte)
 		end
 	end)
 
+
+	--------------------------------------------------------------------
+	-- (V7.3.4, G-108) Contour cyan sur la commande dont l'invite E est affichée : on sait quel levier on va actionner.
+	-- (G-107) Quand le serveur refuse la commande (PATIENTEZ, HORS TENSION, EN MAINTENANCE…), il augmente le compteur
+	-- « TardisRefus » de l'invite : la commande clignote deux fois en rouge. Les invites de la console portent un ObjectValue
+	-- « TardisCible » (la pièce de la commande). Un seul contour à la fois ; aucune boucle par image.
+	--------------------------------------------------------------------
+	do
+		local REG = Config.CommandesConsole or {}
+		local okService, invites = pcall(function() return game:GetService("ProximityPromptService") end)
+		if okService and invites then
+			-- La commande entière si c'est un petit Model (12 pièces au plus), sinon la pièce seule
+			local function cibleDe(prompt)
+				local valeur = prompt:FindFirstChild("TardisCible")
+				local part = valeur and valeur.Value
+				if not (part and part:IsA("BasePart") and part:IsDescendantOf(interieur)) then return nil end
+				local parent = part.Parent
+				if parent and parent ~= interieur and parent:IsA("Model") then
+					local n = 0
+					for _, objet in parent:GetDescendants() do
+						if objet:IsA("BasePart") then n += 1 end
+					end
+					if n <= 12 then return parent end
+				end
+				return part
+			end
+			local contour, promptContour, refus = nil, nil, nil
+			local suivis = {} -- [prompt] = true : refus déjà écoutés
+			local function retirerContour()
+				if contour then contour:Destroy() end
+				contour, promptContour = nil, nil
+			end
+			local function clignoter(cible)
+				if REG.ClignoteRefus == false or not cible then return end
+				if refus then refus:Destroy() end
+				local rouge = REG.CouleurRefus or Color3.fromRGB(255, 40, 40)
+				local h = creer("Highlight", { Name = "TardisRefusCommande", Adornee = cible, FillColor = rouge, OutlineColor = rouge,
+					FillTransparency = 0.35, OutlineTransparency = 0, DepthMode = Enum.HighlightDepthMode.Occluded, Parent = cible })
+				refus = h
+				for _, instant in { 0.15, 0.3, 0.45, 0.6 } do
+					task.delay(instant, function()
+						if refus ~= h then return end
+						if instant >= 0.6 then
+							h:Destroy()
+							refus = nil
+						else
+							h.Enabled = Config.clignotementRefus(instant)
+						end
+					end)
+				end
+			end
+			invites.PromptShown:Connect(function(prompt)
+				local cible = cibleDe(prompt)
+				if not cible then return end
+				if not suivis[prompt] then
+					suivis[prompt] = true
+					prompt:GetAttributeChangedSignal("TardisRefus"):Connect(function() clignoter(cibleDe(prompt)) end)
+				end
+				if REG.ContourVise == false then return end
+				retirerContour()
+				local cyan = REG.CouleurContour or Color3.fromRGB(0, 230, 255)
+				contour = creer("Highlight", { Name = "TardisContourCommande", Adornee = cible, FillColor = cyan, OutlineColor = cyan,
+					FillTransparency = 1, OutlineTransparency = 0, DepthMode = Enum.HighlightDepthMode.Occluded, Parent = cible })
+				promptContour = prompt
+			end)
+			invites.PromptHidden:Connect(function(prompt)
+				if prompt == promptContour then retirerContour() end
+			end)
+		end
+	end
 	return { fermer = fermerPanneau }
 end

@@ -1078,7 +1078,19 @@ local function creerPrompt(part, action, objet, exclu, hauteur)
 	local attache, point
 	if h then attache, point = Config.pointInvite(objet or part, h, exclu, part) end
 	prompt.Parent = attache or part
+	-- (V7.3.4, G-107, G-108) la pièce de la commande, pour son contour et son clignotement côté client
+	local cible = Instance.new("ObjectValue")
+	cible.Name = "TardisCible"
+	cible.Value = part
+	cible.Parent = prompt
 	return prompt, point or part.Position
+end
+
+-- (V7.3.4, G-107) Refus d'une commande : le message à l'écran, et un compteur sur l'invite que les clients regardent
+-- pour faire clignoter la pièce en rouge
+local function refuser(prompt, message)
+	alerter(message)
+	if prompt then prompt:SetAttribute("TardisRefus", (prompt:GetAttribute("TardisRefus") or 0) + 1) end
 end
 
 -- (V6.9.16) Animation du kit : les leviers et le bouton rouge ont déjà leurs scripts d'animation (clic sur leur
@@ -1113,23 +1125,23 @@ promptSelecteur.Triggered:Connect(function(joueur)
 	if not disponible() then return end
 	if not estAlimente() then return end -- écran éteint, rien ne répond
 	local _, total = destinationChoisie()
-	if total == 0 then alerter("AUCUNE DESTINATION") return end
+	if total == 0 then refuser(promptSelecteur, "AUCUNE DESTINATION") return end
 	indexDestination = indexDestination % total + 1
 	majEcran()
 end)
 
 promptLevier.Triggered:Connect(function(joueur)
 	if not pilotes[joueur] then return end
-	if Config.bloqueParMaintenance(exterieur, "Demat") then alerter("EN MAINTENANCE") return end
+	if Config.bloqueParMaintenance(exterieur, "Demat") then refuser(promptLevier, "EN MAINTENANCE") return end
 	marquerActivite()
 	if not disponible() then return end
 	local dest = destinationChoisie()
-	if not dest then alerter("AUCUNE DESTINATION") return end
+	if not dest then refuser(promptLevier, "AUCUNE DESTINATION") return end
 
 	local etat = etatActuel()
 	local retreci = exterieur:GetAttribute("Retreci") == true
 	if etat == E.Pose then
-		if dest == partage.positionActuelle and not retreci then alerter("DÉJÀ SUR PLACE") return end
+		if dest == partage.positionActuelle and not retreci then refuser(promptLevier, "DÉJÀ SUR PLACE") return end
 		task.spawn(voyager, dest)
 	elseif etat == E.Vol then
 		task.spawn(function()
@@ -1140,10 +1152,10 @@ promptLevier.Triggered:Connect(function(joueur)
 			else
 				ok, erreur = atterrir(dest.CFrame, dest.Name, false, dest, modeLevier())
 			end
-			if not ok then alerter(erreur) end
+			if not ok then refuser(promptLevier, erreur) end
 		end)
 	else
-		alerter("PATIENTEZ")
+		refuser(promptLevier, "PATIENTEZ")
 	end
 end)
 
@@ -1188,7 +1200,7 @@ local function brancherCommande(cle, texteActif, texteInactif, attribut, valeurA
 				animerKit(part) -- (V6.9.16)
 				alerter((exterieur:GetAttribute(attribut) == valeurActive) and messageActif or messageInactif)
 			else
-				alerter(erreur)
+				refuser(prompt, erreur)
 			end
 		end)
 	end)
@@ -1232,11 +1244,169 @@ if Config.Chemins.Verrou then
 					animerKit(partVerrou) -- (V6.9.16)
 					alerter(exterieur:GetAttribute("PortesVerrouillees") and "PORTES VERROUILLÉES" or "PORTES DÉVERROUILLÉES")
 				else
-					alerter(erreur)
+					refuser(promptVerrou, erreur)
 				end
 			end)
 		end)
 	end)
+end
+
+--------------------------------------------------------------------
+-- (V7.3.4) Commandes de la console qui bougent : leviers du kit d'accord avec l'état, lampes du verrou, étincelles à la
+-- coupure, interrupteur d'alerte, levier de vol. Rien à faire si une pièce manque : la commande reste comme avant.
+--------------------------------------------------------------------
+do
+	local reglages = Config.CommandesConsole or {}
+	local DUREE = math.max(tonumber(reglages.DureeBascule) or 0.4, 0)
+	-- Bascule douce d'une pièce vers un CFrame (8 pas) ; un nouvel ordre remplace le précédent
+	local jetons = {}
+	local function basculer(part, cible)
+		jetons[part] = (jetons[part] or 0) + 1
+		local moi, depart = jetons[part], part.CFrame
+		if DUREE <= 0 then part.CFrame = cible return end
+		task.spawn(function()
+			for i = 1, 8 do
+				task.wait(DUREE / 8)
+				if jetons[part] ~= moi or not part.Parent then return end
+				part.CFrame = depart:Lerp(cible, i / 8)
+			end
+		end)
+	end
+	-- Levier du kit au-dessus de la pièce : Model avec une BoolValue « LeverUp » et le BindableEvent « TardisAnimer »
+	local function levierKit(part)
+		local o = part
+		for _ = 0, 3 do
+			if not o or o == interieur then return nil end
+			local leve, ev = o:FindFirstChild("LeverUp"), o:FindFirstChild(NOM_ANIMATION)
+			if leve and leve:IsA("BoolValue") and ev and ev:IsA("BindableEvent") then return o, leve, ev end
+			o = o.Parent
+		end
+		return nil
+	end
+	-- (G-103, G-104) Le levier suit l'attribut, même quand il change ailleurs (tablette, mode siège, coupure) :
+	-- 0,6 s après chaque changement, s'il n'est pas dans la bonne position, on joue son animation (une fois)
+	local function suivre(cle, attribut, valeurActive, apres)
+		task.spawn(function()
+			local objet = Config.trouverCommande(interieur, cle, 10)
+			local part = objet and enPart(objet)
+			if not part then return end
+			local modele, leve, ev = levierKit(part)
+			local actif = function() return exterieur:GetAttribute(attribut) == valeurActive end
+			local leveDepart, actifDepart = leve and leve.Value, actif()
+			local jeton = 0
+			exterieur:GetAttributeChangedSignal(attribut):Connect(function()
+				jeton += 1
+				local moi = jeton
+				if apres then apres(part, modele, actif()) end
+				if not (reglages.LeviersSuivent ~= false and modele) then return end
+				task.delay(0.6, function()
+					if moi ~= jeton or not leve.Parent then return end
+					if leve.Value ~= Config.etatLevierKit(leveDepart, actifDepart, actif()) then ev:Fire() end
+				end)
+			end)
+			if apres then apres(part, modele, actif(), true) end
+		end)
+	end
+	-- (G-103) Lampes du levier du verrou (pièces « Bulb… » à côté du levier) : vertes ouvertes, rouges verrouillées
+	if Config.Chemins.Verrou then
+		local function allumer(support)
+			local verrouille = exterieur:GetAttribute("PortesVerrouillees") == true
+			for _, lampe in support:GetChildren() do
+				if lampe:IsA("BasePart") and string.sub(lampe.Name, 1, 4) == "Bulb" then
+					lampe.Color = Config.couleurLampeVerrou(verrouille)
+					lampe.Material = Enum.Material.Neon
+				end
+			end
+		end
+		suivre("Verrou", "PortesVerrouillees", true, function(part, modele)
+			if reglages.LampeVerrou == false then return end
+			local support = (modele and modele.Parent) or part.Parent
+			if not support or support == interieur then return end
+			allumer(support)
+			-- le script Effects du kit éteint ses lampes 0,2 s après l'animation : on les rallume ensuite
+			task.delay(1, function() if support.Parent then allumer(support) end end)
+		end)
+	end
+	-- (G-104) Levier d'alimentation : il bascule à chaque coupure ou retour, avec une gerbe d'étincelles à la coupure
+	if Config.Chemins.Alimentation then
+		suivre("Alimentation", "Alimentation", false, function(part, _, coupe, depart)
+			if depart or not coupe or reglages.EtincellesCoupure == false then return end
+			local point = Instance.new("Attachment")
+			point.Name = "TardisEtincellesCoupure"
+			point.Parent = part
+			local gerbe = Instance.new("ParticleEmitter")
+			gerbe.Color = ColorSequence.new(Color3.fromRGB(255, 220, 120), Color3.fromRGB(255, 120, 40))
+			gerbe.LightEmission = 1
+			gerbe.Lifetime = NumberRange.new(0.2, 0.5)
+			gerbe.Speed = NumberRange.new(6, 12)
+			gerbe.SpreadAngle = Vector2.new(60, 60)
+			gerbe.Size = NumberSequence.new(0.12, 0)
+			gerbe.Rate = 0
+			gerbe.Parent = point
+			gerbe:Emit(25)
+			game:GetService("Debris"):AddItem(point, 1.5)
+		end)
+	end
+	-- (G-105) Interrupteur d'alerte (Cloister › Switch) : il bascule et devient un néon rouge pendant l'alerte ;
+	-- le bouton rouge de l'alerte (Config.Chemins.Alerte) brille aussi, pour montrer comment la lever
+	if reglages.InterrupteurAlerte ~= false then
+		task.spawn(function()
+			local function chercher(chemin)
+				local o = interieur
+				for _, nom in chemin or {} do o = o and o:FindFirstChild(nom) end
+				return o and enPart(o)
+			end
+			local interrupteur = chercher(reglages.Interrupteur)
+			local objetBouton = Config.trouverCommande(interieur, "Alerte", 10)
+			local bouton = objetBouton and enPart(objetBouton)
+			local origines = {}
+			for _, part in { interrupteur, bouton } do
+				if part then origines[part] = { Color = part.Color, Material = part.Material } end
+			end
+			if not next(origines) then return end
+			local bascule = false
+			local cibleInterrupteur = interrupteur and interrupteur.CFrame
+			local function maj()
+				local alerte = exterieur:GetAttribute("Alerte") == true
+				for part, origine in origines do
+					if part.Parent then
+						part.Material = alerte and Enum.Material.Neon or origine.Material
+						part.Color = alerte and Color3.fromRGB(255, 30, 30) or origine.Color
+					end
+				end
+				if interrupteur and interrupteur.Parent and alerte ~= bascule then
+					bascule = alerte
+					local angle = (alerte and -1 or 1) * (tonumber(reglages.AngleInterrupteur) or 34)
+					cibleInterrupteur = Config.cframeBascule(cibleInterrupteur, cibleInterrupteur, angle)
+					basculer(interrupteur, cibleInterrupteur)
+				end
+			end
+			exterieur:GetAttributeChangedSignal("Alerte"):Connect(maj)
+			maj()
+		end)
+	end
+	-- (G-101) Levier de vol : baissé au décollage (dématérialisation et vol), levé à l'atterrissage. Il tourne autour d'une
+	-- Part « Charniere » rangée à côté de lui s'il y en a une, sinon autour de son bout (face -Y)
+	if reglages.LevierVol ~= false and levier and levier.Parent then
+		local baisse = false
+		local function pivotLevier(base)
+			local charniere = (objetLevier and objetLevier:FindFirstChild("Charniere")) or (levier.Parent and levier.Parent:FindFirstChild("Charniere"))
+			if charniere and charniere:IsA("BasePart") then return charniere.CFrame end
+			return base * CFrame.new(0, -levier.Size.Y / 2, 0)
+		end
+		local function majLevierVol()
+			local voulu = Config.levierVolBaisse(etatActuel())
+			if voulu == baisse then return end
+			baisse = voulu
+			local angle = (voulu and 1 or -1) * (tonumber(reglages.AngleLevierVol) or 35)
+			-- depuis la position visée (et pas la position du moment) : un aller-retour rapide revient pile au départ
+			local base = levier:GetAttribute("TardisCibleLevier") or levier.CFrame
+			local cible = Config.cframeBascule(base, pivotLevier(base), angle)
+			levier:SetAttribute("TardisCibleLevier", cible)
+			basculer(levier, cible)
+		end
+		exterieur:GetAttributeChangedSignal("Etat"):Connect(majLevierVol)
+	end
 end
 
 --------------------------------------------------------------------
