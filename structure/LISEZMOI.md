@@ -27,6 +27,10 @@ sont celles de DEVMAP : déplacer l'intérieur et l'extérieur (Pivot) à l'endr
 vérifiés et chargés dans `ServerStorage › TARDIS_Structure_V<version>`. Avec `PLACER = true`, chacun est aussi mis à sa place ; ce
 qui s'y trouvait est rangé dans `ServerStorage › TARDIS_Sauvegarde_<date>`, jamais supprimé.
 
+**Map en Streaming** (`Workspace.StreamingEnabled`) : l'intérieur doit être un Model en `ModelStreamingMode = Persistent`, sinon le
+client ne reçoit pas les pièces loin de lui et le menu (T) et la tablette (Y) ne s'ouvrent pas. L'import le fait (Model
+`TARDIS_1_INTERIEURE` dans `INTERIEURE`), et le serveur aussi au démarrage depuis la V6.9.17 ; mettre aussi l'extérieur en Persistent.
+
 Puis mettre les scripts du système à jour avec `outils/synchro_github.luau`.
 
 ## Refaire l'export depuis Studio

@@ -110,6 +110,20 @@ return function(def, exterieur, interieur)
 	if #manquantes > 0 then
 		warn("[TARDIS] " .. def.Nom .. " : pièces OBLIGATOIRES manquantes : " .. table.concat(manquantes, ", "))
 	end
+	-- Streaming (V6.9.17) : l'intérieur et l'extérieur doivent arriver en entier chez le client (Model Persistent)
+	if workspace.StreamingEnabled then
+		local nonPersistants = {}
+		for _, objet in { interieur, exterieur } do
+			if not objet:IsA("Model") or objet.ModelStreamingMode ~= Enum.ModelStreamingMode.Persistent then
+				table.insert(nonPersistants, objet:GetFullName())
+			end
+		end
+		if #nonPersistants > 0 then
+			warn("[TARDIS] " .. def.Nom .. " : map en Streaming, à mettre en Model avec ModelStreamingMode = Persistent : "
+				.. table.concat(nonPersistants, ", ") .. " (sinon le client peut ne pas recevoir les pièces loin de lui)")
+		end
+		ligne ..= " · streaming : " .. (#nonPersistants == 0 and "ok" or "à régler")
+	end
 	if #optionnellesAbsentes > 0 then
 		ligne ..= " · absentes : " .. table.concat(optionnellesAbsentes, ", ")
 	end

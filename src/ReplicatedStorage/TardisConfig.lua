@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "6.9.16"
+Config.Version = "6.9.17"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -539,10 +539,31 @@ local function salleDe(dossierInt)
 	if dossierInt:FindFirstChild(Config.NomPortailInt) or dossierInt:FindFirstChild(Config.NomRotor) then return dossierInt end
 	return dossierInt:FindFirstChildWhichIsA("Model")
 end
+-- Maps en Streaming (V6.9.17) : un dossier n'est jamais envoyé en entier au client, seulement les pièces proches du joueur.
+-- Avec les pièces posées directement dans INTERIEURE, le client ne trouvait jamais le Portail ni le Rotor et restait bloqué
+-- (menu T et tablette Y absents). Le serveur range alors, au démarrage, tout le contenu du dossier dans un Model
+-- « <Nom>_INTERIEURE » en ModelStreamingMode Persistent : le client le reçoit en entier, dès son arrivée.
+-- Sans Streaming, rien ne change. Aucune attente entre la vérification et le rangement : le premier script serveur qui
+-- demande l'intérieur fait le rangement, les suivants trouvent directement le Model.
+local function rangerPourLeStreaming(def, dossierInt)
+	local okServeur, estServeur = pcall(function() return game:GetService("RunService"):IsServer() end)
+	if not (okServeur and estServeur) or not workspace.StreamingEnabled then return dossierInt end
+	if salleDe(dossierInt) ~= dossierInt then return salleDe(dossierInt) end
+	local centre = Config.boite(dossierInt) -- même repère qu'avant (centre de la boîte du dossier)
+	local modele = Instance.new("Model")
+	modele.Name = def.Nom .. "_INTERIEURE"
+	modele.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+	for _, enfant in dossierInt:GetChildren() do enfant.Parent = modele end
+	modele.WorldPivot = centre
+	modele.Parent = dossierInt
+	warn(string.format("[TARDIS] %s : map en Streaming, l'intérieur a été rangé dans le Model %s (Persistent) pour que le menu (T) et la tablette (Y) le trouvent. Pour l'éviter à chaque démarrage, faire de même dans Studio.", def.Nom, modele:GetFullName()))
+	return modele
+end
 function Config.modeles(def)
 	local dossier = workspace:WaitForChild(Config.NomDossierTardis):WaitForChild(def.Nom)
 	local dossierExt = dossier:WaitForChild(Config.NomDossierExterieur)
 	local dossierInt = dossier:WaitForChild(Config.NomDossierInterieur)
+	if salleDe(dossierInt) == dossierInt then rangerPourLeStreaming(def, dossierInt) end
 	local exterieur, interieur = dossierExt:FindFirstChildWhichIsA("Model"), salleDe(dossierInt)
 	while not exterieur or not interieur do
 		task.wait(0.5)

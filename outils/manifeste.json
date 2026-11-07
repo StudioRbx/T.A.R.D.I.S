@@ -1,5 +1,5 @@
 {
- "version": "6.9.16",
+ "version": "6.9.17",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 101546,
-   "empreinte": 1601564855
+   "taille": 103300,
+   "empreinte": 547611232
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -34,8 +34,8 @@
    "nom": "TardisDiagnostic",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 5685,
-   "empreinte": 1919773901
+   "taille": 6428,
+   "empreinte": 794690657
   },
   {
    "fichier": "src/ServerScriptService/TardisExtras.server.lua",

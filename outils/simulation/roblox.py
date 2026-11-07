@@ -470,7 +470,8 @@ def _defauts(classe):
                 "CanQuery": True}  # V6.9.10.5 : lu par la caméra des casiers (rayons)
     if classe in ("PointLight", "SpotLight", "SurfaceLight"):
         return {"Brightness": 1, "Range": 8, "Color": Couleur(1, 1, 1), "Enabled": True, "Shadows": False}
-    if classe == "Model": return {"PrimaryPart": None}  # V6.9.10.1 : comme Roblox, pas de PrimaryPart par défaut
+    if classe == "Workspace": return {"StreamingEnabled": False}  # V6.9.17 : map sans Streaming par défaut
+    if classe == "Model": return {"PrimaryPart": None, "ModelStreamingMode": Valeur("Enum.ModelStreamingMode.Default")}  # V6.9.10.1 : comme Roblox, pas de PrimaryPart par défaut ; V6.9.17 : mode de Streaming
     if classe == "ColorCorrectionEffect": return {"Brightness": 0, "Contrast": 0, "Saturation": 0, "TintColor": Couleur(1, 1, 1), "Enabled": True}
     if classe == "BlurEffect": return {"Size": 24, "Enabled": True}
     if classe == "ParticleEmitter": return {"Rate": 5, "Enabled": True}

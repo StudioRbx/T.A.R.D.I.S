@@ -79,6 +79,17 @@ local ok, err = pcall(function()
 			end
 			local place = racine:Clone()
 			place.Name = f.nom
+			-- Map en Streaming (V6.9.17) : les pièces de l'intérieur sont rangées dans un Model Persistent « <TARDIS>_INTERIEURE »,
+			-- sinon le client ne reçoit que les pièces proches de lui et le menu (T) et la tablette (Y) ne s'ouvrent pas
+			if workspace.StreamingEnabled and f.nom == "INTERIEURE" and (place:FindFirstChild("Portail") or place:FindFirstChild("Rotor")) then
+				local modele = Instance.new("Model")
+				modele.Name = parent.Name .. "_INTERIEURE"
+				modele.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+				for _, enfant in place:GetChildren() do enfant.Parent = modele end
+				modele.Parent = place
+				modele.WorldPivot = CFrame.new((modele:GetBoundingBox()).Position)
+				table.insert(rapport, "streaming : intérieur rangé dans le Model Persistent " .. modele.Name)
+			end
 			place.Parent = parent
 			table.insert(rapport, "placé : " .. place:GetFullName())
 		end

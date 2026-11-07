@@ -19,6 +19,7 @@
 | V6.9.14 | Équipage et garde-robe | ✅ faite (06/11) |
 | V6.9.15 | Confort de l'interface et accessibilité | ✅ faite (06/11) |
 | V6.9.16 | Retouches de la console (demandées après les tests) | ✅ faite (07/11) |
+| V6.9.17 | Maps en Streaming (menu T et tablette Y) | ✅ faite (07/11) |
 | **V7** | Modifications : 357 propositions du second tri | 🔜 prévue |
 | V7.1 | Corrections et banc d'essai (2 lots) | 🔜 prévue |
 | V7.2 | Cabine et monde extérieur (4 lots) | 🔜 prévue |
