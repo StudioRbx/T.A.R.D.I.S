@@ -477,5 +477,44 @@ return function(contexte)
 		task.delay(6, function() support:Destroy() end)
 	end)
 
+	--------------------------------------------------------------------
+	-- 21 quater) (V7.3.1, G-63) Cabine qui chauffe : près de la coupure, la cabine posée fume du toit et l'air ondule autour
+	--------------------------------------------------------------------
+	do
+		local toit, air = nil, nil
+		task.spawn(function()
+			while true do
+				task.wait(0.5)
+				local chaleur = Config.chaleurCabine(exterieur:GetAttribute("VoyagesConsecutifs") or 0, (Config.Systemes or {}).VoyagesAvantCoupure or 5)
+				local posee = exterieur:GetAttribute("Etat") == Config.Etats.Pose and exterieur:GetAttribute("VolLibre") == nil
+					and exterieur:GetAttribute("Camouflage") ~= true and exterieur:GetAttribute("Detruit") ~= true
+				if chaleur > 0 and posee then
+					local pivot = exterieur:GetPivot()
+					local taille = exterieur:GetExtentsSize()
+					local haut = taille.Y - (exterieur.PrimaryPart and exterieur.PrimaryPart.Size.Y / 2 or 0.5)
+					if not toit then
+						toit = partTemporaire({ Name = "TardisChaleur", Transparency = 1, Size = Vector3.new(taille.X, 0.2, taille.Z), CFrame = pivot * CFrame.new(0, haut, 0) })
+						creer("ParticleEmitter", { Name = "Vapeur", Texture = "rbxasset://textures/particles/smoke_main.dds", Color = ColorSequence.new(Color3.fromRGB(235, 235, 235)),
+							Transparency = NumberSequence.new(0.5, 1), Size = NumberSequence.new(1, 4), Lifetime = NumberRange.new(1.5, 3), Speed = NumberRange.new(1, 3),
+							EmissionDirection = Enum.NormalId.Top, Rate = 0, Parent = toit })
+						air = partTemporaire({ Name = "TardisChaleurAir", Transparency = 1, Size = taille, CFrame = pivot * CFrame.new(0, haut / 2, 0) })
+						creer("ParticleEmitter", { Name = "Ondulation", Texture = "rbxasset://textures/particles/smoke_main.dds", Color = ColorSequence.new(Color3.fromRGB(255, 255, 255)),
+							Transparency = NumberSequence.new(0.94, 1), Size = NumberSequence.new(2, 3), Lifetime = NumberRange.new(0.8, 1.2), Speed = NumberRange.new(1, 2),
+							EmissionDirection = Enum.NormalId.Top, Rate = 0, Parent = air })
+					end
+					toit.CFrame = pivot * CFrame.new(0, haut, 0)
+					air.CFrame = pivot * CFrame.new(0, haut / 2, 0)
+					local facteur = effetsReduits() and 0.4 or 1
+					toit.Vapeur.Rate = 12 * chaleur * facteur
+					air.Ondulation.Rate = 8 * chaleur * facteur
+				elseif toit then
+					toit:Destroy()
+					air:Destroy()
+					toit, air = nil, nil
+				end
+			end
+		end)
+	end
+
 	return {}
 end

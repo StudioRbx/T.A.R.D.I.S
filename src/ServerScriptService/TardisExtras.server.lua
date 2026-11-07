@@ -864,7 +864,7 @@ do
 		for _, objet in rotor:GetDescendants() do
 			if objet:IsA("BasePart") then table.insert(pieces, objet) end
 		end
-		local dernierClic = 0
+		local dernierClic, clicsRapides = 0, {} -- (V7.3.1, C-184) heures des derniers clics
 		for _, piece in pieces do
 			local clic = Instance.new("ClickDetector")
 			clic.MaxActivationDistance = 12
@@ -875,6 +875,10 @@ do
 				local enPanne = exterieur:GetAttribute("Avarie") == true or exterieur:GetAttribute("RedemarrageRequis") == true
 				if not enPanne and exterieur:GetAttribute("Alimentation") == false then return end
 				dernierClic = os.clock()
+				-- (V7.3.1, C-184) cliqué sans arrêt : le rotor surmené fait monter la surchauffe (TardisSystemes)
+				if not enPanne and Config.rotorSurmene(clicsRapides, os.clock()) then
+					exterieur:SetAttribute("RotorSurmene", workspace:GetServerTimeNow())
+				end
 				if enPanne then
 					exterieur:SetAttribute("PanneEtincelles", workspace:GetServerTimeNow())
 				else

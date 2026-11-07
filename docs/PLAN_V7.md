@@ -116,16 +116,16 @@ Rendre la salle plus vivante et plus lisible : surchauffe et vapeur, ambiance, a
 
 **Objectif :** Rendre la surchauffe juste et visible : le compteur redescend au repos, un avertissement arrive avant la coupure, et la salle le montre par la vapeur, les grilles et les écrans Diagnostic.
 
-- **C-98. Compteur de voyages consécutifs qui redescend au repos** *(petit)* : Le compteur de VoyagesAvantCoupure ne revient à zéro qu'au redémarrage. Chaque minute posé enlèverait un voyage.
-- **C-117. Surchauffe annoncée avant la coupure** *(petit)* : À deux voyages de VoyagesAvantCoupure, un avertissement et plus de vapeur : les pilotes peuvent laisser refroidir au lieu de subir la coupure.
-- **C-184. Rotor tapoté trop souvent qui surchauffe** *(petit)* : Le rotor interactif accepte un clic toutes les 0,5 s. Trop de clics en peu de temps compteraient comme un voyage dans le compteur de coupure : on ne joue pas avec la console.
-- **G-63. Surchauffe visible après plusieurs voyages d'affilée** *(petit)* : Avec l'attribut VoyagesConsecutifs élevé, la cabine posée dégage un peu de chaleur (air qui ondule légèrement et vapeur au toit) qui retombe avec le repos.
-- **G-143. Grande bouffée de vapeur à l'atterrissage** *(petit)* : Quand la cabine se pose, toutes les grilles crachent ensemble une bouffée de vapeur, comme une décompression.
-- **G-144. Vapeur qui fait le tour au décollage** *(petit)* : Au début de la démat, les grilles soufflent l'une après l'autre en faisant le tour de la salle.
-- **G-145. Grille en surcharge qui rougeoie** *(petit)* : La grille en VapeurSurcharge devient orange lumineux et l'air tremble au-dessus d'elle : le technicien la trouve plus vite.
-- **G-147. Lueur orangée sous les grilles en vol** *(petit)* : Pendant les voyages, une lumière orangée monte de sous les grilles, comme si le moteur chauffait dessous ; elle s'éteint une fois posé.
-- **G-199. Voyants colorés sur les écrans Diagnostic** *(petit)* : Sur les écrans Diagnostic, les lignes « ● » s'affichent en vert et les « ○ » en rouge ou ambre, au lieu de tout en blanc (Ambiance, section 3 ter).
-- **G-200. Courbe du moteur sur l'écran ÉNERGIE** *(petit)* : Une petite courbe animée en bas de l'écran Diagnostic ÉNERGIE, plus agitée en vol, saccadée en Urgence et plate hors tension.
+- ✅ **C-98. Compteur de voyages consécutifs qui redescend au repos** *(petit)* : Le compteur de VoyagesAvantCoupure ne revient à zéro qu'au redémarrage. Chaque minute posé enlèverait un voyage.
+- ✅ **C-117. Surchauffe annoncée avant la coupure** *(petit)* : À deux voyages de VoyagesAvantCoupure, un avertissement et plus de vapeur : les pilotes peuvent laisser refroidir au lieu de subir la coupure.
+- ✅ **C-184. Rotor tapoté trop souvent qui surchauffe** *(petit)* : Le rotor interactif accepte un clic toutes les 0,5 s. Trop de clics en peu de temps compteraient comme un voyage dans le compteur de coupure : on ne joue pas avec la console.
+- ✅ **G-63. Surchauffe visible après plusieurs voyages d'affilée** *(petit)* : Avec l'attribut VoyagesConsecutifs élevé, la cabine posée dégage un peu de chaleur (air qui ondule légèrement et vapeur au toit) qui retombe avec le repos.
+- ✅ **G-143. Grande bouffée de vapeur à l'atterrissage** *(petit)* : Quand la cabine se pose, toutes les grilles crachent ensemble une bouffée de vapeur, comme une décompression.
+- ✅ **G-144. Vapeur qui fait le tour au décollage** *(petit)* : Au début de la démat, les grilles soufflent l'une après l'autre en faisant le tour de la salle.
+- ✅ **G-145. Grille en surcharge qui rougeoie** *(petit)* : La grille en VapeurSurcharge devient orange lumineux et l'air tremble au-dessus d'elle : le technicien la trouve plus vite.
+- ✅ **G-147. Lueur orangée sous les grilles en vol** *(petit)* : Pendant les voyages, une lumière orangée monte de sous les grilles, comme si le moteur chauffait dessous ; elle s'éteint une fois posé.
+- ✅ **G-199. Voyants colorés sur les écrans Diagnostic** *(petit)* : Sur les écrans Diagnostic, les lignes « ● » s'affichent en vert et les « ○ » en rouge ou ambre, au lieu de tout en blanc (Ambiance, section 3 ter).
+- ✅ **G-200. Courbe du moteur sur l'écran ÉNERGIE** *(petit)* : Une petite courbe animée en bas de l'écran Diagnostic ÉNERGIE, plus agitée en vol, saccadée en Urgence et plate hors tension.
 
 **Dans Studio :** Rien. Les grilles et les quatre écrans Diagnostic existent déjà.
 

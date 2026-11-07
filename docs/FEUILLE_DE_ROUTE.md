@@ -29,7 +29,8 @@
 | V7.2.2 | Traces au sol à l'arrivée | ✅ faite (07/11) |
 | V7.2.3 | Sur l'eau et au ras de l'eau | ✅ faite (07/11) |
 | V7.2.4 | Saisons et météo | ✅ faite (07/11) |
-| V7.3 | Salle de contrôle et console (5 lots) | 🔜 prévue |
+| V7.3.1 | Surchauffe, vapeur et écrans Diagnostic | ✅ faite (07/11) |
+| V7.3 | Salle de contrôle et console (5 lots) | 🚧 en cours |
 | V7.4 | Caméras et confort de l'écran (2 lots) | 🔜 prévue |
 | V7.5 | Régénération de la C.A.T. (6 lots) | 🔜 prévue |
 | V7.6 | Vol libre et rayon tracteur (5 lots) | 🔜 prévue |

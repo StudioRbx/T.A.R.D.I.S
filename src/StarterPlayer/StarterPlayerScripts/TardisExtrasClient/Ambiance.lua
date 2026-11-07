@@ -379,11 +379,17 @@ return function(contexte)
 					Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1) }),
 					Size = NumberSequence.new(1, 3), Lifetime = NumberRange.new(0.8, 1.6), Speed = NumberRange.new(8, 14), SpreadAngle = Vector2.new(10, 10),
 					EmissionDirection = Enum.NormalId.Top, Rate = 0, Rotation = NumberRange.new(0, 360), RotSpeed = NumberRange.new(-30, 30), Parent = point })
-				table.insert(grilles, { jet = jet, part = objet, periode = 0, phase = 0 })
+				-- (V7.3.1, G-145/G-147) lueur orange sous la grille, et air qui tremble au-dessus en surcharge (après le jet)
+				local lueur = creer("PointLight", { Name = "TardisLueurGrille", Color = Color3.fromRGB(255, 140, 50), Brightness = 0, Range = 10, Enabled = false, Parent = point })
+				local tremble = creer("ParticleEmitter", { Name = "TardisAirTremble", Texture = "rbxasset://textures/particles/smoke_main.dds", Color = ColorSequence.new(Color3.fromRGB(255, 255, 255)),
+					Transparency = NumberSequence.new(0.92, 1), Size = NumberSequence.new(2, 4), Lifetime = NumberRange.new(0.6, 1), Speed = NumberRange.new(2, 4),
+					EmissionDirection = Enum.NormalId.Top, Rate = 0, Parent = point })
+				table.insert(grilles, { jet = jet, part = objet, periode = 0, phase = 0, lueur = lueur, tremble = tremble })
 				table.insert(partsGrilles, objet) -- (V6.9.12)
 			end
 		end
 		local reglagesVapeur = Config.Vapeur or {}
+		local reglagesSurchauffe = Config.Surchauffe or {} -- (V7.3.1)
 		for i, g in grilles do
 			local mini, maxi = reglagesVapeur.IntervalleMin or 4, reglagesVapeur.IntervalleMax or 14
 			g.periode = mini + ((i * 7919) % 100) / 100 * (maxi - mini)
@@ -394,17 +400,52 @@ return function(contexte)
 				while true do
 					task.wait(0.1)
 					local intensite = exterieur:GetAttribute("VapeurIntensite") or reglagesVapeur.Intensite or 1
+					if exterieur:GetAttribute("Surchauffe") then intensite *= 2 end -- (V7.3.1, C-117) la surchauffe se voit
 					local alimente = exterieur:GetAttribute("Alimentation") ~= false
 					local temps = workspace:GetServerTimeNow()
+					local enVol = alimente and (exterieur:GetAttribute("Etat") ~= E.Pose or exterieur:GetAttribute("VolLibre") ~= nil)
 					-- (V6.9.12) la grille désignée par le serveur (attribut TardisGrille), plus seulement la n-ième de la liste
 					local enPanne = Config.grilleEnPanne(exterieur, interieur, partsGrilles)
 					for _, g in grilles do
-						if enPanne and g.part == enPanne then
+						local surcharge = enPanne ~= nil and g.part == enPanne
+						if surcharge then
 							g.jet.Rate = 160 -- surcharge : jet constant et fort (panne, à régler à la visseuse)
 						else
 							local bouffee = ((temps + g.phase) % g.periode) < 0.7
 							g.jet.Rate = (alimente and bouffee) and 50 * intensite or 0
 						end
+						-- (V7.3.1, G-145/G-147) rougeoiement : fort et vacillant en surcharge, doux en vol
+						if surcharge and reglagesSurchauffe.LueurSurcharge ~= false then
+							g.lueur.Enabled, g.lueur.Brightness = true, 2.5 + math.sin(temps * 9) * 0.8
+						elseif enVol and reglagesSurchauffe.LueurVol ~= false then
+							g.lueur.Enabled, g.lueur.Brightness = true, 1
+						else
+							g.lueur.Enabled, g.lueur.Brightness = false, 0
+						end
+						g.tremble.Rate = (surcharge and reglagesSurchauffe.LueurSurcharge ~= false) and 12 or 0
+					end
+				end
+			end)
+			-- (V7.3.1, G-143/G-144) Bouffée de toutes les grilles à l'atterrissage ; au départ, une vague qui fait le tour de la salle
+			local etatAvant = exterieur:GetAttribute("Etat")
+			exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
+				local etat = exterieur:GetAttribute("Etat")
+				local avant = etatAvant
+				etatAvant = etat
+				if exterieur:GetAttribute("Alimentation") == false or exterieur:GetAttribute("Detruit") == true then return end
+				local reduits = UI.effetsReduits ~= nil and UI.effetsReduits() == true
+				if etat == E.Pose and avant == E.Remat and reglagesSurchauffe.BouffeeAtterrissage ~= false then
+					for _, g in grilles do g.jet:Emit(reduits and 10 or 30) end
+				elseif etat == E.Demat and reglagesSurchauffe.VagueDemat ~= false then
+					local centre = boiteInt and boiteInt.Position or Vector3.zero
+					local ordre = table.clone(grilles)
+					local function angle(g)
+						local d = g.part.Position - centre
+						return math.atan2(d.Z, d.X)
+					end
+					table.sort(ordre, function(a, b) return angle(a) < angle(b) end)
+					for i, g in ordre do
+						task.delay((i - 1) * 0.15, function() g.jet:Emit(reduits and 6 or 18) end)
 					end
 				end
 			end)
@@ -513,27 +554,67 @@ return function(contexte)
 				ecrans[i] = { titre = titre, lignes = lignes }
 			end
 		end
+		-- (V7.3.1, G-200) Courbe du moteur sur le premier écran : 30 barres qui défilent (calme posé, ondulée en vol, en dents
+		-- de scie en urgence, plate hors tension)
+		if ecrans[1] and (Config.Surchauffe or {}).CourbeMoteur ~= false then
+			local cadre = creer("Frame", { Name = "TardisCourbeMoteur", Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, LayoutOrder = 10,
+				Parent = ecrans[1].titre.Parent })
+			local barres, historique = {}, {}
+			for k = 1, 30 do
+				barres[k] = creer("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new((k - 1) / 30, 0, 1, 0), Size = UDim2.new(1 / 30, -1, 0.03, 0),
+					BorderSizePixel = 0, BackgroundColor3 = C.cyan, Parent = cadre })
+				historique[k] = 0
+			end
+			local couleurs = { Pose = C.cyan, Vol = C.vert, Urgence = C.rouge, HorsTension = C.rouge }
+			task.spawn(function()
+				while true do
+					task.wait(0.1)
+					local etat = exterieur:GetAttribute("Etat") or E.Pose
+					local urgence = (Config.modeSaccade(Config.modeDe(exterieur)) and etat ~= E.Pose) or exterieur:GetAttribute("VolUrgence") == true
+						or exterieur:GetAttribute("Alerte") == true or exterieur:GetAttribute("AutoDestructionDebut") ~= nil
+					local alimente = exterieur:GetAttribute("Alimentation") ~= false and exterieur:GetAttribute("Detruit") ~= true
+					local regime = Config.regimeMoteur(alimente, urgence, etat ~= E.Pose or exterieur:GetAttribute("VolLibre") ~= nil)
+					table.remove(historique, 1)
+					table.insert(historique, Config.courbeMoteur(os.clock(), regime))
+					for k, barre in barres do
+						barre.Size = UDim2.new(1 / 30, -1, math.max(historique[k], 0.03), 0)
+						barre.BackgroundColor3 = couleurs[regime] or C.cyan
+					end
+				end
+			end)
+		end
 		if next(ecrans) then
-			local function voyant(ok, texteOk, texteKo) return (ok and "● " or "○ ") .. (ok and texteOk or texteKo) end
+			-- (V7.3.1, G-199) chaque voyant a sa couleur : vert si bon, ambre sinon, rouge si c'est grave
+			local function voyant(ok, texteOk, texteKo, grave)
+				local signe, couleur = Config.voyantDiagnostic(ok, grave)
+				return { signe .. " " .. (ok and texteOk or texteKo), C[couleur] or C.texte }
+			end
 			task.spawn(function()
 				while true do
 					task.wait(0.5)
 					local alimente = exterieur:GetAttribute("Alimentation") ~= false
 					local pv = exterieur:GetAttribute("PointsDeVie")
 					local contenu = {
-						{ "ÉNERGIE", { voyant(alimente, "Alimentation nominale", "HORS TENSION"), voyant(not exterieur:GetAttribute("DemarrageBloque"), "Démarrage libre", "Démarrage bloqué"),
-							pv and string.format("Intégrité : %d %%", pv) or "Intégrité : —", voyant(not exterieur:GetAttribute("Alerte"), "Pas d'alerte", "ALERTE GÉNÉRALE") } },
+						{ "ÉNERGIE", { voyant(alimente, "Alimentation nominale", "HORS TENSION", true), voyant(not exterieur:GetAttribute("DemarrageBloque"), "Démarrage libre", "Démarrage bloqué", true),
+							pv and string.format("Intégrité : %d %%", pv) or "Intégrité : —", voyant(not exterieur:GetAttribute("Alerte"), "Pas d'alerte", "ALERTE GÉNÉRALE", true) } },
 						{ "ACCÈS", { voyant(not exterieur:GetAttribute("PorteOuverte"), "Portes fermées", "Portes ouvertes"), voyant(exterieur:GetAttribute("PortesVerrouillees") == true, "Verrou mis", "Verrou libre"),
 							voyant(exterieur:GetAttribute("BouclierJoueurs") == true, "Bouclier anti-joueurs levé", "Bouclier anti-joueurs baissé"), voyant(exterieur:GetAttribute("BouclierBalles") == true, "Bouclier anti-balles levé", "Bouclier anti-balles baissé") } },
 						{ "NAVIGATION", { "État : " .. tostring(exterieur:GetAttribute("Etat") or "?"), "Position : " .. tostring(exterieur:GetAttribute("Position") or "?"),
 							voyant(exterieur:GetAttribute("Camouflage") ~= true, "Visible", "Camouflé"), voyant(exterieur:GetAttribute("VolLibre") == nil, "Vol libre inactif", "VOL LIBRE") } },
 						{ "SÉCURITÉ", { "Dernière entrée : " .. tostring(exterieur:GetAttribute("DerniereEntree") or "—"), "Intrusion : " .. tostring(exterieur:GetAttribute("Intrusion") or "aucune"),
-							voyant(exterieur:GetAttribute("Detruit") ~= true, "Structure intacte", "TARDIS DÉTRUIT"), "Voyages du serveur : " .. tostring(exterieur:GetAttribute("StatsServeur") or 0) } },
+							voyant(exterieur:GetAttribute("Detruit") ~= true, "Structure intacte", "TARDIS DÉTRUIT", true), "Voyages du serveur : " .. tostring(exterieur:GetAttribute("StatsServeur") or 0) } },
 					}
 					for i, ecran in ecrans do
 						local bloc = contenu[i]
 						ecran.titre.Text = bloc[1]
-						for k = 1, 4 do ecran.lignes[k].Text = bloc[2][k] or "" end
+						for k = 1, 4 do
+							local ligne = bloc[2][k] or ""
+							if type(ligne) == "table" then
+								ecran.lignes[k].Text, ecran.lignes[k].TextColor3 = ligne[1], ligne[2]
+							else
+								ecran.lignes[k].Text, ecran.lignes[k].TextColor3 = ligne, C.texte
+							end
+						end
 						ecran.titre.TextColor3 = alimente and C.cyan or C.rouge
 					end
 				end

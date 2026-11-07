@@ -380,27 +380,63 @@ end
 -- Coupure après N voyages consécutifs : 10 s sur le levier d'alimentation pour redémarrer
 local voyagesConsecutifs = 0
 local etatPrecedent = exterieur:GetAttribute("Etat")
+-- (V7.3.1) Un voyage de plus au compteur (atterrissage, ou rotor surmené) : avertissement de surchauffe (C-117), puis
+-- coupure à la limite, seulement cabine posée
+local function compterVoyage()
+	local limite = S.VoyagesAvantCoupure or 5
+	voyagesConsecutifs += 1
+	exterieur:SetAttribute("VoyagesConsecutifs", voyagesConsecutifs) -- lu par la tablette technicien
+	local chaud = Config.enSurchauffe(voyagesConsecutifs, limite)
+	if chaud and not exterieur:GetAttribute("Surchauffe") and voyagesConsecutifs < limite then
+		direAuxPilotes(string.format("Surchauffe : plus que %d voyage(s) avant la coupure. Laissez le TARDIS refroidir posé.", limite - voyagesConsecutifs), false)
+	end
+	exterieur:SetAttribute("Surchauffe", chaud or nil)
+	if voyagesConsecutifs >= limite and not exterieur:GetAttribute("RedemarrageRequis") and exterieur:GetAttribute("Etat") == E.Pose then
+		task.delay(2, function()
+			if exterieur:GetAttribute("RedemarrageRequis") then return end
+			exterieur:SetAttribute("RedemarrageRequis", true)
+			interne("reglerAlimentation", false)
+			-- (V6.9.12) annonce commune + historique (la durée du maintien est rappelée dans le détail)
+			signalerPanne("Coupure", string.format("après %d voyages consécutifs, maintenir E %d s", voyagesConsecutifs, S.RedemarrageDuree or 10))
+		end)
+	end
+end
 exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	local etat = exterieur:GetAttribute("Etat")
 	if etat == E.Pose and etatPrecedent == E.Remat then
-		voyagesConsecutifs += 1
-		exterieur:SetAttribute("VoyagesConsecutifs", voyagesConsecutifs) -- lu par la tablette technicien
+		compterVoyage()
 		-- Saleté : la cabine se salit à chaque atterrissage, plus sur le sable et la boue, moins sur la neige et l'herbe
 		-- (V7.2.2, C-178 : le sol est connu 0,1 s après l'arrivée, voir surAtterrissage)
 		task.delay(0.2, function()
 			local gain = Config.saleteAtterrissage(exterieur:GetAttribute("TerrainAtterrissage"))
 			exterieur:SetAttribute("Salete", math.clamp((exterieur:GetAttribute("Salete") or 0) + gain, 0, 100))
 		end)
-		if voyagesConsecutifs >= (S.VoyagesAvantCoupure or 5) and not exterieur:GetAttribute("RedemarrageRequis") then
-			task.delay(2, function()
-				exterieur:SetAttribute("RedemarrageRequis", true)
-				interne("reglerAlimentation", false)
-				-- (V6.9.12) annonce commune + historique (la durée du maintien est rappelée dans le détail)
-				signalerPanne("Coupure", string.format("après %d voyages consécutifs, maintenir E %d s", voyagesConsecutifs, S.RedemarrageDuree or 10))
-			end)
-		end
 	end
 	etatPrecedent = etat
+end)
+-- (V7.3.1, C-98) Posé (hors vol libre), le compteur refroidit : un voyage de moins toutes les Surchauffe.Refroidissement s
+task.spawn(function()
+	local cumul = 0
+	while true do
+		task.wait(5)
+		local posee = exterieur:GetAttribute("Etat") == E.Pose and exterieur:GetAttribute("VolLibre") == nil
+		if posee and voyagesConsecutifs > 0 and not exterieur:GetAttribute("RedemarrageRequis") then
+			local avant = voyagesConsecutifs
+			voyagesConsecutifs, cumul = Config.refroidissement(voyagesConsecutifs, cumul + 5)
+			if voyagesConsecutifs ~= avant then
+				exterieur:SetAttribute("VoyagesConsecutifs", voyagesConsecutifs)
+				exterieur:SetAttribute("Surchauffe", Config.enSurchauffe(voyagesConsecutifs, S.VoyagesAvantCoupure or 5) or nil)
+			end
+		else
+			cumul = 0
+		end
+	end
+end)
+-- (V7.3.1, C-184) Le rotor cliqué sans arrêt (TardisExtras pose RotorSurmene) compte comme un voyage
+exterieur:GetAttributeChangedSignal("RotorSurmene"):Connect(function()
+	if not exterieur:GetAttribute("RotorSurmene") or exterieur:GetAttribute("RedemarrageRequis") then return end
+	compterVoyage()
+	direAuxPilotes("Rotor surmené : la surchauffe monte d'un cran.", false)
 end)
 do
 	local levier = trouverChemin("Alimentation")
@@ -428,6 +464,7 @@ do
 			if not (estPilote(joueur) or estTechnicien(joueur)) then return end
 			voyagesConsecutifs = 0
 			exterieur:SetAttribute("VoyagesConsecutifs", 0)
+			exterieur:SetAttribute("Surchauffe", nil) -- (V7.3.1)
 			exterieur:SetAttribute("RedemarrageRequis", false)
 			interne("reglerAlimentation", true)
 			interne("jouer", "Reparation", false)
@@ -1679,6 +1716,7 @@ local function commandeTechnique(joueur, donnees)
 			if not exterieur:GetAttribute("RedemarrageRequis") then return end
 			voyagesConsecutifs = 0
 			exterieur:SetAttribute("VoyagesConsecutifs", 0)
+			exterieur:SetAttribute("Surchauffe", nil) -- (V7.3.1)
 			exterieur:SetAttribute("RedemarrageRequis", false)
 			interne("reglerAlimentation", true)
 			interne("jouer", "Reparation", false)

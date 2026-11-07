@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.2.4"
+Config.Version = "7.3.1"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -1998,6 +1998,87 @@ end
 function Config.eclairPossible(orage, posee, camouflee, tirage)
 	local chance = tonumber((Config.Saisons or {}).ChanceEclair) or 0
 	return orage == true and posee == true and camouflee ~= true and chance > 0 and (tonumber(tirage) or 1) < chance
+end
+
+-- (V7.3.1) Surchauffe : le compteur de voyages consécutifs (coupure à Systemes.VoyagesAvantCoupure) refroidit posé,
+-- prévient avant la coupure, et le rotor qu'on clique sans arrêt le fait monter ; effets de chaleur et de vapeur
+Config.Surchauffe = {
+	Refroidissement = 60,       -- (C-98) secondes posé (hors vol libre) pour enlever un voyage du compteur (0 = jamais)
+	Avertissement = 2,          -- (C-117) prévenir quand il reste ce nombre de voyages avant la coupure (0 = jamais)
+	ClicsRotor = 8,             -- (C-184) clics sur le rotor en peu de temps qui comptent comme un voyage (0 = jamais)
+	FenetreClics = 10,          -- (C-184) « peu de temps » : en secondes
+	Chaleur = 0.6,              -- (G-63) part du compteur (0 à 1) où la cabine posée commence à chauffer (0 = jamais)
+	BouffeeAtterrissage = true, -- (G-143) bouffée de toutes les grilles à l'atterrissage
+	VagueDemat = true,          -- (G-144) vague de vapeur qui fait le tour de la salle au départ
+	LueurVol = true,            -- (G-147) grilles qui rougeoient doucement en vol
+	LueurSurcharge = true,      -- (G-145) grille en surcharge qui rougeoit fort, avec l'air qui tremble
+	CourbeMoteur = true,        -- (G-200) courbe du moteur sur le premier écran de diagnostic
+}
+
+-- (C-98) Refroidissement : cumul = secondes posé accumulées. Renvoie le nouveau compteur et le reste du cumul.
+function Config.refroidissement(voyages, cumul)
+	local periode = tonumber((Config.Surchauffe or {}).Refroidissement) or 0
+	voyages, cumul = tonumber(voyages) or 0, tonumber(cumul) or 0
+	if periode <= 0 or voyages <= 0 then return math.max(voyages, 0), 0 end
+	local enleves = math.min(math.floor(cumul / periode), voyages)
+	local reste = cumul - enleves * periode
+	if voyages - enleves <= 0 then reste = 0 end
+	return voyages - enleves, reste
+end
+
+-- (C-117) En surchauffe : il reste Avertissement voyages ou moins avant la coupure (et au moins un voyage compté)
+function Config.enSurchauffe(voyages, limite)
+	local seuil = tonumber((Config.Surchauffe or {}).Avertissement) or 0
+	voyages, limite = tonumber(voyages) or 0, tonumber(limite) or 5
+	return seuil > 0 and voyages > 0 and voyages >= limite - seuil
+end
+
+-- (G-63) Chaleur de la cabine (0 à 1) : 0 sous Chaleur × limite, puis monte jusqu'à 1 à la coupure
+function Config.chaleurCabine(voyages, limite)
+	local part = tonumber((Config.Surchauffe or {}).Chaleur) or 0
+	voyages, limite = tonumber(voyages) or 0, math.max(tonumber(limite) or 5, 1)
+	if part <= 0 then return 0 end
+	local debut = limite * part
+	if voyages < debut then return 0 end
+	return math.clamp((voyages - debut + 1) / (limite - debut + 1), 0, 1)
+end
+
+-- (C-184) Rotor surmené : clics = liste des heures des derniers clics (modifiée). Vrai quand ClicsRotor clics tombent
+-- dans FenetreClics secondes ; la liste est alors vidée.
+function Config.rotorSurmene(clics, maintenant)
+	local reglages = Config.Surchauffe or {}
+	local seuil, fenetre = tonumber(reglages.ClicsRotor) or 0, tonumber(reglages.FenetreClics) or 10
+	if seuil <= 0 or type(clics) ~= "table" then return false end
+	maintenant = tonumber(maintenant) or 0
+	table.insert(clics, maintenant)
+	while #clics > 0 and maintenant - clics[1] > fenetre do table.remove(clics, 1) end
+	if #clics >= seuil then
+		table.clear(clics)
+		return true
+	end
+	return false
+end
+
+-- (G-200) Régime du moteur (pour la courbe) et valeur de la courbe (0 à 1) à l'instant t
+function Config.regimeMoteur(alimente, urgence, enVol)
+	if not alimente then return "HorsTension" end
+	if urgence then return "Urgence" end
+	return enVol and "Vol" or "Pose"
+end
+function Config.courbeMoteur(t, regime)
+	t = tonumber(t) or 0
+	if regime == "HorsTension" then return 0 end
+	if regime == "Urgence" then
+		return math.clamp(0.5 + 0.45 * ((((math.floor(t * 6) * 7919) % 100) / 100) * 2 - 1), 0, 1)
+	end
+	if regime == "Vol" then return math.clamp(0.5 + 0.3 * math.sin(t * 7) + 0.12 * math.sin(t * 17.3), 0, 1) end
+	return math.clamp(0.5 + 0.1 * math.sin(t * 2), 0, 1)
+end
+
+-- (G-199) Voyant d'un écran de diagnostic : signe et nom de couleur (vert si bon, rouge si grave, ambre sinon)
+function Config.voyantDiagnostic(ok, grave)
+	if ok then return "●", "vert" end
+	return "○", grave and "rouge" or "ambre"
 end
 
 return Config
