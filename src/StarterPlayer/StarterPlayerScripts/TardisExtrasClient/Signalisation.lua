@@ -14,6 +14,9 @@
 --   (V6.9.11) Fiche du lieu : à l'arrivée sur un lieu qui a une description, des dangers ou un niveau de danger, une
 --      carte s'affiche quelques secondes sous « POSÉ », pour les joueurs à bord, à la couleur du niveau. Le texte vient
 --      du serveur (attribut FicheLieu, en JSON) : le client ne fait que l'afficher.
+--   (V7.2.2) Traces au sol : marque selon le mode (brûlée et fumante en Urgence et en Catastrophe, nette et verte en
+--      Rapide), disque de givre après une Urgence, brume basse après une arrivée de nuit, poussière qui tombe du
+--      plafond quand la cabine se pose sous un toit.
 -- Tout est local (chaque client calcule à partir des attributs Etat, DebutEtat, Mode, Theme).
 
 return function(contexte)
@@ -191,9 +194,10 @@ return function(contexte)
 	-- Une seule par TARDIS (un nouvel atterrissage remplace l'ancienne) ; rien sur l'eau. Locale à chaque joueur.
 	--------------------------------------------------------------------
 	local EFFETS = Config.Effets or {}
-	local marqueSol = nil
-	local function marqueAtterrissage()
-		if EFFETS.MarquesSol == false then return end
+	local marqueSol, givreSol = nil, nil
+	local Lighting = game:GetService("Lighting")
+	local FUMEE = "rbxasset://textures/particles/smoke_main.dds"
+	local function marqueAtterrissage(mode)
 		if exterieur:GetAttribute("SurEau") == true or exterieur:GetAttribute("Camouflage") == true or exterieur:GetAttribute("Porteur") then return end
 		local pivot = exterieur:GetPivot()
 		-- Posé dans la salle (paradoxe Catastrophe) : pas de marque, le rayon traverserait le plancher (correction de relecture V6.9.9)
@@ -204,29 +208,89 @@ return function(contexte)
 		end
 		local point, _, resultat = sol(pivot.Position)
 		if not point or resultat.Material == Enum.Material.Water then return end
-		-- Couleur : celle du sol, assombrie (brûlée)
-		local couleurSol
-		if resultat.Instance and resultat.Instance:IsA("Terrain") then
-			couleurSol = workspace.Terrain:GetMaterialColor(resultat.Material)
-		elseif resultat.Instance and resultat.Instance:IsA("BasePart") then
-			couleurSol = resultat.Instance.Color
-		else
-			couleurSol = Color3.fromRGB(90, 90, 90)
-		end
 		local taille = exterieur:GetExtentsSize()
 		local devant = pivot.LookVector * Vector3.new(1, 0, 1)
 		devant = devant.Magnitude > 0.01 and devant.Unit or Vector3.new(0, 0, -1)
 		local centre = point + Vector3.new(0, 0.03, 0)
-		if marqueSol then marqueSol:Destroy() end
-		local duree = tonumber(EFFETS.DureeMarques) or 30
-		local marque = partTemporaire({ Name = "TardisMarqueSol_" .. def.Nom, Material = Enum.Material.SmoothPlastic, Color = couleurSol:Lerp(Color3.new(0, 0, 0), 0.65),
-			Transparency = 0.7, Size = Vector3.new(taille.X * 1.25, 0.05, taille.Z * 1.25), CFrame = CFrame.lookAt(centre, centre + devant) })
-		marqueSol = marque
-		animer(marque, duree, { Transparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-		task.delay(duree + 0.2, function()
-			if marque.Parent then marque:Destroy() end
-			if marqueSol == marque then marqueSol = nil end
-		end)
+		local reduit = UI.effetsReduits()
+		if EFFETS.MarquesSol ~= false then
+			-- Couleur : celle du sol, assombrie (brûlée) ; (V7.2.2, G-19) le style dépend du mode de l'arrivée
+			local style = Config.styleMarque(mode)
+			local couleurSol
+			if resultat.Instance and resultat.Instance:IsA("Terrain") then
+				couleurSol = workspace.Terrain:GetMaterialColor(resultat.Material)
+			elseif resultat.Instance and resultat.Instance:IsA("BasePart") then
+				couleurSol = resultat.Instance.Color
+			else
+				couleurSol = Color3.fromRGB(90, 90, 90)
+			end
+			if marqueSol then marqueSol:Destroy() end
+			local duree = tonumber(EFFETS.DureeMarques) or 30
+			local marque = partTemporaire({ Name = "TardisMarqueSol_" .. def.Nom, Material = style.neon and Enum.Material.Neon or Enum.Material.SmoothPlastic,
+				Color = style.neon and VERT or couleurSol:Lerp(Color3.new(0, 0, 0), style.assombri),
+				Transparency = style.transparence, Size = Vector3.new(taille.X * 1.25, 0.05, taille.Z * 1.25), CFrame = CFrame.lookAt(centre, centre + devant) })
+			marqueSol = marque
+			animer(marque, duree, { Transparency = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+			if style.fumee and not reduit then
+				-- Brûlée : un filet de fumée sombre monte de la trace pendant quelques secondes
+				local fumee = creer("ParticleEmitter", { Name = "Fumee", Texture = FUMEE, Color = ColorSequence.new(Color3.fromRGB(70, 65, 60)),
+					Size = NumberSequence.new(1.5, 4), Transparency = NumberSequence.new(0.55, 1), Lifetime = NumberRange.new(2, 3.5),
+					Speed = NumberRange.new(1, 2.5), SpreadAngle = Vector2.new(25, 25), Rate = 6, Parent = marque })
+				task.delay(8, function() if fumee.Parent then fumee.Enabled = false end end)
+			end
+			task.delay(duree + 0.2, function()
+				if marque.Parent then marque:Destroy() end
+				if marqueSol == marque then marqueSol = nil end
+			end)
+		end
+		-- (V7.2.2, G-20) Après une Urgence : un disque de givre blanc-bleu au sol tout autour, qui fond lentement
+		local dureeGivre = tonumber(EFFETS.GivreSol) or 0
+		if dureeGivre > 0 and Config.normaliserMode(mode) == "Urgence" then
+			if givreSol then givreSol:Destroy() end
+			local diametre = math.max(taille.X, taille.Z) * 2.4
+			local disque = partTemporaire({ Name = "TardisGivreSol_" .. def.Nom, Shape = Enum.PartType.Cylinder, Material = Enum.Material.Ice,
+				Color = Color3.fromRGB(220, 240, 255), Transparency = 0.3, Size = Vector3.new(0.04, diametre, diametre),
+				CFrame = CFrame.new(point + Vector3.new(0, 0.015, 0)) * CFrame.Angles(0, 0, math.pi / 2) })
+			givreSol = disque
+			animer(disque, dureeGivre, { Transparency = 1, Size = Vector3.new(0.04, diametre * 0.6, diametre * 0.6) }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+			task.delay(dureeGivre + 0.2, function()
+				if disque.Parent then disque:Destroy() end
+				if givreSol == disque then givreSol = nil end
+			end)
+		end
+		-- (V7.2.2, G-29) La nuit : une nappe de brume très basse reste quelques secondes autour de la base, puis se dissipe
+		local dureeBrume = Config.brumeNuit(Lighting.ClockTime)
+		if dureeBrume > 0 then
+			local nappe = partTemporaire({ Name = "TardisBrume_" .. def.Nom, Transparency = 1, Size = Vector3.new(taille.X * 2.6, 0.4, taille.Z * 2.6),
+				CFrame = CFrame.new(point + Vector3.new(0, 0.4, 0)) })
+			local brume = creer("ParticleEmitter", { Name = "Brume", Texture = FUMEE, Color = ColorSequence.new(Color3.fromRGB(215, 222, 232)),
+				Size = NumberSequence.new(3, 7), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.8), NumberSequenceKeypoint.new(1, 1) }),
+				Lifetime = NumberRange.new(3, 5), Speed = NumberRange.new(0.3, 1), SpreadAngle = Vector2.new(90, 90), Acceleration = Vector3.new(0, -0.2, 0),
+				Rate = reduit and 4 or 9, Parent = nappe })
+			task.delay(dureeBrume, function() brume.Enabled = false end)
+			task.delay(dureeBrume + 6, function() nappe:Destroy() end)
+		end
+		-- (V7.2.2, G-22) Posée sous un toit (à moins de Effets.PoussierePlafond studs) : poussière et petits débris tombent du plafond
+		local hauteurToit = tonumber(EFFETS.PoussierePlafond) or 0
+		local okCabine, cadre, tailleCabine = pcall(function() return exterieur:GetBoundingBox() end)
+		if hauteurToit > 0 and okCabine and cadre and tailleCabine then
+			local parametres = RaycastParams.new()
+			parametres.FilterType = Enum.RaycastFilterType.Exclude
+			parametres.FilterDescendantsInstances = { exterieur, interieur, joueur.Character }
+			local haut = Vector3.new(pivot.Position.X, cadre.Position.Y + tailleCabine.Y / 2 + 0.2, pivot.Position.Z)
+			local toit = workspace:Raycast(haut, Vector3.new(0, hauteurToit, 0), parametres)
+			if toit then
+				local plafond = partTemporaire({ Name = "TardisPoussiere_" .. def.Nom, Transparency = 1, Size = Vector3.new(taille.X * 1.5, 0.2, taille.Z * 1.5),
+					CFrame = CFrame.new(toit.Position - Vector3.new(0, 0.3, 0)) })
+				creer("ParticleEmitter", { Name = "Poussiere", Texture = FUMEE, Color = ColorSequence.new(Color3.fromRGB(180, 170, 150)),
+					Size = NumberSequence.new(0.6, 2.2), Transparency = NumberSequence.new(0.35, 1), Lifetime = NumberRange.new(2, 3), Speed = NumberRange.new(0.5, 2),
+					EmissionDirection = Enum.NormalId.Bottom, SpreadAngle = Vector2.new(30, 30), Acceleration = Vector3.new(0, -10, 0), Rate = 0, Parent = plafond }):Emit(reduit and 25 or 60)
+				creer("ParticleEmitter", { Name = "Debris", Color = ColorSequence.new(Color3.fromRGB(95, 85, 75)), Size = NumberSequence.new(0.18, 0.1),
+					Lifetime = NumberRange.new(1, 1.6), Speed = NumberRange.new(0, 1), EmissionDirection = Enum.NormalId.Bottom, SpreadAngle = Vector2.new(20, 20),
+					Acceleration = Vector3.new(0, -60, 0), Rotation = NumberRange.new(0, 360), RotSpeed = NumberRange.new(-200, 200), Rate = 0, Parent = plafond }):Emit(reduit and 8 or 20)
+				task.delay(4, function() plafond:Destroy() end)
+			end
+		end
 	end
 
 	local etatAvant = etat()
@@ -236,7 +300,7 @@ return function(contexte)
 		local mode = Config.modeDe(exterieur)
 		if e == E.Remat then modeArrivee = mode end
 		if e == E.Pose and etatAvant == E.Remat and not (Config.Modes[modeArrivee] or {}).Discret then
-			task.defer(marqueAtterrissage) -- SurEau est posé par le serveur juste après l'état
+			task.defer(marqueAtterrissage, modeArrivee) -- SurEau est posé par le serveur juste après l'état
 		end
 		-- (V6.9.11) Fiche du lieu à l'arrivée (même en Silencieux : elle est à bord, pas dehors)
 		if e == E.Pose and etatAvant == E.Remat then

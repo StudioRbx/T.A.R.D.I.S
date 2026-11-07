@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.Version = "7.2.1"
+Config.Version = "7.2.2"
 
 -- Noms des objets dans le Workspace
 -- Hiérarchie V6 : Workspace > TARDIS > <TARDIS_1> > EXTERIEURE (le Model extérieur) et INTERIEURE (le Model intérieur)
@@ -280,6 +280,15 @@ Config.Effets = {
 	ContourRemat = true,         -- (V7.2.1, G-13) remat : contour lumineux de la cabine qui bat au rythme des souffles
 	OmbresFenetres = 60,         -- (V7.2.1, G-14) la nuit, à moins de ce nombre de studs, la lueur projette les croisillons au sol (0 = jamais)
 	RefletSoleil = true,         -- (V7.2.1, G-99) le jour : éclat bref du soleil sur une vitre (jamais en « aucun flash »)
+	-- Traces au sol (V7.2.2)
+	MarqueSelonMode = true,      -- (V7.2.2, G-19) la marque change selon le mode : brûlée et fumante en Urgence et en Catastrophe, nette et verte en Rapide
+	GivreSol = 25,               -- (V7.2.2, G-20) après une Urgence : disque de givre au sol autour de la cabine, fondu en ce nombre de secondes (0 = jamais)
+	TerrainDepart = true,        -- (V7.2.2, G-21) au départ, la gerbe du sol (sable, neige, herbe…) part aussi, plus petite
+	VentDecollage = 25,          -- (V7.2.2, G-23) pendant les souffles, de près : le vent (workspace.GlobalWind) est poussé de tant (studs/s ; 0 = jamais)
+	BrumeNuit = 8,               -- (V7.2.2, G-29) la nuit, brume basse autour de la base après l'atterrissage (secondes ; 0 = jamais)
+	CercleGallifreyen = true,    -- (V7.2.2, G-12) remat : cercle d'écriture gallifreyenne qui tourne sous l'ombre annonciatrice
+	ImageCercle = "",            -- (V7.2.2, G-12) image du cercle (ex. "rbxassetid://123") ; vide = cercle dessiné par le code
+	PoussierePlafond = 20,       -- (V7.2.2, G-22) arrivée sous un toit à moins de ce nombre de studs : poussière qui tombe du plafond (0 = jamais)
 }
 -- Vitres de la cabine (V6.9.9) : rangées dans un dossier (ou Model) « Fenetres » de l'extérieur, ou nommées « Vitre… ».
 -- Sans l'un ni l'autre, détection automatique : pièces en verre (Glass) ou semi-transparentes.
@@ -934,6 +943,9 @@ Config.Systemes = {
 	VoyagesAvantCoupure = 15,       -- après N voyages consécutifs, le système se coupe (10 s sur l'alimentation pour redémarrer)
 	RedemarrageDuree = 10,
 	SaleteParVoyage = 8,            -- % de saleté gagné à chaque atterrissage (le chiffon en enlève 15)
+	-- (V7.2.2, C-178) Saleté selon le sol de l'atterrissage : SaleteParVoyage × ce facteur (1 pour un sol absent de la liste)
+	SaleteTerrain = { Sand = 1.5, Sandstone = 1.25, Mud = 1.75, Ground = 1.25, Snow = 0.5, Ice = 0.5, Glacier = 0.5,
+		Grass = 0.75, LeafyGrass = 0.75, Water = 0.25 },
 	DegatsStatique = 0.5,           -- dégâts d'un arc statique (toucher la cabine pendant une démat)
 	-- (V6.9.13) Nouvelles pannes aléatoires (même tirage que la vapeur et l'incendie) : poids dans le tirage (0 = jamais)
 	PoidsFuiteAir = 1,
@@ -1691,6 +1703,42 @@ function Config.refletSoleil(soleil, normale, versCamera)
 	local n = normale.Unit
 	local r = d - n * (2 * d:Dot(n))
 	return r:Dot(versCamera.Unit)
+end
+
+-- Saleté gagnée à un atterrissage selon le sol (V7.2.2, C-178) : Systemes.SaleteParVoyage × Systemes.SaleteTerrain[sol]
+function Config.saleteAtterrissage(materiau)
+	local S = Config.Systemes or {}
+	local base = tonumber(S.SaleteParVoyage) or 8
+	local facteur = tonumber((S.SaleteTerrain or {})[tostring(materiau or "")]) or 1
+	return math.max(base * facteur, 0)
+end
+
+-- Style de la marque au sol selon le mode de l'arrivée (V7.2.2, G-19) : { assombri, transparence, fumee, neon }.
+-- Classique et les autres : trace sombre comme en V6.9.9 ; Urgence et Catastrophe : brûlée et fumante ; Rapide : nette et verte.
+function Config.styleMarque(mode)
+	local m = Config.normaliserMode(mode)
+	if (Config.Effets or {}).MarqueSelonMode ~= false then
+		if m == "Urgence" or m == "Catastrophe" then return { assombri = 0.85, transparence = 0.55, fumee = true } end
+		if m == "Express" then return { assombri = 0, transparence = 0.6, neon = true } end
+	end
+	return { assombri = 0.65, transparence = 0.7 }
+end
+
+-- Vent poussé autour de la cabine pendant les souffles (V7.2.2, G-23), en studs/s : 0 avant la fin du silence (Decalage)
+-- et après la fin de l'animation (Decalage + Duree), plus fort au milieu, et seulement de près (0 à 80 studs et plus).
+function Config.ventDecollage(distance, ecoule, duree, decalage)
+	local force = math.max(tonumber((Config.Effets or {}).VentDecollage) or 0, 0)
+	duree, decalage, ecoule = tonumber(duree) or 0, tonumber(decalage) or 0, tonumber(ecoule) or -1
+	if force <= 0 or duree <= 0 or ecoule < decalage or ecoule > decalage + duree then return 0 end
+	local proche = math.clamp(1 - (tonumber(distance) or math.huge) / 80, 0, 1)
+	return force * proche * math.sin(math.pi * (ecoule - decalage) / duree)
+end
+
+-- Brume basse après un atterrissage de nuit (V7.2.2, G-29) : durée en secondes (0 le jour ou si coupée)
+function Config.brumeNuit(clockTime)
+	local duree = math.max(tonumber((Config.Effets or {}).BrumeNuit) or 0, 0)
+	if duree <= 0 or Config.nuitDe(clockTime) < 0.5 then return 0 end
+	return duree
 end
 
 -- État de la salle pour ses lumières (53) : "Alerte", "Voyage" (démat, remat, vol libre visible),

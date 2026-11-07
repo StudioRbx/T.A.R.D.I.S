@@ -65,14 +65,14 @@ Faire vivre la cabine et ce qui l'entoure : lampe et vitres, traces au sol, eau,
 
 **Objectif :** Faire réagir le sol à chaque arrivée et départ : marque selon le mode, givre après une Urgence, terrain qui réagit aussi au départ, cercle gallifreyen, poussière du plafond, brume de nuit.
 
-- **G-19. Marque au sol différente selon le mode** *(petit)* : La trace carrée de la V6.9.9 change selon le mode : brûlée et fumante en Urgence, givrée en bleu après une Urgence froide, nette et verte en Rapide. En partie là : aujourd'hui la marque est la même dans tous les modes.
-- **G-20. Givre au sol après un atterrissage d'urgence** *(petit)* : En plus du givre sur la cabine (EffetsExterieurs), un disque de givre blanc-bleu se forme au sol tout autour et fond en 25 secondes. Rien sur l'eau.
-- **G-21. Terrain réactif aussi au départ** *(petit)* : Le module Decor ne joue l'effet du sol (sable, neige, métal, herbe) qu'à l'atterrissage, avec TerrainAtterrissage. La même gerbe, plus petite, part au moment où la cabine s'efface. En partie là.
-- **G-23. Herbe du terrain qui s'agite au décollage** *(petit)* : Pour les joueurs proches seulement, workspace.GlobalWind est poussé un court instant pendant les souffles : l'herbe du Terrain et les particules sensibles au vent s'agitent autour de la cabine, puis le vent revient à sa valeur.
-- **G-29. Brume basse qui reste après l'arrivée de nuit** *(petit)* : La nuit, une nappe de brume très basse reste quelques secondes autour de la base après l'atterrissage, puis se dissipe. La cabine semble sortir du brouillard.
-- **G-12. Cercle gallifreyen au sol pendant la remat** *(moyen)* : Sous l'ombre annonciatrice (EffetsExterieurs), un cercle d'écriture gallifreyenne (Decal ou SurfaceGui) tourne lentement et s'efface quand la cabine est pleine. Un vrai repère Doctor Who pour les témoins.
-- **G-22. Poussière qui tombe du plafond à l'arrivée** *(moyen)* : Si la cabine se pose sous un toit (raycast vers le haut à moins de 20 studs), de la poussière et de petits débris tombent du plafond au choc d'arrivée. Le lieu réagit à l'atterrissage.
-- **C-178. Saleté selon le terrain d'atterrissage** *(petit)* : TerrainAtterrissage est déjà connu : le sable et la boue salissent plus, la neige et l'herbe moins.
+- ✅ **G-19. Marque au sol différente selon le mode** *(petit)* : La trace carrée de la V6.9.9 change selon le mode : brûlée et fumante en Urgence, givrée en bleu après une Urgence froide, nette et verte en Rapide. En partie là : aujourd'hui la marque est la même dans tous les modes.
+- ✅ **G-20. Givre au sol après un atterrissage d'urgence** *(petit)* : En plus du givre sur la cabine (EffetsExterieurs), un disque de givre blanc-bleu se forme au sol tout autour et fond en 25 secondes. Rien sur l'eau.
+- ✅ **G-21. Terrain réactif aussi au départ** *(petit)* : Le module Decor ne joue l'effet du sol (sable, neige, métal, herbe) qu'à l'atterrissage, avec TerrainAtterrissage. La même gerbe, plus petite, part au moment où la cabine s'efface. En partie là.
+- ✅ **G-23. Herbe du terrain qui s'agite au décollage** *(petit)* : Pour les joueurs proches seulement, workspace.GlobalWind est poussé un court instant pendant les souffles : l'herbe du Terrain et les particules sensibles au vent s'agitent autour de la cabine, puis le vent revient à sa valeur.
+- ✅ **G-29. Brume basse qui reste après l'arrivée de nuit** *(petit)* : La nuit, une nappe de brume très basse reste quelques secondes autour de la base après l'atterrissage, puis se dissipe. La cabine semble sortir du brouillard.
+- ✅ **G-12. Cercle gallifreyen au sol pendant la remat** *(moyen)* : Sous l'ombre annonciatrice (EffetsExterieurs), un cercle d'écriture gallifreyenne (Decal ou SurfaceGui) tourne lentement et s'efface quand la cabine est pleine. Un vrai repère Doctor Who pour les témoins.
+- ✅ **G-22. Poussière qui tombe du plafond à l'arrivée** *(moyen)* : Si la cabine se pose sous un toit (raycast vers le haut à moins de 20 studs), de la poussière et de petits débris tombent du plafond au choc d'arrivée. Le lieu réagit à l'atterrissage.
+- ✅ **C-178. Saleté selon le terrain d'atterrissage** *(petit)* : TerrainAtterrissage est déjà connu : le sable et la boue salissent plus, la neige et l'herbe moins.
 
 **Dans Studio :** Fournir une image (Decal) de cercle d'écriture gallifreyenne pour G-12, ou accepter un cercle dessiné par le code.
 

@@ -49,7 +49,8 @@ attendus = {"FenetresNuit": 0.55, "TeinteVitres": 0.25, "VitresHorsTension": 0.8
 verifier("Config.Effets : les 9 réglages de la cabine vivante", all(EF.get(k) == v for k, v in attendus.items()), {k: EF.get(k) for k in attendus})
 cfgsrc = lire("ReplicatedStorage/TardisConfig.lua")
 i = cfgsrc.index("-- Cabine vivante (V7.2.1)")
-nouvelles = [l for l in cfgsrc[i:cfgsrc.index("\n}", i)].splitlines() if re.match(r"\s*\w+ = ", l)]
+fin_bloc = min(j for j in (cfgsrc.find("\n}", i), cfgsrc.find("\n\t-- Traces au sol", i)) if j > 0)  # (V7.2.2 : le bloc suivant s'ajoute dessous)
+nouvelles = [l for l in cfgsrc[i:fin_bloc].splitlines() if re.match(r"\s*\w+ = ", l)]
 verifier("Chaque nouveau réglage est commenté « (V7.2.1, G-…) »", len(nouvelles) == 9 and all("(V7.2.1, G-" in l for l in nouvelles), nouvelles[:2])
 verifier("Les réglages de la V6.9.9 restent tous là", all(EF.get(k) is not None for k in ("RetardVitres", "Nuit", "Jour", "Catastrophe")))
 # nuitDe : même courbe que facteurHeure

@@ -1,6 +1,6 @@
 -- StarterPlayerScripts > TardisExtrasClient > EffetsExterieurs (ModuleScript)
 -- Halo et projecteur, ombre, air, distorsion, givre, impacts, leurre, rayon tracteur, chocs et secousse,
--- freinage d'urgence ressenti à bord (V6.9.10)
+-- freinage d'urgence ressenti à bord (V6.9.10), cercle gallifreyen sous l'ombre de la remat (V7.2.2)
 -- Extrait du script principal en V6.6.3 : reçoit ce qu'il utilise, renvoie ce que la suite utilise.
 
 return function(contexte)
@@ -48,6 +48,44 @@ return function(contexte)
 	do
 		local UI_ = require(game:GetService("ReplicatedStorage"):WaitForChild("TardisUI"))
 		local ombre, air, givre = nil, nil, nil
+		-- (V7.2.2, G-12) Cercle d'écriture gallifreyenne : une image (Config.Effets.ImageCercle) ou un cercle dessiné par le code
+		local EFFETS = Config.Effets or {}
+		local cercle = nil
+		local OR = Color3.fromRGB(255, 196, 110)
+		local function anneau(parent, taille, epaisseur, position)
+			local f = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = position or UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(taille, taille),
+				BackgroundTransparency = 1, Parent = parent })
+			creer("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = f })
+			creer("UIStroke", { Color = OR, Thickness = epaisseur, Parent = f })
+			return f
+		end
+		local function creerCercle()
+			local part = partTemporaire({ Name = "TardisCercle_" .. def.Nom, Transparency = 1, Size = Vector3.new(1, 0.05, 1) })
+			local gui = creer("SurfaceGui", { Name = "Ecran", Face = Enum.NormalId.Top, SizingMode = Enum.SurfaceGuiSizingMode.FixedSize,
+				CanvasSize = Vector2.new(512, 512), LightInfluence = 0, Brightness = 2, Parent = part })
+			local groupe = creer("CanvasGroup", { Name = "Groupe", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1, Parent = gui })
+			local image = tostring(EFFETS.ImageCercle or "")
+			if image ~= "" then
+				creer("ImageLabel", { Name = "Image", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = image, ImageColor3 = OR, Parent = groupe })
+			else
+				-- Écriture dessinée : quatre anneaux, et des « mots » (petits cercles, parfois un point au centre) sur l'anneau du milieu
+				anneau(groupe, 0.98, 6) anneau(groupe, 0.9, 2) anneau(groupe, 0.56, 4) anneau(groupe, 0.2, 3)
+				for i = 0, 7 do
+					local a = i / 8 * 2 * math.pi
+					local position = UDim2.fromScale(0.5 + 0.365 * math.cos(a), 0.5 + 0.365 * math.sin(a))
+					anneau(groupe, (i % 3 == 0) and 0.15 or ((i % 3 == 1) and 0.11 or 0.08), 3, position)
+					if i % 2 == 0 then
+						local point = creer("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = position, Size = UDim2.fromScale(0.025, 0.025),
+							BackgroundColor3 = OR, BorderSizePixel = 0, Parent = groupe })
+						creer("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = point })
+					end
+				end
+			end
+			return part
+		end
+		local function retirerCercle()
+			if cercle then cercle:Destroy() cercle = nil end
+		end
 		local facteurAir = nil -- force pour laquelle la transparence des volutes a été réglée
 		local flou = creer("BlurEffect", { Size = 0, Name = "TardisDistorsion", Parent = Lighting })
 		local teinte = creer("ColorCorrectionEffect", { Name = "TardisDistorsionTeinte", Parent = Lighting })
@@ -83,9 +121,18 @@ return function(contexte)
 						ombre.Size = Vector3.new(0.05, diametre, diametre)
 						ombre.CFrame = CFrame.new(sol.Position + Vector3.new(0, 0.06, 0)) * CFrame.Angles(0, 0, math.pi / 2)
 						ombre.Transparency = 0.45 + 0.5 * math.clamp(p * 1.5, 0, 1) -- bien visible au début, s'efface quand le TARDIS apparaît
+						-- (V7.2.2, G-12) Le cercle tourne lentement sous l'ombre et s'efface quand la cabine est pleine
+						if EFFETS.CercleGallifreyen ~= false then
+							if not cercle then cercle = creerCercle() end
+							local d = math.max(taille.X, taille.Z) * 1.9
+							cercle.Size = Vector3.new(d, 0.05, d)
+							cercle.CFrame = CFrame.new(sol.Position + Vector3.new(0, 0.09, 0)) * CFrame.Angles(0, os.clock() * 0.35, 0)
+							cercle.Ecran.Groupe.GroupTransparency = 0.15 + 0.85 * math.clamp(p * 1.3, 0, 1)
+						end
 					elseif ombre then
 						ombre:Destroy()
 						ombre = nil
+						retirerCercle()
 					end
 					if not air then
 						air = partTemporaire({ Name = "TardisAir", Transparency = 1, Size = Vector3.new(taille.X * 1.6, 0.5, taille.Z * 1.6) })
@@ -108,6 +155,7 @@ return function(contexte)
 				end
 			else
 				if ombre then ombre:Destroy() ombre = nil end
+				retirerCercle()
 				if air then
 					local vieux = air
 					air = nil

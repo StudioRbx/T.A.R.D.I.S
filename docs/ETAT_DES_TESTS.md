@@ -7,10 +7,22 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 248 tests** — ⬜ 224 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 255 tests** — ⬜ 231 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V7.2.2 — Traces au sol à l'arrivée
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Atterrir en Urgence | trace brûlée qui fume ; disque de givre au sol qui fond en 25 s | ⬜ |  |
+| Atterrir en Rapide | trace nette et verte | ⬜ |  |
+| Décoller depuis du sable ou de la neige | une petite gerbe du sol quand la cabine s'efface ; l'herbe s'agite autour si on est tout près | ⬜ |  |
+| Atterrir de nuit (`Lighting.ClockTime` à 22) | brume basse autour de la base pendant quelques secondes | ⬜ |  |
+| Regarder une remat de près | cercle gallifreyen qui tourne sous l'ombre puis s'efface | ⬜ |  |
+| Atterrir sous un toit bas | poussière et débris qui tombent du plafond | ⬜ |  |
+| Atterrir plusieurs fois sur le sable puis sur la neige | la saleté monte plus vite sur le sable | ⬜ |  |
 
 ## V7.2.1 — Cabine : lampe et vitres vivantes
 

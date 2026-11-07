@@ -355,8 +355,12 @@ exterieur:GetAttributeChangedSignal("Etat"):Connect(function()
 	if etat == E.Pose and etatPrecedent == E.Remat then
 		voyagesConsecutifs += 1
 		exterieur:SetAttribute("VoyagesConsecutifs", voyagesConsecutifs) -- lu par la tablette technicien
-		-- Saleté : la cabine se salit à chaque atterrissage
-		exterieur:SetAttribute("Salete", math.clamp((exterieur:GetAttribute("Salete") or 0) + (S.SaleteParVoyage or 8), 0, 100))
+		-- Saleté : la cabine se salit à chaque atterrissage, plus sur le sable et la boue, moins sur la neige et l'herbe
+		-- (V7.2.2, C-178 : le sol est connu 0,1 s après l'arrivée, voir surAtterrissage)
+		task.delay(0.2, function()
+			local gain = Config.saleteAtterrissage(exterieur:GetAttribute("TerrainAtterrissage"))
+			exterieur:SetAttribute("Salete", math.clamp((exterieur:GetAttribute("Salete") or 0) + gain, 0, 100))
+		end)
 		if voyagesConsecutifs >= (S.VoyagesAvantCoupure or 5) and not exterieur:GetAttribute("RedemarrageRequis") then
 			task.delay(2, function()
 				exterieur:SetAttribute("RedemarrageRequis", true)

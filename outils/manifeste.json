@@ -1,5 +1,5 @@
 {
- "version": "7.2.1",
+ "version": "7.2.2",
  "entrees": [
   {
    "fichier": "src/ReplicatedStorage/TardisCommandes.lua",
@@ -16,8 +16,8 @@
    "nom": "TardisConfig",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 108570,
-   "empreinte": 512481476
+   "taille": 112066,
+   "empreinte": 1110683148
   },
   {
    "fichier": "src/ReplicatedStorage/TardisUI.lua",
@@ -97,8 +97,8 @@
    "nom": "TardisSystemes",
    "classe": "Script",
    "parTardis": false,
-   "taille": 96435,
-   "empreinte": 1330185468
+   "taille": 96688,
+   "empreinte": 1707130770
   },
   {
    "fichier": "src/ServerScriptService/TardisTenues.lua",
@@ -268,8 +268,8 @@
    "nom": "Decor",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 10102,
-   "empreinte": 2112903615
+   "taille": 13973,
+   "empreinte": 92592835
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/EffetsExterieurs.lua",
@@ -277,8 +277,8 @@
    "nom": "EffetsExterieurs",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 18192,
-   "empreinte": 1032371580
+   "taille": 21128,
+   "empreinte": 1308628193
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/Interactions.lua",
@@ -349,8 +349,8 @@
    "nom": "Signalisation",
    "classe": "ModuleScript",
    "parTardis": false,
-   "taille": 21145,
-   "empreinte": 7898670
+   "taille": 26388,
+   "empreinte": 1997374147
   },
   {
    "fichier": "src/StarterPlayer/StarterPlayerScripts/TardisExtrasClient/SousTitres.lua",
