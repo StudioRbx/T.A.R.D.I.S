@@ -7,10 +7,19 @@ le script (les résultats notés sont gardés).
 
 Légende : ⬜ à tester · ✅ marche · ⚠️ marche à moitié · ❌ ne marche pas · ➖ plus d'actualité
 
-**Total : 226 tests** — ⬜ 202 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
+**Total : 230 tests** — ⬜ 206 · ✅ 6 · ⚠️ 0 · ❌ 0 · ➖ 18
 
 Les simulations sans Roblox (`outils/simulation/lancer.sh`) vérifient la logique ; seuls ces tests en jeu
 confirment l'affichage, les sons et les sensations.
+
+## V6.9.17 — Maps en Streaming
+
+| Test | Attendu | Résultat | Remarque |
+|---|---|---|---|
+| Map en Streaming, pièces directement dans `INTERIEURE`, lancer Play | avertissement « rangé dans le Model TARDIS_1_INTERIEURE (Persistent) » ; diagnostic « streaming : ok » | ⬜ |  |
+| Appuyer sur T, puis sur Y (pilote) | le menu et la tablette s'ouvrent | ⬜ |  |
+| Map en Streaming déjà rangée dans un Model Persistent | aucun avertissement, « streaming : ok » | ⬜ |  |
+| Map sans Streaming (DEVMAP) | rien ne change, pas de mention du Streaming | ⬜ |  |
 
 ## V6.9.16 — Retouches de la console
 
