@@ -1,3 +1,7 @@
 * text=auto eol=lf
 *.lua linguist-language=Luau
 *.rbxm binary
+*.blend binary
+*.fbx binary
+*.glb binary
+*.png binary
